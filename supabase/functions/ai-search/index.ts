@@ -92,8 +92,9 @@ Example: "3-bedroom fixers under $650k in Arlington with ROI over 15%" ->
     );
   } catch (error) {
     console.error('Error in ai-search:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
