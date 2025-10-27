@@ -1,0 +1,235 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function PropertyDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [property, setProperty] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<string>("");
+
+  useEffect(() => {
+    if (id) {
+      fetchProperty();
+    }
+  }, [id]);
+
+  const fetchProperty = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      setProperty(data);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-analyze", {
+        body: { property },
+      });
+
+      if (error) throw error;
+
+      if (data?.analysis) {
+        setAnalysis(data.analysis);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Analysis failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-12">
+          <Skeleton className="h-96 w-full mb-8" />
+          <Skeleton className="h-8 w-1/3 mb-4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!property) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Property not found</h1>
+          <Button onClick={() => navigate("/properties")}>
+            Back to Properties
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <Button
+          variant="ghost"
+          onClick={() => navigate("/properties")}
+          className="mb-6"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Properties
+        </Button>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <img
+              src={property.image_urls[0] || '/placeholder.svg'}
+              alt={property.address}
+              className="w-full h-96 object-cover rounded-lg shadow-lg"
+            />
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-4xl font-bold text-primary mb-2">
+                {formatPrice(property.price)}
+              </h1>
+              <p className="flex items-center gap-2 text-lg text-muted-foreground">
+                <MapPin className="h-5 w-5" />
+                {property.address}, {property.city}, {property.state} {property.zip}
+              </p>
+            </div>
+
+            <div className="flex gap-6 text-lg">
+              <div className="flex items-center gap-2">
+                <Bed className="h-5 w-5 text-muted-foreground" />
+                <span>{property.beds} Beds</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Bath className="h-5 w-5 text-muted-foreground" />
+                <span>{property.baths} Baths</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Ruler className="h-5 w-5 text-muted-foreground" />
+                <span>{property.sqft} sqft</span>
+              </div>
+            </div>
+
+            <Badge className="text-lg px-4 py-2">
+              {property.condition}
+            </Badge>
+
+            <Separator />
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Investment Analysis</CardTitle>
+                <CardDescription>Key metrics for this property</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {property.arv && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">After Repair Value (ARV)</span>
+                    <span className="font-semibold">{formatPrice(property.arv)}</span>
+                  </div>
+                )}
+                {property.rehab_cost && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Estimated Rehab Cost</span>
+                    <span className="font-semibold">{formatPrice(property.rehab_cost)}</span>
+                  </div>
+                )}
+                {property.roi_percent && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Estimated ROI
+                    </span>
+                    <span className="font-semibold text-secondary text-lg">
+                      {property.roi_percent}%
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Button 
+              className="w-full" 
+              size="lg"
+              onClick={handleAnalyze}
+              disabled={analyzing}
+            >
+              {analyzing ? (
+                <>
+                  <Sparkles className="mr-2 h-5 w-5 animate-pulse" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Generate AI Analysis
+                </>
+              )}
+            </Button>
+
+            {analysis && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>AI Analysis Report</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="whitespace-pre-wrap">{analysis}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {property.description && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle>Property Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">{property.description}</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
