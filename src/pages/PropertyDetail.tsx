@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { ExternalLinks } from "@/components/ExternalLinks";
 
 export default function PropertyDetail() {
   const { id } = useParams();
@@ -17,11 +19,15 @@ export default function PropertyDetail() {
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<string>("");
+  const [userId, setUserId] = useState<string | undefined>();
 
   useEffect(() => {
     if (id) {
       fetchProperty();
     }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id);
+    });
   }, [id]);
 
   const fetchProperty = async () => {
@@ -206,6 +212,8 @@ export default function PropertyDetail() {
               )}
             </Button>
 
+            <FavoriteButton propertyId={property.id} userId={userId} />
+
             {analysis && (
               <Card>
                 <CardHeader>
@@ -216,6 +224,8 @@ export default function PropertyDetail() {
                 </CardContent>
               </Card>
             )}
+
+            <ExternalLinks property={property} />
           </div>
         </div>
 

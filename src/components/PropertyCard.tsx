@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MapPin, Bed, Bath, Ruler, TrendingUp } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PropertyCardProps {
   property: {
@@ -22,6 +25,13 @@ interface PropertyCardProps {
 
 export function PropertyCard({ property }: PropertyCardProps) {
   const navigate = useNavigate();
+  const [userId, setUserId] = useState<string | undefined>();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id);
+    });
+  }, []);
   
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -43,16 +53,17 @@ export function PropertyCard({ property }: PropertyCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/property/${property.id}`)}>
-      <div className="relative h-48 overflow-hidden">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="relative h-48 overflow-hidden cursor-pointer" onClick={() => navigate(`/property/${property.id}`)}>
         <img
           src={property.image_urls[0] || '/placeholder.svg'}
           alt={property.address}
           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
         />
-        <Badge className={`absolute top-2 right-2 ${getConditionColor(property.condition)}`}>
+        <Badge className={`absolute top-2 left-2 ${getConditionColor(property.condition)}`}>
           {property.condition}
         </Badge>
+        <FavoriteButton propertyId={property.id} userId={userId} variant="icon" />
       </div>
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary">

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/SearchBar";
-import { Home, MessageCircle, Calculator, LogIn, LogOut, Sparkles } from "lucide-react";
+import { Home, MessageCircle, Calculator, LogIn, LogOut, Sparkles, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -57,10 +57,16 @@ const Index = () => {
               Calculators
             </Button>
             {user ? (
-              <Button variant="outline" onClick={handleSignOut}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-              </Button>
+              <>
+                <Button variant="ghost" onClick={() => navigate("/profile")}>
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </Button>
+                <Button variant="outline" onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
+                </Button>
+              </>
             ) : (
               <Button onClick={() => navigate("/auth")}>
                 <LogIn className="mr-2 h-4 w-4" />
