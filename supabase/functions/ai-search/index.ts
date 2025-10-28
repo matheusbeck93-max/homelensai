@@ -53,7 +53,12 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
     });
 
     const aiData = await aiResponse.json();
-    const parsedFilters = JSON.parse(aiData.choices[0].message.content);
+    let content = aiData.choices[0].message.content;
+    
+    // Remove markdown code blocks if present
+    content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    const parsedFilters = JSON.parse(content);
     
     console.log('Parsed filters:', parsedFilters);
 
