@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SearchBar } from "@/components/SearchBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { ExternalLink } from "lucide-react";
+import FollowUpChat from "@/components/FollowUpChat";
 
 export default function Properties() {
   const [assistantResponse, setAssistantResponse] = useState<string>("");
@@ -116,6 +117,9 @@ export default function Properties() {
           </div>
         )}
       </div>
+      
+      {/* Follow-up Chat Box */}
+      <FollowUpChat context={assistantResponse} />
     </div>
   );
 }
