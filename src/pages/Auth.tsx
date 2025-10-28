@@ -25,7 +25,7 @@ export default function Auth() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/chat`,
         data: {
           full_name: fullName,
         },
@@ -45,7 +45,7 @@ export default function Auth() {
         title: "Success!",
         description: "Your account has been created. Welcome to HomeLens!",
       });
-      navigate("/");
+      navigate("/chat");
     }
   };
 
@@ -71,7 +71,7 @@ export default function Auth() {
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
-      navigate("/");
+      navigate("/chat");
     }
   };
 

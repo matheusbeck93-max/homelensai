@@ -60,6 +60,15 @@ export default function Index() {
             <span className="text-xl font-bold">HomeLens</span>
           </div>
           <div className="flex items-center gap-4">
+            <a href="#features" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
+              <Bot className="h-5 w-5" />
+            </a>
+            <a href="#pricing" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
+              <Calculator className="h-5 w-5" />
+            </a>
+            <a href="#cta" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
+              <TrendingUp className="h-5 w-5" />
+            </a>
             <ThemeToggle />
             {user ? <>
                 <Button variant="ghost" onClick={() => navigate("/chat")}>
@@ -74,7 +83,10 @@ export default function Index() {
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </Button>
-              </> : <Button onClick={() => navigate("/auth")}>Get Started</Button>}
+              </> : <>
+                <Button variant="ghost" onClick={() => navigate("/auth")}>Login</Button>
+                <Button onClick={() => navigate("/auth")}>Sign Up</Button>
+              </>}
           </div>
         </div>
       </nav>
@@ -82,7 +94,7 @@ export default function Index() {
       <div className="container mx-auto px-4 py-20">
         <div className="text-center max-w-4xl mx-auto mb-16">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Navigate the Housing Market with AI
+            Find your new home.
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
             Your intelligent assistant for finding homes, analyzing investments, and understanding mortgages
@@ -122,7 +134,7 @@ export default function Index() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-20">
+        <div id="features" className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-20">
           {features.map((feature, index) => <Card key={index} className="border-2 hover:border-primary/50 transition-colors">
               <CardContent className="p-6">
                 <feature.icon className="h-12 w-12 text-primary mb-4" />
@@ -132,7 +144,7 @@ export default function Index() {
             </Card>)}
         </div>
 
-        <div className="max-w-4xl mx-auto text-center mb-20">
+        <div id="pricing" className="max-w-4xl mx-auto text-center mb-20">
           <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
           <p className="text-xl text-muted-foreground mb-12">
             Everything you need to make informed real estate decisions
@@ -157,7 +169,7 @@ export default function Index() {
           </Card>
         </div>
 
-        <div className="text-center max-w-3xl mx-auto">
+        <div id="cta" className="text-center max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold mb-4">Ready to find your dream home?</h2>
           <p className="text-xl text-muted-foreground mb-8">
             Join thousands of users making smarter real estate decisions with AI
