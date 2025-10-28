@@ -95,8 +95,8 @@ const Index = () => {
         <SearchBar onSearch={handleSearch} />
 
         {/* Feature Cards */}
-        <div className="text-center mb-8">
-          <p className="text-lg text-muted-foreground">Select all that apply</p>
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground">Select all that apply</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="text-center p-8 rounded-xl bg-card hover:shadow-lg transition-shadow border">
