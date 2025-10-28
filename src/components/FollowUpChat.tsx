@@ -3,24 +3,40 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Minimize2, Maximize2 } from "lucide-react";
+import { Send, Bot, User, Minimize2, Maximize2, Bed, Bath, Square, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-interface FollowUpChatProps {
-  context?: string;
+interface Property {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  price: number;
+  beds: number;
+  baths: number;
+  sqft: number;
+  image_url: string;
+  description?: string;
 }
 
-export default function FollowUpChat({ context }: FollowUpChatProps) {
+interface FollowUpChatProps {
+  context?: string;
+  properties?: Property[];
+}
+
+export default function FollowUpChat({ context, properties = [] }: FollowUpChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -39,9 +55,13 @@ export default function FollowUpChat({ context }: FollowUpChatProps) {
     setLoading(true);
 
     try {
-      const contextPrompt = context 
-        ? `Context: ${context}\n\nUser question: ${input}`
-        : input;
+      let contextPrompt = input;
+      
+      if (selectedProperty) {
+        contextPrompt = `Property Context: ${selectedProperty.address}, ${selectedProperty.city}, ${selectedProperty.state} - $${selectedProperty.price.toLocaleString()}, ${selectedProperty.beds} beds, ${selectedProperty.baths} baths, ${selectedProperty.sqft} sqft\n\nUser question: ${input}`;
+      } else if (context) {
+        contextPrompt = `Context: ${context}\n\nUser question: ${input}`;
+      }
 
       const { data, error } = await supabase.functions.invoke("property-assistant", {
         body: { query: contextPrompt },
@@ -66,6 +86,22 @@ export default function FollowUpChat({ context }: FollowUpChatProps) {
     }
   };
 
+  const handlePropertySelect = (property: Property) => {
+    setSelectedProperty(property);
+    toast({
+      title: "Property Selected",
+      description: `Ask me anything about ${property.address}`,
+    });
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -84,7 +120,9 @@ export default function FollowUpChat({ context }: FollowUpChatProps) {
         <div className="flex items-center justify-between p-3 border-b bg-primary/5">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-sm">Ask Follow-up Questions</span>
+            <span className="font-semibold text-sm">
+              {selectedProperty ? `Asking about ${selectedProperty.address}` : "Ask Follow-up Questions"}
+            </span>
           </div>
           <Button
             variant="ghost"
@@ -95,6 +133,61 @@ export default function FollowUpChat({ context }: FollowUpChatProps) {
             {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
         </div>
+
+        {/* Property Carousel - Only show when expanded and properties exist */}
+        {isExpanded && properties.length > 0 && (
+          <div className="border-b p-4 bg-muted/30">
+            <Carousel className="w-full">
+              <CarouselContent>
+                {properties.map((property) => (
+                  <CarouselItem key={property.id} className="md:basis-1/2 lg:basis-1/3">
+                    <Card 
+                      className={`overflow-hidden cursor-pointer transition-all ${
+                        selectedProperty?.id === property.id ? "ring-2 ring-primary" : "hover:shadow-lg"
+                      }`}
+                      onClick={() => handlePropertySelect(property)}
+                    >
+                      <div className="aspect-video relative overflow-hidden">
+                        <img
+                          src={property.image_url}
+                          alt={property.address}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="p-3">
+                        <p className="text-lg font-bold text-primary mb-1">
+                          {formatPrice(property.price)}
+                        </p>
+                        <p className="text-xs font-medium mb-1 line-clamp-1">
+                          {property.address}
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {property.city}, {property.state}
+                        </p>
+                        <div className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Bed className="h-3 w-3" />
+                            <span>{property.beds}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Bath className="h-3 w-3" />
+                            <span>{property.baths}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Square className="h-3 w-3" />
+                            <span>{property.sqft}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
+          </div>
+        )}
 
         {/* Messages - Only show when expanded */}
         {isExpanded && (

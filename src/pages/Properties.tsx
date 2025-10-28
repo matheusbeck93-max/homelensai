@@ -7,18 +7,102 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ExternalLink } from "lucide-react";
 import FollowUpChat from "@/components/FollowUpChat";
 
+interface Property {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  price: number;
+  beds: number;
+  baths: number;
+  sqft: number;
+  image_url: string;
+  description?: string;
+}
+
 export default function Properties() {
   const [assistantResponse, setAssistantResponse] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+
+  const generateMockProperties = (query: string): Property[] => {
+    // Extract location from query if possible
+    const locationMatch = query.match(/in\s+([^,\n]+)/i);
+    const city = locationMatch ? locationMatch[1].trim() : "Arlington";
+    
+    return [
+      {
+        id: "1",
+        address: "123 Wilson Blvd",
+        city: city,
+        state: "VA",
+        price: 425000,
+        beds: 3,
+        baths: 2,
+        sqft: 1800,
+        image_url: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
+        description: "Modern apartment with updated kitchen"
+      },
+      {
+        id: "2",
+        address: "456 Clarendon Blvd",
+        city: city,
+        state: "VA",
+        price: 395000,
+        beds: 3,
+        baths: 2.5,
+        sqft: 1650,
+        image_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
+        description: "Beautiful unit with city views"
+      },
+      {
+        id: "3",
+        address: "789 Columbia Pike",
+        city: city,
+        state: "VA",
+        price: 385000,
+        beds: 3,
+        baths: 2,
+        sqft: 1700,
+        image_url: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800",
+        description: "Spacious living with hardwood floors"
+      },
+      {
+        id: "4",
+        address: "321 Lee Highway",
+        city: city,
+        state: "VA",
+        price: 450000,
+        beds: 3,
+        baths: 2,
+        sqft: 1900,
+        image_url: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800",
+        description: "Luxury apartment with amenities"
+      },
+      {
+        id: "5",
+        address: "567 Washington Blvd",
+        city: city,
+        state: "VA",
+        price: 410000,
+        beds: 3,
+        baths: 2,
+        sqft: 1750,
+        image_url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
+        description: "Contemporary design with balcony"
+      }
+    ];
+  };
 
   const handleSearch = useCallback(async (query: string, categories?: string[]) => {
     if (!query.trim()) return;
     
     setSearchLoading(true);
     setAssistantResponse("");
+    setProperties([]);
     
     try {
       const { data, error } = await supabase.functions.invoke("property-assistant", {
@@ -29,6 +113,9 @@ export default function Properties() {
 
       if (data?.response) {
         setAssistantResponse(data.response);
+        // Generate mock properties based on search
+        const mockProps = generateMockProperties(query);
+        setProperties(mockProps);
       }
     } catch (error: any) {
       toast({
@@ -119,7 +206,7 @@ export default function Properties() {
       </div>
       
       {/* Follow-up Chat Box */}
-      <FollowUpChat context={assistantResponse} />
+      <FollowUpChat context={assistantResponse} properties={properties} />
     </div>
   );
 }
