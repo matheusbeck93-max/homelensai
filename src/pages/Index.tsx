@@ -100,7 +100,7 @@ const Index = () => {
             <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Sparkles className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">AI-Powered Search</h3>
+            <h3 className="text-xl font-semibold mb-2">I'm first time home-buyer</h3>
             <p className="text-muted-foreground">
               Use natural language to find properties that match your exact criteria
             </p>
@@ -110,7 +110,7 @@ const Index = () => {
             <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calculator className="h-6 w-6 text-secondary" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Deal Analysis</h3>
+            <h3 className="text-xl font-semibold mb-2">Calculate Mortgage</h3>
             <p className="text-muted-foreground">
               Get instant ROI calculations and investment insights on any property
             </p>
@@ -120,7 +120,7 @@ const Index = () => {
             <div className="h-12 w-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <MessageCircle className="h-6 w-6 text-accent" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">AI Assistant</h3>
+            <h3 className="text-xl font-semibold mb-2">Get Pre-Approved</h3>
             <p className="text-muted-foreground">
               Chat with our AI to get answers about properties, rates, and programs
             </p>
