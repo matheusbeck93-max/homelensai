@@ -22,7 +22,8 @@ interface Property {
   beds: number;
   baths: number;
   sqft: number;
-  image_url: string;
+  image_urls?: string[];
+  image_url?: string;
   description?: string;
 }
 
@@ -149,7 +150,7 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
                     >
                       <div className="aspect-video relative overflow-hidden">
                         <img
-                          src={property.image_url}
+                          src={property.image_urls?.[0] || property.image_url || "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800"}
                           alt={property.address}
                           className="w-full h-full object-cover"
                         />

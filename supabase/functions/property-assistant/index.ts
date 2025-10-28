@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, categories } = await req.json();
+    const { query, categories, properties } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -20,6 +20,9 @@ Deno.serve(async (req) => {
 
     const systemPrompt = `You are an expert real estate investment advisor and market analyst specialized in the U.S. housing market.
 Your expertise includes property valuation, investment analysis, market trends, renovation cost estimation, and financial modeling.
+
+${properties && properties.length > 0 ? `\n🏘️ PROPERTIES TO ANALYZE: You have ${properties.length} specific properties to review. Focus your analysis on these properties:
+${properties.map((p: any, i: number) => `\n${i + 1}. ${p.address}, ${p.city}, ${p.state} - $${p.price.toLocaleString()} | ${p.beds} bed, ${p.baths} bath, ${p.sqft} sqft`).join('')}\n` : ''}
 
 🎯 Your Capabilities:
 
@@ -62,18 +65,17 @@ ${categories && categories.length > 0 ? `\n🎯 User Context: The user has indic
 
 🧩 Response Format:
 
-**For General Searches:**
+${properties && properties.length > 0 ? `**Analyze the Properties Shown in the Carousel:**
+- Provide overview of all ${properties.length} properties
+- Compare their investment potential, pricing, and value
+- Highlight the best deals and opportunities
+- Detailed financial analysis for top picks
+- Market positioning and recommendations
+- Note: Users can see property images and details in the carousel above` : `**For General Searches:**
 - Brief market overview for the area
 - Typical price ranges and property types
-- 3+ search links to Zillow, Realtor.com, Redfin
-- Investment considerations for that market
-
-**For Specific Properties:**
-- Property overview and first impressions
-- Detailed financial analysis (payment breakdown, investment metrics)
-- Renovation cost estimates if relevant
-- Market positioning and value assessment
-- Specific recommendations and action items
+- Note: Specific properties will be shown in the carousel above
+- Investment considerations for that market`}
 
 🧭 Rules:
 - Be specific and quantitative - provide actual numbers and calculations

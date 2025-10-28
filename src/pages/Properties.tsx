@@ -16,7 +16,8 @@ interface Property {
   beds: number;
   baths: number;
   sqft: number;
-  image_url: string;
+  image_urls?: string[];
+  image_url?: string;
   description?: string;
 }
 
@@ -105,18 +106,31 @@ export default function Properties() {
     setProperties([]);
     
     try {
-      const { data, error } = await supabase.functions.invoke("property-assistant", {
-        body: { query, categories },
+      // First, search for actual properties in the database
+      const { data: searchData, error: searchError } = await supabase.functions.invoke('ai-search', {
+        body: { query, categories }
       });
 
-      if (error) throw error;
+      if (searchError) throw searchError;
 
-      if (data?.response) {
-        setAssistantResponse(data.response);
-        // Generate mock properties based on search
-        const mockProps = generateMockProperties(query);
-        setProperties(mockProps);
-      }
+      const foundProperties = searchData?.properties || [];
+      
+      // If no properties found in database, use mock properties
+      const propsToUse = foundProperties.length > 0 ? foundProperties : generateMockProperties(query);
+      setProperties(propsToUse);
+
+      // Then get AI analysis of those properties
+      const { data: assistantData, error: assistantError } = await supabase.functions.invoke('property-assistant', {
+        body: { 
+          query,
+          categories,
+          properties: propsToUse
+        }
+      });
+
+      if (assistantError) throw assistantError;
+
+      setAssistantResponse(assistantData?.response || "I found some properties for you!");
     } catch (error: any) {
       toast({
         title: "Search failed",
