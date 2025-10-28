@@ -11,14 +11,14 @@ Deno.serve(async (req) => {
   try {
     const { query, categories } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const ZILLOW_API_KEY = Deno.env.get('ZILLOW_API_KEY');
+    const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
     
-    if (!ZILLOW_API_KEY) {
-      throw new Error('ZILLOW_API_KEY is not configured. Please add your Zillow API key.');
+    if (!RAPIDAPI_KEY) {
+      throw new Error('RAPIDAPI_KEY is not configured. Please add your RapidAPI key.');
     }
 
     // Parse natural language query with AI
@@ -63,85 +63,124 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
 
     let properties = [];
 
-    // Try to fetch from Zillow API if key is available
-    if (ZILLOW_API_KEY) {
-      try {
-        // Build search location string
-        const location = parsedFilters.city && parsedFilters.state 
-          ? `${parsedFilters.city}, ${parsedFilters.state}` 
-          : parsedFilters.city || parsedFilters.state || 'Miami, FL';
+    // Fetch from Redfin API
+    try {
+      // Step 1: Get location/region ID from auto-complete
+      const searchLocation = parsedFilters.city && parsedFilters.state 
+        ? `${parsedFilters.city}, ${parsedFilters.state}` 
+        : parsedFilters.city || parsedFilters.state || 'Miami, FL';
 
-        console.log('Searching Zillow for location:', location);
+      console.log('Searching Redfin for location:', searchLocation);
 
-        // Try propertyExtendedSearch endpoint
-        const zillowUrl = 'https://zillow-com1.p.rapidapi.com/propertyExtendedSearch';
-        const params = new URLSearchParams({
-          location: location,
-          status_type: 'ForSale',
-        });
-
-        if (parsedFilters.beds_min) {
-          params.append('bedsMin', parsedFilters.beds_min.toString());
+      const autocompleteUrl = `https://redfin-com-data.p.rapidapi.com/properties/auto-complete?query=${encodeURIComponent(searchLocation)}`;
+      
+      const autocompleteResponse = await fetch(autocompleteUrl, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': RAPIDAPI_KEY,
+          'X-RapidAPI-Host': 'redfin-com-data.p.rapidapi.com'
         }
-        if (parsedFilters.baths_min) {
-          params.append('bathsMin', parsedFilters.baths_min.toString());
-        }
-        if (parsedFilters.price_min) {
-          params.append('priceMin', parsedFilters.price_min.toString());
-        }
-        if (parsedFilters.price_max) {
-          params.append('priceMax', parsedFilters.price_max.toString());
-        }
+      });
 
-        console.log('Zillow API URL:', `${zillowUrl}?${params.toString()}`);
-
-        const zillowResponse = await fetch(`${zillowUrl}?${params.toString()}`, {
-          method: 'GET',
-          headers: {
-            'X-RapidAPI-Key': ZILLOW_API_KEY,
-            'X-RapidAPI-Host': 'zillow-com1.p.rapidapi.com'
-          }
-        });
-
-        if (zillowResponse.ok) {
-          const zillowData = await zillowResponse.json();
-          console.log('Zillow API response status:', zillowResponse.status);
-          console.log('Zillow API response preview:', JSON.stringify(zillowData).substring(0, 500));
-
-          // Transform Zillow data
-          if (zillowData.props && Array.isArray(zillowData.props)) {
-            properties = zillowData.props.slice(0, 12).map((prop: any) => ({
-              id: prop.zpid || prop.id || Math.random().toString(),
-              address: prop.address || prop.streetAddress || 'Address not available',
-              city: prop.city || parsedFilters.city || 'Unknown',
-              state: prop.state || parsedFilters.state || 'Unknown',
-              zip: prop.zipcode || prop.zip || '',
-              price: prop.price || prop.listPrice || 0,
-              beds: prop.bedrooms || prop.beds || 0,
-              baths: prop.bathrooms || prop.baths || 0,
-              sqft: prop.livingArea || prop.sqft || prop.area || 0,
-              image_urls: prop.imgSrc ? [prop.imgSrc] : prop.photos || ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
-              description: prop.description || `${prop.bedrooms || 0} bed, ${prop.bathrooms || 0} bath property`,
-              condition: 'active',
-              status: 'active',
-              externalLink: prop.detailUrl || `https://www.zillow.com/homedetails/${prop.zpid}_zpid/`,
-              year_built: prop.yearBuilt || null,
-              lot_size: prop.lotSize || null,
-            }));
-            console.log(`Successfully fetched ${properties.length} properties from Zillow`);
-          }
-        } else {
-          const errorText = await zillowResponse.text();
-          console.error('Zillow API error:', zillowResponse.status, errorText);
-        }
-      } catch (zillowError) {
-        console.error('Error fetching from Zillow:', zillowError);
+      if (!autocompleteResponse.ok) {
+        const errorText = await autocompleteResponse.text();
+        console.error('Redfin autocomplete error:', autocompleteResponse.status, errorText);
+        throw new Error(`Redfin autocomplete failed: ${errorText}`);
       }
+
+      const autocompleteData = await autocompleteResponse.json();
+      console.log('Redfin autocomplete response:', JSON.stringify(autocompleteData).substring(0, 500));
+
+      // Find the best matching region (city or county)
+      let regionId = null;
+      if (autocompleteData.data && autocompleteData.data.length > 0) {
+        // Look for Places section first
+        const placesSection = autocompleteData.data.find((section: any) => section.name === 'Places');
+        if (placesSection && placesSection.rows && placesSection.rows.length > 0) {
+          // Prefer city (type 2) over other types
+          const cityMatch = placesSection.rows.find((row: any) => row.type === '2');
+          regionId = cityMatch ? cityMatch.id : placesSection.rows[0].id;
+        }
+      }
+
+      if (!regionId) {
+        throw new Error('Could not find region ID for location');
+      }
+
+      console.log('Found region ID:', regionId);
+
+      // Step 2: Search for properties using region ID
+      const searchUrl = new URL('https://redfin-com-data.p.rapidapi.com/properties/search-sale');
+      searchUrl.searchParams.append('regionId', regionId);
+      
+      if (parsedFilters.beds_min) {
+        searchUrl.searchParams.append('minBeds', parsedFilters.beds_min.toString());
+      }
+      if (parsedFilters.baths_min) {
+        searchUrl.searchParams.append('minBaths', parsedFilters.baths_min.toString());
+      }
+      if (parsedFilters.price_min) {
+        searchUrl.searchParams.append('minPrice', parsedFilters.price_min.toString());
+      }
+      if (parsedFilters.price_max) {
+        searchUrl.searchParams.append('maxPrice', parsedFilters.price_max.toString());
+      }
+
+      console.log('Redfin search URL:', searchUrl.toString());
+
+      const searchResponse = await fetch(searchUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': RAPIDAPI_KEY,
+          'X-RapidAPI-Host': 'redfin-com-data.p.rapidapi.com'
+        }
+      });
+
+      if (!searchResponse.ok) {
+        const errorText = await searchResponse.text();
+        console.error('Redfin search error:', searchResponse.status, errorText);
+        throw new Error(`Redfin search failed: ${errorText}`);
+      }
+
+      const searchData = await searchResponse.json();
+      console.log('Redfin search response status:', searchResponse.status);
+      console.log('Redfin search response preview:', JSON.stringify(searchData).substring(0, 1000));
+
+      // Transform Redfin data to our format
+      if (searchData.data && searchData.data.homes && Array.isArray(searchData.data.homes)) {
+        properties = searchData.data.homes.slice(0, 12).map((home: any) => {
+          const priceInfo = home.priceInfo || {};
+          const addressInfo = home.addressInfo || {};
+          
+          return {
+            id: home.propertyId?.toString() || home.listingId?.toString() || Math.random().toString(),
+            address: addressInfo.formattedStreetLine || addressInfo.streetAddress || 'Address not available',
+            city: addressInfo.city || parsedFilters.city || 'Unknown',
+            state: addressInfo.state || parsedFilters.state || 'Unknown',
+            zip: addressInfo.zip || '',
+            price: priceInfo.amount || home.price || 0,
+            beds: home.beds || home.numBeds || 0,
+            baths: home.baths || home.numBaths || 0,
+            sqft: home.sqFt || home.squareFeet || 0,
+            image_urls: home.photos ? [home.photos] : (home.photoUrls || ['https://images.unsplash.com/photo-1568605114967-8130f3a36994']),
+            description: home.listingRemarks || `${home.beds || 0} bed, ${home.baths || 0} bath ${home.propertyType || 'property'}`,
+            condition: 'active',
+            status: 'active',
+            externalLink: home.url ? `https://www.redfin.com${home.url}` : null,
+            year_built: home.yearBuilt || null,
+            lot_size: home.lotSize || null,
+          };
+        });
+        console.log(`Successfully fetched ${properties.length} properties from Redfin`);
+      }
+    } catch (redfinError) {
+      console.error('Error fetching from Redfin:', redfinError);
+      throw redfinError;
     }
 
-    // Return properties only if we got real data from Zillow
+    // Return properties only if we got real data from Redfin
     if (properties.length === 0) {
-      console.log('No properties found from Zillow API');
+      console.log('No properties found from Redfin API');
       return new Response(
         JSON.stringify({ 
           properties: [], 
