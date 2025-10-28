@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
@@ -437,7 +437,7 @@ export default function Chat() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="opacity-0 group-hover:opacity-100 h-8 w-8"
+                className="opacity-0 group-hover:opacity-100 h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
                 onClick={(e) => deleteConversation(conv.id, e)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -446,8 +446,13 @@ export default function Chat() {
           ))}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t">
+      <div className="p-4 border-t space-y-2">
+        <Button onClick={() => navigate("/settings")} className="w-full" variant="outline">
+          <User className="mr-2 h-4 w-4" />
+          Settings
+        </Button>
         <Button onClick={handleLogout} className="w-full" variant="outline">
+          <LogOut className="mr-2 h-4 w-4" />
           Logout
         </Button>
       </div>

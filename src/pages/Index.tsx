@@ -53,39 +53,39 @@ export default function Index() {
     description: "Calculate mortgages, ROI, and evaluate investment opportunities"
   }];
   return <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
-      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="border-b bg-primary backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Home className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">HomeLens</span>
+            <Home className="h-6 w-6 text-primary-foreground" />
+            <span className="text-xl font-bold text-primary-foreground">HomeLens</span>
           </div>
           <div className="flex items-center gap-4">
-            <a href="#features" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
-              <Bot className="h-5 w-5" />
+            <a href="#features" className="text-primary-foreground hover:opacity-80 transition-opacity font-medium">
+              Features
             </a>
-            <a href="#pricing" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
-              <Calculator className="h-5 w-5" />
+            <a href="#pricing" className="text-primary-foreground hover:opacity-80 transition-opacity font-medium">
+              Pricing
             </a>
-            <a href="#cta" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
-              <TrendingUp className="h-5 w-5" />
+            <a href="#cta" className="text-primary-foreground hover:opacity-80 transition-opacity font-medium">
+              Get Started
             </a>
             <ThemeToggle />
             {user ? <>
-                <Button variant="ghost" onClick={() => navigate("/chat")}>
+                <Button variant="secondary" onClick={() => navigate("/chat")}>
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat
                 </Button>
-                <Button variant="ghost" onClick={() => navigate("/settings")}>
+                <Button variant="secondary" onClick={() => navigate("/settings")}>
                   <User className="h-4 w-4 mr-2" />
                   Settings
                 </Button>
-                <Button variant="outline" onClick={handleLogout}>
+                <Button variant="outline" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10" onClick={handleLogout}>
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </Button>
               </> : <>
-                <Button variant="ghost" onClick={() => navigate("/auth")}>Login</Button>
-                <Button onClick={() => navigate("/auth")}>Sign Up</Button>
+                <Button variant="secondary" onClick={() => navigate("/auth")}>Login</Button>
+                <Button variant="secondary" onClick={() => navigate("/auth")}>Sign Up</Button>
               </>}
           </div>
         </div>
