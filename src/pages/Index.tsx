@@ -95,7 +95,10 @@ const Index = () => {
         <SearchBar onSearch={handleSearch} />
 
         {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
+        <div className="text-center mb-8">
+          <p className="text-lg text-muted-foreground">Select all that apply</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="text-center p-8 rounded-xl bg-card hover:shadow-lg transition-shadow border">
             <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Sparkles className="h-6 w-6 text-primary" />
