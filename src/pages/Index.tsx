@@ -6,71 +6,62 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
 export default function Index() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.getUser().then(({
+      data
+    }) => setUser(data.user));
+    const {
+      data: {
+        subscription
+      }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
   };
-
   const toggleCategory = (category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
+    setSelectedCategories(prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]);
   };
-
   const handleSearch = (query: string) => {
-    const params = new URLSearchParams({ q: query });
+    const params = new URLSearchParams({
+      q: query
+    });
     if (selectedCategories.length > 0) {
       params.set("categories", selectedCategories.join(","));
     }
     navigate(`/properties?${params.toString()}`);
   };
-
-  const features = [
-    {
-      icon: Bot,
-      title: "AI Property Assistant",
-      description: "Get intelligent recommendations based on your preferences and market conditions",
-    },
-    {
-      icon: TrendingUp,
-      title: "Market Analysis",
-      description: "Access real-time market data, trends, and investment insights",
-    },
-    {
-      icon: Calculator,
-      title: "Financial Tools",
-      description: "Calculate mortgages, ROI, and evaluate investment opportunities",
-    },
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+  const features = [{
+    icon: Bot,
+    title: "AI Property Assistant",
+    description: "Get intelligent recommendations based on your preferences and market conditions"
+  }, {
+    icon: TrendingUp,
+    title: "Market Analysis",
+    description: "Access real-time market data, trends, and investment insights"
+  }, {
+    icon: Calculator,
+    title: "Financial Tools",
+    description: "Calculate mortgages, ROI, and evaluate investment opportunities"
+  }];
+  return <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
       <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">RealEstate AI</span>
+            <span className="text-xl font-bold">HomeLens</span>
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            {user ? (
-              <>
+            {user ? <>
                 <Button variant="ghost" onClick={() => navigate("/chat")}>
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Chat
@@ -83,10 +74,7 @@ export default function Index() {
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </Button>
-              </>
-            ) : (
-              <Button onClick={() => navigate("/auth")}>Get Started</Button>
-            )}
+              </> : <Button onClick={() => navigate("/auth")}>Get Started</Button>}
           </div>
         </div>
       </nav>
@@ -109,43 +97,39 @@ export default function Index() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-            {[
-              { id: "first-time-buyer", icon: Home, label: "First-Time Buyer" },
-              { id: "mortgage-calculator", icon: Calculator, label: "Calculate Mortgage" },
-              { id: "pre-approval", icon: FileText, label: "Get Pre-Approved" },
-            ].map(({ id, icon: Icon, label }) => (
-              <Card
-                key={id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${
-                  selectedCategories.includes(id)
-                    ? "border-primary bg-primary/5 shadow-md"
-                    : "hover:border-primary/50"
-                }`}
-                onClick={() => toggleCategory(id)}
-              >
+            {[{
+            id: "first-time-buyer",
+            icon: Home,
+            label: "First-Time Buyer"
+          }, {
+            id: "mortgage-calculator",
+            icon: Calculator,
+            label: "Calculate Mortgage"
+          }, {
+            id: "pre-approval",
+            icon: FileText,
+            label: "Get Pre-Approved"
+          }].map(({
+            id,
+            icon: Icon,
+            label
+          }) => <Card key={id} className={`cursor-pointer transition-all hover:shadow-lg ${selectedCategories.includes(id) ? "border-primary bg-primary/5 shadow-md" : "hover:border-primary/50"}`} onClick={() => toggleCategory(id)}>
                 <CardContent className="flex flex-col items-center gap-3 p-6">
-                  <Icon
-                    className={`h-8 w-8 ${
-                      selectedCategories.includes(id) ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  />
+                  <Icon className={`h-8 w-8 ${selectedCategories.includes(id) ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="font-medium text-center">{label}</span>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-20">
-          {features.map((feature, index) => (
-            <Card key={index} className="border-2 hover:border-primary/50 transition-colors">
+          {features.map((feature, index) => <Card key={index} className="border-2 hover:border-primary/50 transition-colors">
               <CardContent className="p-6">
                 <feature.icon className="h-12 w-12 text-primary mb-4" />
                 <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
                 <p className="text-muted-foreground">{feature.description}</p>
               </CardContent>
-            </Card>
-          ))}
+            </Card>)}
         </div>
 
         <div className="max-w-4xl mx-auto text-center mb-20">
@@ -161,19 +145,10 @@ export default function Index() {
                 <p className="text-muted-foreground">All features included at no cost</p>
               </div>
               <ul className="space-y-4 text-left max-w-md mx-auto mb-8">
-                {[
-                  "Unlimited AI conversations",
-                  "Property image analysis",
-                  "Market insights and trends",
-                  "Mortgage calculators",
-                  "Investment analysis tools",
-                  "Export conversation history"
-                ].map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2">
+                {["Unlimited AI conversations", "Property image analysis", "Market insights and trends", "Mortgage calculators", "Investment analysis tools", "Export conversation history"].map((feature, i) => <li key={i} className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-primary" />
                     <span>{feature}</span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               <Button size="lg" className="w-full max-w-sm" onClick={() => navigate(user ? "/chat" : "/auth")}>
                 {user ? "Start Chatting" : "Get Started Free"}
@@ -198,6 +173,5 @@ export default function Index() {
           <p>© 2025 RealEstate AI. Powered by advanced AI technology.</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 }
