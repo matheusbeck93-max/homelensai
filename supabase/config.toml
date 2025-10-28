@@ -1,1 +1,13 @@
 project_id = "yckcdxtatwolzilboahx"
+
+[functions.ai-search]
+verify_jwt = false
+
+[functions.ai-analyze]
+verify_jwt = true
+
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.property-assistant]
+verify_jwt = false

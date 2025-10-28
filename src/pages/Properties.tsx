@@ -1,69 +1,33 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SearchBar } from "@/components/SearchBar";
-import { PropertyCard } from "@/components/PropertyCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
-
-interface Property {
-  id: string;
-  address: string;
-  city: string;
-  state: string;
-  price: number;
-  beds: number;
-  baths: number;
-  sqft: number;
-  condition: string;
-  image_urls: string[];
-  roi_percent?: number;
-}
+import { Card, CardContent } from "@/components/ui/card";
+import { ExternalLink } from "lucide-react";
 
 export default function Properties() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [assistantResponse, setAssistantResponse] = useState<string>("");
+  const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  const fetchProperties = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setProperties(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
   const handleSearch = useCallback(async (query: string, categories?: string[]) => {
+    if (!query.trim()) return;
+    
     setSearchLoading(true);
+    setAssistantResponse("");
     
     try {
-      const { data, error } = await supabase.functions.invoke("ai-search", {
+      const { data, error } = await supabase.functions.invoke("property-assistant", {
         body: { query, categories },
       });
 
       if (error) throw error;
 
-      if (data?.properties) {
-        setProperties(data.properties);
-        toast({
-          title: "Search completed",
-          description: `Found ${data.properties.length} matching properties`,
-        });
+      if (data?.response) {
+        setAssistantResponse(data.response);
       }
     } catch (error: any) {
       toast({
@@ -82,38 +46,73 @@ export default function Properties() {
     
     if (query) {
       handleSearch(query, categories?.split(','));
-    } else {
-      fetchProperties();
     }
-  }, [searchParams, handleSearch, fetchProperties]);
+  }, [searchParams, handleSearch]);
+
+  const renderMarkdownLinks = (text: string) => {
+    // Convert markdown links [text](url) to clickable links
+    const parts = text.split(/(\[.*?\]\(.*?\))/g);
+    
+    return parts.map((part, index) => {
+      const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
+      if (linkMatch) {
+        const [, linkText, url] = linkMatch;
+        return (
+          <a
+            key={index}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+          >
+            <ExternalLink className="h-4 w-4" />
+            {linkText}
+          </a>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12">
         <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-4 text-center">Property Search</h1>
+          <h1 className="text-4xl font-bold mb-4 text-center">AI Real Estate Assistant</h1>
+          <p className="text-center text-muted-foreground mb-6">
+            Ask me about homes, apartments, and investment properties across the U.S.
+          </p>
           <SearchBar onSearch={(query) => handleSearch(query)} loading={searchLoading} />
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="space-y-4">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
+        {assistantResponse && (
+          <Card className="max-w-4xl mx-auto">
+            <CardContent className="pt-6">
+              <div className="prose prose-lg max-w-none dark:prose-invert">
+                {assistantResponse.split('\n').map((paragraph, index) => (
+                  <p key={index} className="mb-4 whitespace-pre-wrap">
+                    {renderMarkdownLinks(paragraph)}
+                  </p>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : properties.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-xl text-muted-foreground">No properties found. Try a different search.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {properties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
-            ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {!assistantResponse && !loading && (
+          <div className="text-center py-12 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground mb-6">
+              👋 Welcome! I'm your AI real estate assistant.
+            </p>
+            <div className="text-left space-y-4 text-muted-foreground">
+              <p>Try asking me things like:</p>
+              <ul className="list-disc list-inside space-y-2">
+                <li>"Find me houses with 3 bedrooms under $600,000 in Miami"</li>
+                <li>"Show me apartments near Austin with a pool"</li>
+                <li>"I'm looking for investment properties in Phoenix"</li>
+                <li>"2-bedroom condos in Seattle with parking"</li>
+              </ul>
+            </div>
           </div>
         )}
       </div>
