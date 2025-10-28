@@ -1,196 +1,203 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { SearchBar } from "@/components/SearchBar";
+import { Bot, TrendingUp, Calculator, FileText, Home, MessageSquare, User, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { SearchBar } from "@/components/SearchBar";
-import { Home, MessageCircle, Calculator, LogIn, LogOut, Sparkles, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-const Index = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [user, setUser] = useState<any>(null);
+export default function Index() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleSignOut = async () => {
+  const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: "Signed out",
-      description: "You've been successfully signed out.",
-    });
+    setUser(null);
   };
 
   const toggleCategory = (category: string) => {
-    setSelectedCategories(prev => {
-      const newCategories = prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category];
-      
-      // Store in localStorage for persistence
-      localStorage.setItem('userCategories', JSON.stringify(newCategories));
-      return newCategories;
-    });
+    setSelectedCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
+    );
   };
-
-  useEffect(() => {
-    // Load saved categories from localStorage
-    const saved = localStorage.getItem('userCategories');
-    if (saved) {
-      setSelectedCategories(JSON.parse(saved));
-    }
-  }, []);
 
   const handleSearch = (query: string) => {
     const params = new URLSearchParams({ q: query });
     if (selectedCategories.length > 0) {
-      params.append('categories', selectedCategories.join(','));
+      params.set("categories", selectedCategories.join(","));
     }
     navigate(`/properties?${params.toString()}`);
   };
 
+  const features = [
+    {
+      icon: Bot,
+      title: "AI Property Assistant",
+      description: "Get intelligent recommendations based on your preferences and market conditions",
+    },
+    {
+      icon: TrendingUp,
+      title: "Market Analysis",
+      description: "Access real-time market data, trends, and investment insights",
+    },
+    {
+      icon: Calculator,
+      title: "Financial Tools",
+      description: "Calculate mortgages, ROI, and evaluate investment opportunities",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      {/* Navigation */}
-      <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
+          <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">HomeLens</span>
+            <span className="text-xl font-bold">RealEstate AI</span>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/properties")}>
-              Properties
-            </Button>
-            <Button variant="ghost" onClick={() => navigate("/chat")}>
-              <MessageCircle className="mr-2 h-4 w-4" />
-              AI Chat
-            </Button>
-            <Button variant="ghost" onClick={() => navigate("/calculators")}>
-              <Calculator className="mr-2 h-4 w-4" />
-              Calculators
-            </Button>
+            <ThemeToggle />
             {user ? (
               <>
-                <Button variant="ghost" onClick={() => navigate("/profile")}>
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
+                <Button variant="ghost" onClick={() => navigate("/chat")}>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Chat
                 </Button>
-                <Button variant="outline" onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sign Out
+                <Button variant="ghost" onClick={() => navigate("/settings")}>
+                  <User className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+                <Button variant="outline" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
                 </Button>
               </>
             ) : (
-              <Button onClick={() => navigate("/auth")}>
-                <LogIn className="mr-2 h-4 w-4" />
-                Sign In
-              </Button>
+              <Button onClick={() => navigate("/auth")}>Get Started</Button>
             )}
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
       <div className="container mx-auto px-4 py-20">
-        <div className="text-center mb-12 space-y-6">
-          <h1 className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-secondary">
-            Find your next home
+        <div className="text-center max-w-4xl mx-auto mb-16">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Navigate the Housing Market with AI
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            AI-powered real estate search and analysis for home buyers and investors
+          <p className="text-xl text-muted-foreground mb-8">
+            Your intelligent assistant for finding homes, analyzing investments, and understanding mortgages
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <span>Powered by advanced AI technology</span>
+          
+          <div className="mb-8">
+            <SearchBar onSearch={handleSearch} />
+          </div>
+
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground mb-4">Select all that apply to tailor your search:</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+            {[
+              { id: "first-time-buyer", icon: Home, label: "First-Time Buyer" },
+              { id: "mortgage-calculator", icon: Calculator, label: "Calculate Mortgage" },
+              { id: "pre-approval", icon: FileText, label: "Get Pre-Approved" },
+            ].map(({ id, icon: Icon, label }) => (
+              <Card
+                key={id}
+                className={`cursor-pointer transition-all hover:shadow-lg ${
+                  selectedCategories.includes(id)
+                    ? "border-primary bg-primary/5 shadow-md"
+                    : "hover:border-primary/50"
+                }`}
+                onClick={() => toggleCategory(id)}
+              >
+                <CardContent className="flex flex-col items-center gap-3 p-6">
+                  <Icon
+                    className={`h-8 w-8 ${
+                      selectedCategories.includes(id) ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  />
+                  <span className="font-medium text-center">{label}</span>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
 
-        <SearchBar onSearch={handleSearch} />
-
-        {/* Feature Cards */}
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">Select all that apply</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div 
-            onClick={() => toggleCategory('first-time-buyer')}
-            className={`text-center p-8 rounded-xl cursor-pointer transition-all border-2 ${
-              selectedCategories.includes('first-time-buyer')
-                ? 'bg-primary/10 border-primary shadow-lg'
-                : 'bg-card border-border hover:shadow-lg'
-            }`}
-          >
-            <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">I'm first time home-buyer</h3>
-            <p className="text-muted-foreground">
-              Use natural language to find properties that match your exact criteria
-            </p>
-          </div>
-
-          <div 
-            onClick={() => toggleCategory('mortgage-calculator')}
-            className={`text-center p-8 rounded-xl cursor-pointer transition-all border-2 ${
-              selectedCategories.includes('mortgage-calculator')
-                ? 'bg-secondary/10 border-secondary shadow-lg'
-                : 'bg-card border-border hover:shadow-lg'
-            }`}
-          >
-            <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calculator className="h-6 w-6 text-secondary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Calculate Mortgage</h3>
-            <p className="text-muted-foreground">
-              Get instant ROI calculations and investment insights on any property
-            </p>
-          </div>
-
-          <div 
-            onClick={() => toggleCategory('pre-approval')}
-            className={`text-center p-8 rounded-xl cursor-pointer transition-all border-2 ${
-              selectedCategories.includes('pre-approval')
-                ? 'bg-accent/10 border-accent shadow-lg'
-                : 'bg-card border-border hover:shadow-lg'
-            }`}
-          >
-            <div className="h-12 w-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MessageCircle className="h-6 w-6 text-accent" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Get Pre-Approved</h3>
-            <p className="text-muted-foreground">
-              Chat with our AI to get answers about properties, rates, and programs
-            </p>
-          </div>
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-20">
+          {features.map((feature, index) => (
+            <Card key={index} className="border-2 hover:border-primary/50 transition-colors">
+              <CardContent className="p-6">
+                <feature.icon className="h-12 w-12 text-primary mb-4" />
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* CTA Section */}
-        <div className="text-center mt-20">
-          <h2 className="text-3xl font-bold mb-6">Ready to get started?</h2>
-          <div className="flex gap-4 justify-center">
-            <Button size="lg" variant="hero" onClick={() => navigate("/properties")}>
-              Browse Properties
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate("/chat")}>
-              Try AI Chat
-            </Button>
-          </div>
+        <div className="max-w-4xl mx-auto text-center mb-20">
+          <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+          <p className="text-xl text-muted-foreground mb-12">
+            Everything you need to make informed real estate decisions
+          </p>
+          
+          <Card className="border-2 border-primary">
+            <CardContent className="p-12">
+              <div className="mb-6">
+                <h3 className="text-3xl font-bold mb-2">Free Access</h3>
+                <p className="text-muted-foreground">All features included at no cost</p>
+              </div>
+              <ul className="space-y-4 text-left max-w-md mx-auto mb-8">
+                {[
+                  "Unlimited AI conversations",
+                  "Property image analysis",
+                  "Market insights and trends",
+                  "Mortgage calculators",
+                  "Investment analysis tools",
+                  "Export conversation history"
+                ].map((feature, i) => (
+                  <li key={i} className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button size="lg" className="w-full max-w-sm" onClick={() => navigate(user ? "/chat" : "/auth")}>
+                {user ? "Start Chatting" : "Get Started Free"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="text-center max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold mb-4">Ready to find your dream home?</h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Join thousands of users making smarter real estate decisions with AI
+          </p>
+          <Button size="lg" onClick={() => navigate(user ? "/chat" : "/auth")}>
+            {user ? "Open AI Assistant" : "Get Started Now"}
+          </Button>
         </div>
       </div>
+
+      <footer className="border-t py-8 mt-20">
+        <div className="container mx-auto px-4 text-center text-muted-foreground">
+          <p>© 2025 RealEstate AI. Powered by advanced AI technology.</p>
+        </div>
+      </footer>
     </div>
   );
-};
-
-export default Index;
+}
