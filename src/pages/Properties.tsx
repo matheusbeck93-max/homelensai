@@ -118,7 +118,7 @@ export default function Properties() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-[160px]">
       <div className="container mx-auto px-4 py-12">
         <div className="mb-12">
           <h1 className="text-4xl font-bold mb-4 text-center">AI Real Estate Assistant</h1>

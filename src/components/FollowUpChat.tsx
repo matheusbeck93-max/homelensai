@@ -113,8 +113,8 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
 
   return (
     <Card 
-      className={`fixed left-1/2 bottom-4 -translate-x-1/2 shadow-2xl transition-all duration-300 ${
-        isExpanded ? "w-[90vw] max-w-[800px] h-[80vh]" : "w-[600px] h-[140px]"
+      className={`sticky bottom-0 left-0 right-0 mx-auto shadow-2xl transition-all duration-300 z-10 ${
+        isExpanded ? "w-[90vw] max-w-[800px] h-[80vh]" : "w-full max-w-[800px] h-[140px]"
       }`}
     >
       <div className="flex flex-col h-full">
