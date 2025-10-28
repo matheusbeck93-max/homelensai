@@ -75,8 +75,8 @@ export default function FollowUpChat({ context }: FollowUpChatProps) {
 
   return (
     <Card 
-      className={`fixed bottom-4 right-4 shadow-lg transition-all duration-300 ${
-        isExpanded ? "w-[500px] h-[600px]" : "w-[400px] h-[120px]"
+      className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-2xl transition-all duration-300 ${
+        isExpanded ? "w-[90vw] max-w-[800px] h-[80vh]" : "w-[600px] h-[140px]"
       }`}
     >
       <div className="flex flex-col h-full">
