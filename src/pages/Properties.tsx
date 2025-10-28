@@ -35,90 +35,16 @@ export default function Properties() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  const generateMockProperties = (query: string): Property[] => {
-    // Extract location from query if possible
-    const locationMatch = query.match(/in\s+([^,\n]+)/i);
-    const city = locationMatch ? locationMatch[1].trim() : "Arlington";
-    
-    const properties = [
-      {
-        id: "1",
-        address: "123 Wilson Blvd",
-        city: city,
-        state: "VA",
-        price: 425000,
-        beds: 3,
-        baths: 2,
-        sqft: 1800,
-        image_url: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800",
-        description: "Modern apartment with updated kitchen"
-      },
-      {
-        id: "2",
-        address: "456 Clarendon Blvd",
-        city: city,
-        state: "VA",
-        price: 395000,
-        beds: 3,
-        baths: 2.5,
-        sqft: 1650,
-        image_url: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
-        description: "Beautiful unit with city views"
-      },
-      {
-        id: "3",
-        address: "789 Columbia Pike",
-        city: city,
-        state: "VA",
-        price: 385000,
-        beds: 3,
-        baths: 2,
-        sqft: 1700,
-        image_url: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800",
-        description: "Spacious living with hardwood floors"
-      },
-      {
-        id: "4",
-        address: "321 Lee Highway",
-        city: city,
-        state: "VA",
-        price: 450000,
-        beds: 3,
-        baths: 2,
-        sqft: 1900,
-        image_url: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800",
-        description: "Luxury apartment with amenities"
-      },
-      {
-        id: "5",
-        address: "567 Washington Blvd",
-        city: city,
-        state: "VA",
-        price: 410000,
-        beds: 3,
-        baths: 2,
-        sqft: 1750,
-        image_url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
-        description: "Contemporary design with balcony"
-      }
-    ];
-    
-    // Add external links to each property
-    return properties.map(prop => ({
-      ...prop,
-      externalLink: generateZillowLink(prop)
-    }));
-  };
-
   const handleSearch = useCallback(async (query: string, categories?: string[]) => {
     if (!query.trim()) return;
     
     setSearchLoading(true);
     setAssistantResponse("");
     setProperties([]);
+    setSelectedProperty(null);
     
     try {
-      // First, search for actual properties in the database
+      // Search for properties from Zillow API
       const { data: searchData, error: searchError } = await supabase.functions.invoke('ai-search', {
         body: { query, categories }
       });
@@ -127,18 +53,25 @@ export default function Properties() {
 
       const foundProperties = searchData?.properties || [];
       
-      // If no properties found in database, use mock properties
-      let propsToUse = foundProperties.length > 0 ? foundProperties : generateMockProperties(query);
+      if (foundProperties.length === 0) {
+        toast({
+          title: "No properties found",
+          description: searchData?.message || "No properties match your search. Try adjusting your criteria.",
+          variant: "default",
+        });
+        setSearchLoading(false);
+        return;
+      }
       
       // Add external links to all properties
-      propsToUse = propsToUse.map(prop => ({
+      const propsToUse = foundProperties.map(prop => ({
         ...prop,
         externalLink: prop.externalLink || generateZillowLink(prop)
       }));
       
       setProperties(propsToUse);
 
-      // Then get AI analysis of those properties
+      // Get AI analysis of those properties
       const { data: assistantData, error: assistantError } = await supabase.functions.invoke('property-assistant', {
         body: { 
           query,
@@ -147,9 +80,11 @@ export default function Properties() {
         }
       });
 
-      if (assistantError) throw assistantError;
-
-      setAssistantResponse(assistantData?.response || "I found some properties for you!");
+      if (assistantError) {
+        console.error('Assistant error:', assistantError);
+      } else {
+        setAssistantResponse(assistantData?.response || "I found some properties for you!");
+      }
     } catch (error: any) {
       toast({
         title: "Search failed",

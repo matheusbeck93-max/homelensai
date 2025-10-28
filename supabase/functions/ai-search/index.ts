@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     }
     
     if (!ZILLOW_API_KEY) {
-      console.warn('ZILLOW_API_KEY not configured, using mock data');
+      throw new Error('ZILLOW_API_KEY is not configured. Please add your Zillow API key.');
     }
 
     // Parse natural language query with AI
@@ -139,10 +139,17 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
       }
     }
 
-    // If no properties from API, generate realistic mock data
+    // Return properties only if we got real data from Zillow
     if (properties.length === 0) {
-      console.log('Generating mock property data');
-      properties = generateMockProperties(parsedFilters, 12);
+      console.log('No properties found from Zillow API');
+      return new Response(
+        JSON.stringify({ 
+          properties: [], 
+          filters: parsedFilters,
+          message: 'No properties found matching your criteria. Please try adjusting your search parameters.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
@@ -158,66 +165,3 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
     );
   }
 });
-
-// Helper function to generate realistic mock properties
-function generateMockProperties(filters: any, count: number = 10) {
-  const properties = [];
-  const city = filters.city || 'Miami';
-  const state = filters.state || 'FL';
-  
-  const streets = [
-    'Main Street', 'Oak Avenue', 'Maple Drive', 'Washington Boulevard',
-    'Park Lane', 'Cedar Court', 'Pine Street', 'Elm Avenue', 'River Road',
-    'Lake Drive', 'Forest Avenue', 'Hill Street', 'Valley Road', 'Sunset Boulevard'
-  ];
-  
-  const propertyTypes = ['Single Family', 'Townhouse', 'Condo'];
-  
-  for (let i = 0; i < count; i++) {
-    const basePrice = filters.price_min || 200000;
-    const maxPrice = filters.price_max || 1000000;
-    const price = Math.floor(Math.random() * (maxPrice - basePrice) + basePrice);
-    const beds = filters.beds_min || Math.floor(Math.random() * 3) + 2;
-    const baths = Math.floor(Math.random() * 2) + 1.5;
-    const sqft = Math.floor(Math.random() * 1500) + 1200;
-    const streetNumber = Math.floor(Math.random() * 9000) + 1000;
-    const street = streets[Math.floor(Math.random() * streets.length)];
-    const address = `${streetNumber} ${street}`;
-    const zip = `${Math.floor(Math.random() * 90000) + 10000}`;
-    
-    const zillowQuery = encodeURIComponent(`${address}, ${city}, ${state} ${zip}`);
-    const zillowLink = `https://www.zillow.com/homes/${zillowQuery}_rb/`;
-    
-    const imageCategories = [
-      'photo-1568605114967-8130f3a36994',
-      'photo-1564013799919-ab600027ffc6',
-      'photo-1600585154340-be6161a56a0c',
-      'photo-1600596542815-ffad4c1539a9',
-      'photo-1600607687939-ce8a6c25118c',
-      'photo-1600607687644-aac4c3eac7f4',
-    ];
-    
-    const imageId = imageCategories[i % imageCategories.length];
-    
-    properties.push({
-      id: `prop-${Date.now()}-${i}`,
-      address,
-      city,
-      state,
-      zip,
-      price,
-      beds,
-      baths,
-      sqft,
-      image_urls: [`https://images.unsplash.com/${imageId}?w=800&h=600&fit=crop`],
-      description: `${beds} bed, ${baths} bath ${propertyTypes[i % propertyTypes.length].toLowerCase()} in ${city}.`,
-      condition: 'active',
-      status: 'active',
-      externalLink: zillowLink,
-      year_built: Math.floor(Math.random() * 30) + 1990,
-      lot_size: Math.floor(Math.random() * 8000) + 2000,
-    });
-  }
-  
-  return properties;
-}
