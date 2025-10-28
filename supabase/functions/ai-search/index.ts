@@ -21,6 +21,9 @@ Deno.serve(async (req) => {
       throw new Error('RAPIDAPI_KEY is not configured. Please add your RapidAPI key.');
     }
 
+    // Debug: Log first 10 characters of API key to verify it's updated
+    console.log('Using RAPIDAPI_KEY starting with:', RAPIDAPI_KEY?.substring(0, 10));
+
     // Parse natural language query with AI
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
