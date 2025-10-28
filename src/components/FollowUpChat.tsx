@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Minimize2, Maximize2, Bed, Bath, Square, DollarSign } from "lucide-react";
+import { Send, Bot, User, Minimize2, Maximize2, Bed, Bath, Square, DollarSign, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -25,6 +25,7 @@ interface Property {
   image_urls?: string[];
   image_url?: string;
   description?: string;
+  externalLink?: string;
 }
 
 interface FollowUpChatProps {
@@ -141,12 +142,11 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
             <Carousel className="w-full">
               <CarouselContent>
                 {properties.map((property) => (
-                  <CarouselItem key={property.id} className="md:basis-1/2 lg:basis-1/3">
+                   <CarouselItem key={property.id} className="md:basis-1/2 lg:basis-1/3">
                     <Card 
-                      className={`overflow-hidden cursor-pointer transition-all ${
+                      className={`overflow-hidden transition-all ${
                         selectedProperty?.id === property.id ? "ring-2 ring-primary" : "hover:shadow-lg"
                       }`}
-                      onClick={() => handlePropertySelect(property)}
                     >
                       <div className="aspect-video relative overflow-hidden">
                         <img
@@ -165,7 +165,7 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
                         <p className="text-xs text-muted-foreground mb-2">
                           {property.city}, {property.state}
                         </p>
-                        <div className="flex items-center gap-3 text-xs">
+                        <div className="flex items-center gap-3 text-xs mb-3">
                           <div className="flex items-center gap-1">
                             <Bed className="h-3 w-3" />
                             <span>{property.beds}</span>
@@ -178,6 +178,29 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
                             <Square className="h-3 w-3" />
                             <span>{property.sqft}</span>
                           </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => handlePropertySelect(property)}
+                            size="sm"
+                            className="flex-1"
+                          >
+                            Analisar
+                          </Button>
+                          {property.externalLink && (
+                            <Button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(property.externalLink, '_blank');
+                              }}
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              Ver Anúncio
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </Card>

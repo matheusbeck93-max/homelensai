@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { ExternalLink } from "lucide-react";
 import FollowUpChat from "@/components/FollowUpChat";
+import { generateZillowLink } from "@/lib/externalLinks";
 
 interface Property {
   id: string;
@@ -19,6 +20,8 @@ interface Property {
   image_urls?: string[];
   image_url?: string;
   description?: string;
+  externalLink?: string;
+  zip?: string;
 }
 
 export default function Properties() {
@@ -34,7 +37,7 @@ export default function Properties() {
     const locationMatch = query.match(/in\s+([^,\n]+)/i);
     const city = locationMatch ? locationMatch[1].trim() : "Arlington";
     
-    return [
+    const properties = [
       {
         id: "1",
         address: "123 Wilson Blvd",
@@ -96,6 +99,12 @@ export default function Properties() {
         description: "Contemporary design with balcony"
       }
     ];
+    
+    // Add external links to each property
+    return properties.map(prop => ({
+      ...prop,
+      externalLink: generateZillowLink(prop)
+    }));
   };
 
   const handleSearch = useCallback(async (query: string, categories?: string[]) => {
@@ -116,7 +125,14 @@ export default function Properties() {
       const foundProperties = searchData?.properties || [];
       
       // If no properties found in database, use mock properties
-      const propsToUse = foundProperties.length > 0 ? foundProperties : generateMockProperties(query);
+      let propsToUse = foundProperties.length > 0 ? foundProperties : generateMockProperties(query);
+      
+      // Add external links to all properties
+      propsToUse = propsToUse.map(prop => ({
+        ...prop,
+        externalLink: prop.externalLink || generateZillowLink(prop)
+      }));
+      
       setProperties(propsToUse);
 
       // Then get AI analysis of those properties
