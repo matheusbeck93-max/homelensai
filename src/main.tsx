@@ -5,12 +5,13 @@ import "./index.css";
 
 const rootElement = document.getElementById("root")!;
 
-// Apply saved theme on load
-const savedTheme = localStorage.getItem('theme');
+// Apply saved theme on load (default to light mode)
+const savedTheme = localStorage.getItem('theme') || 'light';
 if (savedTheme === 'dark') {
   document.documentElement.classList.add('dark');
 } else {
   document.documentElement.classList.remove('dark');
+  localStorage.setItem('theme', 'light');
 }
 
 createRoot(rootElement).render(

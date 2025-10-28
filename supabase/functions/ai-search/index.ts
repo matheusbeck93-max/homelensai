@@ -1,5 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -13,9 +11,14 @@ Deno.serve(async (req) => {
   try {
     const { query, categories } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
+    }
+    
+    if (!RAPIDAPI_KEY) {
+      throw new Error('RAPIDAPI_KEY is not configured');
     }
 
     // Parse natural language query with AI
@@ -30,15 +33,16 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a property search query parser. Convert natural language searches into structured filters.
+            content: `You are a property search query parser for US real estate. Convert natural language searches into structured filters.
 ${categories && categories.length > 0 ? `\nUser context: ${categories.join(', ')}. Tailor the search based on:
 - first-time-buyer: Focus on move-in ready homes, FHA-eligible, lower price ranges, good school districts
 - mortgage-calculator: Prioritize properties with good financing potential, standard loans
 - pre-approval: Include pre-approval friendly properties, competitive rates, VA/FHA eligible` : ''}
 
-Return JSON with: price_min, price_max, beds_min, baths_min, city, condition, roi_min.
-Example: "3-bedroom fixers under $650k in Arlington with ROI over 15%" -> 
-{"price_max": 650000, "beds_min": 3, "city": "Arlington", "condition": "fixer", "roi_min": 15}`
+Return JSON with: price_min, price_max, beds_min, baths_min, city, state, property_type.
+If no city is mentioned, use "Miami". If no state is mentioned, use "FL".
+Example: "3-bedroom homes under $650k in Arlington VA" -> 
+{"price_max": 650000, "beds_min": 3, "city": "Arlington", "state": "VA", "property_type": "single_family"}`
           },
           {
             role: 'user',
@@ -53,43 +57,68 @@ Example: "3-bedroom fixers under $650k in Arlington with ROI over 15%" ->
     
     console.log('Parsed filters:', parsedFilters);
 
-    // Query Supabase with parsed filters
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    let dbQuery = supabase
-      .from('properties')
-      .select('*')
-      .eq('status', 'active');
-
-    if (parsedFilters.price_min) {
-      dbQuery = dbQuery.gte('price', parsedFilters.price_min);
+    // Call RealtyMole API to get real property listings
+    const rapidApiUrl = new URL('https://realtymole-rental-estimate-v1.p.rapidapi.com/properties');
+    
+    // Build query parameters
+    if (parsedFilters.city) {
+      rapidApiUrl.searchParams.append('city', parsedFilters.city);
     }
-    if (parsedFilters.price_max) {
-      dbQuery = dbQuery.lte('price', parsedFilters.price_max);
+    if (parsedFilters.state) {
+      rapidApiUrl.searchParams.append('state', parsedFilters.state);
     }
     if (parsedFilters.beds_min) {
-      dbQuery = dbQuery.gte('beds', parsedFilters.beds_min);
+      rapidApiUrl.searchParams.append('bedrooms', parsedFilters.beds_min.toString());
     }
-    if (parsedFilters.baths_min) {
-      dbQuery = dbQuery.gte('baths', parsedFilters.baths_min);
+    if (parsedFilters.price_max) {
+      rapidApiUrl.searchParams.append('maxPrice', parsedFilters.price_max.toString());
     }
-    if (parsedFilters.city) {
-      dbQuery = dbQuery.ilike('city', `%${parsedFilters.city}%`);
+    if (parsedFilters.price_min) {
+      rapidApiUrl.searchParams.append('minPrice', parsedFilters.price_min.toString());
     }
-    if (parsedFilters.condition) {
-      dbQuery = dbQuery.eq('condition', parsedFilters.condition);
-    }
-    if (parsedFilters.roi_min) {
-      dbQuery = dbQuery.gte('roi_percent', parsedFilters.roi_min);
+    
+    rapidApiUrl.searchParams.append('limit', '20');
+
+    console.log('Calling RealtyMole API:', rapidApiUrl.toString());
+
+    const realtyResponse = await fetch(rapidApiUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'realtymole-rental-estimate-v1.p.rapidapi.com'
+      }
+    });
+
+    if (!realtyResponse.ok) {
+      const errorText = await realtyResponse.text();
+      console.error('RealtyMole API error:', realtyResponse.status, errorText);
+      throw new Error(`RealtyMole API error: ${realtyResponse.status}`);
     }
 
-    const { data: properties, error } = await dbQuery.order('created_at', { ascending: false });
+    const realtyData = await realtyResponse.json();
+    console.log('RealtyMole API response:', JSON.stringify(realtyData).substring(0, 500));
 
-    if (error) {
-      throw error;
-    }
+    // Transform RealtyMole data to our property format
+    const properties = (realtyData.listings || realtyData || []).slice(0, 20).map((listing: any) => ({
+      id: listing.id || listing.zpid || Math.random().toString(),
+      address: listing.address || listing.streetAddress || 'Address not available',
+      city: listing.city || parsedFilters.city || 'Unknown',
+      state: listing.state || parsedFilters.state || 'Unknown',
+      zip: listing.zipcode || listing.zip || '',
+      price: listing.price || listing.listPrice || 0,
+      beds: listing.bedrooms || listing.beds || 0,
+      baths: listing.bathrooms || listing.baths || 0,
+      sqft: listing.livingArea || listing.sqft || 0,
+      image_urls: listing.photos || listing.imgSrc ? [listing.photos?.[0] || listing.imgSrc] : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994'],
+      description: listing.description || '',
+      condition: 'active',
+      status: 'active',
+      externalLink: listing.url || listing.detailUrl || `https://www.zillow.com/homes/${encodeURIComponent(listing.address || '')}_rb/`,
+      year_built: listing.yearBuilt || null,
+      lot_size: listing.lotSize || null,
+    }));
+
+    console.log(`Transformed ${properties.length} properties from RealtyMole`);
 
     return new Response(
       JSON.stringify({ properties, filters: parsedFilters }),
