@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { SearchBar } from "@/components/SearchBar";
 import { PropertyCard } from "@/components/PropertyCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,13 +24,10 @@ export default function Properties() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchProperties();
-  }, []);
-
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("properties")
@@ -48,14 +46,14 @@ export default function Properties() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = useCallback(async (query: string, categories?: string[]) => {
     setSearchLoading(true);
     
     try {
       const { data, error } = await supabase.functions.invoke("ai-search", {
-        body: { query },
+        body: { query, categories },
       });
 
       if (error) throw error;
@@ -76,14 +74,25 @@ export default function Properties() {
     } finally {
       setSearchLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    const query = searchParams.get('q');
+    const categories = searchParams.get('categories');
+    
+    if (query) {
+      handleSearch(query, categories?.split(','));
+    } else {
+      fetchProperties();
+    }
+  }, [searchParams, handleSearch, fetchProperties]);
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12">
         <div className="mb-12">
           <h1 className="text-4xl font-bold mb-4 text-center">Property Search</h1>
-          <SearchBar onSearch={handleSearch} loading={searchLoading} />
+          <SearchBar onSearch={(query) => handleSearch(query)} loading={searchLoading} />
         </div>
 
         {loading ? (

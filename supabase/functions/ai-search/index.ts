@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query } = await req.json();
+    const { query, categories } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -31,6 +31,11 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content: `You are a property search query parser. Convert natural language searches into structured filters.
+${categories && categories.length > 0 ? `\nUser context: ${categories.join(', ')}. Tailor the search based on:
+- first-time-buyer: Focus on move-in ready homes, FHA-eligible, lower price ranges, good school districts
+- mortgage-calculator: Prioritize properties with good financing potential, standard loans
+- pre-approval: Include pre-approval friendly properties, competitive rates, VA/FHA eligible` : ''}
+
 Return JSON with: price_min, price_max, beds_min, baths_min, city, condition, roi_min.
 Example: "3-bedroom fixers under $650k in Arlington with ROI over 15%" -> 
 {"price_max": 650000, "beds_min": 3, "city": "Arlington", "condition": "fixer", "roi_min": 15}`

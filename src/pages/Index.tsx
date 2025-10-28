@@ -10,6 +10,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -31,8 +32,32 @@ const Index = () => {
     });
   };
 
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => {
+      const newCategories = prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category];
+      
+      // Store in localStorage for persistence
+      localStorage.setItem('userCategories', JSON.stringify(newCategories));
+      return newCategories;
+    });
+  };
+
+  useEffect(() => {
+    // Load saved categories from localStorage
+    const saved = localStorage.getItem('userCategories');
+    if (saved) {
+      setSelectedCategories(JSON.parse(saved));
+    }
+  }, []);
+
   const handleSearch = (query: string) => {
-    navigate(`/properties?q=${encodeURIComponent(query)}`);
+    const params = new URLSearchParams({ q: query });
+    if (selectedCategories.length > 0) {
+      params.append('categories', selectedCategories.join(','));
+    }
+    navigate(`/properties?${params.toString()}`);
   };
 
   return (
@@ -99,7 +124,14 @@ const Index = () => {
           <p className="text-sm text-muted-foreground">Select all that apply</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="text-center p-8 rounded-xl bg-card hover:shadow-lg transition-shadow border">
+          <div 
+            onClick={() => toggleCategory('first-time-buyer')}
+            className={`text-center p-8 rounded-xl cursor-pointer transition-all border-2 ${
+              selectedCategories.includes('first-time-buyer')
+                ? 'bg-primary/10 border-primary shadow-lg'
+                : 'bg-card border-border hover:shadow-lg'
+            }`}
+          >
             <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Sparkles className="h-6 w-6 text-primary" />
             </div>
@@ -109,7 +141,14 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="text-center p-8 rounded-xl bg-card hover:shadow-lg transition-shadow border">
+          <div 
+            onClick={() => toggleCategory('mortgage-calculator')}
+            className={`text-center p-8 rounded-xl cursor-pointer transition-all border-2 ${
+              selectedCategories.includes('mortgage-calculator')
+                ? 'bg-secondary/10 border-secondary shadow-lg'
+                : 'bg-card border-border hover:shadow-lg'
+            }`}
+          >
             <div className="h-12 w-12 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calculator className="h-6 w-6 text-secondary" />
             </div>
@@ -119,7 +158,14 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="text-center p-8 rounded-xl bg-card hover:shadow-lg transition-shadow border">
+          <div 
+            onClick={() => toggleCategory('pre-approval')}
+            className={`text-center p-8 rounded-xl cursor-pointer transition-all border-2 ${
+              selectedCategories.includes('pre-approval')
+                ? 'bg-accent/10 border-accent shadow-lg'
+                : 'bg-card border-border hover:shadow-lg'
+            }`}
+          >
             <div className="h-12 w-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <MessageCircle className="h-6 w-6 text-accent" />
             </div>
