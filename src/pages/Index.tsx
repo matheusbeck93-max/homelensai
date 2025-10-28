@@ -84,8 +84,8 @@ export default function Index() {
                   Logout
                 </Button>
               </> : <>
-                <Button variant="secondary" onClick={() => navigate("/auth")}>Login</Button>
-                <Button variant="secondary" onClick={() => navigate("/auth")}>Sign Up</Button>
+                <Button variant="secondary" onClick={() => navigate("/auth")} className="text-slate-50 bg-slate-950 hover:bg-slate-800">Login</Button>
+                <Button variant="secondary" onClick={() => navigate("/auth")} className="bg-slate-950 hover:bg-slate-800">Sign Up</Button>
               </>}
           </div>
         </div>
