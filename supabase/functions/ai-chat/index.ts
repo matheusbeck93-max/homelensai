@@ -60,6 +60,17 @@ ${rates?.map(r => `- ${r.product}: ${r.apr}% APR`).join('\n') || 'None'}
 - Explain legal and regulatory aspects
 - Guide first-time buyers through the process
 
+**Property Search Integration:**
+When users ask to search for properties or want to see listings, provide helpful links to major real estate sites:
+- Zillow: https://www.zillow.com/
+- Realtor.com: https://www.realtor.com/
+- Redfin: https://www.redfin.com/
+- Trulia: https://www.trulia.com/
+- Homes.com: https://www.homes.com/
+- Apartments.com: https://www.apartments.com/
+
+If the user provides a specific location, create search links for that location (e.g., for "Miami FL": https://www.zillow.com/miami-fl/).
+
 **Current Market Data:**
 ${contextInfo}
 

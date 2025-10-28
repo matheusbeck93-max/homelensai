@@ -176,10 +176,31 @@ export default function Chat() {
   const handleSend = async () => {
     if ((!input.trim() && !imageFile) || loading) return;
 
-    if (!currentConversationId) {
-      await createNewConversation();
-      setTimeout(() => handleSend(), 500);
-      return;
+    let conversationId = currentConversationId;
+
+    // Create conversation if it doesn't exist
+    if (!conversationId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert({ user_id: user.id, title: "New Conversation" })
+        .select()
+        .single();
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to create conversation",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      conversationId = data.id;
+      setConversations((prev) => [data, ...prev]);
+      setCurrentConversationId(data.id);
     }
 
     const userMessage: Message = { 
@@ -197,7 +218,7 @@ export default function Chat() {
 
     try {
       await supabase.from("messages").insert({
-        conversation_id: currentConversationId,
+        conversation_id: conversationId,
         role: "user",
         content: userMessage.content,
         image_url: userMessage.image_url,
@@ -220,24 +241,24 @@ export default function Chat() {
       setMessages((prev) => [...prev, assistantMessage]);
 
       await supabase.from("messages").insert({
-        conversation_id: currentConversationId,
+        conversation_id: conversationId,
         role: "assistant",
         content: data.response,
       });
 
       if (messages.length === 0) {
-        const title = input.slice(0, 50) || "Property Analysis";
+        const title = userMessage.content.slice(0, 50) || "Property Analysis";
         await supabase
           .from("conversations")
           .update({ title, updated_at: new Date().toISOString() })
-          .eq("id", currentConversationId);
+          .eq("id", conversationId);
         
         loadConversations();
       } else {
         await supabase
           .from("conversations")
           .update({ updated_at: new Date().toISOString() })
-          .eq("id", currentConversationId);
+          .eq("id", conversationId);
       }
     } catch (error: any) {
       toast({
@@ -255,6 +276,11 @@ export default function Chat() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
   };
 
   const ConversationSidebar = () => (
@@ -291,6 +317,11 @@ export default function Chat() {
           ))}
         </div>
       </ScrollArea>
+      <div className="p-4 border-t">
+        <Button onClick={handleLogout} className="w-full" variant="outline">
+          Logout
+        </Button>
+      </div>
     </div>
   );
 
