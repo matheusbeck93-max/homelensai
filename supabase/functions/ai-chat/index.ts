@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, hasImage } = await req.json();
+    const { messages, hasImage, userProfile, propertyData } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
@@ -32,7 +32,87 @@ ${programs?.map(p => `- ${p.name} (${p.jurisdiction}): ${p.eligibility}, Max ben
 
 Current Mortgage Rates:
 ${rates?.map(r => `- ${r.product}: ${r.apr}% APR`).join('\n') || 'None'}
+
+**User Profile**: ${userProfile || 'regular-buyer'}
 `;
+
+    // Add property-specific context if analyzing a selected property
+    const propertyContext = propertyData ? `
+
+**SELECTED PROPERTY ANALYSIS**:
+The user has selected this specific property to analyze:
+- Address: ${propertyData.address}, ${propertyData.city}, ${propertyData.state}
+- Price: $${propertyData.price.toLocaleString()}
+- Bedrooms: ${propertyData.beds} | Bathrooms: ${propertyData.baths}
+- Square Feet: ${propertyData.sqft}
+${propertyData.description ? `- Description: ${propertyData.description}` : ''}
+
+Provide a detailed analysis for this property.
+` : '';
+
+    const profileInstructions = {
+      'investor': `
+**INVESTOR ANALYSIS MODE**:
+When analyzing properties for investors, you MUST provide:
+
+1. **Purchase & Renovation Breakdown**:
+   - Purchase price
+   - Estimated renovation costs (based on property condition from images/description)
+   - Closing costs (typically 2-5% of purchase price)
+   - Total initial investment
+
+2. **Financing Analysis**:
+   - Down payment required (typically 20-25% for investment properties)
+   - Mortgage details using current rates (${rates?.find(r => r.product.includes('30'))?.apr || 7}% APR for 30-year)
+   - Monthly mortgage payment (P&I)
+   - Property taxes (estimate based on location)
+   - Insurance costs
+   - HOA fees (if applicable)
+
+3. **Investment Returns**:
+   - After Repair Value (ARV) estimate
+   - Potential monthly rental income (research local market rates)
+   - Cash flow analysis (rental income - all expenses)
+   - Cap rate calculation
+   - ROI percentage
+   - Break-even timeline
+
+4. **Exit Strategy**:
+   - Recommended hold period
+   - Projected sale price in 3-5 years
+   - Total profit estimate
+   - Flip vs. rent recommendation
+
+5. **Risk Assessment**:
+   - Market conditions
+   - Property condition concerns
+   - Neighborhood factors
+   - Competition analysis
+
+Format with clear numbers, calculations, and professional recommendations.`,
+      
+      'first-time-buyer': `
+**FIRST-TIME BUYER GUIDANCE MODE**:
+Focus on helping the buyer understand:
+- Affordability based on the 28/36 rule
+- Down payment options and assistance programs available
+- Estimated monthly payments including PMI if <20% down
+- Closing costs breakdown
+- Move-in ready vs. fixer-upper considerations
+- Neighborhood quality and schools
+- Long-term value and appreciation potential
+- Step-by-step buying process`,
+      
+      'regular-buyer': `
+**REGULAR BUYER MODE**:
+Provide balanced analysis covering:
+- Property value and market comparison
+- Monthly payment estimates
+- Neighborhood and lifestyle fit
+- Maintenance and upkeep considerations
+- Resale potential
+- Overall value assessment`
+    };
 
     const systemPrompt = `You are an expert real estate AI assistant specializing in:
 
@@ -61,7 +141,8 @@ ${rates?.map(r => `- ${r.product}: ${r.apr}% APR`).join('\n') || 'None'}
 - Guide first-time buyers through the process
 
 **Property Search Integration:**
-When users ask to search for properties or want to see listings, provide helpful links to major real estate sites:
+When users ask to search for properties or want to see listings, respond with:
+"I'll help you search for properties! Here are some great resources:
 - Zillow: https://www.zillow.com/
 - Realtor.com: https://www.realtor.com/
 - Redfin: https://www.redfin.com/
@@ -69,10 +150,17 @@ When users ask to search for properties or want to see listings, provide helpful
 - Homes.com: https://www.homes.com/
 - Apartments.com: https://www.apartments.com/
 
-If the user provides a specific location, create search links for that location (e.g., for "Miami FL": https://www.zillow.com/miami-fl/).
+I can also provide mock property results. Would you like me to show you some example properties in a specific location?"
+
+**IMPORTANT**: When user wants to see property results, respond with a special marker that triggers the property carousel:
+Use this exact format: "SHOW_PROPERTIES:[location]"
+Example: "SHOW_PROPERTIES:Miami, FL" or "SHOW_PROPERTIES:Los Angeles, CA"
 
 **Current Market Data:**
 ${contextInfo}
+${propertyContext}
+
+${profileInstructions[userProfile as keyof typeof profileInstructions] || profileInstructions['regular-buyer']}
 
 ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image. Analyze it thoroughly for:\n- Property condition and quality\n- Visible features and upgrades\n- Estimated renovation needs\n- Market appeal and positioning\n' : ''}
 

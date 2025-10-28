@@ -1,0 +1,2 @@
+-- Add user_profile field to profiles table
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS user_profile TEXT DEFAULT 'regular-buyer' CHECK (user_profile IN ('first-time-buyer', 'investor', 'regular-buyer'));

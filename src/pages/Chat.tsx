@@ -8,12 +8,28 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
+import PropertyCarousel from "@/components/PropertyCarousel";
+import ProfileSelector from "@/components/ProfileSelector";
 
 interface Message {
   id?: string;
   role: "user" | "assistant";
   content: string;
   image_url?: string;
+  properties?: Property[];
+}
+
+interface Property {
+  id: string;
+  address: string;
+  city: string;
+  state: string;
+  price: number;
+  beds: number;
+  baths: number;
+  sqft: number;
+  image_url: string;
+  description?: string;
 }
 
 interface Conversation {
@@ -30,6 +46,8 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<string>("regular-buyer");
+  const [showProfileSelector, setShowProfileSelector] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -38,7 +56,23 @@ export default function Chat() {
   useEffect(() => {
     checkAuth();
     loadConversations();
+    loadUserProfile();
   }, []);
+
+  const loadUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("user_profile")
+      .eq("id", user.id)
+      .single();
+
+    if (data) {
+      setUserProfile(data.user_profile || "regular-buyer");
+    }
+  };
 
   useEffect(() => {
     if (currentConversationId) {
@@ -173,7 +207,86 @@ export default function Chat() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSend = async () => {
+  const generateMockProperties = (location: string): Property[] => {
+    const cities = location.match(/([^,]+)/);
+    const city = cities ? cities[0].trim() : "Default City";
+    
+    return [
+      {
+        id: "1",
+        address: "123 Main Street",
+        city: city,
+        state: "FL",
+        price: 350000,
+        beds: 3,
+        baths: 2,
+        sqft: 1800,
+        image_url: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
+        description: "Beautiful family home with modern updates"
+      },
+      {
+        id: "2",
+        address: "456 Oak Avenue",
+        city: city,
+        state: "FL",
+        price: 425000,
+        beds: 4,
+        baths: 2.5,
+        sqft: 2200,
+        image_url: "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800",
+        description: "Spacious home with pool and large backyard"
+      },
+      {
+        id: "3",
+        address: "789 Pine Road",
+        city: city,
+        state: "FL",
+        price: 285000,
+        beds: 2,
+        baths: 2,
+        sqft: 1400,
+        image_url: "https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800",
+        description: "Cozy starter home, move-in ready"
+      },
+      {
+        id: "4",
+        address: "321 Elm Street",
+        city: city,
+        state: "FL",
+        price: 550000,
+        beds: 5,
+        baths: 3,
+        sqft: 3000,
+        image_url: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800",
+        description: "Luxury home with high-end finishes"
+      },
+      {
+        id: "5",
+        address: "567 Maple Drive",
+        city: city,
+        state: "FL",
+        price: 195000,
+        beds: 2,
+        baths: 1,
+        sqft: 1100,
+        image_url: "https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800",
+        description: "Investment opportunity, needs updates"
+      }
+    ];
+  };
+
+  const handlePropertySelect = async (property: Property) => {
+    const analysisPrompt = `I'd like a detailed analysis of this property: ${property.address}, ${property.city}, ${property.state}. Price: $${property.price.toLocaleString()}, ${property.beds} beds, ${property.baths} baths, ${property.sqft} sqft.`;
+    
+    setInput(analysisPrompt);
+    // Trigger send with property data
+    setTimeout(() => {
+      handleSendWithProperty(property);
+    }, 100);
+  };
+
+  const handleSendWithProperty = async (propertyData?: Property) => {
+    if ((!input.trim() && !imageFile && !propertyData) || loading) return;
     if ((!input.trim() && !imageFile) || loading) return;
 
     let conversationId = currentConversationId;
@@ -227,15 +340,29 @@ export default function Chat() {
       const { data, error } = await supabase.functions.invoke("ai-chat", {
         body: { 
           messages: [...messages, userMessage],
-          hasImage: !!tempImagePreview
+          hasImage: !!tempImagePreview,
+          userProfile: userProfile,
+          propertyData: propertyData
         },
       });
 
       if (error) throw error;
 
+      // Check if response contains property search trigger
+      let properties: Property[] | undefined;
+      let cleanedResponse = data.response;
+      
+      const propertyMatch = data.response.match(/SHOW_PROPERTIES:([^\n]+)/);
+      if (propertyMatch) {
+        const location = propertyMatch[1].trim();
+        properties = generateMockProperties(location);
+        cleanedResponse = data.response.replace(/SHOW_PROPERTIES:[^\n]+/, '').trim();
+      }
+
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.response,
+        content: cleanedResponse,
+        properties: properties,
       };
       
       setMessages((prev) => [...prev, assistantMessage]);
@@ -270,6 +397,8 @@ export default function Chat() {
       setLoading(false);
     }
   };
+
+  const handleSend = () => handleSendWithProperty();
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -361,6 +490,12 @@ export default function Chat() {
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
           <div className="max-w-4xl mx-auto space-y-6">
+            {messages.length === 0 && showProfileSelector && (
+              <ProfileSelector onProfileChange={(profile) => {
+                setUserProfile(profile);
+                setShowProfileSelector(false);
+              }} />
+            )}
             {messages.length === 0 && (
               <div className="text-center py-12">
                 <Bot className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -419,6 +554,14 @@ export default function Chat() {
                     <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />
                   )}
                   <p className="whitespace-pre-wrap">{message.content}</p>
+                  {message.properties && message.properties.length > 0 && (
+                    <div className="mt-4">
+                      <PropertyCarousel 
+                        properties={message.properties}
+                        onSelectProperty={handlePropertySelect}
+                      />
+                    </div>
+                  )}
                 </div>
                 {message.role === "user" && (
                   <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
