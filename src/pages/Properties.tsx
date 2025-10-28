@@ -4,9 +4,11 @@ import { SearchBar } from "@/components/SearchBar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Bed, Bath, Square, MapPin } from "lucide-react";
+import PropertyCarousel from "@/components/PropertyCarousel";
 import FollowUpChat from "@/components/FollowUpChat";
 import { generateZillowLink } from "@/lib/externalLinks";
+import { Button } from "@/components/ui/button";
 
 interface Property {
   id: string;
@@ -29,6 +31,7 @@ export default function Properties() {
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
@@ -167,29 +170,16 @@ export default function Properties() {
     }
   }, [searchParams, handleSearch]);
 
-  const renderMarkdownLinks = (text: string) => {
-    // Convert markdown links [text](url) to clickable links
-    const parts = text.split(/(\[.*?\]\(.*?\))/g);
-    
-    return parts.map((part, index) => {
-      const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
-      if (linkMatch) {
-        const [, linkText, url] = linkMatch;
-        return (
-          <a
-            key={index}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-          >
-            <ExternalLink className="h-4 w-4" />
-            {linkText}
-          </a>
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const handlePropertySelect = (property: Property) => {
+    setSelectedProperty(property);
   };
 
   return (
@@ -203,21 +193,73 @@ export default function Properties() {
           <SearchBar onSearch={(query) => handleSearch(query)} loading={searchLoading} />
         </div>
 
-        {assistantResponse && (
-          <Card className="max-w-4xl mx-auto">
+        {/* Property Carousel */}
+        {properties.length > 0 && (
+          <PropertyCarousel 
+            properties={properties.map(p => ({ ...p, image_url: p.image_url || p.image_urls?.[0] || '' }))} 
+            onSelectProperty={handlePropertySelect}
+          />
+        )}
+
+        {/* Selected Property Details */}
+        {selectedProperty && (
+          <Card className="max-w-4xl mx-auto mt-8">
             <CardContent className="pt-6">
-              <div className="prose prose-lg max-w-none dark:prose-invert">
-                {assistantResponse.split('\n').map((paragraph, index) => (
-                  <p key={index} className="mb-4 whitespace-pre-wrap">
-                    {renderMarkdownLinks(paragraph)}
-                  </p>
-                ))}
+              <div className="space-y-6">
+                {/* Property Header */}
+                <div>
+                  <h2 className="text-3xl font-bold text-primary mb-2">
+                    {formatPrice(selectedProperty.price)}
+                  </h2>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    <p className="text-lg">
+                      {selectedProperty.address}, {selectedProperty.city}, {selectedProperty.state}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Property Stats */}
+                <div className="flex gap-6 text-lg">
+                  <div className="flex items-center gap-2">
+                    <Bed className="h-5 w-5" />
+                    <span>{selectedProperty.beds} beds</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Bath className="h-5 w-5" />
+                    <span>{selectedProperty.baths} baths</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Square className="h-5 w-5" />
+                    <span>{selectedProperty.sqft} sqft</span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {selectedProperty.description && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">About this property</h3>
+                    <p className="text-muted-foreground">{selectedProperty.description}</p>
+                  </div>
+                )}
+
+                {/* External Link */}
+                {selectedProperty.externalLink && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => window.open(selectedProperty.externalLink, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View on Zillow
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         )}
 
-        {!assistantResponse && !loading && (
+        {!properties.length && !loading && (
           <div className="text-center py-12 max-w-2xl mx-auto">
             <p className="text-xl text-muted-foreground mb-6">
               👋 Welcome! I'm your AI real estate assistant.
@@ -236,7 +278,12 @@ export default function Properties() {
       </div>
       
       {/* Follow-up Chat Box */}
-      <FollowUpChat context={assistantResponse} properties={properties} />
+      {selectedProperty && (
+        <FollowUpChat 
+          context={`Selected Property: ${selectedProperty.address}, ${selectedProperty.city}, ${selectedProperty.state} - ${formatPrice(selectedProperty.price)}`} 
+          properties={[selectedProperty]} 
+        />
+      )}
     </div>
   );
 }
