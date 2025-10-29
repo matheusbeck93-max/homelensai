@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ExternalLink, Bed, Bath, Square, MapPin } from "lucide-react";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import FollowUpChat from "@/components/FollowUpChat";
-import { generateZillowLink } from "@/lib/externalLinks";
+// External link generation removed
 import { Button } from "@/components/ui/button";
 
 interface Property {
@@ -44,7 +44,7 @@ export default function Properties() {
     setSelectedProperty(null);
     
     try {
-      // Search for properties from Zillow API
+      // Search for properties using AI
       const { data: searchData, error: searchError } = await supabase.functions.invoke('ai-search', {
         body: { query, categories }
       });
@@ -66,7 +66,7 @@ export default function Properties() {
       // Add external links to all properties
       const propsToUse = foundProperties.map(prop => ({
         ...prop,
-        externalLink: prop.externalLink || generateZillowLink(prop)
+        externalLink: prop.externalLink || null
       }));
       
       setProperties(propsToUse);
@@ -186,7 +186,7 @@ export default function Properties() {
                     onClick={() => window.open(selectedProperty.externalLink, '_blank')}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    View on Zillow
+                    View Details
                   </Button>
                 )}
               </div>

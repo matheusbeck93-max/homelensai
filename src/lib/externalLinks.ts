@@ -7,21 +7,14 @@ interface PropertyInfo {
   zip?: string;
 }
 
-export function generateZillowLink(property: PropertyInfo): string {
-  const query = encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip || ''}`);
-  return `https://www.zillow.com/homes/${query}_rb/`;
-}
+// Zillow link generation removed - no external API integration
 
 export function generateRealtorLink(property: PropertyInfo): string {
   const query = encodeURIComponent(`${property.address}, ${property.city}, ${property.state} ${property.zip || ''}`);
   return `https://www.realtor.com/realestateandhomes-search/${query}`;
 }
 
-export function generateRedfinLink(property: PropertyInfo): string {
-  const stateCode = property.state.toLowerCase();
-  const city = property.city.toLowerCase().replace(/\s+/g, '-');
-  return `https://www.redfin.com/city/${city}/${stateCode}`;
-}
+// Redfin link generation removed - no external API integration
 
 export function generateTruliaLink(property: PropertyInfo): string {
   const query = encodeURIComponent(`${property.address}, ${property.city}, ${property.state}`);
@@ -40,9 +33,7 @@ export function generateApartmentsLink(property: PropertyInfo): string {
 }
 
 export const externalSites = [
-  { name: 'Zillow', generator: generateZillowLink },
   { name: 'Realtor.com', generator: generateRealtorLink },
-  { name: 'Redfin', generator: generateRedfinLink },
   { name: 'Trulia', generator: generateTruliaLink },
   { name: 'Homes.com', generator: generateHomesLink },
   { name: 'Apartments.com', generator: generateApartmentsLink },

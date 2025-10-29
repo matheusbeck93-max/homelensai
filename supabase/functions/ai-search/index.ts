@@ -11,18 +11,10 @@ Deno.serve(async (req) => {
   try {
     const { query, categories } = await req.json();
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    const RAPIDAPI_KEY = Deno.env.get('RAPIDAPI_KEY');
     
     if (!OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY is not configured');
     }
-    
-    if (!RAPIDAPI_KEY) {
-      throw new Error('RAPIDAPI_KEY is not configured. Please add your RapidAPI key.');
-    }
-
-    // Debug: Log first 10 characters of API key to verify it's updated
-    console.log('Using RAPIDAPI_KEY starting with:', RAPIDAPI_KEY?.substring(0, 10));
 
     // Parse natural language query with AI
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -85,7 +77,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Beautiful family home with modern updates",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2010,
         lot_size: 5000,
       },
@@ -103,7 +95,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Spacious home with pool and large backyard",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2015,
         lot_size: 7500,
       },
@@ -121,7 +113,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Cozy starter home, move-in ready",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2008,
         lot_size: 4000,
       },
@@ -139,7 +131,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Luxury home with high-end finishes",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2020,
         lot_size: 8000,
       },
@@ -157,7 +149,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Investment opportunity, needs updates",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2005,
         lot_size: 3500,
       },
@@ -175,7 +167,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Modern townhouse in great neighborhood",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2018,
         lot_size: 2500,
       },
@@ -193,7 +185,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Charming single-family home",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2012,
         lot_size: 5500,
       },
@@ -211,7 +203,7 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
         description: "Updated home with open floor plan",
         condition: "active",
         status: "active",
-        externalLink: "https://www.zillow.com",
+        externalLink: null,
         year_built: 2016,
         lot_size: 6500,
       }
