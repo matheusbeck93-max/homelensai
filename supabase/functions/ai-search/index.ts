@@ -64,126 +64,172 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
     
     console.log('Parsed filters:', parsedFilters);
 
-    let properties = [];
-
-    // Fetch from Redfin API
-    try {
-      // Step 1: Get location/region ID from auto-complete
-      const searchLocation = parsedFilters.city && parsedFilters.state 
-        ? `${parsedFilters.city}, ${parsedFilters.state}` 
-        : parsedFilters.city || parsedFilters.state || 'Miami, FL';
-
-      console.log('Searching Redfin for location:', searchLocation);
-
-      const autocompleteUrl = `https://redfin-com-data.p.rapidapi.com/properties/auto-complete?query=${encodeURIComponent(searchLocation)}`;
-      
-      const autocompleteResponse = await fetch(autocompleteUrl, {
-        method: 'GET',
-        headers: {
-          'X-RapidAPI-Key': RAPIDAPI_KEY,
-          'X-RapidAPI-Host': 'redfin-com-data.p.rapidapi.com'
-        }
-      });
-
-      if (!autocompleteResponse.ok) {
-        const errorText = await autocompleteResponse.text();
-        console.error('Redfin autocomplete error:', autocompleteResponse.status, errorText);
-        throw new Error(`Redfin autocomplete failed: ${errorText}`);
+    // Generate mock properties based on parsed filters
+    const city = parsedFilters.city || 'Default City';
+    const state = parsedFilters.state || 'FL';
+    const maxPrice = parsedFilters.price_max || 1000000;
+    const minBeds = parsedFilters.beds_min || 2;
+    
+    const mockProperties = [
+      {
+        id: "1",
+        address: "123 Main Street",
+        city: city,
+        state: state,
+        zip: "22201",
+        price: Math.min(maxPrice * 0.7, 350000),
+        beds: minBeds,
+        baths: 2,
+        sqft: 1800,
+        image_urls: ["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800"],
+        description: "Beautiful family home with modern updates",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2010,
+        lot_size: 5000,
+      },
+      {
+        id: "2",
+        address: "456 Oak Avenue",
+        city: city,
+        state: state,
+        zip: "22202",
+        price: Math.min(maxPrice * 0.85, 425000),
+        beds: minBeds + 1,
+        baths: 2.5,
+        sqft: 2200,
+        image_urls: ["https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800"],
+        description: "Spacious home with pool and large backyard",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2015,
+        lot_size: 7500,
+      },
+      {
+        id: "3",
+        address: "789 Pine Road",
+        city: city,
+        state: state,
+        zip: "22203",
+        price: Math.min(maxPrice * 0.6, 285000),
+        beds: minBeds,
+        baths: 2,
+        sqft: 1400,
+        image_urls: ["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800"],
+        description: "Cozy starter home, move-in ready",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2008,
+        lot_size: 4000,
+      },
+      {
+        id: "4",
+        address: "321 Elm Street",
+        city: city,
+        state: state,
+        zip: "22204",
+        price: Math.min(maxPrice * 0.95, 550000),
+        beds: minBeds + 2,
+        baths: 3,
+        sqft: 3000,
+        image_urls: ["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800"],
+        description: "Luxury home with high-end finishes",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2020,
+        lot_size: 8000,
+      },
+      {
+        id: "5",
+        address: "567 Maple Drive",
+        city: city,
+        state: state,
+        zip: "22205",
+        price: Math.min(maxPrice * 0.5, 195000),
+        beds: minBeds,
+        baths: 1,
+        sqft: 1100,
+        image_urls: ["https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800"],
+        description: "Investment opportunity, needs updates",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2005,
+        lot_size: 3500,
+      },
+      {
+        id: "6",
+        address: "890 Cedar Lane",
+        city: city,
+        state: state,
+        zip: "22206",
+        price: Math.min(maxPrice * 0.75, 395000),
+        beds: minBeds + 1,
+        baths: 2.5,
+        sqft: 2100,
+        image_urls: ["https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800"],
+        description: "Modern townhouse in great neighborhood",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2018,
+        lot_size: 2500,
+      },
+      {
+        id: "7",
+        address: "234 Birch Court",
+        city: city,
+        state: state,
+        zip: "22207",
+        price: Math.min(maxPrice * 0.65, 315000),
+        beds: minBeds,
+        baths: 2,
+        sqft: 1650,
+        image_urls: ["https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800"],
+        description: "Charming single-family home",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2012,
+        lot_size: 5500,
+      },
+      {
+        id: "8",
+        address: "678 Willow Way",
+        city: city,
+        state: state,
+        zip: "22208",
+        price: Math.min(maxPrice * 0.9, 475000),
+        beds: minBeds + 1,
+        baths: 3,
+        sqft: 2500,
+        image_urls: ["https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800"],
+        description: "Updated home with open floor plan",
+        condition: "active",
+        status: "active",
+        externalLink: "https://www.zillow.com",
+        year_built: 2016,
+        lot_size: 6500,
       }
+    ];
 
-      const autocompleteData = await autocompleteResponse.json();
-      console.log('Redfin autocomplete response:', JSON.stringify(autocompleteData).substring(0, 500));
+    // Filter properties based on criteria
+    const properties = mockProperties.filter(prop => {
+      if (parsedFilters.price_max && prop.price > parsedFilters.price_max) return false;
+      if (parsedFilters.price_min && prop.price < parsedFilters.price_min) return false;
+      if (parsedFilters.beds_min && prop.beds < parsedFilters.beds_min) return false;
+      if (parsedFilters.baths_min && prop.baths < parsedFilters.baths_min) return false;
+      return true;
+    });
 
-      // Find the best matching region (city or county)
-      let regionId = null;
-      if (autocompleteData.data && autocompleteData.data.length > 0) {
-        // Look for Places section first
-        const placesSection = autocompleteData.data.find((section: any) => section.name === 'Places');
-        if (placesSection && placesSection.rows && placesSection.rows.length > 0) {
-          // Prefer city (type 2) over other types
-          const cityMatch = placesSection.rows.find((row: any) => row.type === '2');
-          regionId = cityMatch ? cityMatch.id : placesSection.rows[0].id;
-        }
-      }
+    console.log(`Generated ${properties.length} mock properties`);
 
-      if (!regionId) {
-        throw new Error('Could not find region ID for location');
-      }
-
-      console.log('Found region ID:', regionId);
-
-      // Step 2: Search for properties using region ID
-      const searchUrl = new URL('https://redfin-com-data.p.rapidapi.com/properties/search-sale');
-      searchUrl.searchParams.append('regionId', regionId);
-      
-      if (parsedFilters.beds_min) {
-        searchUrl.searchParams.append('minBeds', parsedFilters.beds_min.toString());
-      }
-      if (parsedFilters.baths_min) {
-        searchUrl.searchParams.append('minBaths', parsedFilters.baths_min.toString());
-      }
-      if (parsedFilters.price_min) {
-        searchUrl.searchParams.append('minPrice', parsedFilters.price_min.toString());
-      }
-      if (parsedFilters.price_max) {
-        searchUrl.searchParams.append('maxPrice', parsedFilters.price_max.toString());
-      }
-
-      console.log('Redfin search URL:', searchUrl.toString());
-
-      const searchResponse = await fetch(searchUrl.toString(), {
-        method: 'GET',
-        headers: {
-          'X-RapidAPI-Key': RAPIDAPI_KEY,
-          'X-RapidAPI-Host': 'redfin-com-data.p.rapidapi.com'
-        }
-      });
-
-      if (!searchResponse.ok) {
-        const errorText = await searchResponse.text();
-        console.error('Redfin search error:', searchResponse.status, errorText);
-        throw new Error(`Redfin search failed: ${errorText}`);
-      }
-
-      const searchData = await searchResponse.json();
-      console.log('Redfin search response status:', searchResponse.status);
-      console.log('Redfin search response preview:', JSON.stringify(searchData).substring(0, 1000));
-
-      // Transform Redfin data to our format
-      if (searchData.data && searchData.data.homes && Array.isArray(searchData.data.homes)) {
-        properties = searchData.data.homes.slice(0, 12).map((home: any) => {
-          const priceInfo = home.priceInfo || {};
-          const addressInfo = home.addressInfo || {};
-          
-          return {
-            id: home.propertyId?.toString() || home.listingId?.toString() || Math.random().toString(),
-            address: addressInfo.formattedStreetLine || addressInfo.streetAddress || 'Address not available',
-            city: addressInfo.city || parsedFilters.city || 'Unknown',
-            state: addressInfo.state || parsedFilters.state || 'Unknown',
-            zip: addressInfo.zip || '',
-            price: priceInfo.amount || home.price || 0,
-            beds: home.beds || home.numBeds || 0,
-            baths: home.baths || home.numBaths || 0,
-            sqft: home.sqFt || home.squareFeet || 0,
-            image_urls: home.photos ? [home.photos] : (home.photoUrls || ['https://images.unsplash.com/photo-1568605114967-8130f3a36994']),
-            description: home.listingRemarks || `${home.beds || 0} bed, ${home.baths || 0} bath ${home.propertyType || 'property'}`,
-            condition: 'active',
-            status: 'active',
-            externalLink: home.url ? `https://www.redfin.com${home.url}` : null,
-            year_built: home.yearBuilt || null,
-            lot_size: home.lotSize || null,
-          };
-        });
-        console.log(`Successfully fetched ${properties.length} properties from Redfin`);
-      }
-    } catch (redfinError) {
-      console.error('Error fetching from Redfin:', redfinError);
-      throw redfinError;
-    }
-
-    // Return properties only if we got real data from Redfin
     if (properties.length === 0) {
-      console.log('No properties found from Redfin API');
+      console.log('No properties match the criteria');
       return new Response(
         JSON.stringify({ 
           properties: [], 
