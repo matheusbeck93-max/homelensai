@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import ProfileSelector from "@/components/ProfileSelector";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id?: string;
@@ -558,7 +559,26 @@ export default function Chat() {
                   {message.image_url && (
                     <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />
                   )}
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a
+                            {...props}
+                            className="text-blue-500 hover:text-blue-700 underline"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        ),
+                        p: ({ node, ...props }) => <p {...props} className="mb-2" />,
+                        ul: ({ node, ...props }) => <ul {...props} className="list-disc ml-4 mb-2" />,
+                        ol: ({ node, ...props }) => <ol {...props} className="list-decimal ml-4 mb-2" />,
+                        strong: ({ node, ...props }) => <strong {...props} className="font-bold" />,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
                   {message.properties && message.properties.length > 0 && (
                     <div className="mt-4">
                       <PropertyCarousel 
