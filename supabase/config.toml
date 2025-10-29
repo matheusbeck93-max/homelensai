@@ -11,3 +11,9 @@ verify_jwt = true
 
 [functions.property-assistant]
 verify_jwt = false
+
+[functions.generate-image]
+verify_jwt = true
+
+[functions.realtime-token]
+verify_jwt = true
