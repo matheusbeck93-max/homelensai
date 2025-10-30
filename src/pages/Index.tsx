@@ -144,7 +144,7 @@ export default function Index() {
       <section className="py-16 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-center mb-8">Start Your Property Search</h2>
+            <h2 className="text-3xl font-bold text-center mb-8">Find your new home</h2>
             
             <div className="mb-8">
               <SearchBar onSearch={handleSearch} />
