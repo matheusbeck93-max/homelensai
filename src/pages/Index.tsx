@@ -66,9 +66,7 @@ export default function Index() {
             <a href="#pricing" className="text-primary-foreground hover:opacity-80 transition-opacity font-medium">
               Pricing
             </a>
-            <a href="#cta" className="text-primary-foreground hover:opacity-80 transition-opacity font-medium">
-              Get Started
-            </a>
+            
             <ThemeToggle />
             {user ? <>
                 <Button variant="secondary" onClick={() => navigate("/chat")}>
