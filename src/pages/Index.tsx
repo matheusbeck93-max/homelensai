@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import heroBackground from "@/assets/american-house-hero.jpg";
 
 export default function Index() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -96,63 +97,57 @@ export default function Index() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-[hsl(222,47%,11%)] to-[hsl(222,47%,17%)] text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
+      <section className="relative min-h-[600px] lg:min-h-[700px] flex items-center justify-center overflow-hidden">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0">
+          <img 
+            src={heroBackground}
+            alt="Beautiful American home"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-[hsl(222,47%,11%)]/80 to-[hsl(222,47%,17%)]/80"></div>
         </div>
         
-        <div className="container mx-auto px-4 py-20 lg:py-32 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="text-left">
-              <div className="inline-block mb-4 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-                <span className="text-primary text-sm font-medium">Powered by AI</span>
-              </div>
-              
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-                Your <span className="text-primary">Dream Home</span>.<br />
-                Your <span className="text-primary">Journey</span>.<br />
-                Your <span className="text-primary">Success</span>.
-              </h1>
-              
-              <p className="text-xl text-gray-300 mb-8 max-w-2xl">
-                AI-powered real estate assistant that helps you find properties, analyze investments, and make smarter decisions with confidence.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4 mb-12">
-                <Button size="lg" onClick={() => navigate(user ? "/chat" : "/auth")} className="shadow-glow">
-                  <MessageSquare className="mr-2 h-5 w-5" />
-                  {user ? "Start Chatting" : "Get Started Free"}
-                </Button>
-                <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                  Learn More
-                </Button>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-8 pt-8 border-t border-white/10">
-                <div>
-                  <div className="text-3xl font-bold text-primary mb-1">500+</div>
-                  <div className="text-sm text-gray-400">Happy Users</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-primary mb-1">24/7</div>
-                  <div className="text-sm text-gray-400">AI Support</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-primary mb-1">100%</div>
-                  <div className="text-sm text-gray-400">Free to Use</div>
-                </div>
-              </div>
+        {/* Content - Centered */}
+        <div className="container mx-auto px-4 py-20 relative z-10">
+          <div className="max-w-4xl mx-auto text-center text-white">
+            <div className="inline-block mb-4 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+              <span className="text-primary text-sm font-medium">Powered by AI</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+              Your <span className="text-primary">Dream Home</span>.<br />
+              Your <span className="text-primary">Journey</span>.<br />
+              Your <span className="text-primary">Success</span>.
+            </h1>
+            
+            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+              AI-powered real estate assistant that helps you find properties, analyze investments, and make smarter decisions with confidence.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 mb-12 justify-center">
+              <Button size="lg" onClick={() => navigate(user ? "/chat" : "/auth")} className="shadow-glow">
+                <MessageSquare className="mr-2 h-5 w-5" />
+                {user ? "Start Chatting" : "Get Started Free"}
+              </Button>
+              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
+                Learn More
+              </Button>
             </div>
 
-            <div className="relative hidden lg:block">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-                <img 
-                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=600&fit=crop" 
-                  alt="Modern home interior"
-                  className="w-full h-[600px] object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[hsl(222,47%,11%)]/60 to-transparent"></div>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-white/10 max-w-2xl mx-auto">
+              <div>
+                <div className="text-3xl font-bold text-primary mb-1">500+</div>
+                <div className="text-sm text-gray-400">Happy Users</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-primary mb-1">24/7</div>
+                <div className="text-sm text-gray-400">AI Support</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-primary mb-1">100%</div>
+                <div className="text-sm text-gray-400">Free to Start</div>
               </div>
             </div>
           </div>
@@ -234,10 +229,10 @@ export default function Index() {
               <CardContent className="p-12">
                 <div className="mb-8">
                   <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
-                    Limited Time Offer
+                    Free to Start
                   </div>
-                  <h3 className="text-4xl font-bold mb-2">100% Free</h3>
-                  <p className="text-muted-foreground text-lg">All premium features included at no cost</p>
+                  <h3 className="text-4xl font-bold mb-2">$6.97<span className="text-lg font-normal text-muted-foreground">/month</span></h3>
+                  <p className="text-muted-foreground text-lg">All premium features included</p>
                 </div>
                 
                 <ul className="space-y-4 text-left max-w-md mx-auto mb-10">

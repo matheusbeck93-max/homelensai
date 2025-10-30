@@ -60,7 +60,7 @@ export default function Profile() {
       setFavorites(properties);
     } catch (error: any) {
       toast({
-        title: "Erro ao carregar favoritos",
+        title: "Error loading favorites",
         description: error.message,
         variant: "destructive",
       });
@@ -85,13 +85,13 @@ export default function Profile() {
                 <User className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Meu Perfil</h1>
+                <h1 className="text-3xl font-bold">My Profile</h1>
                 <p className="text-muted-foreground">{user?.email}</p>
               </div>
             </div>
             <Button variant="outline" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
-              Sair
+              Sign Out
             </Button>
           </div>
 
@@ -99,7 +99,7 @@ export default function Profile() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-6">
               <Heart className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-semibold">Imóveis Favoritos</h2>
+              <h2 className="text-2xl font-semibold">Favorite Properties</h2>
               <span className="text-muted-foreground">({favorites.length})</span>
             </div>
 
@@ -117,10 +117,10 @@ export default function Profile() {
               <div className="text-center py-12 border rounded-lg bg-card">
                 <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-xl text-muted-foreground mb-4">
-                  Você ainda não tem imóveis favoritos
+                  You don't have any favorite properties yet
                 </p>
                 <Button onClick={() => navigate("/properties")}>
-                  Explorar Imóveis
+                  Explore Properties
                 </Button>
               </div>
             ) : (

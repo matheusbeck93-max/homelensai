@@ -64,12 +64,12 @@ export default function Settings() {
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
-        description: "Perfil atualizado com sucesso",
+        title: "Success",
+        description: "Profile updated successfully",
       });
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -94,14 +94,14 @@ export default function Settings() {
       await supabase.auth.signOut();
       
       toast({
-        title: "Conta deletada",
-        description: "Sua conta foi deletada com sucesso",
+        title: "Account deleted",
+        description: "Your account has been successfully deleted",
       });
       
       navigate("/auth");
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -122,7 +122,7 @@ export default function Settings() {
           Back
         </Button>
 
-        <h1 className="text-4xl font-bold mb-8">Configurações</h1>
+        <h1 className="text-4xl font-bold mb-8">Settings</h1>
 
         <div className="space-y-6">
           {/* Profile Settings */}
@@ -130,20 +130,20 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Informações do Perfil
+                Profile Information
               </CardTitle>
               <CardDescription>
-                Atualize suas informações pessoais
+                Update your personal information
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Nome Completo</Label>
+                <Label htmlFor="fullName">Full Name</Label>
                 <Input
                   id="fullName"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Digite seu nome completo"
+                  placeholder="Enter your full name"
                 />
               </div>
               <div className="space-y-2">
@@ -158,12 +158,12 @@ export default function Settings() {
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  O email não pode ser alterado
+                  Email cannot be changed
                 </p>
               </div>
               <Button onClick={handleSave} disabled={loading}>
                 <Save className="mr-2 h-4 w-4" />
-                Salvar Alterações
+                Save Changes
               </Button>
             </CardContent>
           </Card>
@@ -171,17 +171,17 @@ export default function Settings() {
           {/* Appearance */}
           <Card>
             <CardHeader>
-              <CardTitle>Aparência</CardTitle>
+              <CardTitle>Appearance</CardTitle>
               <CardDescription>
-                Personalize como o aplicativo se parece
+                Customize how the app looks
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-medium">Tema</h3>
+                  <h3 className="font-medium">Theme</h3>
                   <p className="text-sm text-muted-foreground">
-                    Alterne entre modo claro e escuro
+                    Toggle between light and dark mode
                   </p>
                 </div>
                 <ThemeToggle />
@@ -192,31 +192,31 @@ export default function Settings() {
           {/* Account */}
           <Card>
             <CardHeader>
-              <CardTitle>Conta</CardTitle>
+              <CardTitle>Account</CardTitle>
               <CardDescription>
-                Gerencie as configurações da sua conta
+                Manage your account settings
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h3 className="font-medium mb-2">Plano Atual</h3>
+                <h3 className="font-medium mb-2">Current Plan</h3>
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
-                    <p className="font-semibold">Plano Gratuito</p>
+                    <p className="font-semibold">Free Plan</p>
                     <p className="text-sm text-muted-foreground">
-                      Todos os recursos incluídos
+                      All features included
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-primary">$0</p>
-                    <p className="text-sm text-muted-foreground">por mês</p>
+                    <p className="text-sm text-muted-foreground">per month</p>
                   </div>
                 </div>
               </div>
               <div>
-                <h3 className="font-medium mb-2">Uso</h3>
+                <h3 className="font-medium mb-2">Usage</h3>
                 <p className="text-sm text-muted-foreground">
-                  Você tem acesso ilimitado a todos os recursos
+                  You have unlimited access to all features
                 </p>
               </div>
             </CardContent>
@@ -227,10 +227,10 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="text-destructive flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
-                Zona de Perigo
+                Danger Zone
               </CardTitle>
               <CardDescription>
-                Ações irreversíveis que afetam sua conta
+                Irreversible actions that affect your account
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -238,31 +238,31 @@ export default function Settings() {
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" disabled={loading}>
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Deletar Conta
+                    Delete Account
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação não pode ser desfeita. Isso irá deletar permanentemente sua conta
-                      e remover todos os seus dados de nossos servidores, incluindo todas as suas
-                      conversas e configurações.
+                      This action cannot be undone. This will permanently delete your account
+                      and remove all your data from our servers, including all your
+                      conversations and settings.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteAccount}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      Deletar Conta
+                      Delete Account
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
               <p className="text-sm text-muted-foreground mt-2">
-                Uma vez deletada, não há como recuperar sua conta
+                Once deleted, there is no way to recover your account
               </p>
             </CardContent>
           </Card>
