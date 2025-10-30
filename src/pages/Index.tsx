@@ -97,9 +97,7 @@ export default function Index() {
         {/* Content - Centered */}
         <div className="container mx-auto px-4 py-20 relative z-10">
           <div className="max-w-4xl mx-auto text-center text-white">
-            <div className="inline-block mb-4 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-              
-            </div>
+            
             
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
               Your <span className="text-primary">Dream Home</span>.<br />
