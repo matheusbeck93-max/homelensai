@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,15 +50,38 @@ export default function Chat() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<string>("regular-buyer");
   const [showProfileSelector, setShowProfileSelector] = useState(true);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasShownAuthDialog, setHasShownAuthDialog] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAuth();
-    loadConversations();
-    loadUserProfile();
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      
+      if (session) {
+        loadConversations();
+        loadUserProfile();
+      }
+      
+      // Check for search query parameter
+      const params = new URLSearchParams(window.location.search);
+      const query = params.get('q');
+      if (query) {
+        setInput(query);
+        // Auto-send the message after a brief delay
+        setTimeout(() => {
+          handleSendWithQuery(query);
+        }, 500);
+        // Clean up URL
+        window.history.replaceState({}, '', '/chat');
+      }
+    };
+    init();
   }, []);
 
   const loadUserProfile = async () => {
@@ -87,10 +111,99 @@ export default function Chat() {
     }
   }, [messages]);
 
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate("/auth");
+  const handleSendWithQuery = async (query: string) => {
+    // This function is called when auto-sending from URL parameter
+    const userMessage: Message = { 
+      role: "user", 
+      content: query
+    };
+    
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-chat", {
+        body: { 
+          messages: [userMessage],
+          hasImage: false,
+          userProfile: userProfile
+        },
+      });
+
+      if (error) throw error;
+
+      // Check if response contains property search trigger
+      let properties: Property[] | undefined;
+      let cleanedResponse = data.response;
+      
+      const propertyMatch = data.response.match(/SHOW_PROPERTIES:([^\n]+)/);
+      if (propertyMatch) {
+        const location = propertyMatch[1].trim();
+        properties = generateMockProperties(location);
+        cleanedResponse = data.response.replace(/SHOW_PROPERTIES:[^\n]+/, '').trim();
+      }
+
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: cleanedResponse,
+        properties: properties,
+      };
+      
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // Show auth dialog after first response if not authenticated and hasn't been shown yet
+      if (!isAuthenticated && !hasShownAuthDialog) {
+        setTimeout(() => {
+          setShowAuthDialog(true);
+          setHasShownAuthDialog(true);
+        }, 1000);
+      }
+
+      // Save conversation if authenticated
+      if (isAuthenticated) {
+        let conversationId = currentConversationId;
+        
+        if (!conversationId) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: convData } = await supabase
+              .from("conversations")
+              .insert({ user_id: user.id, title: query.slice(0, 50) })
+              .select()
+              .single();
+            
+            if (convData) {
+              conversationId = convData.id;
+              setConversations((prev) => [convData, ...prev]);
+              setCurrentConversationId(convData.id);
+            }
+          }
+        }
+
+        if (conversationId) {
+          await supabase.from("messages").insert([
+            {
+              conversation_id: conversationId,
+              role: "user",
+              content: userMessage.content,
+            },
+            {
+              conversation_id: conversationId,
+              role: "assistant",
+              content: data.response,
+            }
+          ]);
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -662,6 +775,26 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {/* Auth Dialog */}
+      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sign in to continue</DialogTitle>
+            <DialogDescription>
+              Create an account or sign in to save your conversations and access all features.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            <Button onClick={() => navigate('/auth')} className="w-full">
+              Sign In / Sign Up
+            </Button>
+            <Button variant="outline" onClick={() => setShowAuthDialog(false)} className="w-full">
+              Continue as Guest
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
