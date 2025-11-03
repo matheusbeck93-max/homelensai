@@ -620,7 +620,7 @@ export default function Chat() {
             {messages.length === 0 && (
               <div className="text-center py-12">
                 <Bot className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Welcome to Real Estate AI</h2>
+                <h2 className="text-2xl font-bold mb-2">Welcome to HomeLens, let's talk!</h2>
                 <p className="text-muted-foreground mb-6">
                   Your intelligent assistant for real estate, mortgages, investments, and market analysis
                 </p>
