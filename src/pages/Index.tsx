@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, Bot, Send, Plus } from "lucide-react";
+import { Home, Bot, Send, Plus, History } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,14 @@ import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import ReactMarkdown from "react-markdown";
 import heroBackground from "@/assets/american-house-hero.jpg";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const MarkdownLink = ({ href, children }: any) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
@@ -23,19 +31,56 @@ export default function Index() {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [pastConversations, setPastConversations] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        loadPastConversations(session.user.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        loadPastConversations(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const loadPastConversations = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(10);
+    
+    if (!error && data) {
+      setPastConversations(data);
+    }
+  };
+
+  const loadConversation = async (convId: string) => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', convId)
+      .order('created_at', { ascending: true });
+    
+    if (!error && data) {
+      setMessages(data.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      })));
+      setConversationId(convId);
+    }
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,9 +91,50 @@ export default function Index() {
     setUser(null);
   };
 
-  const handleNewConversation = () => {
+  const handleNewConversation = async () => {
+    // Save current conversation if there are messages and user is signed in
+    if (messages.length > 0 && user) {
+      try {
+        let currentConvId = conversationId;
+        
+        // Create conversation if it doesn't exist
+        if (!currentConvId) {
+          const { data: convData, error: convError } = await supabase
+            .from('conversations')
+            .insert({
+              user_id: user.id,
+              title: messages[0]?.content?.substring(0, 50) || 'New Conversation',
+            })
+            .select()
+            .single();
+
+          if (!convError && convData) {
+            currentConvId = convData.id;
+          }
+        }
+
+        // Save messages
+        if (currentConvId) {
+          const messagesToSave = messages.map(msg => ({
+            conversation_id: currentConvId,
+            role: msg.role,
+            content: msg.content,
+          }));
+
+          await supabase.from('messages').insert(messagesToSave);
+          
+          // Reload past conversations
+          loadPastConversations(user.id);
+        }
+      } catch (error) {
+        console.error('Error saving conversation:', error);
+      }
+    }
+
+    // Clear current conversation
     setMessages([]);
     setInput("");
+    setConversationId(null);
   };
 
   const handleSend = async () => {
@@ -104,6 +190,36 @@ export default function Index() {
             <ThemeToggle />
             {user ? (
               <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost">
+                      <History className="h-4 w-4 mr-2" />
+                      Activity
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>Past Conversations</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {pastConversations.length === 0 ? (
+                      <DropdownMenuItem disabled>No past conversations</DropdownMenuItem>
+                    ) : (
+                      pastConversations.map((conv) => (
+                        <DropdownMenuItem 
+                          key={conv.id}
+                          onClick={() => loadConversation(conv.id)}
+                          className="cursor-pointer"
+                        >
+                          <div className="flex flex-col gap-1 w-full">
+                            <span className="font-medium truncate">{conv.title}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(conv.updated_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="ghost" onClick={() => navigate('/chat')}>
                   Chat
                 </Button>
