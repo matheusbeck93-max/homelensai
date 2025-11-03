@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, TrendingUp, Home as HomeIcon, Repeat, DollarSign } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Navigation } from "@/components/Navigation";
 
 export default function Calculators() {
   // Buyer Calculator State
@@ -153,7 +154,8 @@ export default function Calculators() {
 
   return (
     <div className="min-h-screen bg-background py-12">
-      <div className="container mx-auto px-4">
+      <Navigation />
+      <div className="container mx-auto px-4 pt-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4 flex items-center justify-center gap-2">
             <Calculator className="h-8 w-8 text-primary" />

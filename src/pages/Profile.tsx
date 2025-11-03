@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { PropertyCard } from "@/components/PropertyCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { Navigation } from "@/components/Navigation";
+import { EmptyState } from "@/components/EmptyState";
 import { User, LogOut, Heart, Home, DollarSign, MapPin, TrendingUp, Settings } from "lucide-react";
 
 interface Property {
@@ -115,7 +117,8 @@ export default function Profile() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-12">
+        <Navigation />
+        <div className="container mx-auto px-4 py-12 pt-24">
           <Skeleton className="h-16 w-64 mb-8" />
           <Skeleton className="h-48 w-full mb-8" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -130,7 +133,8 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
+      <Navigation />
+      <div className="container mx-auto px-4 py-12 pt-24">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -244,15 +248,13 @@ export default function Profile() {
             </div>
 
             {favorites.length === 0 ? (
-              <div className="text-center py-12 border rounded-lg bg-card">
-                <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-xl text-muted-foreground mb-4">
-                  You don't have any favorite properties yet
-                </p>
-                <Button onClick={() => navigate("/properties")}>
-                  Explore Properties
-                </Button>
-              </div>
+              <EmptyState
+                icon={Heart}
+                title="No Favorite Properties"
+                description="Start favoriting properties to keep track of homes you're interested in. Your favorites will appear here."
+                actionLabel="Explore Properties"
+                onAction={() => navigate("/properties")}
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {favorites.map((property) => (

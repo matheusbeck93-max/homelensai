@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import ProfileSelector from "@/components/ProfileSelector";
 import ReactMarkdown from "react-markdown";
+import { Navigation } from "@/components/Navigation";
+import { EmptyState } from "@/components/EmptyState";
 
 interface Message {
   id?: string;

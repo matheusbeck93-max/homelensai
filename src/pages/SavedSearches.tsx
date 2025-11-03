@@ -3,13 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Navigation } from "@/components/Navigation";
+import { EmptyState } from "@/components/EmptyState";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Bell, BellOff, Search, Trash2, Calendar, ArrowLeft } from "lucide-react";
+import { Bell, BellOff, Search, Trash2, Calendar, ArrowLeft, Save } from "lucide-react";
 
 interface SavedSearch {
   id: string;
@@ -143,7 +145,8 @@ export default function SavedSearches() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto py-8 px-4">
+        <Navigation />
+        <div className="container mx-auto py-8 px-4 pt-24">
           <Skeleton className="h-12 w-64 mb-8" />
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -157,7 +160,8 @@ export default function SavedSearches() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 px-4">
+      <Navigation />
+      <div className="container mx-auto py-8 px-4 pt-24">
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -178,18 +182,13 @@ export default function SavedSearches() {
         </div>
 
         {searches.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Search className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No saved searches yet</h3>
-              <p className="text-muted-foreground mb-6 text-center max-w-md">
-                Start a property search and save it to get notified when new matching properties become available
-              </p>
-              <Button onClick={() => navigate("/chat")}>
-                Start Your First Search
-              </Button>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Search}
+            title="No Saved Searches"
+            description="Start a property search and save it to get notified when new matching properties become available."
+            actionLabel="Start Your First Search"
+            onAction={() => navigate("/chat")}
+          />
         ) : (
           <div className="space-y-4">
             {searches.map((search) => (

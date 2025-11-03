@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, User, Mail, Save, Trash2, AlertTriangle } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Navigation } from "@/components/Navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -112,7 +113,8 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl mx-auto px-4 py-8">
+      <Navigation />
+      <div className="container max-w-4xl mx-auto px-4 py-8 pt-24">
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}

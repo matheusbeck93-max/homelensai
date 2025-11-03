@@ -9,6 +9,9 @@ import PropertyCarousel from "@/components/PropertyCarousel";
 import FollowUpChat from "@/components/FollowUpChat";
 // External link generation removed
 import { Button } from "@/components/ui/button";
+import { Navigation } from "@/components/Navigation";
+import { EmptyState } from "@/components/EmptyState";
+import { Search } from "lucide-react";
 
 interface Property {
   id: string;
@@ -119,7 +122,8 @@ export default function Properties() {
 
   return (
     <div className="min-h-screen bg-background pb-[160px]">
-      <div className="container mx-auto px-4 py-12">
+      <Navigation />
+      <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="mb-12">
           <h1 className="text-4xl font-bold mb-4 text-center">AI Real Estate Assistant</h1>
           <p className="text-center text-muted-foreground mb-6">
@@ -194,21 +198,14 @@ export default function Properties() {
           </Card>
         )}
 
-        {!properties.length && !loading && (
-          <div className="text-center py-12 max-w-2xl mx-auto">
-            <p className="text-xl text-muted-foreground mb-6">
-              👋 Welcome! I'm your AI real estate assistant.
-            </p>
-            <div className="text-left space-y-4 text-muted-foreground">
-              <p>Try asking me things like:</p>
-              <ul className="list-disc list-inside space-y-2">
-                <li>"Find me houses with 3 bedrooms under $600,000 in Miami"</li>
-                <li>"Show me apartments near Austin with a pool"</li>
-                <li>"I'm looking for investment properties in Phoenix"</li>
-                <li>"2-bedroom condos in Seattle with parking"</li>
-              </ul>
-            </div>
-          </div>
+        {!properties.length && !searchLoading && (
+          <EmptyState
+            icon={Search}
+            title="Start Your Property Search"
+            description="Use the AI-powered search above to find your perfect property. Try searching for location, price range, bedrooms, or special features."
+            actionLabel="View All Properties"
+            onAction={() => handleSearch("Show me available properties")}
+          />
         )}
       </div>
       
