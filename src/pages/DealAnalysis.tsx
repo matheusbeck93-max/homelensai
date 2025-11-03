@@ -26,12 +26,15 @@ import {
   getScoreDescription,
   type PropertyData 
 } from "@/utils/propertyScoring";
+import { StrategyPlaybook } from "@/components/StrategyPlaybook";
+import { DataCitations } from "@/components/DataCitations";
 
 export default function DealAnalysis() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Property inputs
   const [address, setAddress] = useState("");
@@ -47,6 +50,23 @@ export default function DealAnalysis() {
   // Investor inputs
   const [arv, setArv] = useState("");
   const [rehabBudget, setRehabBudget] = useState("");
+
+  // Load user profile on mount
+  useState(() => {
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        
+        setUserProfile(profile);
+      }
+    };
+    loadProfile();
+  });
 
   const calculateBuyerMetrics = () => {
     const homePrice = parseFloat(price);
@@ -651,6 +671,75 @@ export default function DealAnalysis() {
                   <Download className="h-4 w-4 mr-2" />
                   Download Deal Report (Coming Soon)
                 </Button>
+
+                {/* Strategy Playbook */}
+                {userProfile && (
+                  <StrategyPlaybook
+                    buyerType={userProfile.buyer_type || "regular-buyer"}
+                    propertyData={{
+                      price: parseFloat(price),
+                      beds: parseInt(beds || "3"),
+                      baths: parseFloat(baths || "2"),
+                      sqft: parseInt(sqft || "2000"),
+                      arv: arv ? parseFloat(arv) : undefined,
+                      rehab: rehabBudget ? parseFloat(rehabBudget) : undefined,
+                      estimatedRent: analysisResult.investor.estimatedRent,
+                    }}
+                  />
+                )}
+
+                {/* Data Citations */}
+                <DataCitations
+                  dataSources={[
+                    {
+                      field: "Purchase Price",
+                      value: parseFloat(price),
+                      source: "user-input",
+                      confidence: "high",
+                      lastUpdated: new Date().toLocaleDateString(),
+                    },
+                    {
+                      field: "Monthly Payment (P&I)",
+                      value: analysisResult.buyer.principalInterest,
+                      source: "calculated",
+                      confidence: "high",
+                      methodology: "Standard mortgage formula with provided rate and term",
+                      lastUpdated: new Date().toLocaleDateString(),
+                    },
+                    {
+                      field: "Estimated Rent",
+                      value: analysisResult.investor.estimatedRent,
+                      source: "estimated",
+                      confidence: "medium",
+                      methodology: "Based on 1% rule (1% of purchase price per month)",
+                      lastUpdated: new Date().toLocaleDateString(),
+                    },
+                    {
+                      field: "ARV (After Repair Value)",
+                      value: arv ? parseFloat(arv) : parseFloat(price) * 1.15,
+                      source: arv ? "user-input" : "estimated",
+                      confidence: arv ? "high" : "medium",
+                      methodology: arv ? "User provided" : "Estimated at 115% of purchase price",
+                      lastUpdated: new Date().toLocaleDateString(),
+                    },
+                    {
+                      field: "Cap Rate",
+                      value: `${analysisResult.investor.capRate.toFixed(2)}%`,
+                      source: "calculated",
+                      confidence: "medium",
+                      methodology: "Net Operating Income / Property Value × 100",
+                      lastUpdated: new Date().toLocaleDateString(),
+                    },
+                    {
+                      field: "Equity Growth Score",
+                      value: analysisResult.scores.equityGrowth,
+                      source: "calculated",
+                      confidence: "medium",
+                      methodology: "Proprietary algorithm based on price/sqft, ARV, taxes, and property age",
+                      lastUpdated: new Date().toLocaleDateString(),
+                    },
+                  ]}
+                />
               </>
             ) : (
               <Card className="h-full flex items-center justify-center">
