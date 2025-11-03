@@ -179,26 +179,53 @@ export type Database = {
       }
       profiles: {
         Row: {
+          budget_max: number | null
+          budget_min: number | null
+          buyer_type: string | null
+          commute_preferences: Json | null
           created_at: string | null
+          desired_monthly_payment: number | null
           email: string | null
           full_name: string | null
           id: string
+          location_preferences: Json | null
+          onboarding_completed: boolean | null
+          property_types: string[] | null
+          risk_level: string | null
           updated_at: string | null
           user_profile: string | null
         }
         Insert: {
+          budget_max?: number | null
+          budget_min?: number | null
+          buyer_type?: string | null
+          commute_preferences?: Json | null
           created_at?: string | null
+          desired_monthly_payment?: number | null
           email?: string | null
           full_name?: string | null
           id: string
+          location_preferences?: Json | null
+          onboarding_completed?: boolean | null
+          property_types?: string[] | null
+          risk_level?: string | null
           updated_at?: string | null
           user_profile?: string | null
         }
         Update: {
+          budget_max?: number | null
+          budget_min?: number | null
+          buyer_type?: string | null
+          commute_preferences?: Json | null
           created_at?: string | null
+          desired_monthly_payment?: number | null
           email?: string | null
           full_name?: string | null
           id?: string
+          location_preferences?: Json | null
+          onboarding_completed?: boolean | null
+          property_types?: string[] | null
+          risk_level?: string | null
           updated_at?: string | null
           user_profile?: string | null
         }

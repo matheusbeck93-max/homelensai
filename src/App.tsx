@@ -11,6 +11,7 @@ import Calculators from "./pages/Calculators";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import DealAnalysis from "./pages/DealAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ function App() {
             <Route path="/property/:id" element={<PropertyDetail />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/calculators" element={<Calculators />} />
+            <Route path="/deal-analysis" element={<DealAnalysis />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />

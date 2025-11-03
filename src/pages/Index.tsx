@@ -51,6 +51,9 @@ export default function Index() {
                 <Button variant="ghost" onClick={() => navigate('/chat')}>
                   Chat
                 </Button>
+                <Button variant="ghost" onClick={() => navigate('/deal-analysis')}>
+                  Deal Analysis
+                </Button>
                 <Button variant="ghost" onClick={() => navigate('/profile')}>
                   Profile
                 </Button>
