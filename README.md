@@ -1,8 +1,20 @@
-# Welcome to your Lovable project
+# HomeLens - AI-Powered Real Estate Investment Platform
 
-## Project info
+Welcome to HomeLens, your intelligent real estate investment copilot!
 
-**URL**: https://lovable.dev/projects/995dc9c4-dd63-4700-b1b9-8042e8a57f20
+## 🏠 About HomeLens
+
+HomeLens is an advanced real estate investment platform that combines AI-powered search, comprehensive deal analysis tools, and personalized investment guidance to help you find and evaluate property opportunities.
+
+## ✨ Key Features
+
+- **AI Property Search**: Natural language search with smart filtering
+- **Deal Analysis Tools**: ROI calculators, market intelligence, and investment scoring
+- **Multiple Calculators**: Buy & Hold, Flip, Rental Income, and BRRRR strategies
+- **Personalized Profile**: Custom preferences, favorites, and saved searches
+- **Real-time Market Data**: Live market metrics and trends
+- **Email Alerts**: Get notified of new matching properties
+- **Strategy Playbooks**: Tailored guidance for different investor types
 
 ## How can I edit this code?
 
@@ -50,15 +62,16 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
-## What technologies are used for this project?
+
+## 🛠️ Technologies
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Frontend**: React 18 + TypeScript + Vite
+- **UI**: shadcn-ui + Tailwind CSS  
+- **Backend**: Supabase (PostgreSQL + Edge Functions)
+- **AI**: Lovable AI for natural language processing
+- **Authentication**: Supabase Auth with RLS security
 
 ## How can I deploy this project?
 

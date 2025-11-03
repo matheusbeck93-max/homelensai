@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Sparkles } from "lucide-react";
+import { searchQuerySchema } from "@/lib/validation";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -10,11 +13,26 @@ interface SearchBarProps {
 
 export function SearchBar({ onSearch, loading }: SearchBarProps) {
   const [query, setQuery] = useState("");
+  const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      onSearch(query);
+    const trimmedQuery = query.trim();
+    
+    if (!trimmedQuery) return;
+
+    try {
+      // Validate search query
+      searchQuerySchema.parse({ query: trimmedQuery });
+      onSearch(trimmedQuery);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Invalid Search",
+          description: error.issues[0].message,
+          variant: "destructive",
+        });
+      }
     }
   };
 

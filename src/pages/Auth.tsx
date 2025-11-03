@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Home } from "lucide-react";
+import { signUpSchema, signInSchema } from "@/lib/validation";
+import { z } from "zod";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -21,31 +23,48 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/chat`,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    setLoading(false);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+    try {
+      // Validate input
+      const validated = signUpSchema.parse({
+        email: email.trim(),
+        password,
+        fullName: fullName.trim(),
       });
-    } else {
+
+      const { error } = await supabase.auth.signUp({
+        email: validated.email,
+        password: validated.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/chat`,
+          data: {
+            full_name: validated.fullName,
+          },
+        },
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Success!",
         description: "Your account has been created. Welcome to HomeLens!",
       });
       navigate("/chat");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.issues[0].message,
+          variant: "destructive",
+        });
+      } else if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,25 +72,41 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+    try {
+      // Validate input
+      const validated = signInSchema.parse({
+        email: email.trim(),
+        password,
       });
-    } else {
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: validated.email,
+        password: validated.password,
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
       navigate("/chat");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.issues[0].message,
+          variant: "destructive",
+        });
+      } else if (error instanceof Error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
