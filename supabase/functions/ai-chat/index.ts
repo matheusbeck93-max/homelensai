@@ -1,4 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,8 +12,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, hasImage, userProfile, propertyData } = await req.json();
+    const { messages, hasImage, userProfile: clientProfile, propertyData } = await req.json();
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const authHeader = req.headers.get('Authorization');
     
     if (!OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY is not configured');
@@ -23,8 +25,73 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Fetch fresh user profile from database if authenticated
+    let userProfile = clientProfile;
+    if (authHeader && !userProfile) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profile && profile.onboarding_completed) {
+          userProfile = profile.buyer_type || 'regular-buyer';
+        }
+      }
+    }
+
     const { data: programs } = await supabase.from('programs').select('*').limit(5);
     const { data: rates } = await supabase.from('rates').select('*').limit(5);
+
+    // Build personalization context from full profile
+    let personalizationContext = '';
+    if (clientProfile && clientProfile.onboarding_completed) {
+      const prefs = [];
+      
+      if (clientProfile.budget_min && clientProfile.budget_max) {
+        prefs.push(`💰 Budget Range: $${clientProfile.budget_min.toLocaleString()} - $${clientProfile.budget_max.toLocaleString()}`);
+      }
+      
+      if (clientProfile.desired_monthly_payment) {
+        prefs.push(`💵 Target Monthly Payment: $${clientProfile.desired_monthly_payment.toLocaleString()}`);
+      }
+      
+      if (clientProfile.property_types && clientProfile.property_types.length > 0) {
+        prefs.push(`🏠 Preferred Property Types: ${clientProfile.property_types.join(', ')}`);
+      }
+      
+      if (clientProfile.location_preferences && clientProfile.location_preferences.length > 0) {
+        prefs.push(`📍 Preferred Locations: ${clientProfile.location_preferences.join(', ')}`);
+      }
+      
+      if (clientProfile.risk_level) {
+        prefs.push(`📊 Investment Risk Tolerance: ${clientProfile.risk_level}`);
+      }
+      
+      if (clientProfile.commute_preferences) {
+        const commutePref = clientProfile.commute_preferences as any;
+        if (commutePref.max_commute_minutes) {
+          prefs.push(`🚗 Max Commute Time: ${commutePref.max_commute_minutes} minutes`);
+        }
+        if (commutePref.walkability_preference) {
+          prefs.push(`🚶 Walkability Preference: ${commutePref.walkability_preference}`);
+        }
+      }
+      
+      if (prefs.length > 0) {
+        personalizationContext = `\n\n## 👤 USER PROFILE & PREFERENCES\n${prefs.join('\n')}
+
+**PERSONALIZATION INSTRUCTIONS**:
+- Automatically apply these preferences when the user searches for properties
+- If the user's query conflicts with their saved preferences, prioritize their explicit request
+- Remind them of their preferences when relevant ("Based on your $500K budget...")
+- Suggest properties that match their criteria without them having to repeat preferences`;
+      }
+    }
 
     const contextInfo = `
 Available First-Time Buyer Programs:
@@ -34,6 +101,7 @@ Current Mortgage Rates:
 ${rates?.map(r => `- ${r.product}: ${r.apr}% APR`).join('\n') || 'None'}
 
 **User Profile**: ${userProfile || 'regular-buyer'}
+${personalizationContext}
 `;
 
     // Add property-specific context if analyzing a selected property

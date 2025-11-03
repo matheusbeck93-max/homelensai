@@ -1,3 +1,6 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -11,12 +14,89 @@ Deno.serve(async (req) => {
   try {
     const { query, categories } = await req.json();
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const authHeader = req.headers.get('Authorization');
     
     if (!OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch user profile for personalization
+    let userProfile = null;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        userProfile = profile;
+      }
+    }
+
+    // Build context from user profile
+    let profileContext = '';
+    if (userProfile && userProfile.onboarding_completed) {
+      const prefs = [];
+      
+      if (userProfile.budget_min && userProfile.budget_max) {
+        prefs.push(`Budget: $${userProfile.budget_min.toLocaleString()} - $${userProfile.budget_max.toLocaleString()}`);
+      }
+      
+      if (userProfile.property_types && userProfile.property_types.length > 0) {
+        prefs.push(`Preferred property types: ${userProfile.property_types.join(', ')}`);
+      }
+      
+      if (userProfile.location_preferences && userProfile.location_preferences.length > 0) {
+        prefs.push(`Preferred locations: ${userProfile.location_preferences.join(', ')}`);
+      }
+      
+      if (userProfile.buyer_type) {
+        prefs.push(`Buyer type: ${userProfile.buyer_type}`);
+      }
+      
+      if (userProfile.risk_level) {
+        prefs.push(`Risk tolerance: ${userProfile.risk_level}`);
+      }
+      
+      if (prefs.length > 0) {
+        profileContext = `\n\nUser Profile Preferences:\n${prefs.join('\n')}
+\n\nApply these preferences intelligently to the search. If the user's query conflicts with their profile, prioritize their query.`;
+      }
+    }
+
     // Parse natural language query with AI
+    const systemPrompt = `You are a property search query parser for US real estate. Convert natural language searches into structured filters.
+${categories && categories.length > 0 ? `\nUser context: ${categories.join(', ')}. Tailor the search based on:
+- first-time-buyer: Focus on move-in ready homes, FHA-eligible, lower price ranges, good school districts
+- investor: Focus on ROI, rental potential, fixer-uppers, multi-family
+- mortgage-calculator: Prioritize properties with good financing potential, standard loans
+- pre-approval: Include pre-approval friendly properties, competitive rates, VA/FHA eligible` : ''}${profileContext}
+
+Extract and return ONLY valid JSON (no markdown) with these fields:
+- price_min (number)
+- price_max (number)
+- beds_min (number)
+- baths_min (number)
+- city (string)
+- state (string, 2-letter code)
+- property_type (string: "condo", "townhome", "single-family", "multi-family")
+- hoa_max (number, optional)
+- commute_max_minutes (number, optional)
+
+Example: "3-bedroom homes under $650k in Arlington VA" -> 
+{"price_max": 650000, "beds_min": 3, "city": "Arlington", "state": "VA"}
+
+If user profile preferences exist and user query doesn't specify certain filters, apply profile defaults intelligently.`;
+
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -28,15 +108,7 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a property search query parser for US real estate. Convert natural language searches into structured filters.
-${categories && categories.length > 0 ? `\nUser context: ${categories.join(', ')}. Tailor the search based on:
-- first-time-buyer: Focus on move-in ready homes, FHA-eligible, lower price ranges, good school districts
-- mortgage-calculator: Prioritize properties with good financing potential, standard loans
-- pre-approval: Include pre-approval friendly properties, competitive rates, VA/FHA eligible` : ''}
-
-Return ONLY valid JSON (no markdown) with: price_min, price_max, beds_min, baths_min, city, state.
-Example: "3-bedroom homes under $650k in Arlington VA" -> 
-{"price_max": 650000, "beds_min": 3, "city": "Arlington", "state": "VA"}`
+            content: systemPrompt
           },
           {
             role: 'user',

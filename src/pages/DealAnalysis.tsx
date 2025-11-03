@@ -6,9 +6,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Calculator, Download, TrendingUp, Home, DollarSign } from "lucide-react";
+import { 
+  Calculator, 
+  Download, 
+  TrendingUp, 
+  Home, 
+  DollarSign,
+  TrendingDown,
+  Zap,
+  Target,
+  Info
+} from "lucide-react";
+import { 
+  calculatePropertyScores, 
+  getScoreColor, 
+  getScoreDescription,
+  type PropertyData 
+} from "@/utils/propertyScoring";
 
 export default function DealAnalysis() {
   const navigate = useNavigate();
@@ -113,6 +130,22 @@ export default function DealAnalysis() {
       const buyerMetrics = calculateBuyerMetrics();
       const investorMetrics = calculateInvestorMetrics();
 
+      // Calculate property scores
+      const propertyData: PropertyData = {
+        price: parseFloat(price),
+        sqft: parseInt(sqft || "2000"),
+        beds: parseInt(beds || "3"),
+        baths: parseFloat(baths || "2"),
+        yearBuilt: 2015,
+        taxes: parseFloat(taxes || "4500"),
+        hoa: parseFloat(hoa || "0"),
+        daysOnMarket: 30, // Default estimate
+        arv: arv ? parseFloat(arv) : undefined,
+        estimatedRent: investorMetrics.estimatedRent,
+      };
+
+      const scores = calculatePropertyScores(propertyData);
+
       const analysis = {
         property: {
           address,
@@ -125,6 +158,7 @@ export default function DealAnalysis() {
         },
         buyer: buyerMetrics,
         investor: investorMetrics,
+        scores,
         timestamp: new Date().toISOString(),
       };
 
@@ -135,12 +169,12 @@ export default function DealAnalysis() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         // TODO: Save analysis when we have property_id
-        console.log("Analysis calculated for user:", user.id);
+        console.log("Analysis calculated for user:", user.id, "with scores:", scores);
       }
 
       toast({
         title: "Analysis complete!",
-        description: "Your deal analysis is ready.",
+        description: "Your deal analysis is ready with market insights.",
       });
     } catch (error) {
       console.error("Analysis error:", error);
@@ -335,6 +369,167 @@ export default function DealAnalysis() {
           <div className="space-y-4">
             {analysisResult ? (
               <>
+                {/* Market Intelligence Scores */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Market Intelligence Scores
+                    </CardTitle>
+                    <CardDescription>
+                      AI-powered analysis of this property's investment potential
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TooltipProvider>
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Equity Growth Score */}
+                        <div className="p-4 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">Equity Growth</span>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">{getScoreDescription("equityGrowth")}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <Badge variant={getScoreColor(analysisResult.scores.equityGrowth).badge as any}>
+                              {analysisResult.scores.equityGrowth}
+                            </Badge>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                analysisResult.scores.equityGrowth >= 80
+                                  ? "bg-green-600"
+                                  : analysisResult.scores.equityGrowth >= 50
+                                  ? "bg-yellow-600"
+                                  : "bg-red-600"
+                              }`}
+                              style={{ width: `${analysisResult.scores.equityGrowth}%` }}
+                            />
+                          </div>
+                          <p className={`text-xs ${getScoreColor(analysisResult.scores.equityGrowth).color}`}>
+                            {getScoreColor(analysisResult.scores.equityGrowth).label}
+                          </p>
+                        </div>
+
+                        {/* Neighborhood Momentum */}
+                        <div className="p-4 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">Market Momentum</span>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">{getScoreDescription("neighborhoodMomentum")}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <Badge variant={getScoreColor(analysisResult.scores.neighborhoodMomentum).badge as any}>
+                              {analysisResult.scores.neighborhoodMomentum}
+                            </Badge>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                analysisResult.scores.neighborhoodMomentum >= 80
+                                  ? "bg-green-600"
+                                  : analysisResult.scores.neighborhoodMomentum >= 50
+                                  ? "bg-yellow-600"
+                                  : "bg-red-600"
+                              }`}
+                              style={{ width: `${analysisResult.scores.neighborhoodMomentum}%` }}
+                            />
+                          </div>
+                          <p className={`text-xs ${getScoreColor(analysisResult.scores.neighborhoodMomentum).color}`}>
+                            {getScoreColor(analysisResult.scores.neighborhoodMomentum).label}
+                          </p>
+                        </div>
+
+                        {/* Liquidity Risk */}
+                        <div className="p-4 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">Liquidity Risk</span>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">{getScoreDescription("liquidityRisk")}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <Badge variant={getScoreColor(analysisResult.scores.liquidityRisk).badge as any}>
+                              {analysisResult.scores.liquidityRisk}
+                            </Badge>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                analysisResult.scores.liquidityRisk >= 80
+                                  ? "bg-green-600"
+                                  : analysisResult.scores.liquidityRisk >= 50
+                                  ? "bg-yellow-600"
+                                  : "bg-red-600"
+                              }`}
+                              style={{ width: `${analysisResult.scores.liquidityRisk}%` }}
+                            />
+                          </div>
+                          <p className={`text-xs ${getScoreColor(analysisResult.scores.liquidityRisk).color}`}>
+                            {getScoreColor(analysisResult.scores.liquidityRisk).label}
+                          </p>
+                        </div>
+
+                        {/* Rentability Score */}
+                        <div className="p-4 border rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Home className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">Rentability</span>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">{getScoreDescription("rentability")}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <Badge variant={getScoreColor(analysisResult.scores.rentability).badge as any}>
+                              {analysisResult.scores.rentability}
+                            </Badge>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                analysisResult.scores.rentability >= 80
+                                  ? "bg-green-600"
+                                  : analysisResult.scores.rentability >= 50
+                                  ? "bg-yellow-600"
+                                  : "bg-red-600"
+                              }`}
+                              style={{ width: `${analysisResult.scores.rentability}%` }}
+                            />
+                          </div>
+                          <p className={`text-xs ${getScoreColor(analysisResult.scores.rentability).color}`}>
+                            {getScoreColor(analysisResult.scores.rentability).label}
+                          </p>
+                        </div>
+                      </div>
+                    </TooltipProvider>
+                  </CardContent>
+                </Card>
                 <Card>
                   <CardHeader>
                     <CardTitle>Analysis Results</CardTitle>

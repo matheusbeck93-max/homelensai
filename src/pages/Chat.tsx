@@ -48,7 +48,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<string>("regular-buyer");
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [showProfileSelector, setShowProfileSelector] = useState(true);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -90,12 +90,12 @@ export default function Chat() {
 
     const { data } = await supabase
       .from("profiles")
-      .select("user_profile")
+      .select("*")
       .eq("id", user.id)
       .single();
 
     if (data) {
-      setUserProfile(data.user_profile || "regular-buyer");
+      setUserProfile(data);
     }
   };
 
