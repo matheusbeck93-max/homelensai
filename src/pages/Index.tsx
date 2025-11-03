@@ -144,7 +144,7 @@ export default function Index() {
                 </div>
               </div>
             ) : (
-              <div className="bg-card border rounded-2xl p-6 h-[75vh] flex flex-col shadow-lg">
+              <div className="bg-card border rounded-2xl p-6 h-[85vh] flex flex-col shadow-lg">
                 <div className="flex justify-between items-center mb-4 pb-4 border-b">
                   <h2 className="text-lg font-semibold">Conversation</h2>
                   <Button variant="outline" size="sm" onClick={handleNewConversation}>
