@@ -151,8 +151,8 @@ export default function Index() {
                 </div>
               </div>
             ) : (
-              <div className="bg-background/95 backdrop-blur-md rounded-2xl p-6 max-h-[80vh] flex flex-col">
-                <ScrollArea className="flex-1 pr-4">
+              <div className="bg-background/95 backdrop-blur-md rounded-2xl p-6 h-[80vh] flex flex-col">
+                <ScrollArea className="flex-1 min-h-0 pr-4">
                   <div className="space-y-4">
                     {messages.map((msg, i) => (
                       <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
