@@ -16,6 +16,12 @@ import { Navigation } from "@/components/Navigation";
 import { EmptyState } from "@/components/EmptyState";
 import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
+
+const MarkdownLink = ({ href, children }: any) => (
+  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+    {children}
+  </a>
+);
 interface Message {
   id?: string;
   role: "user" | "assistant";
@@ -623,10 +629,7 @@ export default function Chat() {
                   {message.image_url && <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />}
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <ReactMarkdown components={{
-                  a: ({
-                    node,
-                    ...props
-                  }) => <a {...props} className="text-blue-500 hover:text-blue-700 underline" target="_blank" rel="noopener noreferrer" />,
+                  a: MarkdownLink,
                   p: ({
                     node,
                     ...props

@@ -11,6 +11,12 @@ import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import ReactMarkdown from "react-markdown";
 import heroBackground from "@/assets/american-house-hero.jpg";
 
+const MarkdownLink = ({ href, children }: any) => (
+  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+    {children}
+  </a>
+);
+
 export default function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
@@ -162,7 +168,7 @@ export default function Index() {
                           </div>
                         )}
                         <div className={`max-w-[80%] rounded-2xl p-4 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          <ReactMarkdown components={{ a: MarkdownLink }}>{msg.content}</ReactMarkdown>
                           {msg.toolType === 'calculator' && <InlineCalculator />}
                           {msg.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={msg.toolData} />}
                         </div>
