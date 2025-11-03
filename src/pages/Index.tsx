@@ -161,7 +161,7 @@ export default function Index() {
                             <Bot className="h-5 w-5 text-primary-foreground" />
                           </div>
                         )}
-                        <div className={`max-w-[80%] rounded-2xl p-4 ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                        <div className={`max-w-[80%] rounded-2xl p-4 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
                           {msg.toolType === 'calculator' && <InlineCalculator />}
                           {msg.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={msg.toolData} />}
