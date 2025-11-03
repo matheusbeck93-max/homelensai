@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, TrendingUp, Home as HomeIcon } from "lucide-react";
+import { Calculator, TrendingUp, Home as HomeIcon, Repeat, DollarSign } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Calculators() {
   // Buyer Calculator State
@@ -20,6 +21,25 @@ export default function Calculators() {
   const [rehabCost, setRehabCost] = useState(80000);
   const [desiredMargin, setDesiredMargin] = useState(15);
   const [holdingTime, setHoldingTime] = useState(6);
+  
+  // Rental Calculator State
+  const [rentalPrice, setRentalPrice] = useState(300000);
+  const [monthlyRent, setMonthlyRent] = useState(2500);
+  const [rentalDownPayment, setRentalDownPayment] = useState(60000);
+  const [rentalInterestRate, setRentalInterestRate] = useState(7.0);
+  const [rentalPropertyTax, setRentalPropertyTax] = useState(4500);
+  const [rentalInsurance, setRentalInsurance] = useState(1500);
+  const [rentalHoa, setRentalHoa] = useState(100);
+  const [maintenance, setMaintenance] = useState(200);
+  const [vacancy, setVacancy] = useState(5);
+  const [propertyMgmt, setPropertyMgmt] = useState(10);
+  
+  // BRRRR Calculator State
+  const [brrrrPurchase, setBrrrrPurchase] = useState(200000);
+  const [brrrrRehab, setBrrrrRehab] = useState(40000);
+  const [brrrrArv, setBrrrrArv] = useState(320000);
+  const [brrrrRent, setBrrrrRent] = useState(2000);
+  const [brrrrLtv, setBrrrrLtv] = useState(75);
 
   const calculateBuyer = () => {
     const loanAmount = purchasePrice - downPayment;
@@ -69,8 +89,67 @@ export default function Calculators() {
     };
   };
 
+  const calculateRental = () => {
+    const loanAmount = rentalPrice - rentalDownPayment;
+    const monthlyRate = rentalInterestRate / 100 / 12;
+    const numberOfPayments = 30 * 12;
+    
+    const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / 
+                          (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+    
+    const monthlyTax = rentalPropertyTax / 12;
+    const monthlyIns = rentalInsurance / 12;
+    const monthlyHoaFee = rentalHoa;
+    const vacancyLoss = monthlyRent * (vacancy / 100);
+    const mgmtFee = monthlyRent * (propertyMgmt / 100);
+    
+    const totalExpenses = monthlyPayment + monthlyTax + monthlyIns + monthlyHoaFee + maintenance + vacancyLoss + mgmtFee;
+    const netCashFlow = monthlyRent - totalExpenses;
+    const capRate = ((monthlyRent * 12 - (monthlyTax + monthlyIns + monthlyHoaFee + maintenance) * 12) / rentalPrice) * 100;
+    const cashOnCashReturn = ((netCashFlow * 12) / rentalDownPayment) * 100;
+    const onePercentRule = (monthlyRent / rentalPrice) * 100;
+    
+    return {
+      monthlyPayment: monthlyPayment.toFixed(2),
+      totalExpenses: totalExpenses.toFixed(2),
+      netCashFlow: netCashFlow.toFixed(2),
+      annualCashFlow: (netCashFlow * 12).toFixed(2),
+      capRate: capRate.toFixed(2),
+      cashOnCash: cashOnCashReturn.toFixed(2),
+      onePercent: onePercentRule.toFixed(2),
+    };
+  };
+
+  const calculateBRRRR = () => {
+    const totalInvested = brrrrPurchase + brrrrRehab;
+    const refinanceAmount = brrrrArv * (brrrrLtv / 100);
+    const cashRecovered = refinanceAmount - totalInvested;
+    const leftIn = totalInvested - refinanceAmount;
+    
+    const monthlyRate = 7.0 / 100 / 12;
+    const monthlyPayment = refinanceAmount * (monthlyRate * Math.pow(1 + monthlyRate, 360)) / 
+                          (Math.pow(1 + monthlyRate, 360) - 1);
+    
+    const monthlyExpenses = monthlyPayment + 300 + 200 + 150;
+    const monthlyCashFlow = brrrrRent - monthlyExpenses;
+    const cocReturn = leftIn > 0 ? ((monthlyCashFlow * 12) / leftIn) * 100 : 999;
+    
+    return {
+      totalInvested: totalInvested.toFixed(0),
+      refinanceAmount: refinanceAmount.toFixed(0),
+      cashRecovered: cashRecovered.toFixed(0),
+      leftIn: leftIn > 0 ? leftIn.toFixed(0) : '0',
+      monthlyCashFlow: monthlyCashFlow.toFixed(2),
+      annualCashFlow: (monthlyCashFlow * 12).toFixed(2),
+      cocReturn: cocReturn > 100 ? '∞' : cocReturn.toFixed(1),
+      equity: (brrrrArv - refinanceAmount).toFixed(0),
+    };
+  };
+
   const buyerResults = calculateBuyer();
   const investorResults = calculateInvestor();
+  const rentalResults = calculateRental();
+  const brrrrResults = calculateBRRRR();
 
   return (
     <div className="min-h-screen bg-background py-12">
@@ -86,14 +165,22 @@ export default function Calculators() {
         </div>
 
         <Tabs defaultValue="buyer" className="max-w-5xl mx-auto">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="buyer" className="flex items-center gap-2">
               <HomeIcon className="h-4 w-4" />
-              Home Buyer
+              Buyer
             </TabsTrigger>
             <TabsTrigger value="investor" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Investor
+              Flip
+            </TabsTrigger>
+            <TabsTrigger value="rental" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Rental
+            </TabsTrigger>
+            <TabsTrigger value="brrrr" className="flex items-center gap-2">
+              <Repeat className="h-4 w-4" />
+              BRRRR
             </TabsTrigger>
           </TabsList>
 
@@ -307,7 +394,267 @@ export default function Calculators() {
               </Card>
             </div>
           </TabsContent>
+
+          <TabsContent value="rental">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Rental Property Calculator</CardTitle>
+                  <CardDescription>
+                    Analyze cash flow and returns for rental properties
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Purchase Price</Label>
+                    <Input
+                      type="number"
+                      value={rentalPrice}
+                      onChange={(e) => setRentalPrice(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Monthly Rent</Label>
+                    <Input
+                      type="number"
+                      value={monthlyRent}
+                      onChange={(e) => setMonthlyRent(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Down Payment</Label>
+                    <Input
+                      type="number"
+                      value={rentalDownPayment}
+                      onChange={(e) => setRentalDownPayment(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Interest Rate (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={rentalInterestRate}
+                      onChange={(e) => setRentalInterestRate(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Annual Property Tax</Label>
+                    <Input
+                      type="number"
+                      value={rentalPropertyTax}
+                      onChange={(e) => setRentalPropertyTax(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Annual Insurance</Label>
+                    <Input
+                      type="number"
+                      value={rentalInsurance}
+                      onChange={(e) => setRentalInsurance(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Monthly HOA</Label>
+                    <Input
+                      type="number"
+                      value={rentalHoa}
+                      onChange={(e) => setRentalHoa(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Monthly Maintenance</Label>
+                    <Input
+                      type="number"
+                      value={maintenance}
+                      onChange={(e) => setMaintenance(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Vacancy Rate (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={vacancy}
+                      onChange={(e) => setVacancy(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Property Management (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={propertyMgmt}
+                      onChange={(e) => setPropertyMgmt(Number(e.target.value))}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cash Flow Analysis</CardTitle>
+                  <CardDescription>Your rental property breakdown</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Monthly Expenses</span>
+                      <span className="font-semibold">${rentalResults.totalExpenses}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Net Cash Flow (Monthly)</span>
+                      <span className={`font-semibold ${Number(rentalResults.netCashFlow) < 0 ? 'text-destructive' : 'text-secondary'}`}>
+                        ${rentalResults.netCashFlow}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Annual Cash Flow</span>
+                      <span className={`font-semibold ${Number(rentalResults.annualCashFlow) < 0 ? 'text-destructive' : 'text-secondary'}`}>
+                        ${rentalResults.annualCashFlow}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Cap Rate</span>
+                      <span className="font-semibold">{rentalResults.capRate}%</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-4">
+                      <span className="font-bold">Cash-on-Cash Return</span>
+                      <span className="font-bold text-secondary text-2xl">
+                        {rentalResults.cashOnCash}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <span className="text-muted-foreground">1% Rule Check</span>
+                      <span className={`font-semibold ${Number(rentalResults.onePercent) >= 1 ? 'text-secondary' : 'text-muted-foreground'}`}>
+                        {rentalResults.onePercent}%
+                        {Number(rentalResults.onePercent) >= 1 ? ' ✓' : ' ✗'}
+                      </span>
+                    </div>
+                    {Number(rentalResults.netCashFlow) < 0 && (
+                      <p className="text-sm text-destructive mt-2">
+                        ⚠️ Negative cash flow - this property may not be a good rental investment
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="brrrr">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>BRRRR Calculator</CardTitle>
+                  <CardDescription>
+                    Buy, Rehab, Rent, Refinance, Repeat strategy analysis
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Purchase Price</Label>
+                    <Input
+                      type="number"
+                      value={brrrrPurchase}
+                      onChange={(e) => setBrrrrPurchase(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Rehab Cost</Label>
+                    <Input
+                      type="number"
+                      value={brrrrRehab}
+                      onChange={(e) => setBrrrrRehab(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>After Repair Value (ARV)</Label>
+                    <Input
+                      type="number"
+                      value={brrrrArv}
+                      onChange={(e) => setBrrrrArv(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Monthly Rent</Label>
+                    <Input
+                      type="number"
+                      value={brrrrRent}
+                      onChange={(e) => setBrrrrRent(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Refinance LTV (%)</Label>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={brrrrLtv}
+                      onChange={(e) => setBrrrrLtv(Number(e.target.value))}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>BRRRR Strategy Results</CardTitle>
+                  <CardDescription>Your wealth-building analysis</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Total Invested</span>
+                      <span className="font-semibold">${brrrrResults.totalInvested}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Refinance Amount</span>
+                      <span className="font-semibold text-primary">${brrrrResults.refinanceAmount}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Cash Recovered</span>
+                      <span className={`font-semibold ${Number(brrrrResults.cashRecovered) > 0 ? 'text-secondary' : 'text-destructive'}`}>
+                        ${brrrrResults.cashRecovered}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Capital Left In Deal</span>
+                      <span className="font-semibold">${brrrrResults.leftIn}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Monthly Cash Flow</span>
+                      <span className="font-semibold text-secondary">${brrrrResults.monthlyCashFlow}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-muted-foreground">Built-In Equity</span>
+                      <span className="font-semibold text-secondary">${brrrrResults.equity}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-4">
+                      <span className="font-bold">Cash-on-Cash Return</span>
+                      <span className="font-bold text-secondary text-2xl">
+                        {brrrrResults.cocReturn}%
+                      </span>
+                    </div>
+                    {Number(brrrrResults.cashRecovered) >= Number(brrrrResults.totalInvested) && (
+                      <p className="text-sm text-secondary mt-2">
+                        ✓ Infinite return! You've recovered all invested capital.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
+
+        <div className="mt-8 text-center">
+          <p className="text-muted-foreground mb-4">
+            Ready to analyze a specific property?
+          </p>
+          <Button asChild variant="hero" size="lg">
+            <Link to="/deal-analysis">Go to Deal Analysis</Link>
+          </Button>
+        </div>
       </div>
     </div>
   );
