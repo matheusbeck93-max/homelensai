@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut, History } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
@@ -16,6 +16,7 @@ import { Navigation } from "@/components/Navigation";
 import { EmptyState } from "@/components/EmptyState";
 import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const MarkdownLink = ({ href, children }: any) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
@@ -61,7 +62,8 @@ export default function Chat() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasShownAuthDialog, setHasShownAuthDialog] = useState(false);
-  const [showDeleteOldDialog, setShowDeleteOldDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedChatsToDelete, setSelectedChatsToDelete] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -299,19 +301,18 @@ export default function Chat() {
     }
   };
   
-  const deleteOldConversations = async () => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const deleteSelectedConversations = async () => {
+    if (selectedChatsToDelete.length === 0) return;
     
     const { error } = await supabase
       .from("conversations")
       .delete()
-      .lt("updated_at", thirtyDaysAgo.toISOString());
+      .in("id", selectedChatsToDelete);
     
     if (error) {
       toast({
         title: "Erro",
-        description: "Falha ao excluir conversas antigas",
+        description: "Falha ao excluir conversas",
         variant: "destructive"
       });
       return;
@@ -319,23 +320,32 @@ export default function Chat() {
     
     toast({
       title: "Sucesso",
-      description: "Conversas antigas excluídas",
+      description: `${selectedChatsToDelete.length} conversa(s) excluída(s)`,
     });
     
-    setShowDeleteOldDialog(false);
+    setShowDeleteDialog(false);
+    setSelectedChatsToDelete([]);
     loadConversations();
     
-    if (currentConversationId) {
-      const { data } = await supabase
-        .from("conversations")
-        .select("id")
-        .eq("id", currentConversationId)
-        .single();
-      
-      if (!data) {
-        setCurrentConversationId(null);
-        setMessages([]);
-      }
+    if (currentConversationId && selectedChatsToDelete.includes(currentConversationId)) {
+      setCurrentConversationId(null);
+      setMessages([]);
+    }
+  };
+
+  const toggleChatSelection = (chatId: string) => {
+    setSelectedChatsToDelete(prev => 
+      prev.includes(chatId) 
+        ? prev.filter(id => id !== chatId)
+        : [...prev, chatId]
+    );
+  };
+
+  const selectAllChats = () => {
+    if (selectedChatsToDelete.length === conversations.length) {
+      setSelectedChatsToDelete([]);
+    } else {
+      setSelectedChatsToDelete(conversations.map(c => c.id));
     }
   };
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -583,13 +593,16 @@ export default function Chat() {
       </ScrollArea>
       <div className="p-4 border-t space-y-2">
         <Button 
-          onClick={() => setShowDeleteOldDialog(true)} 
+          onClick={() => {
+            setShowDeleteDialog(true);
+            setSelectedChatsToDelete([]);
+          }} 
           className="w-full" 
           variant="outline"
           disabled={conversations.length === 0}
         >
-          <History className="mr-2 h-4 w-4" />
-          Excluir chats antigos
+          <Trash2 className="mr-2 h-4 w-4" />
+          Excluir chats
         </Button>
         <Button onClick={() => navigate("/settings")} className="w-full" variant="outline">
           <User className="mr-2 h-4 w-4" />
@@ -771,20 +784,52 @@ export default function Chat() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Old Conversations Dialog */}
-      <Dialog open={showDeleteOldDialog} onOpenChange={setShowDeleteOldDialog}>
-        <DialogContent>
+      {/* Delete Conversations Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Excluir conversas antigas</DialogTitle>
+            <DialogTitle>Excluir conversas</DialogTitle>
             <DialogDescription>
-              Isso vai excluir todas as conversas com mais de 30 dias. Esta ação não pode ser desfeita.
+              Selecione as conversas que deseja excluir. Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3 mt-4">
-            <Button onClick={deleteOldConversations} variant="destructive" className="w-full">
-              Confirmar exclusão
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+              <Checkbox 
+                checked={selectedChatsToDelete.length === conversations.length && conversations.length > 0}
+                onCheckedChange={selectAllChats}
+              />
+              <span className="text-sm font-medium">Selecionar todos ({conversations.length})</span>
+            </div>
+            <ScrollArea className="max-h-[40vh]">
+              <div className="space-y-2">
+                {conversations.map((conv) => (
+                  <div key={conv.id} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg">
+                    <Checkbox 
+                      checked={selectedChatsToDelete.includes(conv.id)}
+                      onCheckedChange={() => toggleChatSelection(conv.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{conv.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(conv.updated_at).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+          <div className="flex gap-3 mt-4">
+            <Button 
+              onClick={deleteSelectedConversations} 
+              variant="destructive" 
+              className="flex-1"
+              disabled={selectedChatsToDelete.length === 0}
+            >
+              Excluir {selectedChatsToDelete.length > 0 && `(${selectedChatsToDelete.length})`}
             </Button>
-            <Button variant="outline" onClick={() => setShowDeleteOldDialog(false)} className="w-full">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="flex-1">
               Cancelar
             </Button>
           </div>
