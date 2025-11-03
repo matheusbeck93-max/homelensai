@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import DealAnalysis from "./pages/DealAnalysis";
+import SavedSearches from "./pages/SavedSearches";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ function App() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/calculators" element={<Calculators />} />
             <Route path="/deal-analysis" element={<DealAnalysis />} />
+            <Route path="/saved-searches" element={<SavedSearches />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />

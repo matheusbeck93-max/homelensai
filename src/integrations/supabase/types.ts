@@ -394,23 +394,32 @@ export type Database = {
       }
       saved_searches: {
         Row: {
+          alert_enabled: boolean | null
+          alert_frequency: string | null
           created_at: string | null
           filters_json: Json | null
           id: string
+          last_alert_sent: string | null
           query_text: string
           user_id: string
         }
         Insert: {
+          alert_enabled?: boolean | null
+          alert_frequency?: string | null
           created_at?: string | null
           filters_json?: Json | null
           id?: string
+          last_alert_sent?: string | null
           query_text: string
           user_id: string
         }
         Update: {
+          alert_enabled?: boolean | null
+          alert_frequency?: string | null
           created_at?: string | null
           filters_json?: Json | null
           id?: string
+          last_alert_sent?: string | null
           query_text?: string
           user_id?: string
         }
