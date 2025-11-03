@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
@@ -61,6 +61,7 @@ export default function Chat() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasShownAuthDialog, setHasShownAuthDialog] = useState(false);
+  const [showDeleteOldDialog, setShowDeleteOldDialog] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -292,6 +293,46 @@ export default function Chat() {
       if (remaining.length > 0) {
         setCurrentConversationId(remaining[0].id);
       } else {
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+    }
+  };
+  
+  const deleteOldConversations = async () => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const { error } = await supabase
+      .from("conversations")
+      .delete()
+      .lt("updated_at", thirtyDaysAgo.toISOString());
+    
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Falha ao excluir conversas antigas",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    toast({
+      title: "Sucesso",
+      description: "Conversas antigas excluídas",
+    });
+    
+    setShowDeleteOldDialog(false);
+    loadConversations();
+    
+    if (currentConversationId) {
+      const { data } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("id", currentConversationId)
+        .single();
+      
+      if (!data) {
         setCurrentConversationId(null);
         setMessages([]);
       }
@@ -541,6 +582,15 @@ export default function Chat() {
         </div>
       </ScrollArea>
       <div className="p-4 border-t space-y-2">
+        <Button 
+          onClick={() => setShowDeleteOldDialog(true)} 
+          className="w-full" 
+          variant="outline"
+          disabled={conversations.length === 0}
+        >
+          <History className="mr-2 h-4 w-4" />
+          Excluir chats antigos
+        </Button>
         <Button onClick={() => navigate("/settings")} className="w-full" variant="outline">
           <User className="mr-2 h-4 w-4" />
           Settings
@@ -716,6 +766,26 @@ export default function Chat() {
             </Button>
             <Button variant="outline" onClick={() => setShowAuthDialog(false)} className="w-full">
               Continue as Guest
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Old Conversations Dialog */}
+      <Dialog open={showDeleteOldDialog} onOpenChange={setShowDeleteOldDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir conversas antigas</DialogTitle>
+            <DialogDescription>
+              Isso vai excluir todas as conversas com mais de 30 dias. Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            <Button onClick={deleteOldConversations} variant="destructive" className="w-full">
+              Confirmar exclusão
+            </Button>
+            <Button variant="outline" onClick={() => setShowDeleteOldDialog(false)} className="w-full">
+              Cancelar
             </Button>
           </div>
         </DialogContent>
