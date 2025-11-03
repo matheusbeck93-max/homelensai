@@ -114,29 +114,17 @@ export default function Index() {
 
       {/* Hero Section with Search */}
       <section 
-        className="relative h-screen w-full flex items-center justify-center overflow-hidden"
+        className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted"
       >
-        <div 
-          className="absolute inset-0 w-full h-full"
-          style={{
-            backgroundImage: `url(${heroBackground})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          }}
-        />
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-black/50" />
-        
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-2xl mx-auto">
             {messages.length === 0 ? (
               <div className="text-center space-y-8">
-                <h1 className="text-5xl md:text-7xl font-bold text-white mb-12">
+                <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-12">
                   Find your new home
                 </h1>
-                <div className="bg-background/95 backdrop-blur-md rounded-2xl p-6">
+                <div className="bg-card border rounded-2xl p-6 shadow-lg">
                   <Textarea
                     placeholder="Search properties, ask about mortgages, or request calculators..."
                     value={input}
@@ -151,7 +139,7 @@ export default function Index() {
                 </div>
               </div>
             ) : (
-              <div className="bg-background/95 backdrop-blur-md rounded-2xl p-6 h-[80vh] flex flex-col">
+              <div className="bg-card border rounded-2xl p-6 h-[60vh] flex flex-col shadow-lg">
                 <ScrollArea className="flex-1 min-h-0 pr-4">
                   <div className="space-y-4">
                     {messages.map((msg, i) => (
