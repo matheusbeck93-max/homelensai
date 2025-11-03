@@ -4,14 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
 import Chat from "./pages/Chat";
-import Calculators from "./pages/Calculators";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
-import DealAnalysis from "./pages/DealAnalysis";
 import SavedSearches from "./pages/SavedSearches";
 import NotFound from "./pages/NotFound";
 
@@ -26,11 +23,8 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/properties" element={<Properties />} />
             <Route path="/property/:id" element={<PropertyDetail />} />
             <Route path="/chat" element={<Chat />} />
-            <Route path="/calculators" element={<Calculators />} />
-            <Route path="/deal-analysis" element={<DealAnalysis />} />
             <Route path="/saved-searches" element={<SavedSearches />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />

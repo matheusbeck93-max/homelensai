@@ -14,6 +14,8 @@ import ProfileSelector from "@/components/ProfileSelector";
 import ReactMarkdown from "react-markdown";
 import { Navigation } from "@/components/Navigation";
 import { EmptyState } from "@/components/EmptyState";
+import InlineCalculator from "@/components/InlineCalculator";
+import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 
 interface Message {
   id?: string;
@@ -21,6 +23,8 @@ interface Message {
   content: string;
   image_url?: string;
   properties?: Property[];
+  toolType?: string;
+  toolData?: any;
 }
 
 interface Property {
@@ -464,21 +468,36 @@ export default function Chat() {
 
       if (error) throw error;
 
-      // Check if response contains property search trigger
+      // Check if response contains property search trigger or tool invocation
       let properties: Property[] | undefined;
       let cleanedResponse = data.response;
+      let toolType: string | undefined;
+      let toolData: any | undefined;
       
-      const propertyMatch = data.response.match(/SHOW_PROPERTIES:([^\n]+)/);
-      if (propertyMatch) {
-        const location = propertyMatch[1].trim();
-        properties = generateMockProperties(location);
-        cleanedResponse = data.response.replace(/SHOW_PROPERTIES:[^\n]+/, '').trim();
+      // Try to parse as JSON for tool invocations
+      try {
+        const jsonResponse = JSON.parse(data.response);
+        if (jsonResponse.type && ['calculator', 'deal_analysis'].includes(jsonResponse.type)) {
+          toolType = jsonResponse.type;
+          toolData = jsonResponse.data;
+          cleanedResponse = jsonResponse.message || '';
+        }
+      } catch {
+        // Not JSON, check for property search trigger
+        const propertyMatch = data.response.match(/SHOW_PROPERTIES:([^\n]+)/);
+        if (propertyMatch) {
+          const location = propertyMatch[1].trim();
+          properties = generateMockProperties(location);
+          cleanedResponse = data.response.replace(/SHOW_PROPERTIES:[^\n]+/, '').trim();
+        }
       }
 
       const assistantMessage: Message = {
         role: "assistant",
         content: cleanedResponse,
         properties: properties,
+        toolType: toolType,
+        toolData: toolData
       };
       
       setMessages((prev) => [...prev, assistantMessage]);
@@ -701,6 +720,12 @@ export default function Chat() {
                         onSelectProperty={handlePropertySelect}
                       />
                     </div>
+                  )}
+                  {message.toolType === 'calculator' && (
+                    <InlineCalculator />
+                  )}
+                  {message.toolType === 'deal_analysis' && (
+                    <InlineDealAnalysis initialData={message.toolData} />
                   )}
                 </div>
                 {message.role === "user" && (

@@ -45,14 +45,8 @@ export default function Index() {
             <ThemeToggle />
             {user ? (
               <>
-                <Button variant="ghost" onClick={() => navigate('/properties')}>
-                  Properties
-                </Button>
                 <Button variant="ghost" onClick={() => navigate('/chat')}>
                   Chat
-                </Button>
-                <Button variant="ghost" onClick={() => navigate('/deal-analysis')}>
-                  Deal Analysis
                 </Button>
                 <Button variant="ghost" onClick={() => navigate('/profile')}>
                   Profile

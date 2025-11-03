@@ -34,10 +34,7 @@ export function Navigation() {
   };
 
   const navItems = user ? [
-    { label: 'Properties', path: '/properties' },
     { label: 'Chat', path: '/chat' },
-    { label: 'Calculators', path: '/calculators' },
-    { label: 'Deal Analysis', path: '/deal-analysis' },
     { label: 'Saved Searches', path: '/saved-searches' },
     { label: 'Profile', path: '/profile' },
     { label: 'Settings', path: '/settings' },
