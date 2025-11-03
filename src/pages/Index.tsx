@@ -123,7 +123,7 @@ export default function Index() {
       >
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-5xl mx-auto">
             {messages.length === 0 ? (
               <div className="text-center space-y-8">
                 <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-12">
