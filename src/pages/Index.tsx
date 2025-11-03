@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, Bot, Send } from "lucide-react";
+import { Home, Bot, Send, Plus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,11 @@ export default function Index() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+  };
+
+  const handleNewConversation = () => {
+    setMessages([]);
+    setInput("");
   };
 
   const handleSend = async () => {
@@ -139,7 +144,14 @@ export default function Index() {
                 </div>
               </div>
             ) : (
-              <div className="bg-card border rounded-2xl p-6 h-[60vh] flex flex-col shadow-lg">
+              <div className="bg-card border rounded-2xl p-6 h-[75vh] flex flex-col shadow-lg">
+                <div className="flex justify-between items-center mb-4 pb-4 border-b">
+                  <h2 className="text-lg font-semibold">Conversation</h2>
+                  <Button variant="outline" size="sm" onClick={handleNewConversation}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Chat
+                  </Button>
+                </div>
                 <ScrollArea className="flex-1 min-h-0 pr-4">
                   <div className="space-y-4">
                     {messages.map((msg, i) => (
