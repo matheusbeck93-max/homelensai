@@ -185,14 +185,14 @@ export default function Index() {
   };
   return <div className="min-h-screen">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b">
+      <nav className="fixed top-0 w-full z-40 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
             <span className="font-bold text-xl hidden sm:inline">HomeLens</span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            <InstallPrompt variant="button" className="relative z-50" />
+          <div className="flex items-center gap-2 sm:gap-4" style={{ position: 'relative', zIndex: 9999 }}>
+            <InstallPrompt variant="button" />
             <ThemeToggle />
             {user ? <>
                 <DropdownMenu>

@@ -126,12 +126,29 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
     );
   }
 
+  const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isIOS || isMacOS) {
+      setShowPopup(true);
+    } else {
+      handleInstall();
+    }
+  };
+
   return (
     <Button 
-      onClick={(isIOS || isMacOS) ? () => setShowPopup(true) : handleInstall} 
+      onClick={handleButtonClick}
+      onTouchEnd={handleButtonClick}
       variant="default"
       size="sm"
-      className={`${className} relative z-50 cursor-pointer pointer-events-auto ${(isIOS || isMacOS) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
+      className={`${className} touch-manipulation select-none active:scale-95 transition-transform ${(isIOS || isMacOS) ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80' : ''}`}
+      style={{ 
+        position: 'relative', 
+        zIndex: 9999,
+        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'manipulation'
+      }}
     >
       <Download className="h-4 w-4 mr-2" />
       Install App
