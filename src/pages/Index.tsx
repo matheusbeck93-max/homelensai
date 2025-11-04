@@ -326,45 +326,47 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Video Introduction Section */}
-      <section className="py-16 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-              Introducing HomeLens
-            </h2>
-            <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Discover how HomeLens empowers investors, families, and first-time buyers to achieve their real estate goals with AI-powered insights and tools.
-            </p>
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl group cursor-pointer bg-card border">
-              <img 
-                src={videoThumbnail} 
-                alt="Introducing HomeLens - AI-powered real estate platform"
-                className="w-full h-auto"
-              />
-              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all flex items-center justify-center">
-                <div className="bg-primary rounded-full p-6 group-hover:scale-110 transition-transform shadow-lg">
-                  <Play className="h-12 w-12 text-primary-foreground fill-current" />
+      {/* Video Introduction Section - Only show when no messages */}
+      {messages.length === 0 && (
+        <section className="py-16 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+                Introducing HomeLens
+              </h2>
+              <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+                Discover how HomeLens empowers investors, families, and first-time buyers to achieve their real estate goals with AI-powered insights and tools.
+              </p>
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl group cursor-pointer bg-card border">
+                <img 
+                  src={videoThumbnail} 
+                  alt="Introducing HomeLens - AI-powered real estate platform"
+                  className="w-full h-auto"
+                />
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all flex items-center justify-center">
+                  <div className="bg-primary rounded-full p-6 group-hover:scale-110 transition-transform shadow-lg">
+                    <Play className="h-12 w-12 text-primary-foreground fill-current" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-8 grid md:grid-cols-3 gap-6 text-center">
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg mb-2">For Investors</h3>
+                  <p className="text-sm text-muted-foreground">Advanced deal analysis, ROI calculators, and market insights</p>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg mb-2">For Families</h3>
+                  <p className="text-sm text-muted-foreground">Find the perfect home with AI-powered recommendations</p>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg mb-2">For First-Timers</h3>
+                  <p className="text-sm text-muted-foreground">Step-by-step guidance through your home buying journey</p>
                 </div>
               </div>
             </div>
-            <div className="mt-8 grid md:grid-cols-3 gap-6 text-center">
-              <div className="p-4">
-                <h3 className="font-semibold text-lg mb-2">For Investors</h3>
-                <p className="text-sm text-muted-foreground">Advanced deal analysis, ROI calculators, and market insights</p>
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-lg mb-2">For Families</h3>
-                <p className="text-sm text-muted-foreground">Find the perfect home with AI-powered recommendations</p>
-              </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-lg mb-2">For First-Timers</h3>
-                <p className="text-sm text-muted-foreground">Step-by-step guidance through your home buying journey</p>
-              </div>
-            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-muted py-8">
