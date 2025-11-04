@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const MarkdownLink = ({ href, children }: any) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
@@ -190,14 +191,16 @@ export default function Index() {
 
   return (
     <div className="min-h-screen">
+      <InstallPrompt variant="popup" />
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl">HomeLens</span>
+            <span className="font-bold text-xl hidden sm:inline">HomeLens</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <InstallPrompt variant="button" />
             <ThemeToggle />
             {user ? (
               <>

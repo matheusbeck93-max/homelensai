@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/EmptyState";
 import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { Checkbox } from "@/components/ui/checkbox";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const MarkdownLink = ({ href, children }: any) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
@@ -607,6 +608,7 @@ export default function Chat() {
         </div>
       </ScrollArea>
       <div className="p-4 border-t space-y-2">
+        <InstallPrompt variant="button" className="w-full" />
         <Button 
           onClick={() => {
             setShowDeleteDialog(true);
@@ -630,6 +632,7 @@ export default function Chat() {
       </div>
     </div>;
   return <div className="flex h-screen bg-background">
+      <InstallPrompt variant="popup" />
       {/* Desktop Sidebar */}
       <div className="hidden md:block w-64 border-r">
         <ConversationSidebar />

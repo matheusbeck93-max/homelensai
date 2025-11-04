@@ -180,3 +180,34 @@ html {
 ::selection {
   @apply bg-primary/20;
 }
+
+/* PWA Safe Areas (iOS notch support) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .container {
+    @apply px-4;
+  }
+}
+
+/* Touch target size for mobile */
+@media (pointer: coarse) {
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
