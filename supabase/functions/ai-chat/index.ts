@@ -160,16 +160,20 @@ Deno.serve(async (req) => {
       
       const properties = await Promise.all(propertyPromises);
       
-      // Generate AI analysis using OpenAI
-      const analysisPrompt = detectedUrls.length === 1 
-        ? `Analyze this property in a structured, concise manner using bullet points:
+      try {
+        console.log('All properties fetched, starting AI analysis...');
+        console.log('Properties data:', JSON.stringify(properties, null, 2));
+        
+        // Generate AI analysis using OpenAI
+        const analysisPrompt = detectedUrls.length === 1
+          ? `Analyze this property in a structured, concise manner using bullet points:
 
 Property Details:
 ${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
-- Price: $${p.price?.toLocaleString() || 'N/A'}
-- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft?.toLocaleString() || 'N/A'}
+- Price: $${p.price || 'N/A'}
+- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft || 'N/A'}
 - Year Built: ${p.year_built || 'N/A'}
-- Lot Size: ${p.lot_size?.toLocaleString() || 'N/A'} sqft`).join('\n\n')}
+- Lot Size: ${p.lot_size || 'N/A'} sqft`).join('\n\n')}
 
 User Query: ${lastUserMessage}
 
@@ -194,12 +198,12 @@ Provide a structured analysis with:
 - List potential concerns
 
 Keep it concise and actionable. Use bullet points extensively.`
-        : `Compare these ${detectedUrls.length} properties in a structured manner:
+          : `Compare these ${detectedUrls.length} properties in a structured manner:
 
 ${properties.map((p, i) => `Property ${i + 1}:
 - Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
-- Price: $${p.price?.toLocaleString() || 'N/A'}
-- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft?.toLocaleString() || 'N/A'}
+- Price: $${p.price || 'N/A'}
+- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft || 'N/A'}
 - Year Built: ${p.year_built || 'N/A'}`).join('\n\n')}
 
 User Query: ${lastUserMessage}
@@ -220,6 +224,8 @@ Provide a side-by-side comparison with:
 
 Keep it concise with bullet points.`;
 
+        console.log('Analysis prompt created, calling OpenAI API...');
+      
       const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -237,11 +243,15 @@ Keep it concise with bullet points.`;
       });
 
       if (!aiResponse.ok) {
-        throw new Error(`OpenAI API failed: ${aiResponse.status}`);
+        const errorText = await aiResponse.text();
+        console.error(`OpenAI API failed: ${aiResponse.status}`, errorText);
+        throw new Error(`OpenAI API failed: ${aiResponse.status} - ${errorText}`);
       }
 
       const aiData = await aiResponse.json();
       const analysis = aiData.choices[0].message.content;
+      
+      console.log('AI analysis generated successfully');
       
       return new Response(
         JSON.stringify({ 
@@ -254,6 +264,21 @@ Keep it concise with bullet points.`;
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+      } catch (analysisError) {
+        console.error('Error during property analysis:', analysisError);
+        // Fallback: return property data without AI analysis
+        return new Response(
+          JSON.stringify({ 
+            response: JSON.stringify({
+              type: 'property_analysis',
+              analysis: `I fetched the property data but encountered an error generating the analysis. Here's what I found:\n\n${properties.map((p, i) => `**Property ${i + 1}:**\n- Address: ${p.address}, ${p.city}, ${p.state}\n- Price: $${p.price?.toLocaleString()}\n- ${p.beds} beds, ${p.baths} baths, ${p.sqft?.toLocaleString()} sqft\n- Year Built: ${p.year_built || 'N/A'}`).join('\n\n')}`,
+              properties: properties,
+              isComparison: detectedUrls.length > 1
+            })
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Fetch context from database
