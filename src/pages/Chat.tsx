@@ -524,12 +524,29 @@ export default function Chat() {
       let toolType: string | undefined;
       let toolData: any | undefined;
 
-      // Try to parse as JSON for tool invocations
+      // Check if backend returned property metadata
+      if (data.hasProperties && data.properties) {
+        // Check if user explicitly requested calculator in their message
+        const lastUserMessage = messages[messages.length - 1]?.content || input;
+        const wantsCalculator = /calculator|manual|calculate|scenarios|run numbers|use.*tool/i.test(lastUserMessage);
+        
+        if (wantsCalculator) {
+          // User explicitly wants calculator - show it
+          toolType = 'property_analysis';
+          toolData = data.properties;
+        } else {
+          // Just store properties for potential later use
+          // Calculator won't show unless user asks for it
+          properties = data.properties;
+        }
+      }
+
+      // Try to parse as JSON for other tool invocations
       try {
         const jsonResponse = JSON.parse(data.response);
         
         if (jsonResponse.type === 'property_analysis') {
-          // Property analysis with structured text + deal calculator
+          // Legacy property analysis format
           toolType = 'property_analysis';
           toolData = jsonResponse.properties;
           cleanedResponse = jsonResponse.analysis || '';

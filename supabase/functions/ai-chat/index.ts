@@ -164,24 +164,6 @@ Deno.serve(async (req) => {
         console.log('All properties fetched, starting AI analysis...');
         console.log('Properties data:', JSON.stringify(properties, null, 2));
         
-        // Check if user is asking for calculator
-        const wantsCalculator = /calculator|manual|calculate|scenarios|run numbers/i.test(lastUserMessage);
-        
-        if (wantsCalculator) {
-          // User wants the calculator - return property_analysis type
-          return new Response(
-            JSON.stringify({ 
-              response: JSON.stringify({
-                type: 'property_analysis',
-                analysis: `I'll open the deal analysis calculator for you with the property data pre-filled. You can adjust any fields to run different scenarios.`,
-                properties: properties,
-                isComparison: detectedUrls.length > 1
-              })
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
         // Generate natural AI analysis with calculations
         const analysisPrompt = detectedUrls.length === 1
           ? `Analyze this property and show your calculations:
@@ -284,11 +266,13 @@ Show all calculations step-by-step.`;
       
       console.log('AI analysis generated successfully');
       
-      // Return as regular chat response, NOT property_analysis type
-      // This way calculator won't show automatically
+      // Return as regular chat response with properties metadata
+      // Frontend will check if user explicitly requests calculator
       return new Response(
         JSON.stringify({ 
-          response: analysis
+          response: analysis,
+          properties: properties, // Include properties for calculator option
+          hasProperties: true
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
