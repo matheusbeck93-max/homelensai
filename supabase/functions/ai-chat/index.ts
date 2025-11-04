@@ -656,6 +656,8 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 - Format responses with emojis, clear sections, and professional tone
 - When offering choices, use bold brackets like: **[Option 💰]**`;
 
+    console.log('Making OpenAI API call for regular chat...');
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -671,11 +673,25 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
           },
           ...messages
         ],
+        max_completion_tokens: 2000,
       }),
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
+      throw new Error(`OpenAI API failed: ${response.status} ${errorText}`);
+    }
+
     const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected OpenAI response format:', JSON.stringify(data));
+      throw new Error('Invalid response format from OpenAI');
+    }
+    
     const assistantResponse = data.choices[0].message.content;
+    console.log('OpenAI response received, length:', assistantResponse?.length || 0);
 
     return new Response(
       JSON.stringify({ response: assistantResponse }),

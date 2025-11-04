@@ -516,7 +516,23 @@ export default function Chat() {
           propertyData: propertyData
         }
       });
-      if (error) throw error;
+      
+      console.log('Edge function response:', { data, error });
+      
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.error('No data received from edge function');
+        throw new Error('No response from AI service');
+      }
+      
+      if (!data.response) {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response format from AI service');
+      }
 
       // Check if response contains property search trigger or tool invocation
       let properties: Property[] | undefined;
