@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, X } from "lucide-react";
+import { Download, X, Share } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -17,8 +17,13 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [isInstallable, setIsInstallable] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Detect iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(isIOSDevice);
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -33,8 +38,16 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
     window.addEventListener('beforeinstallprompt', handler);
 
     // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    
+    if (isStandalone) {
       setIsInstallable(false);
+    } else if (isIOSDevice) {
+      // iOS devices don't fire beforeinstallprompt, so we show manual instructions
+      setIsInstallable(true);
+      if (variant === 'popup' && !localStorage.getItem('pwa-install-dismissed')) {
+        setTimeout(() => setShowPopup(true), 3000);
+      }
     }
 
     return () => window.removeEventListener('beforeinstallprompt', handler);
@@ -70,16 +83,29 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
               Instalar HomeLens
             </DialogTitle>
             <DialogDescription>
-              Instale o HomeLens no seu dispositivo para acesso rápido e experiência offline completa.
+              {isIOS ? (
+                <div className="space-y-2 text-sm">
+                  <p>Para instalar no iOS:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li>Toque no botão <Share className="inline h-4 w-4" /> (Compartilhar)</li>
+                    <li>Role para baixo e toque em "Adicionar à Tela de Início"</li>
+                    <li>Toque em "Adicionar"</li>
+                  </ol>
+                </div>
+              ) : (
+                "Instale o HomeLens no seu dispositivo para acesso rápido e experiência offline completa."
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 mt-4">
-            <Button onClick={handleInstall} className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Instalar Aplicativo
-            </Button>
+            {!isIOS && (
+              <Button onClick={handleInstall} className="w-full">
+                <Download className="h-4 w-4 mr-2" />
+                Instalar Aplicativo
+              </Button>
+            )}
             <Button variant="outline" onClick={handleDismiss} className="w-full">
-              Agora Não
+              {isIOS ? "Entendi" : "Agora Não"}
             </Button>
           </div>
         </DialogContent>
@@ -89,7 +115,7 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
 
   return (
     <Button 
-      onClick={handleInstall} 
+      onClick={isIOS ? () => setShowPopup(true) : handleInstall} 
       variant="outline"
       size="sm"
       className={className}
