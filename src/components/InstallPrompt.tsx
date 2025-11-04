@@ -114,12 +114,12 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
   return (
     <Button 
       onClick={isIOS ? () => setShowPopup(true) : handleInstall} 
-      variant="outline"
+      variant="default"
       size="sm"
-      className={className}
+      className={`${className} ${isIOS ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
     >
       <Download className="h-4 w-4 mr-2" />
-      Install App
+      {isIOS ? 'Install' : 'Install App'}
     </Button>
   );
 }
