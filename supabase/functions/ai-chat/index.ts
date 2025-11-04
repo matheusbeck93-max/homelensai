@@ -27,8 +27,8 @@ Deno.serve(async (req) => {
     
     console.log(`Detected ${detectedUrls.length} property URLs:`, detectedUrls);
     
-    // If 1+ URLs detected, fetch property data and provide analysis
-    if (detectedUrls.length >= 1) {
+    // If 2+ URLs detected, trigger comparison mode
+    if (detectedUrls.length >= 2) {
       console.log('Triggering property comparison mode');
       
       // Fetch real property data from URLs using Firecrawl
@@ -161,43 +161,12 @@ Deno.serve(async (req) => {
       
       const properties = await Promise.all(propertyPromises);
       
-      // For property analysis, generate AI analysis text with property data
-      const analysisPrompt = detectedUrls.length === 1 
-        ? `Analyze this property in detail: ${JSON.stringify(properties[0])}. Provide a comprehensive analysis including market positioning, investment potential, financing considerations, and recommendations. Format with clear sections and bullet points.`
-        : `Compare these ${detectedUrls.length} properties: ${JSON.stringify(properties)}. Provide a detailed comparison analysis covering price per sqft, investment potential, location factors, and which property offers the best value. Format with clear sections and bullet points.`;
-      
-      const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-      const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-5-mini-2025-08-07',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a real estate analysis expert. Provide detailed, prescriptive analysis with clear sections, bullet points, and actionable insights.'
-            },
-            {
-              role: 'user',
-              content: analysisPrompt
-            }
-          ],
-        }),
-      });
-      
-      const analysisData = await analysisResponse.json();
-      const aiAnalysis = analysisData.choices[0].message.content;
-      
       return new Response(
         JSON.stringify({ 
           response: JSON.stringify({
-            type: 'property_analysis',
-            analysis: aiAnalysis,
-            propertyData: properties.length === 1 ? properties[0] : null,
-            properties: properties.length > 1 ? properties : null
+            type: 'property_comparison',
+            message: `I've analyzed ${detectedUrls.length} properties from the URLs you provided. Here's a detailed side-by-side comparison:`,
+            data: properties
           })
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

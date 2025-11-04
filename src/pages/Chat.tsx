@@ -527,10 +527,10 @@ export default function Chat() {
       // Try to parse as JSON for tool invocations
       try {
         const jsonResponse = JSON.parse(data.response);
-        if (jsonResponse.type && ['calculator', 'deal_analysis', 'property_analysis'].includes(jsonResponse.type)) {
+        if (jsonResponse.type && ['calculator', 'deal_analysis'].includes(jsonResponse.type)) {
           toolType = jsonResponse.type;
-          toolData = jsonResponse.data || jsonResponse.propertyData || jsonResponse.properties;
-          cleanedResponse = jsonResponse.message || jsonResponse.analysis || '';
+          toolData = jsonResponse.data;
+          cleanedResponse = jsonResponse.message || '';
         }
       } catch {
         // Not JSON, check for property search trigger
@@ -736,11 +736,6 @@ export default function Chat() {
                     </div>}
                   {message.toolType === 'calculator' && <InlineCalculator />}
                   {message.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={message.toolData} />}
-                  {message.toolType === 'property_analysis' && message.toolData && (
-                    <div className="mt-4">
-                      <InlineDealAnalysis initialData={message.toolData} collapsible={true} />
-                    </div>
-                  )}
                 </div>
                 {message.role === "user" && <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                     <User className="h-6 w-6 text-secondary-foreground" />

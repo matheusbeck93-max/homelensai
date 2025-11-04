@@ -5,8 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { TrendingUp, Home, DollarSign, Loader2, Link2, ChevronDown } from "lucide-react";
+import { TrendingUp, Home, DollarSign, Loader2, Link2 } from "lucide-react";
 import { calculatePropertyScores, getScoreColor } from "@/utils/propertyScoring";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,9 +23,8 @@ interface PropertyData {
   url?: string;
 }
 
-export default function InlineDealAnalysis({ initialData, collapsible = false }: { initialData?: Partial<PropertyData>, collapsible?: boolean }) {
+export default function InlineDealAnalysis({ initialData }: { initialData?: Partial<PropertyData> }) {
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(!collapsible);
   const [propertyUrl, setPropertyUrl] = useState(initialData?.url || "");
   const [fetchingUrl, setFetchingUrl] = useState(false);
   
@@ -46,9 +44,7 @@ export default function InlineDealAnalysis({ initialData, collapsible = false }:
   const [investorInputs, setInvestorInputs] = useState({
     arv: 0,
     rehabBudget: 0,
-    downPaymentPercent: 20,
-    interestRate: 6.8,
-    loanTermYears: 30
+    downPaymentPercent: 20
   });
 
   const [analysisResult, setAnalysisResult] = useState<any>(null);
@@ -127,8 +123,8 @@ export default function InlineDealAnalysis({ initialData, collapsible = false }:
     const downPaymentPercent = investorInputs.downPaymentPercent / 100;
     const downPayment = inputs.price * downPaymentPercent;
     const loanAmount = inputs.price - downPayment;
-    const monthlyRate = (investorInputs.interestRate / 100) / 12;
-    const numPayments = investorInputs.loanTermYears * 12;
+    const monthlyRate = 0.068 / 12;
+    const numPayments = 30 * 12;
     const monthlyPayment = (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
                           (Math.pow(1 + monthlyRate, numPayments) - 1);
     const pmi = downPaymentPercent < 0.2 ? loanAmount * 0.005 / 12 : 0;
@@ -182,31 +178,14 @@ export default function InlineDealAnalysis({ initialData, collapsible = false }:
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="my-4">
-      <Card>
-        {collapsible && (
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Deal Analysis Calculator
-                </div>
-                <ChevronDown className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-              </CardTitle>
-            </CardHeader>
-          </CollapsibleTrigger>
-        )}
-        {!collapsible && (
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Deal Analysis Tool
-            </CardTitle>
-          </CardHeader>
-        )}
-        <CollapsibleContent>
-          <CardContent className="space-y-4">
+    <Card className="my-4">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5" />
+          Deal Analysis Tool
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
         {/* URL Fetcher */}
         <div className="p-4 bg-muted/50 rounded-lg space-y-3">
           <Label className="flex items-center gap-2">
@@ -263,14 +242,6 @@ export default function InlineDealAnalysis({ initialData, collapsible = false }:
           <div>
             <Label>Down Payment %</Label>
             <Input type="number" value={investorInputs.downPaymentPercent} onChange={(e) => setInvestorInputs({...investorInputs, downPaymentPercent: parseFloat(e.target.value)})} />
-          </div>
-          <div>
-            <Label>Interest Rate %</Label>
-            <Input type="number" step="0.1" value={investorInputs.interestRate} onChange={(e) => setInvestorInputs({...investorInputs, interestRate: parseFloat(e.target.value)})} />
-          </div>
-          <div>
-            <Label>Loan Term (Years)</Label>
-            <Input type="number" value={investorInputs.loanTermYears} onChange={(e) => setInvestorInputs({...investorInputs, loanTermYears: parseInt(e.target.value)})} />
           </div>
           <div>
             <Label>ARV (optional)</Label>
@@ -414,9 +385,7 @@ export default function InlineDealAnalysis({ initialData, collapsible = false }:
             </Tabs>
           </div>
         )}
-        </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+      </CardContent>
+    </Card>
   );
 }
