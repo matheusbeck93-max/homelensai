@@ -184,7 +184,6 @@ export default function Index() {
     }
   };
   return <div className="min-h-screen">
-      <InstallPrompt variant="popup" />
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -193,7 +192,7 @@ export default function Index() {
             <span className="font-bold text-xl hidden sm:inline">HomeLens</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <InstallPrompt variant="button" />
+            <InstallPrompt variant="button" className="relative z-50" />
             <ThemeToggle />
             {user ? <>
                 <DropdownMenu>

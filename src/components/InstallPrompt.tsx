@@ -131,7 +131,7 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
       onClick={(isIOS || isMacOS) ? () => setShowPopup(true) : handleInstall} 
       variant="default"
       size="sm"
-      className={`${className} ${(isIOS || isMacOS) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
+      className={`${className} relative z-50 cursor-pointer pointer-events-auto ${(isIOS || isMacOS) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
     >
       <Download className="h-4 w-4 mr-2" />
       Install App

@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import Index from "./pages/Index";
 import PropertyDetail from "./pages/PropertyDetail";
 import Chat from "./pages/Chat";
@@ -20,6 +21,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <InstallPrompt variant="popup" />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
