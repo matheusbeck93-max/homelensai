@@ -83,20 +83,15 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Download className="h-5 w-5 text-primary" />
-              Instalar HomeLens
+              Install HomeLens
             </DialogTitle>
             <DialogDescription>
               {isIOS ? (
                 <div className="space-y-2 text-sm">
-                  <p>Para instalar no iOS:</p>
-                  <ol className="list-decimal list-inside space-y-1 ml-2">
-                    <li>Toque no botão <Share className="inline h-4 w-4" /> (Compartilhar)</li>
-                    <li>Role para baixo e toque em "Adicionar à Tela de Início"</li>
-                    <li>Toque em "Adicionar"</li>
-                  </ol>
+                  <p>To install this app on your iPhone, tap the Share button in Safari (the square with the up arrow) and select 'Add to Home Screen'.</p>
                 </div>
               ) : (
-                "Instale o HomeLens no seu dispositivo para acesso rápido e experiência offline completa."
+                "Install HomeLens on your device for quick access and full offline experience."
               )}
             </DialogDescription>
           </DialogHeader>
@@ -104,11 +99,11 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
             {!isIOS && (
               <Button onClick={handleInstall} className="w-full">
                 <Download className="h-4 w-4 mr-2" />
-                Instalar Aplicativo
+                Install App
               </Button>
             )}
             <Button variant="outline" onClick={handleDismiss} className="w-full">
-              {isIOS ? "Entendi" : "Agora Não"}
+              {isIOS ? "Understood" : "Not Now"}
             </Button>
           </div>
         </DialogContent>
@@ -124,7 +119,7 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
       className={className}
     >
       <Download className="h-4 w-4 mr-2" />
-      Instalar App
+      Install App
     </Button>
   );
 }
