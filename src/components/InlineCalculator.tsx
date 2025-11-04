@@ -146,6 +146,26 @@ export default function InlineCalculator() {
                            onChange={(e) => setBuyerInputs({...buyerInputs, rate: e.target.value})} />
                   </div>
                   <div>
+                    <Label>Loan Term (Years)</Label>
+                    <Input type="number" value={buyerInputs.term}
+                           onChange={(e) => setBuyerInputs({...buyerInputs, term: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Property Tax (Monthly)</Label>
+                    <Input type="number" value={buyerInputs.taxes}
+                           onChange={(e) => setBuyerInputs({...buyerInputs, taxes: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Insurance (Monthly)</Label>
+                    <Input type="number" value={buyerInputs.insurance}
+                           onChange={(e) => setBuyerInputs({...buyerInputs, insurance: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>HOA (Monthly)</Label>
+                    <Input type="number" value={buyerInputs.hoa}
+                           onChange={(e) => setBuyerInputs({...buyerInputs, hoa: e.target.value})} />
+                  </div>
+                  <div>
                     <Label>Monthly Income</Label>
                     <Input type="number" value={buyerInputs.income}
                            onChange={(e) => setBuyerInputs({...buyerInputs, income: e.target.value})} />
@@ -261,6 +281,41 @@ export default function InlineCalculator() {
                     <Label>Down Payment %</Label>
                     <Input type="number" value={rentalInputs.downPercent}
                            onChange={(e) => setRentalInputs({...rentalInputs, downPercent: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Interest Rate %</Label>
+                    <Input type="number" step="0.1" value={rentalInputs.rate}
+                           onChange={(e) => setRentalInputs({...rentalInputs, rate: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Property Tax (Monthly)</Label>
+                    <Input type="number" value={rentalInputs.taxes}
+                           onChange={(e) => setRentalInputs({...rentalInputs, taxes: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Insurance (Monthly)</Label>
+                    <Input type="number" value={rentalInputs.insurance}
+                           onChange={(e) => setRentalInputs({...rentalInputs, insurance: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>HOA (Monthly)</Label>
+                    <Input type="number" value={rentalInputs.hoa}
+                           onChange={(e) => setRentalInputs({...rentalInputs, hoa: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Maintenance (Monthly)</Label>
+                    <Input type="number" value={rentalInputs.maintenance}
+                           onChange={(e) => setRentalInputs({...rentalInputs, maintenance: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Vacancy Rate %</Label>
+                    <Input type="number" value={rentalInputs.vacancy}
+                           onChange={(e) => setRentalInputs({...rentalInputs, vacancy: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label>Management Fee %</Label>
+                    <Input type="number" value={rentalInputs.management}
+                           onChange={(e) => setRentalInputs({...rentalInputs, management: e.target.value})} />
                   </div>
                 </CardContent>
               </Card>
