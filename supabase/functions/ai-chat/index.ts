@@ -31,40 +31,131 @@ Deno.serve(async (req) => {
     if (detectedUrls.length >= 2) {
       console.log('Triggering property comparison mode');
       
-      // Extract mock property data from URLs (in production, you'd scrape these)
-      const mockProperties = detectedUrls.slice(0, 4).map((url: string, index: number) => {
-        const prices = [450000, 525000, 380000, 610000];
-        const beds = [3, 4, 3, 4];
-        const baths = [2, 2.5, 2, 3];
-        const sqfts = [1800, 2200, 1650, 2500];
-        const cities = ['Arlington', 'Alexandria', 'Fairfax', 'McLean'];
-        
-        return {
-          id: `url-${index + 1}`,
-          address: `${100 + index * 100} ${['Main', 'Oak', 'Pine', 'Elm'][index]} Street`,
-          city: cities[index],
-          state: 'VA',
-          zip: `2220${index}`,
-          price: prices[index],
-          beds: beds[index],
-          baths: baths[index],
-          sqft: sqfts[index],
-          image_urls: [`https://images.unsplash.com/photo-${['1568605114967-8130f3a36994', '1613977257363-707ba9348227', '1572120360610-d971b9d7767c', '1580587771525-78b9dba3b914'][index]}?w=800`],
-          description: `Property from ${new URL(url).hostname}`,
-          condition: 'active',
-          status: 'active',
-          externalLink: url,
-          year_built: 2010 + index * 3,
-          lot_size: 5000 + index * 1000,
-        };
+      // Fetch real property data from URLs
+      const propertyPromises = detectedUrls.slice(0, 4).map(async (url: string, index: number) => {
+        try {
+          console.log(`Fetching property data from: ${url}`);
+          const response = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${url}: ${response.status}`);
+          }
+          
+          const html = await response.text();
+          
+          // Extract property data based on the site
+          const hostname = new URL(url).hostname;
+          let propertyData: any = {
+            id: `url-${index + 1}`,
+            externalLink: url,
+            condition: 'active',
+            status: 'active',
+          };
+          
+          // Parse based on site - looking for common patterns
+          // Price patterns
+          const priceMatch = html.match(/\$[\d,]+(?:,\d{3})*(?:\.\d{2})?/g);
+          if (priceMatch && priceMatch[0]) {
+            propertyData.price = parseInt(priceMatch[0].replace(/[$,]/g, ''));
+          }
+          
+          // Beds/Baths patterns
+          const bedsMatch = html.match(/(\d+)\s*(?:bed|bd|bedroom)/i);
+          const bathsMatch = html.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
+          const sqftMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|square feet)/i);
+          
+          if (bedsMatch) propertyData.beds = parseInt(bedsMatch[1]);
+          if (bathsMatch) propertyData.baths = parseFloat(bathsMatch[1]);
+          if (sqftMatch) propertyData.sqft = parseInt(sqftMatch[1].replace(/,/g, ''));
+          
+          // Address patterns
+          const addressMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+          if (addressMatch) {
+            const fullAddress = addressMatch[1].trim();
+            propertyData.address = fullAddress;
+            
+            // Try to extract city, state, zip
+            const locationMatch = fullAddress.match(/,\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
+            if (locationMatch) {
+              propertyData.city = locationMatch[1].trim();
+              propertyData.state = locationMatch[2];
+              propertyData.zip = locationMatch[3] || '';
+            }
+          }
+          
+          // Image URL
+          const imgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+          if (imgMatch) {
+            propertyData.image_urls = [imgMatch[1]];
+          }
+          
+          // Description
+          const descMatch = html.match(/<meta\s+(?:name|property)="description"\s+content="([^"]+)"/i);
+          if (descMatch) {
+            propertyData.description = descMatch[1].substring(0, 200);
+          }
+          
+          // Year built
+          const yearMatch = html.match(/(?:built|year built)[:\s]*(\d{4})/i);
+          if (yearMatch) {
+            propertyData.year_built = parseInt(yearMatch[1]);
+          }
+          
+          // Lot size
+          const lotMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft)\s*lot/i);
+          if (lotMatch) {
+            propertyData.lot_size = parseInt(lotMatch[1].replace(/,/g, ''));
+          }
+          
+          console.log(`Extracted property data for ${url}:`, propertyData);
+          
+          // Set defaults for missing data
+          propertyData.address = propertyData.address || `Property ${index + 1}`;
+          propertyData.city = propertyData.city || 'Unknown';
+          propertyData.state = propertyData.state || 'XX';
+          propertyData.zip = propertyData.zip || '00000';
+          propertyData.price = propertyData.price || 0;
+          propertyData.beds = propertyData.beds || 0;
+          propertyData.baths = propertyData.baths || 0;
+          propertyData.sqft = propertyData.sqft || 0;
+          propertyData.image_urls = propertyData.image_urls || [`https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800`];
+          propertyData.description = propertyData.description || `Property from ${hostname}`;
+          
+          return propertyData;
+        } catch (error) {
+          console.error(`Error fetching property ${url}:`, error);
+          // Return fallback data
+          return {
+            id: `url-${index + 1}`,
+            address: `Property ${index + 1}`,
+            city: 'Unknown',
+            state: 'XX',
+            zip: '00000',
+            price: 0,
+            beds: 0,
+            baths: 0,
+            sqft: 0,
+            image_urls: [`https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800`],
+            description: 'Failed to fetch property details',
+            condition: 'active',
+            status: 'active',
+            externalLink: url,
+          };
+        }
       });
+      
+      const properties = await Promise.all(propertyPromises);
       
       return new Response(
         JSON.stringify({ 
           response: JSON.stringify({
             type: 'property_comparison',
-            message: `I've detected ${detectedUrls.length} properties to compare. Here's a detailed side-by-side analysis:`,
-            data: mockProperties
+            message: `I've analyzed ${detectedUrls.length} properties from the URLs you provided. Here's a detailed side-by-side comparison:`,
+            data: properties
           })
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
