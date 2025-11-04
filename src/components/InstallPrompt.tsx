@@ -137,21 +137,21 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
   };
 
   return (
-    <Button 
+    <button
       onClick={handleButtonClick}
-      onTouchEnd={handleButtonClick}
-      variant="default"
-      size="sm"
-      className={`${className} touch-manipulation select-none active:scale-95 transition-transform ${(isIOS || isMacOS) ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80' : ''}`}
+      onTouchStart={handleButtonClick}
+      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-3 touch-manipulation select-none active:scale-95 ${className}`}
       style={{ 
-        position: 'relative', 
-        zIndex: 9999,
-        WebkitTapHighlightColor: 'transparent',
-        touchAction: 'manipulation'
+        WebkitTapHighlightColor: 'rgba(0,0,0,0)',
+        touchAction: 'manipulation',
+        cursor: 'pointer',
+        position: 'relative',
+        zIndex: 10001
       }}
     >
       <Download className="h-4 w-4 mr-2" />
-      Install App
-    </Button>
+      <span className="hidden sm:inline">Install App</span>
+      <span className="sm:hidden">Install</span>
+    </button>
   );
 }

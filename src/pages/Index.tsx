@@ -191,13 +191,15 @@ export default function Index() {
             <Home className="h-6 w-6 text-primary" />
             <span className="font-bold text-xl hidden sm:inline">HomeLens</span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4" style={{ position: 'relative', zIndex: 9999 }}>
-            <InstallPrompt variant="button" />
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div style={{ position: 'relative', zIndex: 10000 }}>
+              <InstallPrompt variant="button" />
+            </div>
             <ThemeToggle />
             {user ? <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost">
+                    <Button variant="ghost" className="hidden sm:flex">
                       <History className="h-4 w-4 mr-2" />
                       Activity
                     </Button>
@@ -215,16 +217,16 @@ export default function Index() {
                         </DropdownMenuItem>)}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="ghost" onClick={() => navigate('/chat')}>
+                <Button variant="ghost" onClick={() => navigate('/chat')} className="hidden sm:flex">
                   Chat
                 </Button>
-                <Button variant="ghost" onClick={() => navigate('/profile')}>
+                <Button variant="ghost" onClick={() => navigate('/profile')} className="hidden sm:flex">
                   Profile
                 </Button>
-                <Button variant="outline" onClick={handleLogout}>
+                <Button variant="outline" onClick={handleLogout} size="sm">
                   Sign Out
                 </Button>
-              </> : <Button onClick={() => navigate('/auth')}>
+              </> : <Button onClick={() => navigate('/auth')} size="sm">
                 Sign In
               </Button>}
           </div>
