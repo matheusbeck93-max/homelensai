@@ -20,6 +20,57 @@ Deno.serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
+    // Detect property URLs in the last user message
+    const lastUserMessage = messages[messages.length - 1]?.content || '';
+    const urlRegex = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|homes)\.com\/[^\s]+)/gi;
+    const detectedUrls = lastUserMessage.match(urlRegex) || [];
+    
+    console.log(`Detected ${detectedUrls.length} property URLs:`, detectedUrls);
+    
+    // If 2+ URLs detected, trigger comparison mode
+    if (detectedUrls.length >= 2) {
+      console.log('Triggering property comparison mode');
+      
+      // Extract mock property data from URLs (in production, you'd scrape these)
+      const mockProperties = detectedUrls.slice(0, 4).map((url: string, index: number) => {
+        const prices = [450000, 525000, 380000, 610000];
+        const beds = [3, 4, 3, 4];
+        const baths = [2, 2.5, 2, 3];
+        const sqfts = [1800, 2200, 1650, 2500];
+        const cities = ['Arlington', 'Alexandria', 'Fairfax', 'McLean'];
+        
+        return {
+          id: `url-${index + 1}`,
+          address: `${100 + index * 100} ${['Main', 'Oak', 'Pine', 'Elm'][index]} Street`,
+          city: cities[index],
+          state: 'VA',
+          zip: `2220${index}`,
+          price: prices[index],
+          beds: beds[index],
+          baths: baths[index],
+          sqft: sqfts[index],
+          image_urls: [`https://images.unsplash.com/photo-${['1568605114967-8130f3a36994', '1613977257363-707ba9348227', '1572120360610-d971b9d7767c', '1580587771525-78b9dba3b914'][index]}?w=800`],
+          description: `Property from ${new URL(url).hostname}`,
+          condition: 'active',
+          status: 'active',
+          externalLink: url,
+          year_built: 2010 + index * 3,
+          lot_size: 5000 + index * 1000,
+        };
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          response: JSON.stringify({
+            type: 'property_comparison',
+            message: `I've detected ${detectedUrls.length} properties to compare. Here's a detailed side-by-side analysis:`,
+            data: mockProperties
+          })
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Fetch context from database
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

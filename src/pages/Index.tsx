@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
+import { PropertyComparison } from "@/components/PropertyComparison";
 import ReactMarkdown from "react-markdown";
 import heroBackground from "@/assets/american-house-hero.jpg";
 import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
@@ -164,7 +165,9 @@ export default function Index() {
           toolData = jsonResponse.data;
           cleanedResponse = jsonResponse.message || '';
         }
-      } catch {}
+      } catch {
+        // Not JSON, regular response
+      }
 
       setMessages(prev => [...prev, { 
         role: "assistant", 
@@ -289,6 +292,15 @@ export default function Index() {
                           <ReactMarkdown components={{ a: MarkdownLink }}>{msg.content}</ReactMarkdown>
                           {msg.toolType === 'calculator' && <InlineCalculator />}
                           {msg.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={msg.toolData} />}
+                          {msg.toolType === 'property_comparison' && msg.toolData && (
+                            <div className="mt-4">
+                              <PropertyComparison 
+                                properties={msg.toolData} 
+                                onRemove={() => {}} 
+                                onClear={() => {}}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
