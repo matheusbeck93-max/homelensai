@@ -143,6 +143,12 @@ export default function Index() {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
+    // Se o usuário está logado, redirecionar para /chat com o prompt
+    if (user && messages.length === 0) {
+      navigate('/chat', { state: { initialPrompt: input } });
+      return;
+    }
+
     const userMessage = { role: "user", content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput("");

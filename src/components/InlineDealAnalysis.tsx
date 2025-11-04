@@ -20,11 +20,12 @@ interface PropertyData {
   sqft: number;
   yearBuilt?: number;
   lotSize?: number;
+  url?: string;
 }
 
 export default function InlineDealAnalysis({ initialData }: { initialData?: Partial<PropertyData> }) {
   const { toast } = useToast();
-  const [propertyUrl, setPropertyUrl] = useState("");
+  const [propertyUrl, setPropertyUrl] = useState(initialData?.url || "");
   const [fetchingUrl, setFetchingUrl] = useState(false);
   
   const [inputs, setInputs] = useState<PropertyData>({
@@ -42,7 +43,8 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
 
   const [investorInputs, setInvestorInputs] = useState({
     arv: 0,
-    rehabBudget: 0
+    rehabBudget: 0,
+    downPaymentPercent: 20
   });
 
   const [analysisResult, setAnalysisResult] = useState<any>(null);
@@ -118,13 +120,14 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
     setLoading(true);
     
     // Calculate buyer metrics
-    const downPayment = inputs.price * 0.2;
+    const downPaymentPercent = investorInputs.downPaymentPercent / 100;
+    const downPayment = inputs.price * downPaymentPercent;
     const loanAmount = inputs.price - downPayment;
     const monthlyRate = 0.068 / 12;
     const numPayments = 30 * 12;
     const monthlyPayment = (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
                           (Math.pow(1 + monthlyRate, numPayments) - 1);
-    const pmi = downPayment < inputs.price * 0.2 ? loanAmount * 0.005 / 12 : 0;
+    const pmi = downPaymentPercent < 0.2 ? loanAmount * 0.005 / 12 : 0;
     const propertyTax = inputs.price * 0.012 / 12;
     const insurance = 150;
     const hoa = 0;
@@ -237,6 +240,10 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
             <Input type="number" value={inputs.sqft} onChange={(e) => setInputs({...inputs, sqft: parseInt(e.target.value)})} />
           </div>
           <div>
+            <Label>Down Payment %</Label>
+            <Input type="number" value={investorInputs.downPaymentPercent} onChange={(e) => setInvestorInputs({...investorInputs, downPaymentPercent: parseFloat(e.target.value)})} />
+          </div>
+          <div>
             <Label>ARV (optional)</Label>
             <Input type="number" value={investorInputs.arv} onChange={(e) => setInvestorInputs({...investorInputs, arv: parseFloat(e.target.value)})} />
           </div>
@@ -312,7 +319,7 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
                 <Card>
                   <CardContent className="pt-4 space-y-2">
                     <div className="flex justify-between">
-                      <span>Down Payment (20%):</span>
+                      <span>Down Payment ({investorInputs.downPaymentPercent}%):</span>
                       <strong>${analysisResult.buyer.downPayment.toLocaleString(undefined, {maximumFractionDigits: 0})}</strong>
                     </div>
                     <div className="flex justify-between">

@@ -70,10 +70,11 @@ Deno.serve(async (req) => {
       propertyData.price = parseInt(priceMatch[0].replace(/[$,]/g, ''));
     }
     
-    // Extract beds/baths/sqft
-    const bedsMatch = content.match(/(\d+)\s*(?:bed|bd|bedroom)/i);
-    const bathsMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
-    const sqftMatch = content.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|square feet)/i);
+    // Extract beds/baths/sqft - improved patterns
+    const bedsMatch = content.match(/(\d+)\s*(?:bed|bd|bedroom)s?\b/i);
+    const bathsMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)s?\b/i);
+    // Look for sqft that's NOT followed by "lot" to avoid confusion with lot size
+    const sqftMatch = content.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|square\s*feet)(?!\s*lot)/i);
     
     if (bedsMatch) propertyData.beds = parseInt(bedsMatch[1]);
     if (bathsMatch) propertyData.baths = parseFloat(bathsMatch[1]);

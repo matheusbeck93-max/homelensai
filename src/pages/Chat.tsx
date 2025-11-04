@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import ProfileSelector from "@/components/ProfileSelector";
@@ -70,6 +70,8 @@ export default function Chat() {
     toast
   } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  
   useEffect(() => {
     const init = async () => {
       const {
@@ -98,6 +100,19 @@ export default function Chat() {
     };
     init();
   }, []);
+
+  // Handle initial prompt from navigation state
+  useEffect(() => {
+    if (location.state?.initialPrompt) {
+      setInput(location.state.initialPrompt);
+      // Auto-send the message after a brief delay
+      setTimeout(() => {
+        handleSendWithQuery(location.state.initialPrompt);
+      }, 500);
+      // Clear the navigation state
+      navigate('/chat', { replace: true, state: {} });
+    }
+  }, [location.state]);
   const loadUserProfile = async () => {
     const {
       data: {
