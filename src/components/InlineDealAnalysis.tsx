@@ -5,9 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Home, DollarSign, Loader2, Link2 } from "lucide-react";
+import { TrendingUp, Home, DollarSign, Loader2, Link2, ChevronDown } from "lucide-react";
 import { calculatePropertyScores, getScoreColor } from "@/utils/propertyScoring";
 import { useToast } from "@/hooks/use-toast";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface PropertyData {
   address: string;
@@ -23,7 +24,13 @@ interface PropertyData {
   url?: string;
 }
 
-export default function InlineDealAnalysis({ initialData }: { initialData?: Partial<PropertyData> }) {
+export default function InlineDealAnalysis({ 
+  initialData, 
+  collapsible = false 
+}: { 
+  initialData?: Partial<PropertyData>; 
+  collapsible?: boolean;
+}) {
   const { toast } = useToast();
   const [propertyUrl, setPropertyUrl] = useState(initialData?.url || "");
   const [fetchingUrl, setFetchingUrl] = useState(false);
@@ -44,11 +51,21 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
   const [investorInputs, setInvestorInputs] = useState({
     arv: 0,
     rehabBudget: 0,
-    downPaymentPercent: 20
+    downPaymentPercent: 20,
+    interestRate: 6.8,
+    loanTermYears: 30,
+    propertyTax: 1.2,
+    insurance: 150,
+    hoa: 0,
+    estimatedRent: 2500,
+    maintenance: 1,
+    vacancy: 5,
+    management: 10
   });
 
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleFetchFromUrl = async () => {
     if (!propertyUrl.trim()) {
@@ -123,14 +140,14 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
     const downPaymentPercent = investorInputs.downPaymentPercent / 100;
     const downPayment = inputs.price * downPaymentPercent;
     const loanAmount = inputs.price - downPayment;
-    const monthlyRate = 0.068 / 12;
-    const numPayments = 30 * 12;
+    const monthlyRate = (investorInputs.interestRate / 100) / 12;
+    const numPayments = investorInputs.loanTermYears * 12;
     const monthlyPayment = (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
                           (Math.pow(1 + monthlyRate, numPayments) - 1);
     const pmi = downPaymentPercent < 0.2 ? loanAmount * 0.005 / 12 : 0;
-    const propertyTax = inputs.price * 0.012 / 12;
-    const insurance = 150;
-    const hoa = 0;
+    const propertyTax = inputs.price * (investorInputs.propertyTax / 100) / 12;
+    const insurance = investorInputs.insurance;
+    const hoa = investorInputs.hoa;
     const totalMonthly = monthlyPayment + pmi + propertyTax + insurance + hoa;
 
     // Calculate investor metrics
@@ -140,8 +157,15 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
     const totalInvestment = inputs.price + rehabCost + 5000;
     const profit = arv - totalInvestment - (arv * 0.08);
     const roi = (profit / totalInvestment) * 100;
-    const cashOnCash = ((2500 * 12 - totalMonthly * 12) / downPayment) * 100;
-    const capRate = ((2500 * 12 - totalMonthly * 12) / inputs.price) * 100;
+    
+    const monthlyRent = investorInputs.estimatedRent;
+    const maintenanceCost = (inputs.price * (investorInputs.maintenance / 100)) / 12;
+    const vacancyCost = monthlyRent * (investorInputs.vacancy / 100);
+    const managementCost = monthlyRent * (investorInputs.management / 100);
+    const netMonthlyIncome = monthlyRent - totalMonthly - maintenanceCost - vacancyCost - managementCost;
+    const annualIncome = netMonthlyIncome * 12;
+    const cashOnCash = (annualIncome / downPayment) * 100;
+    const capRate = (annualIncome / inputs.price) * 100;
 
     // Calculate market intelligence scores
     const scores = calculatePropertyScores({
@@ -177,14 +201,8 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
     setLoading(false);
   };
 
-  return (
-    <Card className="my-4">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Deal Analysis Tool
-        </CardTitle>
-      </CardHeader>
+  const content = (
+    <>
       <CardContent className="space-y-4">
         {/* URL Fetcher */}
         <div className="p-4 bg-muted/50 rounded-lg space-y-3">
@@ -240,8 +258,44 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
             <Input type="number" value={inputs.sqft} onChange={(e) => setInputs({...inputs, sqft: parseInt(e.target.value)})} />
           </div>
           <div>
+            <Label>Interest Rate %</Label>
+            <Input type="number" step="0.1" value={investorInputs.interestRate} onChange={(e) => setInvestorInputs({...investorInputs, interestRate: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>Loan Term (Years)</Label>
+            <Input type="number" value={investorInputs.loanTermYears} onChange={(e) => setInvestorInputs({...investorInputs, loanTermYears: parseInt(e.target.value)})} />
+          </div>
+          <div>
             <Label>Down Payment %</Label>
             <Input type="number" value={investorInputs.downPaymentPercent} onChange={(e) => setInvestorInputs({...investorInputs, downPaymentPercent: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>Property Tax %</Label>
+            <Input type="number" step="0.1" value={investorInputs.propertyTax} onChange={(e) => setInvestorInputs({...investorInputs, propertyTax: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>Insurance ($/month)</Label>
+            <Input type="number" value={investorInputs.insurance} onChange={(e) => setInvestorInputs({...investorInputs, insurance: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>HOA ($/month)</Label>
+            <Input type="number" value={investorInputs.hoa} onChange={(e) => setInvestorInputs({...investorInputs, hoa: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>Estimated Rent ($/month)</Label>
+            <Input type="number" value={investorInputs.estimatedRent} onChange={(e) => setInvestorInputs({...investorInputs, estimatedRent: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>Maintenance %</Label>
+            <Input type="number" step="0.1" value={investorInputs.maintenance} onChange={(e) => setInvestorInputs({...investorInputs, maintenance: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>Vacancy %</Label>
+            <Input type="number" step="0.1" value={investorInputs.vacancy} onChange={(e) => setInvestorInputs({...investorInputs, vacancy: parseFloat(e.target.value)})} />
+          </div>
+          <div>
+            <Label>Management %</Label>
+            <Input type="number" step="0.1" value={investorInputs.management} onChange={(e) => setInvestorInputs({...investorInputs, management: parseFloat(e.target.value)})} />
           </div>
           <div>
             <Label>ARV (optional)</Label>
@@ -386,6 +440,41 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
           </div>
         )}
       </CardContent>
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <Collapsible open={isOpen} onOpenChange={setIsOpen} className="my-4">
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Deal Analysis Calculator
+                </div>
+                <ChevronDown className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            {content}
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    );
+  }
+
+  return (
+    <Card className="my-4">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="h-5 w-5" />
+          Deal Analysis Tool
+        </CardTitle>
+      </CardHeader>
+      {content}
     </Card>
   );
 }

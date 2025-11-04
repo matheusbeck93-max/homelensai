@@ -27,19 +27,18 @@ Deno.serve(async (req) => {
     
     console.log(`Detected ${detectedUrls.length} property URLs:`, detectedUrls);
     
-    // If 2+ URLs detected, trigger comparison mode
-    if (detectedUrls.length >= 2) {
-      console.log('Triggering property comparison mode');
+    // If 1+ URLs detected, trigger property analysis mode
+    if (detectedUrls.length >= 1) {
+      console.log('Triggering property analysis mode');
       
       // Fetch real property data from URLs using Firecrawl
       const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
       
       if (!FIRECRAWL_API_KEY) {
-        console.error('FIRECRAWL_API_KEY not configured, falling back to mock data');
-        // Return helpful message instead
+        console.error('FIRECRAWL_API_KEY not configured');
         return new Response(
           JSON.stringify({ 
-            response: 'I detected multiple property URLs, but I need Firecrawl API key configured to fetch real data. Please configure it or paste the URLs one at a time for analysis.'
+            response: 'I detected property URLs, but I need Firecrawl API key configured to fetch real data. Please configure it to enable property analysis.'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -161,12 +160,96 @@ Deno.serve(async (req) => {
       
       const properties = await Promise.all(propertyPromises);
       
+      // Generate AI analysis using OpenAI
+      const analysisPrompt = detectedUrls.length === 1 
+        ? `Analyze this property in a structured, concise manner using bullet points:
+
+Property Details:
+${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
+- Price: $${p.price?.toLocaleString() || 'N/A'}
+- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft?.toLocaleString() || 'N/A'}
+- Year Built: ${p.year_built || 'N/A'}
+- Lot Size: ${p.lot_size?.toLocaleString() || 'N/A'} sqft`).join('\n\n')}
+
+User Query: ${lastUserMessage}
+
+Provide a structured analysis with:
+## 🏡 Property Overview
+- Key highlights in bullet points
+
+## 💰 Financial Analysis
+- Price assessment
+- Market value comparison
+- Affordability considerations
+
+## 📊 Investment Potential
+- Cash flow potential
+- Appreciation outlook
+- Risk factors
+
+## ✅ Strengths
+- List key advantages
+
+## ⚠️ Considerations
+- List potential concerns
+
+Keep it concise and actionable. Use bullet points extensively.`
+        : `Compare these ${detectedUrls.length} properties in a structured manner:
+
+${properties.map((p, i) => `Property ${i + 1}:
+- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
+- Price: $${p.price?.toLocaleString() || 'N/A'}
+- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft?.toLocaleString() || 'N/A'}
+- Year Built: ${p.year_built || 'N/A'}`).join('\n\n')}
+
+User Query: ${lastUserMessage}
+
+Provide a side-by-side comparison with:
+## 📊 Quick Comparison
+- Price comparison
+- Size and features
+- Value per sqft
+
+## 🏆 Best For Each Category
+- Best value
+- Best investment potential
+- Best features
+
+## 💡 Recommendation
+- Which property(ies) stand out and why
+
+Keep it concise with bullet points.`;
+
+      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-mini-2025-08-07',
+          messages: [
+            { role: 'system', content: 'You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.' },
+            { role: 'user', content: analysisPrompt }
+          ],
+          max_completion_tokens: 1000
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        throw new Error(`OpenAI API failed: ${aiResponse.status}`);
+      }
+
+      const aiData = await aiResponse.json();
+      const analysis = aiData.choices[0].message.content;
+      
       return new Response(
         JSON.stringify({ 
           response: JSON.stringify({
-            type: 'property_comparison',
-            message: `I've analyzed ${detectedUrls.length} properties from the URLs you provided. Here's a detailed side-by-side comparison:`,
-            data: properties
+            type: 'property_analysis',
+            analysis: analysis,
+            properties: properties,
+            isComparison: detectedUrls.length > 1
           })
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

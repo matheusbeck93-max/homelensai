@@ -527,7 +527,18 @@ export default function Chat() {
       // Try to parse as JSON for tool invocations
       try {
         const jsonResponse = JSON.parse(data.response);
-        if (jsonResponse.type && ['calculator', 'deal_analysis'].includes(jsonResponse.type)) {
+        
+        if (jsonResponse.type === 'property_analysis') {
+          // Property analysis with structured text + deal calculator
+          toolType = 'property_analysis';
+          toolData = jsonResponse.properties;
+          cleanedResponse = jsonResponse.analysis || '';
+        } else if (jsonResponse.type === 'property_comparison') {
+          // Legacy comparison format
+          toolType = 'property_comparison';
+          properties = jsonResponse.data;
+          cleanedResponse = jsonResponse.message || '';
+        } else if (jsonResponse.type && ['calculator', 'deal_analysis'].includes(jsonResponse.type)) {
           toolType = jsonResponse.type;
           toolData = jsonResponse.data;
           cleanedResponse = jsonResponse.message || '';
@@ -736,6 +747,19 @@ export default function Chat() {
                     </div>}
                   {message.toolType === 'calculator' && <InlineCalculator />}
                   {message.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={message.toolData} />}
+                  {message.toolType === 'property_analysis' && message.toolData && message.toolData.length > 0 && (
+                    <div className="mt-4">
+                      <InlineDealAnalysis 
+                        initialData={message.toolData[0]} 
+                        collapsible={true}
+                      />
+                    </div>
+                  )}
+                  {message.toolType === 'property_comparison' && (
+                    <div className="mt-4">
+                      <PropertyCarousel properties={message.properties || []} onSelectProperty={handlePropertySelect} />
+                    </div>
+                  )}
                 </div>
                 {message.role === "user" && <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                     <User className="h-6 w-6 text-secondary-foreground" />
