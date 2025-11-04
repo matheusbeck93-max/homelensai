@@ -67,68 +67,34 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
         throw new Error("Please use a URL from Zillow, Realtor, Redfin, Trulia, or Homes.com");
       }
 
-      const response = await fetch(propertyUrl);
+      // Call backend edge function to fetch property data
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-property`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ url: propertyUrl }),
+      });
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch property data: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch property data');
       }
 
-      const html = await response.text();
-      
-      // Parse property data from HTML
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      
-      // Extract price
-      const priceMatch = html.match(/\$[\d,]+(?:,\d{3})*(?:\.\d{2})?/);
-      const price = priceMatch ? parseInt(priceMatch[0].replace(/[$,]/g, '')) : 0;
-      
-      // Extract beds/baths/sqft
-      const bedsMatch = html.match(/(\d+)\s*(?:bed|bd|bedroom)/i);
-      const bathsMatch = html.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
-      const sqftMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|square feet)/i);
-      
-      const beds = bedsMatch ? parseInt(bedsMatch[1]) : 3;
-      const baths = bathsMatch ? parseFloat(bathsMatch[1]) : 2;
-      const sqft = sqftMatch ? parseInt(sqftMatch[1].replace(/,/g, '')) : 1500;
-      
-      // Extract address
-      const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-      let address = "";
-      let city = "";
-      let state = "";
-      let zip = "";
-      
-      if (h1Match) {
-        const fullAddress = h1Match[1].trim();
-        address = fullAddress;
-        
-        const locationMatch = fullAddress.match(/,\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
-        if (locationMatch) {
-          city = locationMatch[1].trim();
-          state = locationMatch[2];
-          zip = locationMatch[3] || "";
-        }
-      }
-      
-      // Extract year built
-      const yearMatch = html.match(/(?:built|year built)[:\s]*(\d{4})/i);
-      const yearBuilt = yearMatch ? parseInt(yearMatch[1]) : 2000;
-      
-      // Extract lot size
-      const lotMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft)\s*lot/i);
-      const lotSize = lotMatch ? parseInt(lotMatch[1].replace(/,/g, '')) : 5000;
+      const { propertyData } = await response.json();
       
       setInputs({
-        address: address || "Property Address",
-        city: city || "City",
-        state: state || "ST",
-        zip: zip || "00000",
-        price: price || 0,
-        beds,
-        baths,
-        sqft,
-        yearBuilt,
-        lotSize
+        address: propertyData.address,
+        city: propertyData.city,
+        state: propertyData.state,
+        zip: propertyData.zip,
+        price: propertyData.price,
+        beds: propertyData.beds,
+        baths: propertyData.baths,
+        sqft: propertyData.sqft,
+        yearBuilt: propertyData.yearBuilt,
+        lotSize: propertyData.lotSize
       });
       
       toast({

@@ -17,3 +17,7 @@ verify_jwt = true
 
 [functions.realtime-token]
 verify_jwt = true
+
+[functions.fetch-property]
+verify_jwt = false
+
