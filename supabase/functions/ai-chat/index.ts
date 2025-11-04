@@ -164,9 +164,27 @@ Deno.serve(async (req) => {
         console.log('All properties fetched, starting AI analysis...');
         console.log('Properties data:', JSON.stringify(properties, null, 2));
         
-        // Generate AI analysis using OpenAI
+        // Check if user is asking for calculator
+        const wantsCalculator = /calculator|manual|calculate|scenarios|run numbers/i.test(lastUserMessage);
+        
+        if (wantsCalculator) {
+          // User wants the calculator - return property_analysis type
+          return new Response(
+            JSON.stringify({ 
+              response: JSON.stringify({
+                type: 'property_analysis',
+                analysis: `I'll open the deal analysis calculator for you with the property data pre-filled. You can adjust any fields to run different scenarios.`,
+                properties: properties,
+                isComparison: detectedUrls.length > 1
+              })
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Generate natural AI analysis with calculations
         const analysisPrompt = detectedUrls.length === 1
-          ? `Analyze this property in a structured, concise manner using bullet points:
+          ? `Analyze this property and show your calculations:
 
 Property Details:
 ${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
@@ -178,27 +196,31 @@ ${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
 User Query: ${lastUserMessage}
 
 Provide a structured analysis with:
-## 🏡 Property Overview
-- Key highlights in bullet points
 
-## 💰 Financial Analysis
-- Price assessment
-- Market value comparison
-- Affordability considerations
+**📊 Key Metrics:**
+- Price per sqft calculation: $[price] ÷ [sqft] = $[result]/sqft
+- Estimated monthly mortgage calculation (assuming 20% down, 7% interest, 30 years)
+- Property tax estimate (use 1.2% of price annually)
+- Total estimated monthly cost
 
-## 📊 Investment Potential
-- Cash flow potential
-- Appreciation outlook
-- Risk factors
+**💰 Investment Analysis:**
+- Estimated rental income (use local market rates)
+- Cash flow calculation: [rent] - [mortgage + tax + insurance + maintenance]
+- Cap rate calculation: [annual net income] ÷ [purchase price]
+- Cash-on-cash return
 
-## ✅ Strengths
-- List key advantages
+**📈 Market Position:**
+- Value assessment (underpriced/fairly priced/overpriced)
+- Comparable sales analysis if possible
+- Neighborhood trends
 
-## ⚠️ Considerations
-- List potential concerns
+**⚠️ Considerations:**
+- List 3-4 key factors to consider
 
-Keep it concise and actionable. Use bullet points extensively.`
-          : `Compare these ${detectedUrls.length} properties in a structured manner:
+End with: "Would you like to run different scenarios or use our calculator to adjust these assumptions manually?"
+
+Show all calculations clearly so the user understands how you arrived at the numbers.`
+          : `Compare these ${detectedUrls.length} properties with detailed calculations:
 
 ${properties.map((p, i) => `Property ${i + 1}:
 - Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
@@ -208,21 +230,30 @@ ${properties.map((p, i) => `Property ${i + 1}:
 
 User Query: ${lastUserMessage}
 
-Provide a side-by-side comparison with:
-## 📊 Quick Comparison
-- Price comparison
-- Size and features
-- Value per sqft
+Provide a structured comparison with:
 
-## 🏆 Best For Each Category
-- Best value
-- Best investment potential
-- Best features
+**📊 Side-by-Side Comparison:**
+For each property show:
+- Price per sqft: $[price] ÷ [sqft] = $[result]/sqft
+- Estimated monthly payment (20% down, 7% interest, 30 years)
+- Estimated cash flow (rent - expenses)
 
-## 💡 Recommendation
-- Which property(ies) stand out and why
+**💡 Key Differences:**
+- Price comparison and value for money
+- Size and layout differences
+- Location and neighborhood comparison
+- Investment potential comparison
 
-Keep it concise with bullet points.`;
+**🏆 Recommendation:**
+- Which property offers better value and why
+- Specific calculations supporting the recommendation
+
+**⚠️ Important Factors:**
+- List considerations for each property
+
+End with: "Would you like to explore different scenarios or use our calculator to run your own numbers?"
+
+Show all calculations step-by-step.`;
 
         console.log('Analysis prompt created, calling OpenAI API...');
       
@@ -253,14 +284,11 @@ Keep it concise with bullet points.`;
       
       console.log('AI analysis generated successfully');
       
+      // Return as regular chat response, NOT property_analysis type
+      // This way calculator won't show automatically
       return new Response(
         JSON.stringify({ 
-          response: JSON.stringify({
-            type: 'property_analysis',
-            analysis: analysis,
-            properties: properties,
-            isComparison: detectedUrls.length > 1
-          })
+          response: analysis
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
