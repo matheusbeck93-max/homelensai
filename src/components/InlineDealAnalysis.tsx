@@ -5,8 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Home, DollarSign, Loader2 } from "lucide-react";
+import { TrendingUp, Home, DollarSign, Loader2, Link2 } from "lucide-react";
 import { calculatePropertyScores, getScoreColor } from "@/utils/propertyScoring";
+import { useToast } from "@/hooks/use-toast";
 
 interface PropertyData {
   address: string;
@@ -22,6 +23,10 @@ interface PropertyData {
 }
 
 export default function InlineDealAnalysis({ initialData }: { initialData?: Partial<PropertyData> }) {
+  const { toast } = useToast();
+  const [propertyUrl, setPropertyUrl] = useState("");
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+  
   const [inputs, setInputs] = useState<PropertyData>({
     address: initialData?.address || "",
     city: initialData?.city || "",
@@ -42,6 +47,106 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
 
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleFetchFromUrl = async () => {
+    if (!propertyUrl.trim()) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a property URL from Zillow, Realtor, Redfin, Trulia, or Homes.com",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setFetchingUrl(true);
+    
+    try {
+      // Validate URL is from supported sites
+      const urlPattern = /(zillow|realtor|redfin|trulia|homes)\.com/i;
+      if (!urlPattern.test(propertyUrl)) {
+        throw new Error("Please use a URL from Zillow, Realtor, Redfin, Trulia, or Homes.com");
+      }
+
+      const response = await fetch(propertyUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch property data: ${response.status}`);
+      }
+
+      const html = await response.text();
+      
+      // Parse property data from HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Extract price
+      const priceMatch = html.match(/\$[\d,]+(?:,\d{3})*(?:\.\d{2})?/);
+      const price = priceMatch ? parseInt(priceMatch[0].replace(/[$,]/g, '')) : 0;
+      
+      // Extract beds/baths/sqft
+      const bedsMatch = html.match(/(\d+)\s*(?:bed|bd|bedroom)/i);
+      const bathsMatch = html.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
+      const sqftMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|square feet)/i);
+      
+      const beds = bedsMatch ? parseInt(bedsMatch[1]) : 3;
+      const baths = bathsMatch ? parseFloat(bathsMatch[1]) : 2;
+      const sqft = sqftMatch ? parseInt(sqftMatch[1].replace(/,/g, '')) : 1500;
+      
+      // Extract address
+      const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+      let address = "";
+      let city = "";
+      let state = "";
+      let zip = "";
+      
+      if (h1Match) {
+        const fullAddress = h1Match[1].trim();
+        address = fullAddress;
+        
+        const locationMatch = fullAddress.match(/,\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
+        if (locationMatch) {
+          city = locationMatch[1].trim();
+          state = locationMatch[2];
+          zip = locationMatch[3] || "";
+        }
+      }
+      
+      // Extract year built
+      const yearMatch = html.match(/(?:built|year built)[:\s]*(\d{4})/i);
+      const yearBuilt = yearMatch ? parseInt(yearMatch[1]) : 2000;
+      
+      // Extract lot size
+      const lotMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft)\s*lot/i);
+      const lotSize = lotMatch ? parseInt(lotMatch[1].replace(/,/g, '')) : 5000;
+      
+      setInputs({
+        address: address || "Property Address",
+        city: city || "City",
+        state: state || "ST",
+        zip: zip || "00000",
+        price: price || 0,
+        beds,
+        baths,
+        sqft,
+        yearBuilt,
+        lotSize
+      });
+      
+      toast({
+        title: "Property Data Loaded",
+        description: "Property details have been fetched from the URL",
+      });
+      
+    } catch (error) {
+      console.error("Error fetching property data:", error);
+      toast({
+        title: "Failed to Fetch Property",
+        description: error instanceof Error ? error.message : "Unable to fetch property details",
+        variant: "destructive",
+      });
+    } finally {
+      setFetchingUrl(false);
+    }
+  };
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -112,6 +217,30 @@ export default function InlineDealAnalysis({ initialData }: { initialData?: Part
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* URL Fetcher */}
+        <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+          <Label className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            Fetch from URL (Zillow, Realtor, Redfin, Trulia, Homes.com)
+          </Label>
+          <div className="flex gap-2">
+            <Input 
+              placeholder="https://www.zillow.com/..." 
+              value={propertyUrl}
+              onChange={(e) => setPropertyUrl(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              onClick={handleFetchFromUrl} 
+              disabled={fetchingUrl}
+              variant="secondary"
+            >
+              {fetchingUrl && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Fetch
+            </Button>
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-4">
           <div>
             <Label>Address</Label>
