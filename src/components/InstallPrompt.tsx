@@ -24,32 +24,35 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsInstallable(true);
-      
-      // Show popup automatically if variant is popup and user hasn't dismissed it before
-      if (variant === 'popup' && !localStorage.getItem('pwa-install-dismissed')) {
-        setTimeout(() => setShowPopup(true), 3000);
-      }
-    };
-
-    window.addEventListener('beforeinstallprompt', handler);
-
-    // Check if already installed
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    // Check if already installed (standalone mode)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                        (window.navigator as any).standalone === true;
     
     if (isStandalone) {
       setIsInstallable(false);
-    } else if (isIOSDevice) {
-      // iOS devices don't fire beforeinstallprompt, so we show manual instructions
+      return;
+    }
+
+    // For iOS devices, always show install option
+    if (isIOSDevice) {
       setIsInstallable(true);
       if (variant === 'popup' && !localStorage.getItem('pwa-install-dismissed')) {
         setTimeout(() => setShowPopup(true), 3000);
       }
     }
 
+    // For non-iOS devices, listen for beforeinstallprompt
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setIsInstallable(true);
+      
+      if (variant === 'popup' && !localStorage.getItem('pwa-install-dismissed')) {
+        setTimeout(() => setShowPopup(true), 3000);
+      }
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, [variant]);
 
