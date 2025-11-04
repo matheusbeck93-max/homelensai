@@ -255,7 +255,7 @@ export default function Index() {
                 </h1>
                 <div className="bg-card border rounded-2xl p-6 shadow-lg">
                   <Textarea
-                    placeholder="Search properties, ask about mortgages, or request calculators..."
+                    placeholder="Ask about properties dropping a link from any real estate - calculate mortgage, analyze investment, compare and get unlimited insights..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
