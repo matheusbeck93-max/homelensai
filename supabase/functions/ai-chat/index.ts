@@ -31,24 +31,47 @@ Deno.serve(async (req) => {
     if (detectedUrls.length >= 2) {
       console.log('Triggering property comparison mode');
       
-      // Fetch real property data from URLs
+      // Fetch real property data from URLs using Firecrawl
+      const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+      
+      if (!FIRECRAWL_API_KEY) {
+        console.error('FIRECRAWL_API_KEY not configured, falling back to mock data');
+        // Return helpful message instead
+        return new Response(
+          JSON.stringify({ 
+            response: 'I detected multiple property URLs, but I need Firecrawl API key configured to fetch real data. Please configure it or paste the URLs one at a time for analysis.'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       const propertyPromises = detectedUrls.slice(0, 4).map(async (url: string, index: number) => {
         try {
           console.log(`Fetching property data from: ${url}`);
-          const response = await fetch(url, {
+          
+          // Use Firecrawl to scrape the URL
+          const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
+              'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: url,
+              formats: ['markdown', 'html']
+            })
           });
           
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ${url}: ${response.status}`);
+          if (!firecrawlResponse.ok) {
+            throw new Error(`Firecrawl failed: ${firecrawlResponse.status}`);
           }
           
-          const html = await response.text();
+          const firecrawlData = await firecrawlResponse.json();
+          const html = firecrawlData.data?.html || '';
+          const markdown = firecrawlData.data?.markdown || '';
+          const content = html || markdown;
           
-          // Extract property data based on the site
-          const hostname = new URL(url).hostname;
+          // Parse property data
           let propertyData: any = {
             id: `url-${index + 1}`,
             externalLink: url,
@@ -56,29 +79,25 @@ Deno.serve(async (req) => {
             status: 'active',
           };
           
-          // Parse based on site - looking for common patterns
-          // Price patterns
-          const priceMatch = html.match(/\$[\d,]+(?:,\d{3})*(?:\.\d{2})?/g);
+          // Extract data from content
+          const priceMatch = content.match(/\$[\d,]+(?:,\d{3})*(?:\.\d{2})?/g);
           if (priceMatch && priceMatch[0]) {
             propertyData.price = parseInt(priceMatch[0].replace(/[$,]/g, ''));
           }
           
-          // Beds/Baths patterns
-          const bedsMatch = html.match(/(\d+)\s*(?:bed|bd|bedroom)/i);
-          const bathsMatch = html.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
-          const sqftMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|square feet)/i);
+          const bedsMatch = content.match(/(\d+)\s*(?:bed|bd|bedroom)/i);
+          const bathsMatch = content.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
+          const sqftMatch = content.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft|square feet)/i);
           
           if (bedsMatch) propertyData.beds = parseInt(bedsMatch[1]);
           if (bathsMatch) propertyData.baths = parseFloat(bathsMatch[1]);
           if (sqftMatch) propertyData.sqft = parseInt(sqftMatch[1].replace(/,/g, ''));
           
-          // Address patterns
-          const addressMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-          if (addressMatch) {
-            const fullAddress = addressMatch[1].trim();
+          const h1Match = content.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+          if (h1Match) {
+            const fullAddress = h1Match[1].trim();
             propertyData.address = fullAddress;
             
-            // Try to extract city, state, zip
             const locationMatch = fullAddress.match(/,\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
             if (locationMatch) {
               propertyData.city = locationMatch[1].trim();
@@ -87,33 +106,26 @@ Deno.serve(async (req) => {
             }
           }
           
-          // Image URL
-          const imgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+          const yearMatch = content.match(/(?:built|year built)[:\s]*(\d{4})/i);
+          if (yearMatch) propertyData.year_built = parseInt(yearMatch[1]);
+          
+          const lotMatch = content.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft)\s*lot/i);
+          if (lotMatch) propertyData.lot_size = parseInt(lotMatch[1].replace(/,/g, ''));
+          
+          const hostname = new URL(url).hostname;
+          const imgMatch = content.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
           if (imgMatch) {
             propertyData.image_urls = [imgMatch[1]];
           }
           
-          // Description
-          const descMatch = html.match(/<meta\s+(?:name|property)="description"\s+content="([^"]+)"/i);
+          const descMatch = content.match(/<meta\s+(?:name|property)="description"\s+content="([^"]+)"/i);
           if (descMatch) {
             propertyData.description = descMatch[1].substring(0, 200);
           }
           
-          // Year built
-          const yearMatch = html.match(/(?:built|year built)[:\s]*(\d{4})/i);
-          if (yearMatch) {
-            propertyData.year_built = parseInt(yearMatch[1]);
-          }
-          
-          // Lot size
-          const lotMatch = html.match(/([\d,]+)\s*(?:sq\.?\s*ft|sqft)\s*lot/i);
-          if (lotMatch) {
-            propertyData.lot_size = parseInt(lotMatch[1].replace(/,/g, ''));
-          }
-          
           console.log(`Extracted property data for ${url}:`, propertyData);
           
-          // Set defaults for missing data
+          // Set defaults
           propertyData.address = propertyData.address || `Property ${index + 1}`;
           propertyData.city = propertyData.city || 'Unknown';
           propertyData.state = propertyData.state || 'XX';
@@ -128,7 +140,6 @@ Deno.serve(async (req) => {
           return propertyData;
         } catch (error) {
           console.error(`Error fetching property ${url}:`, error);
-          // Return fallback data
           return {
             id: `url-${index + 1}`,
             address: `Property ${index + 1}`,
