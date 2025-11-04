@@ -19,6 +19,7 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
   const [isInstallable, setIsInstallable] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isMacOS, setIsMacOS] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     // Detect iOS mobile devices
@@ -126,32 +127,71 @@ export function InstallPrompt({ variant = 'button', className = '' }: InstallPro
     );
   }
 
-  const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleButtonClick = () => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    
     if (isIOS || isMacOS) {
       setShowPopup(true);
+      setIsProcessing(false);
     } else {
-      handleInstall();
+      handleInstall().finally(() => setIsProcessing(false));
     }
   };
 
   return (
-    <button
-      onClick={handleButtonClick}
-      onTouchStart={handleButtonClick}
-      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-3 touch-manipulation select-none active:scale-95 ${className}`}
-      style={{ 
-        WebkitTapHighlightColor: 'rgba(0,0,0,0)',
-        touchAction: 'manipulation',
-        cursor: 'pointer',
-        position: 'relative',
-        zIndex: 10001
-      }}
-    >
-      <Download className="h-4 w-4 mr-2" />
-      <span className="hidden sm:inline">Install App</span>
-      <span className="sm:hidden">Install</span>
-    </button>
+    <>
+      <Button
+        onClick={handleButtonClick}
+        disabled={isProcessing}
+        variant="default"
+        size="sm"
+        className={className}
+        style={{ 
+          position: 'relative',
+          zIndex: 10001,
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent'
+        }}
+      >
+        <Download className="h-4 w-4 mr-2" />
+        <span className="hidden sm:inline">Install App</span>
+        <span className="sm:hidden">Install</span>
+      </Button>
+
+      {(isIOS || isMacOS) && (
+        <Dialog open={showPopup} onOpenChange={setShowPopup}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-primary" />
+                Install HomeLens
+              </DialogTitle>
+              <DialogDescription>
+                {isIOS ? (
+                  <div className="space-y-2 text-sm">
+                    <p>To install this app on your iPhone, tap the Share button in Safari (the square with the up arrow) and select 'Add to Home Screen'.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <p>To install this app on your Mac:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-2">
+                      <li>Click the Share button in Safari's toolbar (or File menu)</li>
+                      <li>Select "Add to Dock"</li>
+                    </ol>
+                  </div>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 mt-4">
+              <Button variant="outline" onClick={() => setShowPopup(false)} className="w-full">
+                Understood
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
