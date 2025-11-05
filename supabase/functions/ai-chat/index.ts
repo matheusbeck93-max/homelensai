@@ -27,8 +27,28 @@ Deno.serve(async (req) => {
     
     console.log(`Detected ${detectedUrls.length} property URLs:`, detectedUrls);
     
+    // Check if we're waiting for purpose clarification
+    const previousMessage = messages.length > 1 ? messages[messages.length - 2]?.content || '' : '';
+    const isWaitingForPurpose = previousMessage.includes('É para investimento ou para compra de moradia?');
+    
+    // Check if user is responding with purpose
+    const purposeResponse = lastUserMessage.toLowerCase();
+    const isInvestment = purposeResponse.includes('investimento') || purposeResponse.includes('invest');
+    const isPrimaryResidence = purposeResponse.includes('moradia') || purposeResponse.includes('morar') || purposeResponse.includes('residência');
+    
     // If 1+ URLs detected, trigger property analysis mode
     if (detectedUrls.length >= 1) {
+      // First, ask about purpose if this is the first property message
+      if (!isWaitingForPurpose && messages.length <= 2) {
+        console.log('First property URL detected, asking about purpose');
+        return new Response(
+          JSON.stringify({ 
+            response: 'Entendi! Antes de fazer a análise completa dessa propriedade, preciso saber: **É para investimento ou para compra de moradia?**\n\nIsso me ajudará a focar nos aspectos mais relevantes para você.',
+            needsPurpose: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       console.log('Triggering property analysis mode');
       
       // Fetch real property data from URLs using Firecrawl
@@ -164,9 +184,25 @@ Deno.serve(async (req) => {
         console.log('All properties fetched, starting AI analysis...');
         console.log('Properties data:', JSON.stringify(properties, null, 2));
         
+        // Determine purpose from conversation history
+        let purpose = 'investment'; // default
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const msg = messages[i]?.content?.toLowerCase() || '';
+          if (msg.includes('moradia') || msg.includes('morar') || msg.includes('residência')) {
+            purpose = 'residence';
+            break;
+          } else if (msg.includes('investimento') || msg.includes('invest')) {
+            purpose = 'investment';
+            break;
+          }
+        }
+        
+        console.log('Analysis purpose:', purpose);
+        
         // Generate natural AI analysis with calculations
         const analysisPrompt = detectedUrls.length === 1
-          ? `Analyze this property with clear metrics (show final numbers only, NO formulas):
+          ? purpose === 'investment'
+            ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
 
 Property Details:
 ${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
@@ -177,45 +213,86 @@ ${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
 
 User Query: ${lastUserMessage}
 
-Provide a structured analysis using this format:
+Provide a structured INVESTMENT analysis using this format:
 
-**💰 Financial Breakdown**
-• List price: $[amount]
-• Price per sqft: $[number]
-• Down payment (20%): $[amount]
-• Loan amount: $[amount]
-• Monthly mortgage (7% APR, 30 years): $[amount]
+**💰 Análise Financeira**
+• Preço de lista: $[amount]
+• Preço por sqft: $[number]
+• Entrada (20%): $[amount]
+• Valor do financiamento: $[amount]
+• Pagamento mensal (7% APR, 30 anos): $[amount]
 
-**📊 Investment Metrics**
-• Estimated monthly rent: $[amount]
-• Monthly expenses breakdown:
-  - Mortgage: $[amount]
-  - Property tax: $[amount]
-  - Insurance: $[amount]
-  - Maintenance: $[amount]
-  - HOA (if applicable): $[amount]
-• Net monthly cash flow: $[amount]
-• Annual cap rate: [percentage]%
+**📊 Métricas de Investimento**
+• Aluguel mensal estimado: $[amount]
+• Despesas mensais:
+  - Hipoteca: $[amount]
+  - IPTU: $[amount]
+  - Seguro: $[amount]
+  - Manutenção: $[amount]
+  - Taxa de condomínio: $[amount]
+• Fluxo de caixa mensal líquido: $[amount]
+• Cap rate anual: [percentage]%
 • Cash-on-cash return: [percentage]%
 
-**✨ Property Highlights**
+**✨ Destaques da Propriedade**
 • [Key feature 1]
 • [Key feature 2]
 • [Key feature 3]
 
-**⚠️ Key Considerations**
-• [Important factor 1]
-• [Important factor 2]
-• [Important factor 3]
+**💡 Recomendação para Investimento**
+[Brief recommendation based on the investment metrics]
 
-**💡 Investment Recommendation**
-[Brief recommendation based on the metrics]
+CRÍTICO: 
+- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
+- Responda APENAS o que o usuário solicitou
+- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`
+            : `Analyze this property FOR PRIMARY RESIDENCE with clear metrics (show final numbers only, NO formulas):
 
-CRITICAL: 
-- Only show final calculated numbers. Do NOT show formulas like "P * [(r(1 + r)^n)]" or calculation steps.
-- Answer ONLY what the user asked for
-- If you have a tip, keep it SHORT (1 sentence) and ask if they want you to explain more`
-          : `Compare these ${detectedUrls.length} properties with detailed calculations:
+Property Details:
+${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
+- Price: $${p.price || 'N/A'}
+- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft || 'N/A'}
+- Year Built: ${p.year_built || 'N/A'}
+- Lot Size: ${p.lot_size || 'N/A'} sqft`).join('\n\n')}
+
+User Query: ${lastUserMessage}
+
+Provide a structured HOMEBUYER analysis using this format:
+
+**💰 Custo de Aquisição**
+• Preço de lista: $[amount]
+• Preço por sqft: $[number]
+• Entrada (20%): $[amount]
+• Valor do financiamento: $[amount]
+• Pagamento mensal (7% APR, 30 anos): $[amount]
+
+**🏡 Custo Mensal de Moradia**
+• Hipoteca: $[amount]
+• IPTU estimado: $[amount]
+• Seguro residencial: $[amount]
+• Manutenção: $[amount]
+• Taxa de condomínio: $[amount if applicable]
+• **Total mensal**: $[amount]
+
+**✨ Destaques da Propriedade**
+• [Key feature 1 - focus on livability]
+• [Key feature 2 - focus on comfort]
+• [Key feature 3 - focus on neighborhood]
+
+**⚠️ Considerações Importantes**
+• [Important factor 1 for living]
+• [Important factor 2 for living]
+• [Important factor 3 for living]
+
+**💡 Avaliação para Moradia**
+[Brief recommendation based on living quality and affordability]
+
+CRÍTICO: 
+- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
+- Responda APENAS o que o usuário solicitou
+- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`
+          : purpose === 'investment'
+            ? `Compare these ${detectedUrls.length} properties AS INVESTMENTS with detailed calculations:
 
 ${properties.map((p, i) => `Property ${i + 1}:
 - Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
@@ -225,35 +302,75 @@ ${properties.map((p, i) => `Property ${i + 1}:
 
 User Query: ${lastUserMessage}
 
-Provide a structured comparison using this format:
+Provide a structured INVESTMENT comparison using this format:
 
-**📊 Side-by-Side Comparison**
+**📊 Comparação Lado a Lado**
 
 For each property:
-**Property ${1}:** [Address]
-• Price: $[amount] | Price/sqft: $[result]
-• Monthly payment: $[calculated]
-• Est. monthly rent: $[estimated]
-• Net cash flow: $[result]
+**Propriedade ${1}:** [Address]
+• Preço: $[amount] | Preço/sqft: $[result]
+• Pagamento mensal: $[calculated]
+• Aluguel estimado: $[estimated]
+• Fluxo de caixa líquido: $[result]
+• Cap rate: [percentage]%
 
 [Repeat for each property]
 
-**💡 Key Differences**
-• Price & value: [comparison]
-• Size & layout: [comparison]
-• Location: [comparison]
-• Investment potential: [comparison]
+**💡 Diferenças Principais**
+• Preço & valor: [comparison]
+• Tamanho & layout: [comparison]
+• Localização: [comparison]
+• Potencial de investimento: [comparison]
 
-**🏆 Best Value**
-[Which property offers better value and why based on the numbers]
+**🏆 Melhor Investimento**
+[Which property offers better ROI and why based on the numbers]
 
-**⚠️ Important Factors**
-• [List key considerations for making a decision]
+**⚠️ Fatores Importantes**
+• [List key investment considerations]
 
-IMPORTANT: 
-- Only show final calculated numbers. Do NOT include formulas or calculation steps.
-- Answer ONLY what the user asked for
-- If you have a tip, keep it SHORT (1 sentence) and ask if they want you to explain more`;
+CRÍTICO: 
+- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
+- Responda APENAS o que o usuário solicitou
+- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`
+            : `Compare these ${detectedUrls.length} properties FOR PRIMARY RESIDENCE with detailed calculations:
+
+${properties.map((p, i) => `Property ${i + 1}:
+- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
+- Price: $${p.price || 'N/A'}
+- Beds: ${p.beds || 'N/A'} | Baths: ${p.baths || 'N/A'} | Sqft: ${p.sqft || 'N/A'}
+- Year Built: ${p.year_built || 'N/A'}`).join('\n\n')}
+
+User Query: ${lastUserMessage}
+
+Provide a structured HOMEBUYER comparison using this format:
+
+**📊 Comparação Lado a Lado**
+
+For each property:
+**Propriedade ${1}:** [Address]
+• Preço: $[amount] | Preço/sqft: $[result]
+• Pagamento mensal total: $[calculated including all costs]
+• Tamanho: [sqft] sqft
+• Quartos/Banheiros: [beds]/[baths]
+
+[Repeat for each property]
+
+**💡 Diferenças Principais**
+• Custo & acessibilidade: [comparison]
+• Espaço & layout: [comparison]
+• Localização & vizinhança: [comparison]
+• Adequação para moradia: [comparison]
+
+**🏆 Melhor Opção para Moradia**
+[Which property offers better living quality and affordability]
+
+**⚠️ Fatores Importantes**
+• [List key living considerations]
+
+CRÍTICO: 
+- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
+- Responda APENAS o que o usuário solicitou
+- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`;
 
         console.log('Analysis prompt created, calling OpenAI API...');
       
