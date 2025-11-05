@@ -676,7 +676,6 @@ export default function Chat() {
       </div>
     </div>;
   return <div className="flex h-screen bg-background">
-      <InstallPrompt variant="popup" />
       {/* Desktop Sidebar */}
       <div className="hidden md:block w-64 border-r">
         <ConversationSidebar />
