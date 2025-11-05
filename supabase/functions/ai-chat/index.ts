@@ -29,12 +29,12 @@ Deno.serve(async (req) => {
     
     // Check if we're waiting for purpose clarification
     const previousMessage = messages.length > 1 ? messages[messages.length - 2]?.content || '' : '';
-    const isWaitingForPurpose = previousMessage.includes('É para investimento ou para compra de moradia?');
+    const isWaitingForPurpose = previousMessage.includes('Is this for investment or primary residence?');
     
     // Check if user is responding with purpose
     const purposeResponse = lastUserMessage.toLowerCase();
-    const isInvestment = purposeResponse.includes('investimento') || purposeResponse.includes('invest');
-    const isPrimaryResidence = purposeResponse.includes('moradia') || purposeResponse.includes('morar') || purposeResponse.includes('residência');
+    const isInvestment = purposeResponse.includes('invest');
+    const isPrimaryResidence = purposeResponse.includes('residence') || purposeResponse.includes('primary') || purposeResponse.includes('live') || purposeResponse.includes('home');
     
     // If 1+ URLs detected, trigger property analysis mode
     if (detectedUrls.length >= 1) {
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
         console.log('First property URL detected, asking about purpose');
         return new Response(
           JSON.stringify({ 
-            response: 'Entendi! Antes de fazer a análise completa dessa propriedade, preciso saber: **É para investimento ou para compra de moradia?**\n\nIsso me ajudará a focar nos aspectos mais relevantes para você.',
+            response: 'Got it! Before I provide a complete analysis of this property, I need to know: **Is this for investment or primary residence?**\n\nThis will help me focus on the most relevant aspects for you.',
             needsPurpose: true
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -188,10 +188,10 @@ Deno.serve(async (req) => {
         let purpose = 'investment'; // default
         for (let i = messages.length - 1; i >= 0; i--) {
           const msg = messages[i]?.content?.toLowerCase() || '';
-          if (msg.includes('moradia') || msg.includes('morar') || msg.includes('residência')) {
+          if (msg.includes('residence') || msg.includes('primary') || msg.includes('live') || msg.includes('home')) {
             purpose = 'residence';
             break;
-          } else if (msg.includes('investimento') || msg.includes('invest')) {
+          } else if (msg.includes('invest')) {
             purpose = 'investment';
             break;
           }
@@ -215,37 +215,37 @@ User Query: ${lastUserMessage}
 
 Provide a structured INVESTMENT analysis using this format:
 
-**💰 Análise Financeira**
-• Preço de lista: $[amount]
-• Preço por sqft: $[number]
-• Entrada (20%): $[amount]
-• Valor do financiamento: $[amount]
-• Pagamento mensal (7% APR, 30 anos): $[amount]
+**💰 Financial Analysis**
+• List price: $[amount]
+• Price per sqft: $[number]
+• Down payment (20%): $[amount]
+• Loan amount: $[amount]
+• Monthly payment (7% APR, 30 years): $[amount]
 
-**📊 Métricas de Investimento**
-• Aluguel mensal estimado: $[amount]
-• Despesas mensais:
-  - Hipoteca: $[amount]
-  - IPTU: $[amount]
-  - Seguro: $[amount]
-  - Manutenção: $[amount]
-  - Taxa de condomínio: $[amount]
-• Fluxo de caixa mensal líquido: $[amount]
-• Cap rate anual: [percentage]%
+**📊 Investment Metrics**
+• Estimated monthly rent: $[amount]
+• Monthly expenses:
+  - Mortgage: $[amount]
+  - Property tax: $[amount]
+  - Insurance: $[amount]
+  - Maintenance: $[amount]
+  - HOA fees: $[amount]
+• Net monthly cash flow: $[amount]
+• Annual cap rate: [percentage]%
 • Cash-on-cash return: [percentage]%
 
-**✨ Destaques da Propriedade**
+**✨ Property Highlights**
 • [Key feature 1]
 • [Key feature 2]
 • [Key feature 3]
 
-**💡 Recomendação para Investimento**
+**💡 Investment Recommendation**
 [Brief recommendation based on the investment metrics]
 
-CRÍTICO: 
-- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
-- Responda APENAS o que o usuário solicitou
-- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`
+CRITICAL: 
+- Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
+- Answer ONLY what the user requested
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`
             : `Analyze this property FOR PRIMARY RESIDENCE with clear metrics (show final numbers only, NO formulas):
 
 Property Details:
@@ -259,38 +259,38 @@ User Query: ${lastUserMessage}
 
 Provide a structured HOMEBUYER analysis using this format:
 
-**💰 Custo de Aquisição**
-• Preço de lista: $[amount]
-• Preço por sqft: $[number]
-• Entrada (20%): $[amount]
-• Valor do financiamento: $[amount]
-• Pagamento mensal (7% APR, 30 anos): $[amount]
+**💰 Acquisition Cost**
+• List price: $[amount]
+• Price per sqft: $[number]
+• Down payment (20%): $[amount]
+• Loan amount: $[amount]
+• Monthly payment (7% APR, 30 years): $[amount]
 
-**🏡 Custo Mensal de Moradia**
-• Hipoteca: $[amount]
-• IPTU estimado: $[amount]
-• Seguro residencial: $[amount]
-• Manutenção: $[amount]
-• Taxa de condomínio: $[amount if applicable]
-• **Total mensal**: $[amount]
+**🏡 Monthly Housing Cost**
+• Mortgage: $[amount]
+• Estimated property tax: $[amount]
+• Home insurance: $[amount]
+• Maintenance: $[amount]
+• HOA fees: $[amount if applicable]
+• **Total monthly**: $[amount]
 
-**✨ Destaques da Propriedade**
+**✨ Property Highlights**
 • [Key feature 1 - focus on livability]
 • [Key feature 2 - focus on comfort]
 • [Key feature 3 - focus on neighborhood]
 
-**⚠️ Considerações Importantes**
+**⚠️ Important Considerations**
 • [Important factor 1 for living]
 • [Important factor 2 for living]
 • [Important factor 3 for living]
 
-**💡 Avaliação para Moradia**
+**💡 Home Evaluation**
 [Brief recommendation based on living quality and affordability]
 
-CRÍTICO: 
-- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
-- Responda APENAS o que o usuário solicitou
-- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`
+CRITICAL: 
+- Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
+- Answer ONLY what the user requested
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`
           : purpose === 'investment'
             ? `Compare these ${detectedUrls.length} properties AS INVESTMENTS with detailed calculations:
 
@@ -304,34 +304,34 @@ User Query: ${lastUserMessage}
 
 Provide a structured INVESTMENT comparison using this format:
 
-**📊 Comparação Lado a Lado**
+**📊 Side-by-Side Comparison**
 
 For each property:
-**Propriedade ${1}:** [Address]
-• Preço: $[amount] | Preço/sqft: $[result]
-• Pagamento mensal: $[calculated]
-• Aluguel estimado: $[estimated]
-• Fluxo de caixa líquido: $[result]
+**Property ${1}:** [Address]
+• Price: $[amount] | Price/sqft: $[result]
+• Monthly payment: $[calculated]
+• Estimated rent: $[estimated]
+• Net cash flow: $[result]
 • Cap rate: [percentage]%
 
 [Repeat for each property]
 
-**💡 Diferenças Principais**
-• Preço & valor: [comparison]
-• Tamanho & layout: [comparison]
-• Localização: [comparison]
-• Potencial de investimento: [comparison]
+**💡 Key Differences**
+• Price & value: [comparison]
+• Size & layout: [comparison]
+• Location: [comparison]
+• Investment potential: [comparison]
 
-**🏆 Melhor Investimento**
+**🏆 Best Investment**
 [Which property offers better ROI and why based on the numbers]
 
-**⚠️ Fatores Importantes**
+**⚠️ Important Factors**
 • [List key investment considerations]
 
-CRÍTICO: 
-- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
-- Responda APENAS o que o usuário solicitou
-- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`
+CRITICAL: 
+- Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
+- Answer ONLY what the user requested
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`
             : `Compare these ${detectedUrls.length} properties FOR PRIMARY RESIDENCE with detailed calculations:
 
 ${properties.map((p, i) => `Property ${i + 1}:
@@ -344,33 +344,33 @@ User Query: ${lastUserMessage}
 
 Provide a structured HOMEBUYER comparison using this format:
 
-**📊 Comparação Lado a Lado**
+**📊 Side-by-Side Comparison**
 
 For each property:
-**Propriedade ${1}:** [Address]
-• Preço: $[amount] | Preço/sqft: $[result]
-• Pagamento mensal total: $[calculated including all costs]
-• Tamanho: [sqft] sqft
-• Quartos/Banheiros: [beds]/[baths]
+**Property ${1}:** [Address]
+• Price: $[amount] | Price/sqft: $[result]
+• Total monthly payment: $[calculated including all costs]
+• Size: [sqft] sqft
+• Beds/Baths: [beds]/[baths]
 
 [Repeat for each property]
 
-**💡 Diferenças Principais**
-• Custo & acessibilidade: [comparison]
-• Espaço & layout: [comparison]
-• Localização & vizinhança: [comparison]
-• Adequação para moradia: [comparison]
+**💡 Key Differences**
+• Cost & affordability: [comparison]
+• Space & layout: [comparison]
+• Location & neighborhood: [comparison]
+• Suitability for living: [comparison]
 
-**🏆 Melhor Opção para Moradia**
+**🏆 Best Option for Living**
 [Which property offers better living quality and affordability]
 
-**⚠️ Fatores Importantes**
+**⚠️ Important Factors**
 • [List key living considerations]
 
-CRÍTICO: 
-- Mostre APENAS números finais calculados. NÃO mostre fórmulas ou passos de cálculo.
-- Responda APENAS o que o usuário solicitou
-- Se tiver uma dica, seja CURTO (1 frase) e pergunte se quer mais explicações`;
+CRITICAL: 
+- Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
+- Answer ONLY what the user requested
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`;
 
         console.log('Analysis prompt created, calling OpenAI API...');
       
