@@ -132,7 +132,7 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
   return (
     <Card 
       className={`sticky bottom-0 left-0 right-0 mx-auto shadow-2xl transition-all duration-300 z-10 ${
-        isExpanded ? "w-[90vw] max-w-[800px] h-[80vh]" : "w-full max-w-[800px] h-[140px]"
+        isExpanded ? "w-[90vw] max-w-[800px] h-[80vh]" : "w-full max-w-[800px] h-auto"
       }`}
     >
       <div className="flex flex-col h-full">
@@ -290,19 +290,22 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
         )}
 
         {/* Input Area */}
-        <div className="p-3 border-t">
-          {/* Quick Prompts */}
-          {showQuickPrompts && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleQuickPrompt('calculator')}
-                className="text-xs"
-              >
-                <Calculator className="h-3 w-3 mr-1" />
-                Deal Analysis Calculator
-              </Button>
+        <div className="p-3 border-t bg-background">
+          {/* Quick Prompts - Always visible when no messages */}
+          {showQuickPrompts && messages.length === 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-muted-foreground mb-2">Quick Actions:</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleQuickPrompt('calculator')}
+                  className="text-xs h-9"
+                >
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Deal Analysis Calculator
+                </Button>
+              </div>
             </div>
           )}
           
