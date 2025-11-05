@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
         
         // Generate natural AI analysis with calculations
         const analysisPrompt = detectedUrls.length === 1
-          ? `Analyze this property and show your calculations:
+          ? `Analyze this property with clear metrics (show final numbers only, NO formulas):
 
 Property Details:
 ${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
@@ -177,31 +177,43 @@ ${properties.map(p => `- Address: ${p.address}, ${p.city}, ${p.state} ${p.zip}
 
 User Query: ${lastUserMessage}
 
-Provide a structured analysis with:
+Provide a structured analysis using this format:
 
-**📊 Key Metrics:**
-- Price per sqft calculation: $[price] ÷ [sqft] = $[result]/sqft
-- Estimated monthly mortgage calculation (assuming 20% down, 7% interest, 30 years)
-- Property tax estimate (use 1.2% of price annually)
-- Total estimated monthly cost
+**💰 Financial Breakdown**
+• List price: $[amount]
+• Price per sqft: $[number]
+• Down payment (20%): $[amount]
+• Loan amount: $[amount]
+• Monthly mortgage (7% APR, 30 years): $[amount]
 
-**💰 Investment Analysis:**
-- Estimated rental income (use local market rates)
-- Cash flow calculation: [rent] - [mortgage + tax + insurance + maintenance]
-- Cap rate calculation: [annual net income] ÷ [purchase price]
-- Cash-on-cash return
+**📊 Investment Metrics**
+• Estimated monthly rent: $[amount]
+• Monthly expenses breakdown:
+  - Mortgage: $[amount]
+  - Property tax: $[amount]
+  - Insurance: $[amount]
+  - Maintenance: $[amount]
+  - HOA (if applicable): $[amount]
+• Net monthly cash flow: $[amount]
+• Annual cap rate: [percentage]%
+• Cash-on-cash return: [percentage]%
 
-**📈 Market Position:**
-- Value assessment (underpriced/fairly priced/overpriced)
-- Comparable sales analysis if possible
-- Neighborhood trends
+**✨ Property Highlights**
+• [Key feature 1]
+• [Key feature 2]
+• [Key feature 3]
 
-**⚠️ Considerations:**
-- List 3-4 key factors to consider
+**⚠️ Key Considerations**
+• [Important factor 1]
+• [Important factor 2]
+• [Important factor 3]
+
+**💡 Investment Recommendation**
+[Brief recommendation based on the metrics]
 
 End with: "Would you like to run different scenarios or use our calculator to adjust these assumptions manually?"
 
-Show all calculations clearly so the user understands how you arrived at the numbers.`
+CRITICAL: Only show final calculated numbers. Do NOT show formulas like "P * [(r(1 + r)^n)]" or calculation steps.`
           : `Compare these ${detectedUrls.length} properties with detailed calculations:
 
 ${properties.map((p, i) => `Property ${i + 1}:
@@ -212,30 +224,34 @@ ${properties.map((p, i) => `Property ${i + 1}:
 
 User Query: ${lastUserMessage}
 
-Provide a structured comparison with:
+Provide a structured comparison using this format:
 
-**📊 Side-by-Side Comparison:**
-For each property show:
-- Price per sqft: $[price] ÷ [sqft] = $[result]/sqft
-- Estimated monthly payment (20% down, 7% interest, 30 years)
-- Estimated cash flow (rent - expenses)
+**📊 Side-by-Side Comparison**
 
-**💡 Key Differences:**
-- Price comparison and value for money
-- Size and layout differences
-- Location and neighborhood comparison
-- Investment potential comparison
+For each property:
+**Property ${1}:** [Address]
+• Price: $[amount] | Price/sqft: $[result]
+• Monthly payment: $[calculated]
+• Est. monthly rent: $[estimated]
+• Net cash flow: $[result]
 
-**🏆 Recommendation:**
-- Which property offers better value and why
-- Specific calculations supporting the recommendation
+[Repeat for each property]
 
-**⚠️ Important Factors:**
-- List considerations for each property
+**💡 Key Differences**
+• Price & value: [comparison]
+• Size & layout: [comparison]
+• Location: [comparison]
+• Investment potential: [comparison]
+
+**🏆 Best Value**
+[Which property offers better value and why based on the numbers]
+
+**⚠️ Important Factors**
+• [List key considerations for making a decision]
 
 End with: "Would you like to explore different scenarios or use our calculator to run your own numbers?"
 
-Show all calculations step-by-step.`;
+IMPORTANT: Only show final calculated numbers. Do NOT include formulas or calculation steps.`;
 
         console.log('Analysis prompt created, calling OpenAI API...');
       
