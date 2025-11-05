@@ -15,6 +15,7 @@ import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
 import { Play } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 const MarkdownLink = ({
   href,
   children
@@ -30,6 +31,7 @@ export default function Index() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pastConversations, setPastConversations] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const animatedPlaceholder = useTypingPlaceholder();
   useEffect(() => {
     supabase.auth.getSession().then(({
       data: {
@@ -243,7 +245,7 @@ export default function Index() {
                   Find your new home
                 </h1>
                 <div className="bg-card border rounded-2xl p-6 shadow-lg">
-                  <Textarea placeholder="Ask about properties dropping a link from any real estate - calculate mortgage, analyze investment, compare and get unlimited insights..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="min-h-[100px] mb-4" />
+                  <Textarea placeholder={animatedPlaceholder} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="min-h-[100px] mb-4" />
                   <Button onClick={handleSend} disabled={loading} className="w-full">
                     <Send className="h-4 w-4 mr-2" />
                     Ask HomeLens
