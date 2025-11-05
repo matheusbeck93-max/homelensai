@@ -18,12 +18,12 @@ import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InstallPrompt } from "@/components/InstallPrompt";
-
-const MarkdownLink = ({ href, children }: any) => (
-  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+const MarkdownLink = ({
+  href,
+  children
+}: any) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
     {children}
-  </a>
-);
+  </a>;
 interface Message {
   id?: string;
   role: "user" | "assistant";
@@ -67,14 +67,17 @@ export default function Chat() {
   const [selectedChatsToDelete, setSelectedChatsToDelete] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-
   useEffect(() => {
     const init = async () => {
       const {
-        data: { session },
+        data: {
+          session
+        }
       } = await supabase.auth.getSession();
       setIsAuthenticated(!!session);
       if (session) {
@@ -107,15 +110,22 @@ export default function Chat() {
         handleSendWithQuery(location.state.initialPrompt);
       }, 500);
       // Clear the navigation state
-      navigate("/chat", { replace: true, state: {} });
+      navigate("/chat", {
+        replace: true,
+        state: {}
+      });
     }
   }, [location.state]);
   const loadUserProfile = async () => {
     const {
-      data: { user },
+      data: {
+        user
+      }
     } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const {
+      data
+    } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     if (data) {
       setUserProfile(data);
     }
@@ -128,7 +138,7 @@ export default function Chat() {
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({
-        behavior: "smooth",
+        behavior: "smooth"
       });
     }
   }, [messages]);
@@ -136,18 +146,21 @@ export default function Chat() {
     // This function is called when auto-sending from URL parameter
     const userMessage: Message = {
       role: "user",
-      content: query,
+      content: query
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInput("");
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("ai-chat", {
         body: {
           messages: [userMessage],
           hasImage: false,
-          userProfile: userProfile,
-        },
+          userProfile: userProfile
+        }
       });
       if (error) throw error;
 
@@ -163,9 +176,9 @@ export default function Chat() {
       const assistantMessage: Message = {
         role: "assistant",
         content: cleanedResponse,
-        properties: properties,
+        properties: properties
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, assistantMessage]);
 
       // Show auth dialog after first response if not authenticated and hasn't been shown yet
       if (!isAuthenticated && !hasShownAuthDialog) {
@@ -180,52 +193,52 @@ export default function Chat() {
         let conversationId = currentConversationId;
         if (!conversationId) {
           const {
-            data: { user },
+            data: {
+              user
+            }
           } = await supabase.auth.getUser();
           if (user) {
-            const { data: convData } = await supabase
-              .from("conversations")
-              .insert({
-                user_id: user.id,
-                title: query.slice(0, 50),
-              })
-              .select()
-              .single();
+            const {
+              data: convData
+            } = await supabase.from("conversations").insert({
+              user_id: user.id,
+              title: query.slice(0, 50)
+            }).select().single();
             if (convData) {
               conversationId = convData.id;
-              setConversations((prev) => [convData, ...prev]);
+              setConversations(prev => [convData, ...prev]);
               setCurrentConversationId(convData.id);
             }
           }
         }
         if (conversationId) {
-          await supabase.from("messages").insert([
-            {
-              conversation_id: conversationId,
-              role: "user",
-              content: userMessage.content,
-            },
-            {
-              conversation_id: conversationId,
-              role: "assistant",
-              content: data.response,
-            },
-          ]);
+          await supabase.from("messages").insert([{
+            conversation_id: conversationId,
+            role: "user",
+            content: userMessage.content
+          }, {
+            conversation_id: conversationId,
+            role: "assistant",
+            content: data.response
+          }]);
         }
       }
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
   const loadConversations = async () => {
-    const { data, error } = await supabase.from("conversations").select("*").order("updated_at", {
-      ascending: false,
+    const {
+      data,
+      error
+    } = await supabase.from("conversations").select("*").order("updated_at", {
+      ascending: false
     });
     if (error) {
       console.error("Error loading conversations:", error);
@@ -237,64 +250,66 @@ export default function Chat() {
     }
   };
   const loadMessages = async (conversationId: string) => {
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", {
-        ascending: true,
-      });
+    const {
+      data,
+      error
+    } = await supabase.from("messages").select("*").eq("conversation_id", conversationId).order("created_at", {
+      ascending: true
+    });
     if (error) {
       console.error("Error loading messages:", error);
       return;
     }
-    const formattedMessages: Message[] = (data || []).map((msg) => ({
+    const formattedMessages: Message[] = (data || []).map(msg => ({
       id: msg.id,
       role: msg.role as "user" | "assistant",
       content: msg.content,
-      image_url: msg.image_url || undefined,
+      image_url: msg.image_url || undefined
     }));
     setMessages(formattedMessages);
   };
   const createNewConversation = async () => {
     const {
-      data: { user },
+      data: {
+        user
+      }
     } = await supabase.auth.getUser();
     if (!user) return;
-    const { data, error } = await supabase
-      .from("conversations")
-      .insert({
-        user_id: user.id,
-        title: "New Conversation",
-      })
-      .select()
-      .single();
+    const {
+      data,
+      error
+    } = await supabase.from("conversations").insert({
+      user_id: user.id,
+      title: "New Conversation"
+    }).select().single();
     if (error) {
       toast({
         title: "Error",
         description: "Failed to create conversation",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-    setConversations((prev) => [data, ...prev]);
+    setConversations(prev => [data, ...prev]);
     setCurrentConversationId(data.id);
     setMessages([]);
   };
   const deleteConversation = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const { error } = await supabase.from("conversations").delete().eq("id", id);
+    const {
+      error
+    } = await supabase.from("conversations").delete().eq("id", id);
     if (error) {
       toast({
         title: "Error",
         description: "Failed to delete conversation",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-    setConversations((prev) => prev.filter((c) => c.id !== id));
+    setConversations(prev => prev.filter(c => c.id !== id));
     if (currentConversationId === id) {
-      const remaining = conversations.filter((c) => c.id !== id);
+      const remaining = conversations.filter(c => c.id !== id);
       if (remaining.length > 0) {
         setCurrentConversationId(remaining[0].id);
       } else {
@@ -303,47 +318,39 @@ export default function Chat() {
       }
     }
   };
-
   const deleteSelectedConversations = async () => {
     if (selectedChatsToDelete.length === 0) return;
-
-    const { error } = await supabase.from("conversations").delete().in("id", selectedChatsToDelete);
-
+    const {
+      error
+    } = await supabase.from("conversations").delete().in("id", selectedChatsToDelete);
     if (error) {
       toast({
         title: "Erro",
         description: "Falha ao excluir conversas",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-
     toast({
       title: "Sucesso",
-      description: `${selectedChatsToDelete.length} conversa(s) excluída(s)`,
+      description: `${selectedChatsToDelete.length} conversa(s) excluída(s)`
     });
-
     setShowDeleteDialog(false);
     setSelectedChatsToDelete([]);
     loadConversations();
-
     if (currentConversationId && selectedChatsToDelete.includes(currentConversationId)) {
       setCurrentConversationId(null);
       setMessages([]);
     }
   };
-
   const toggleChatSelection = (chatId: string) => {
-    setSelectedChatsToDelete((prev) =>
-      prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId],
-    );
+    setSelectedChatsToDelete(prev => prev.includes(chatId) ? prev.filter(id => id !== chatId) : [...prev, chatId]);
   };
-
   const selectAllChats = () => {
     if (selectedChatsToDelete.length === conversations.length) {
       setSelectedChatsToDelete([]);
     } else {
-      setSelectedChatsToDelete(conversations.map((c) => c.id));
+      setSelectedChatsToDelete(conversations.map(c => c.id));
     }
   };
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -358,9 +365,9 @@ export default function Chat() {
     }
   };
   const exportConversation = () => {
-    const text = messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
+    const text = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
     const blob = new Blob([text], {
-      type: "text/plain",
+      type: "text/plain"
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -372,68 +379,62 @@ export default function Chat() {
   const generateMockProperties = (location: string): Property[] => {
     const cities = location.match(/([^,]+)/);
     const city = cities ? cities[0].trim() : "Default City";
-    return [
-      {
-        id: "1",
-        address: "123 Main Street",
-        city: city,
-        state: "FL",
-        price: 350000,
-        beds: 3,
-        baths: 2,
-        sqft: 1800,
-        image_url: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
-        description: "Beautiful family home with modern updates",
-      },
-      {
-        id: "2",
-        address: "456 Oak Avenue",
-        city: city,
-        state: "FL",
-        price: 425000,
-        beds: 4,
-        baths: 2.5,
-        sqft: 2200,
-        image_url: "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800",
-        description: "Spacious home with pool and large backyard",
-      },
-      {
-        id: "3",
-        address: "789 Pine Road",
-        city: city,
-        state: "FL",
-        price: 285000,
-        beds: 2,
-        baths: 2,
-        sqft: 1400,
-        image_url: "https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800",
-        description: "Cozy starter home, move-in ready",
-      },
-      {
-        id: "4",
-        address: "321 Elm Street",
-        city: city,
-        state: "FL",
-        price: 550000,
-        beds: 5,
-        baths: 3,
-        sqft: 3000,
-        image_url: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800",
-        description: "Luxury home with high-end finishes",
-      },
-      {
-        id: "5",
-        address: "567 Maple Drive",
-        city: city,
-        state: "FL",
-        price: 195000,
-        beds: 2,
-        baths: 1,
-        sqft: 1100,
-        image_url: "https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800",
-        description: "Investment opportunity, needs updates",
-      },
-    ];
+    return [{
+      id: "1",
+      address: "123 Main Street",
+      city: city,
+      state: "FL",
+      price: 350000,
+      beds: 3,
+      baths: 2,
+      sqft: 1800,
+      image_url: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800",
+      description: "Beautiful family home with modern updates"
+    }, {
+      id: "2",
+      address: "456 Oak Avenue",
+      city: city,
+      state: "FL",
+      price: 425000,
+      beds: 4,
+      baths: 2.5,
+      sqft: 2200,
+      image_url: "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800",
+      description: "Spacious home with pool and large backyard"
+    }, {
+      id: "3",
+      address: "789 Pine Road",
+      city: city,
+      state: "FL",
+      price: 285000,
+      beds: 2,
+      baths: 2,
+      sqft: 1400,
+      image_url: "https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800",
+      description: "Cozy starter home, move-in ready"
+    }, {
+      id: "4",
+      address: "321 Elm Street",
+      city: city,
+      state: "FL",
+      price: 550000,
+      beds: 5,
+      baths: 3,
+      sqft: 3000,
+      image_url: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800",
+      description: "Luxury home with high-end finishes"
+    }, {
+      id: "5",
+      address: "567 Maple Drive",
+      city: city,
+      state: "FL",
+      price: 195000,
+      beds: 2,
+      baths: 1,
+      sqft: 1100,
+      image_url: "https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800",
+      description: "Investment opportunity, needs updates"
+    }];
   };
   const handlePropertySelect = async (property: Property) => {
     const analysisPrompt = `I'd like a detailed analysis of this property: ${property.address}, ${property.city}, ${property.state}. Price: $${property.price.toLocaleString()}, ${property.beds} beds, ${property.baths} baths, ${property.sqft} sqft.`;
@@ -444,42 +445,43 @@ export default function Chat() {
     }, 100);
   };
   const handleSendWithProperty = async (propertyData?: Property) => {
-    if ((!input.trim() && !imageFile && !propertyData) || loading) return;
-    if ((!input.trim() && !imageFile) || loading) return;
+    if (!input.trim() && !imageFile && !propertyData || loading) return;
+    if (!input.trim() && !imageFile || loading) return;
     let conversationId = currentConversationId;
 
     // Create conversation if it doesn't exist
     if (!conversationId) {
       const {
-        data: { user },
+        data: {
+          user
+        }
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data, error } = await supabase
-        .from("conversations")
-        .insert({
-          user_id: user.id,
-          title: "New Conversation",
-        })
-        .select()
-        .single();
+      const {
+        data,
+        error
+      } = await supabase.from("conversations").insert({
+        user_id: user.id,
+        title: "New Conversation"
+      }).select().single();
       if (error) {
         toast({
           title: "Error",
           description: "Failed to create conversation",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
       conversationId = data.id;
-      setConversations((prev) => [data, ...prev]);
+      setConversations(prev => [data, ...prev]);
       setCurrentConversationId(data.id);
     }
     const userMessage: Message = {
       role: "user",
       content: input || "Analyze this property image",
-      image_url: imagePreview || undefined,
+      image_url: imagePreview || undefined
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInput("");
     const tempImagePreview = imagePreview;
     setImagePreview(null);
@@ -490,29 +492,31 @@ export default function Chat() {
         conversation_id: conversationId,
         role: "user",
         content: userMessage.content,
-        image_url: userMessage.image_url,
+        image_url: userMessage.image_url
       });
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("ai-chat", {
         body: {
           messages: [...messages, userMessage],
           hasImage: !!tempImagePreview,
           userProfile: userProfile,
-          propertyData: propertyData,
-        },
+          propertyData: propertyData
+        }
       });
-
-      console.log("Edge function response:", { data, error });
-
+      console.log("Edge function response:", {
+        data,
+        error
+      });
       if (error) {
         console.error("Edge function error:", error);
         throw error;
       }
-
       if (!data) {
         console.error("No data received from edge function");
         throw new Error("No response from AI service");
       }
-
       if (!data.response) {
         console.error("Invalid response format:", data);
         throw new Error("Invalid response format from AI service");
@@ -529,7 +533,6 @@ export default function Chat() {
         // Check if user explicitly requested calculator in their message
         const lastUserMessage = messages[messages.length - 1]?.content || input;
         const wantsCalculator = /calculator|manual|calculate|scenarios|run numbers|use.*tool/i.test(lastUserMessage);
-
         if (wantsCalculator) {
           // User explicitly wants calculator - show it
           toolType = "property_analysis";
@@ -544,7 +547,6 @@ export default function Chat() {
       // Try to parse as JSON for other tool invocations
       try {
         const jsonResponse = JSON.parse(data.response);
-
         if (jsonResponse.type === "property_analysis") {
           // Legacy property analysis format
           toolType = "property_analysis";
@@ -574,37 +576,31 @@ export default function Chat() {
         content: cleanedResponse,
         properties: properties,
         toolType: toolType,
-        toolData: toolData,
+        toolData: toolData
       };
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, assistantMessage]);
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         role: "assistant",
-        content: data.response,
+        content: data.response
       });
       if (messages.length === 0) {
         const title = userMessage.content.slice(0, 50) || "Property Analysis";
-        await supabase
-          .from("conversations")
-          .update({
-            title,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", conversationId);
+        await supabase.from("conversations").update({
+          title,
+          updated_at: new Date().toISOString()
+        }).eq("id", conversationId);
         loadConversations();
       } else {
-        await supabase
-          .from("conversations")
-          .update({
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", conversationId);
+        await supabase.from("conversations").update({
+          updated_at: new Date().toISOString()
+        }).eq("id", conversationId);
       }
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
@@ -621,8 +617,7 @@ export default function Chat() {
     await supabase.auth.signOut();
     navigate("/auth");
   };
-  const ConversationSidebar = () => (
-    <div className="flex flex-col h-full bg-muted/30">
+  const ConversationSidebar = () => <div className="flex flex-col h-full bg-muted/30">
       <div className="p-4 border-b">
         <Button onClick={createNewConversation} className="w-full" variant="outline">
           <Plus className="mr-2 h-4 w-4" />
@@ -631,39 +626,23 @@ export default function Chat() {
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
-          {conversations.map((conv) => (
-            <div
-              key={conv.id}
-              onClick={() => setCurrentConversationId(conv.id)}
-              className={`p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors flex items-center justify-between group ${currentConversationId === conv.id ? "bg-muted" : ""}`}
-            >
+          {conversations.map(conv => <div key={conv.id} onClick={() => setCurrentConversationId(conv.id)} className={`p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors flex items-center justify-between group ${currentConversationId === conv.id ? "bg-muted" : ""}`}>
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <MessageSquare className="h-4 w-4 flex-shrink-0" />
                 <span className="truncate text-sm">{conv.title}</span>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="opacity-0 group-hover:opacity-100 h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
-                onClick={(e) => deleteConversation(conv.id, e)}
-              >
+              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={e => deleteConversation(conv.id, e)}>
                 <Trash2 className="h-4 w-4" />
               </Button>
-            </div>
-          ))}
+            </div>)}
         </div>
       </ScrollArea>
       <div className="p-4 border-t space-y-2">
         <InstallPrompt variant="button" className="w-full" />
-        <Button
-          onClick={() => {
-            setShowDeleteDialog(true);
-            setSelectedChatsToDelete([]);
-          }}
-          className="w-full"
-          variant="outline"
-          disabled={conversations.length === 0}
-        >
+        <Button onClick={() => {
+        setShowDeleteDialog(true);
+        setSelectedChatsToDelete([]);
+      }} className="w-full" variant="outline" disabled={conversations.length === 0}>
           <Trash2 className="mr-2 h-4 w-4" />
           Delete chats
         </Button>
@@ -676,10 +655,8 @@ export default function Chat() {
           Logout
         </Button>
       </div>
-    </div>
-  );
-  return (
-    <div className="flex h-screen bg-background">
+    </div>;
+  return <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden md:block w-64 border-r">
         <ConversationSidebar />
@@ -703,27 +680,20 @@ export default function Chat() {
             <Bot className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">HomeLens AI Assistant</h1>
           </div>
-          {messages.length > 0 && (
-            <Button variant="outline" size="sm" onClick={exportConversation}>
+          {messages.length > 0 && <Button variant="outline" size="sm" onClick={exportConversation}>
               <Download className="h-4 w-4 mr-2" />
               Export
-            </Button>
-          )}
+            </Button>}
         </div>
 
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
           <div className="max-w-4xl mx-auto space-y-6">
-            {messages.length === 0 && showProfileSelector && (
-              <ProfileSelector
-                onProfileChange={(profile) => {
-                  setUserProfile(profile);
-                  setShowProfileSelector(false);
-                }}
-              />
-            )}
-            {messages.length === 0 && (
-              <div className="text-center py-12">
+            {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
+            setUserProfile(profile);
+            setShowProfileSelector(false);
+          }} />}
+            {messages.length === 0 && <div className="text-center py-12">
                 <Bot className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Welcome to HomeLens, let's talk!</h2>
                 <p className="text-muted-foreground mb-6">
@@ -755,57 +725,52 @@ export default function Chat() {
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
-            {messages.map((message, index) => (
-              <div key={index} className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                {message.role === "assistant" && (
-                  <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+              </div>}
+            {messages.map((message, index) => <div key={index} className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                {message.role === "assistant" && <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                     <Bot className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[80%] rounded-2xl p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                >
-                  {message.image_url && (
-                    <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />
-                  )}
+                  </div>}
+                <div className={`max-w-[80%] rounded-2xl p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  {message.image_url && <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />}
                   <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        a: MarkdownLink,
-                        p: ({ node, ...props }) => <p {...props} className="mb-2" />,
-                        ul: ({ node, ...props }) => <ul {...props} className="list-disc ml-4 mb-2" />,
-                        ol: ({ node, ...props }) => <ol {...props} className="list-decimal ml-4 mb-2" />,
-                        strong: ({ node, ...props }) => <strong {...props} className="font-bold" />,
-                      }}
-                    >
+                    <ReactMarkdown components={{
+                  a: MarkdownLink,
+                  p: ({
+                    node,
+                    ...props
+                  }) => <p {...props} className="mb-2" />,
+                  ul: ({
+                    node,
+                    ...props
+                  }) => <ul {...props} className="list-disc ml-4 mb-2" />,
+                  ol: ({
+                    node,
+                    ...props
+                  }) => <ol {...props} className="list-decimal ml-4 mb-2" />,
+                  strong: ({
+                    node,
+                    ...props
+                  }) => <strong {...props} className="font-bold" />
+                }}>
                       {message.content}
                     </ReactMarkdown>
                   </div>
-                  {message.properties && message.properties.length > 0 && (
-                    <div className="mt-4">
+                  {message.properties && message.properties.length > 0 && <div className="mt-4">
                       <PropertyCarousel properties={message.properties} onSelectProperty={handlePropertySelect} />
-                    </div>
-                  )}
+                    </div>}
                 </div>
-                {message.role === "user" && (
-                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                {message.role === "user" && <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                     <User className="h-6 w-6 text-secondary-foreground" />
-                  </div>
-                )}
-              </div>
-            ))}
-            {loading && (
-              <div className="flex gap-4">
+                  </div>}
+              </div>)}
+            {loading && <div className="flex gap-4">
                 <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                   <Bot className="h-6 w-6 text-primary-foreground animate-pulse" />
                 </div>
                 <div className="bg-muted rounded-2xl p-4">
                   <p className="text-muted-foreground">Analyzing...</p>
                 </div>
-              </div>
-            )}
+              </div>}
             <div ref={scrollRef} />
           </div>
         </ScrollArea>
@@ -813,41 +778,22 @@ export default function Chat() {
         {/* Input Area */}
         <div className="border-t p-4">
           <div className="max-w-4xl mx-auto">
-            {imagePreview && (
-              <div className="mb-2 relative inline-block">
+            {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute -top-2 -right-2 h-6 w-6"
-                  onClick={() => {
-                    setImagePreview(null);
-                    setImageFile(null);
-                  }}
-                >
+                <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => {
+              setImagePreview(null);
+              setImageFile(null);
+            }}>
                   ×
                 </Button>
-              </div>
-            )}
+              </div>}
             <div className="flex gap-2">
               <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
               <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={loading}>
                 <Upload className="h-4 w-4" />
               </Button>
-              <Textarea
-                placeholder="Ask about properties, mortgages, investments, or upload a property image..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                disabled={loading}
-                className="min-h-[60px] resize-none"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={loading || (!input.trim() && !imageFile)}
-                size="icon"
-                className="h-[60px]"
-              >
+              <Textarea placeholder="Ask about properties, mortgages, investments, or upload a property image..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyPress} disabled={loading} className="min-h-[60px] resize-none" />
+              <Button onClick={handleSend} disabled={loading || !input.trim() && !imageFile} size="icon" className="h-[60px] bg-[t#] bg-[#3a7d9a]">
                 <Send className="h-5 w-5" />
               </Button>
             </div>
@@ -889,38 +835,25 @@ export default function Chat() {
           </DialogHeader>
           <div className="mt-4">
             <div className="flex items-center gap-2 mb-4 pb-2 border-b">
-              <Checkbox
-                checked={selectedChatsToDelete.length === conversations.length && conversations.length > 0}
-                onCheckedChange={selectAllChats}
-              />
+              <Checkbox checked={selectedChatsToDelete.length === conversations.length && conversations.length > 0} onCheckedChange={selectAllChats} />
               <span className="text-sm font-medium">Selecionar todos ({conversations.length})</span>
             </div>
             <ScrollArea className="max-h-[40vh]">
               <div className="space-y-2">
-                {conversations.map((conv) => (
-                  <div key={conv.id} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg">
-                    <Checkbox
-                      checked={selectedChatsToDelete.includes(conv.id)}
-                      onCheckedChange={() => toggleChatSelection(conv.id)}
-                    />
+                {conversations.map(conv => <div key={conv.id} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg">
+                    <Checkbox checked={selectedChatsToDelete.includes(conv.id)} onCheckedChange={() => toggleChatSelection(conv.id)} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{conv.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(conv.updated_at).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
-                  </div>
-                ))}
+                  </div>)}
               </div>
             </ScrollArea>
           </div>
           <div className="flex gap-3 mt-4">
-            <Button
-              onClick={deleteSelectedConversations}
-              variant="destructive"
-              className="flex-1"
-              disabled={selectedChatsToDelete.length === 0}
-            >
+            <Button onClick={deleteSelectedConversations} variant="destructive" className="flex-1" disabled={selectedChatsToDelete.length === 0}>
               Excluir {selectedChatsToDelete.length > 0 && `(${selectedChatsToDelete.length})`}
             </Button>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="flex-1">
@@ -929,6 +862,5 @@ export default function Chat() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 }
