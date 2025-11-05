@@ -246,12 +246,12 @@ Show all calculations step-by-step.`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-5-mini-2025-08-07',
+          model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: 'You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.' },
             { role: 'user', content: analysisPrompt }
           ],
-          max_completion_tokens: 1000
+          max_tokens: 1000
         }),
       });
 
@@ -665,7 +665,7 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -673,7 +673,7 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
           },
           ...messages
         ],
-        max_completion_tokens: 2000,
+        max_tokens: 2000,
       }),
     });
 
