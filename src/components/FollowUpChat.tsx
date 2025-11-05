@@ -3,16 +3,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Minimize2, Maximize2, Bed, Bath, Square, DollarSign, ExternalLink, Calculator } from "lucide-react";
+import { Send, Bot, User, Minimize2, Maximize2, Bed, Bath, Square, DollarSign, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  showCalculator?: boolean;
 }
 
 interface Property {
@@ -41,7 +39,6 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [showQuickPrompts, setShowQuickPrompts] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -51,24 +48,8 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
     }
   }, [messages]);
 
-  const handleQuickPrompt = (promptType: string) => {
-    setShowQuickPrompts(false);
-    setIsExpanded(true);
-    
-    if (promptType === 'calculator') {
-      const calculatorMessage: Message = { 
-        role: "assistant", 
-        content: "Here's the Deal Analysis Calculator. You can input property details and run different scenarios to analyze the investment potential.",
-        showCalculator: true
-      };
-      setMessages([calculatorMessage]);
-    }
-  };
-
   const handleSend = async () => {
     if (!input.trim() || loading) return;
-
-    setShowQuickPrompts(false);
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -261,11 +242,6 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{message.content}</p>
-                    {message.showCalculator && (
-                      <div className="mt-4">
-                        <InlineDealAnalysis collapsible={false} />
-                      </div>
-                    )}
                   </div>
                   {message.role === "user" && (
                     <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
@@ -291,24 +267,6 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
 
         {/* Input Area */}
         <div className="p-3 border-t bg-background">
-          {/* Quick Prompts - Always visible when no messages */}
-          {showQuickPrompts && messages.length === 0 && (
-            <div className="mb-3">
-              <p className="text-xs text-muted-foreground mb-2">Quick Actions:</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickPrompt('calculator')}
-                  className="text-xs h-9"
-                >
-                  <Calculator className="h-4 w-4 mr-2" />
-                  Deal Analysis Calculator
-                </Button>
-              </div>
-            </div>
-          )}
-          
           <div className="flex gap-2">
             <Textarea
               placeholder="Ask about pricing, neighborhoods, features..."

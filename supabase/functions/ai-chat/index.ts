@@ -211,9 +211,10 @@ Provide a structured analysis using this format:
 **💡 Investment Recommendation**
 [Brief recommendation based on the metrics]
 
-End with: "Would you like to run different scenarios or use our calculator to adjust these assumptions manually?"
-
-CRITICAL: Only show final calculated numbers. Do NOT show formulas like "P * [(r(1 + r)^n)]" or calculation steps.`
+CRITICAL: 
+- Only show final calculated numbers. Do NOT show formulas like "P * [(r(1 + r)^n)]" or calculation steps.
+- Answer ONLY what the user asked for
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want you to explain more`
           : `Compare these ${detectedUrls.length} properties with detailed calculations:
 
 ${properties.map((p, i) => `Property ${i + 1}:
@@ -249,9 +250,10 @@ For each property:
 **⚠️ Important Factors**
 • [List key considerations for making a decision]
 
-End with: "Would you like to explore different scenarios or use our calculator to run your own numbers?"
-
-IMPORTANT: Only show final calculated numbers. Do NOT include formulas or calculation steps.`;
+IMPORTANT: 
+- Only show final calculated numbers. Do NOT include formulas or calculation steps.
+- Answer ONLY what the user asked for
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want you to explain more`;
 
         console.log('Analysis prompt created, calling OpenAI API...');
       
@@ -492,13 +494,12 @@ Your mission is to act as an interactive Real Estate consultant who helps users:
    - **Use bold** for emphasis on key terms and numbers
    - **Structure complex information** hierarchically with proper indentation
 
-1. **TOOL INVOCATION** - When users request specific tools, respond with a JSON object:
-   - For calculator requests (e.g., "show me a calculator", "calculate mortgage", "rental calculator"):
-     Return: {"type": "calculator", "message": "Here's your real estate calculator toolkit. Use the tabs to switch between Buyer, Investor, and Rental calculators."}
-   - For deal analysis (e.g., "analyze this deal", "run deal analysis", "analyze this property"):
-     Return: {"type": "deal_analysis", "message": "Let's analyze that deal:", "data": {address, city, state, zip, price, beds, baths, sqft}}
-   - ONLY return JSON for these two tool types
-   - For property search, property questions, or general conversation: Respond with NORMAL TEXT (not JSON)
+1. **RESPONSE STYLE - CRITICAL**:
+   - **Answer ONLY what the user explicitly asked for**. Do not add extra information they didn't request.
+   - **Perform all calculations automatically** and show only the final results
+   - **NEVER suggest calculators or tools** - you calculate everything
+   - If you want to add a tip: keep it to 1 SHORT sentence and ask "Would you like me to explain this further?"
+   - Be concise and direct. No unnecessary elaboration.
 
 2. **Always use Web Search format** when the user asks to find or analyze properties
 3. **Format all responses with proper structure**: Use headers, bullet points, numbered lists, and short paragraphs
