@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, Bot, Send, Plus, History } from "lucide-react";
+import { Home, Bot, Send, Plus, History, Mic, MicOff } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +30,9 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pastConversations, setPastConversations] = useState<any[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
   useEffect(() => {
     supabase.auth.getSession().then(({
@@ -89,6 +91,61 @@ export default function Index() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+  };
+
+  const startVoiceRecording = () => {
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        // Auto-send after a brief delay
+        setTimeout(() => {
+          setInput(transcript);
+          handleSend();
+        }, 100);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+        if (event.error === 'not-allowed') {
+          alert('Microphone access denied. Please enable microphone permissions.');
+        }
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (error) {
+      console.error('Error starting voice recording:', error);
+      setIsRecording(false);
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
   };
   const handleNewConversation = async () => {
     // Save current conversation if there are messages and user is signed in
@@ -246,10 +303,21 @@ export default function Index() {
                 </h1>
                 <div className="bg-card border rounded-2xl p-6 shadow-lg">
                   <Textarea placeholder={animatedPlaceholder} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="min-h-[100px] mb-4" />
-                  <Button onClick={handleSend} disabled={loading} className="w-full">
-                    <Send className="h-4 w-4 mr-2" />
-                    Ask HomeLens
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                      disabled={loading}
+                      variant={isRecording ? "destructive" : "outline"}
+                      size="lg"
+                      className={isRecording ? "animate-pulse" : ""}
+                    >
+                      {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    </Button>
+                    <Button onClick={handleSend} disabled={loading} className="flex-1">
+                      <Send className="h-4 w-4 mr-2" />
+                      Ask HomeLens
+                    </Button>
+                  </div>
                 </div>
               </div> : <div className="bg-card border rounded-2xl p-6 h-[85vh] flex flex-col shadow-lg">
                 <div className="flex justify-between items-center mb-4 pb-4 border-b">
@@ -282,6 +350,14 @@ export default function Index() {
                 </ScrollArea>
                 <div className="mt-4 flex gap-2">
                   <Textarea placeholder="Follow up question..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="flex-1" />
+                  <Button 
+                    onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                    disabled={loading}
+                    variant={isRecording ? "destructive" : "outline"}
+                    className={isRecording ? "animate-pulse" : ""}
+                  >
+                    {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
                   <Button onClick={handleSend} disabled={loading}>
                     <Send className="h-4 w-4" />
                   </Button>
