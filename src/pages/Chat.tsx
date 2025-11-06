@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut, Mic, MicOff } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
@@ -65,8 +65,10 @@ export default function Chat() {
   const [hasShownAuthDialog, setHasShownAuthDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedChatsToDelete, setSelectedChatsToDelete] = useState<string[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
   const {
     toast
   } = useToast();
@@ -617,6 +619,68 @@ export default function Chat() {
     await supabase.auth.signOut();
     navigate("/auth");
   };
+
+  const startVoiceRecording = () => {
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        toast({
+          title: "Not Supported",
+          description: "Speech recognition is not supported in your browser. Please use Chrome or Edge.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        // Auto-send after a brief delay
+        setTimeout(() => {
+          handleSend();
+        }, 100);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+        if (event.error === 'not-allowed') {
+          toast({
+            title: "Microphone Access Denied",
+            description: "Please enable microphone permissions to use voice input.",
+            variant: "destructive"
+          });
+        }
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (error) {
+      console.error('Error starting voice recording:', error);
+      setIsRecording(false);
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
+  };
   const ConversationSidebar = () => <div className="flex flex-col h-full bg-muted/30">
       <div className="p-4 border-b">
         <Button onClick={createNewConversation} className="w-full" variant="outline">
@@ -793,6 +857,15 @@ export default function Chat() {
                 <Upload className="h-4 w-4" />
               </Button>
               <Textarea placeholder="Ask about properties, mortgages, investments, or upload a property image..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyPress} disabled={loading} className="min-h-[60px] resize-none" />
+              <Button 
+                onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
+                disabled={loading}
+                variant={isRecording ? "destructive" : "outline"}
+                size="icon"
+                className={`h-[60px] ${isRecording ? 'animate-pulse' : ''}`}
+              >
+                {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+              </Button>
               <Button onClick={handleSend} disabled={loading || !input.trim() && !imageFile} size="icon" className="h-[60px] bg-[t#] bg-[#3a7d9a]">
                 <Send className="h-5 w-5" />
               </Button>
