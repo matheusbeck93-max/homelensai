@@ -741,7 +741,14 @@ export default function Chat() {
                 <ConversationSidebar />
               </SheetContent>
             </Sheet>
-            <Home className="h-6 w-6 text-primary" />
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate("/")}
+              className="flex-shrink-0"
+            >
+              <Home className="h-6 w-6 text-primary" />
+            </Button>
             <h1 className="text-xl font-bold">HomeLens AI Assistant</h1>
           </div>
           {messages.length > 0 && <Button variant="outline" size="sm" onClick={exportConversation}>
