@@ -720,14 +720,14 @@ export default function Chat() {
         </Button>
       </div>
     </div>;
-  return <div className="flex h-screen bg-background">
+  return <div className="flex h-screen bg-background overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden md:block w-64 border-r">
+      <div className="hidden md:block w-64 border-r flex-shrink-0">
         <ConversationSidebar />
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
         <div className="border-b p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -751,8 +751,8 @@ export default function Chat() {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <ScrollArea className="flex-1 p-2 sm:p-4">
+          <div className="max-w-4xl mx-auto space-y-6 px-2 sm:px-0">
             {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
             setUserProfile(profile);
             setShowProfileSelector(false);
@@ -819,9 +819,6 @@ export default function Chat() {
                       {message.content}
                     </ReactMarkdown>
                   </div>
-                  {message.properties && message.properties.length > 0 && <div className="mt-4">
-                      <PropertyCarousel properties={message.properties} onSelectProperty={handlePropertySelect} />
-                    </div>}
                 </div>
                 {message.role === "user" && <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                     <User className="h-6 w-6 text-secondary-foreground" />
@@ -840,8 +837,8 @@ export default function Chat() {
         </ScrollArea>
 
         {/* Input Area */}
-        <div className="border-t p-4">
-          <div className="max-w-4xl mx-auto">
+        <div className="border-t p-2 sm:p-4">
+          <div className="max-w-4xl mx-auto px-2 sm:px-0">
             {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
                 <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => {
@@ -856,18 +853,18 @@ export default function Chat() {
               <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={loading}>
                 <Upload className="h-4 w-4" />
               </Button>
-              <Textarea placeholder="Ask about properties, mortgages, investments, or upload a property image..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyPress} disabled={loading} className="min-h-[60px] resize-none" />
+              <Textarea placeholder="Ask about properties, mortgages, investments, or upload a property image..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyPress} disabled={loading} className="min-h-[60px] resize-none flex-1" />
               <Button 
                 onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
                 disabled={loading}
                 variant={isRecording ? "destructive" : "outline"}
                 size="icon"
-                className={`h-[60px] ${isRecording ? 'animate-pulse' : ''}`}
+                className={`h-[60px] w-[60px] flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`}
               >
-                {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                {isRecording ? <MicOff className="h-4 w-4 sm:h-5 sm:w-5" /> : <Mic className="h-4 w-4 sm:h-5 sm:w-5" />}
               </Button>
-              <Button onClick={handleSend} disabled={loading || !input.trim() && !imageFile} size="icon" className="h-[60px] bg-[t#] bg-[#3a7d9a]">
-                <Send className="h-5 w-5" />
+              <Button onClick={handleSend} disabled={loading || !input.trim() && !imageFile} size="icon" className="h-[60px] w-[60px] flex-shrink-0 bg-[#3a7d9a]">
+                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2 text-center">
