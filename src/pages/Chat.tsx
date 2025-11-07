@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Bot, User, Send, LogOut, Mic, MicOff } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Home, User, Send, LogOut, Mic, MicOff } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
@@ -741,7 +741,7 @@ export default function Chat() {
                 <ConversationSidebar />
               </SheetContent>
             </Sheet>
-            <Bot className="h-6 w-6 text-primary" />
+            <Home className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">HomeLens AI Assistant</h1>
           </div>
           {messages.length > 0 && <Button variant="outline" size="sm" onClick={exportConversation}>
@@ -758,7 +758,7 @@ export default function Chat() {
             setShowProfileSelector(false);
           }} />}
             {messages.length === 0 && <div className="text-center py-12">
-                <Bot className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <Home className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Welcome to HomeLens, let's talk!</h2>
                 <p className="text-muted-foreground mb-6">
                   Your intelligent assistant for real estate, mortgages, investments, and market analysis
@@ -792,7 +792,7 @@ export default function Chat() {
               </div>}
             {messages.map((message, index) => <div key={index} className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                 {message.role === "assistant" && <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-6 w-6 text-primary-foreground" />
+                    <Home className="h-6 w-6 text-primary-foreground" />
                   </div>}
                 <div className={`max-w-[80%] rounded-2xl p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   {message.image_url && <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />}
@@ -839,7 +839,7 @@ export default function Chat() {
               </div>)}
             {loading && <div className="flex gap-4">
                 <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-6 w-6 text-primary-foreground animate-pulse" />
+                  <Home className="h-6 w-6 text-primary-foreground animate-pulse" />
                 </div>
                 <div className="bg-muted rounded-2xl p-4">
                   <p className="text-muted-foreground">Analyzing...</p>
