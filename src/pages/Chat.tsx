@@ -799,22 +799,35 @@ export default function Chat() {
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <ReactMarkdown components={{
                   a: MarkdownLink,
-                  p: ({
-                    node,
-                    ...props
-                  }) => <p {...props} className="mb-2" />,
-                  ul: ({
-                    node,
-                    ...props
-                  }) => <ul {...props} className="list-disc ml-4 mb-2" />,
-                  ol: ({
-                    node,
-                    ...props
-                  }) => <ol {...props} className="list-decimal ml-4 mb-2" />,
-                  strong: ({
-                    node,
-                    ...props
-                  }) => <strong {...props} className="font-bold" />
+                  h1: ({node, ...props}) => <h1 {...props} className="text-2xl font-bold mt-6 mb-3 text-foreground flex items-center gap-2" />,
+                  h2: ({node, ...props}) => <h2 {...props} className="text-xl font-semibold mt-5 mb-2 text-foreground flex items-center gap-2" />,
+                  h3: ({node, ...props}) => <h3 {...props} className="text-lg font-semibold mt-4 mb-2 text-foreground" />,
+                  p: ({node, ...props}) => <p {...props} className="mb-3 leading-relaxed text-foreground/90" />,
+                  ul: ({node, ...props}) => <ul {...props} className="space-y-2 mb-4 ml-1" />,
+                  ol: ({node, ...props}) => <ol {...props} className="space-y-2 mb-4 ml-6 list-decimal" />,
+                  li: ({node, ...props}) => (
+                    <li {...props} className="flex items-start gap-2 text-foreground/90">
+                      <span className="text-primary mt-1 flex-shrink-0">•</span>
+                      <span className="flex-1">{props.children}</span>
+                    </li>
+                  ),
+                  strong: ({node, ...props}) => <strong {...props} className="font-semibold text-foreground" />,
+                  code: ({node, className, children, ...props}) => {
+                    const isInline = !className?.includes('language-');
+                    return isInline ? (
+                      <code {...props} className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono text-primary">
+                        {children}
+                      </code>
+                    ) : (
+                      <code {...props} className="block p-3 bg-muted rounded-lg text-sm font-mono my-2 text-foreground/80 overflow-x-auto">
+                        {children}
+                      </code>
+                    );
+                  },
+                  blockquote: ({node, ...props}) => (
+                    <blockquote {...props} className="border-l-4 border-primary pl-4 py-2 my-3 bg-muted/30 rounded-r-lg text-foreground/90 italic" />
+                  ),
+                  hr: ({node, ...props}) => <hr {...props} className="my-6 border-border" />,
                 }}>
                       {message.content}
                     </ReactMarkdown>

@@ -788,7 +788,11 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 - Use current 2025 market data and trends
 - Average mortgage rate: 6.8% (30-year fixed)
 - Format responses with emojis, clear sections, and professional tone
-- When offering choices, use bold brackets like: **[Option 💰]**`;
+- When offering choices, use bold brackets like: **[Option 💰]**
+- **NEVER show raw mathematical formulas or calculations** (like "$500,000 * 0.20 = $100,000")
+- Only show the final calculated results in a clean format (like "Down Payment: $100,000")
+- Use bullet points with emojis for better readability
+- Structure information in clear sections with headers`;
 
     console.log('Making OpenAI API call for regular chat...');
     
