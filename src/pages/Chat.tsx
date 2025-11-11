@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Home, User, Send, LogOut, Mic, MicOff } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Home, User, Send, LogOut, Mic, MicOff, Calculator } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
@@ -66,6 +66,8 @@ export default function Chat() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedChatsToDelete, setSelectedChatsToDelete] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [guestMessageCount, setGuestMessageCount] = useState(0);
+  const [showGuestModal, setShowGuestModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -106,6 +108,12 @@ export default function Chat() {
   // Handle initial prompt from navigation state
   useEffect(() => {
     if (location.state?.initialPrompt) {
+      // If newConversation flag is set, start fresh
+      if (location.state?.newConversation) {
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+      
       setInput(location.state.initialPrompt);
       // Auto-send the message after a brief delay
       setTimeout(() => {
@@ -247,7 +255,8 @@ export default function Chat() {
       return;
     }
     setConversations(data || []);
-    if (data && data.length > 0 && !currentConversationId) {
+    // Don't auto-load conversations if starting new chat
+    if (data && data.length > 0 && !currentConversationId && !location.state?.newConversation) {
       setCurrentConversationId(data[0].id);
     }
   };
@@ -449,6 +458,16 @@ export default function Chat() {
   const handleSendWithProperty = async (propertyData?: Property) => {
     if (!input.trim() && !imageFile && !propertyData || loading) return;
     if (!input.trim() && !imageFile || loading) return;
+
+    // Check for guest user message limit
+    if (!isAuthenticated) {
+      if (guestMessageCount >= 5) {
+        setShowGuestModal(true);
+        return;
+      }
+      setGuestMessageCount(prev => prev + 1);
+    }
+
     let conversationId = currentConversationId;
 
     // Create conversation if it doesn't exist
@@ -703,6 +722,10 @@ export default function Chat() {
       </ScrollArea>
       <div className="p-4 border-t space-y-2">
         <InstallPrompt variant="button" className="w-full" />
+        <Button onClick={() => navigate("/calculators")} className="w-full" variant="outline">
+          <Calculator className="mr-2 h-4 w-4" />
+          Investment Calculator
+        </Button>
         <Button onClick={() => {
         setShowDeleteDialog(true);
         setSelectedChatsToDelete([]);
@@ -908,6 +931,33 @@ export default function Chat() {
               Sign In / Sign Up
             </Button>
             <Button variant="outline" onClick={() => setShowAuthDialog(false)} className="w-full">
+              Continue as Guest
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Guest Message Limit Dialog */}
+      <Dialog open={showGuestModal} onOpenChange={setShowGuestModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>You've reached the guest limit</DialogTitle>
+            <DialogDescription>
+              You've sent 5 messages as a guest. Sign up to continue using HomeLens AI or continue temporarily as a guest.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            <Button onClick={() => navigate("/auth")} className="w-full">
+              Sign Up / Sign In
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowGuestModal(false);
+                setGuestMessageCount(0); // Reset counter to allow continuation
+              }} 
+              className="w-full"
+            >
               Continue as Guest
             </Button>
           </div>

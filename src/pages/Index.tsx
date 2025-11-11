@@ -192,11 +192,12 @@ export default function Index() {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
-    // Se o usuário está logado, redirecionar para /chat com o prompt
-    if (user && messages.length === 0) {
+    // Always redirect to /chat with the new prompt to start a fresh conversation
+    if (messages.length === 0) {
       navigate('/chat', {
         state: {
-          initialPrompt: input
+          initialPrompt: input,
+          newConversation: true
         }
       });
       return;
@@ -279,15 +280,23 @@ export default function Index() {
                 <Button variant="ghost" onClick={() => navigate('/chat')} className="hidden sm:flex">
                   Chat
                 </Button>
+                <Button variant="ghost" onClick={() => navigate('/calculators')} className="hidden sm:flex">
+                  Calculator
+                </Button>
                 <Button variant="ghost" onClick={() => navigate('/profile')} className="hidden sm:flex">
                   Profile
                 </Button>
                 <Button variant="outline" onClick={handleLogout} size="sm">
                   Sign Out
                 </Button>
-              </> : <Button onClick={() => navigate('/auth')} size="sm">
-                Sign In
-              </Button>}
+              </> : <>
+                <Button variant="ghost" onClick={() => navigate('/calculators')} className="hidden sm:flex">
+                  Calculator
+                </Button>
+                <Button onClick={() => navigate('/auth')} size="sm">
+                  Sign In
+                </Button>
+              </>}
           </div>
         </div>
       </nav>

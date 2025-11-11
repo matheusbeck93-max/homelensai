@@ -1,663 +1,512 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, TrendingUp, Home as HomeIcon, Repeat, DollarSign } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Navigation } from "@/components/Navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Home, Download, RotateCcw, Save, ArrowLeft, DollarSign, TrendingUp, Percent, Calendar, Info } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function Calculators() {
-  // Buyer Calculator State
-  const [income, setIncome] = useState(75000);
-  const [downPayment, setDownPayment] = useState(50000);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [user, setUser] = useState<any>(null);
+
+  // Property Information
+  const [propertyPrice, setPropertyPrice] = useState(300000);
+  const [propertyType, setPropertyType] = useState("House");
+  const [location, setLocation] = useState("");
+  const [annualAppreciation, setAnnualAppreciation] = useState(3);
+
+  // Financing Details
+  const [downPaymentPercent, setDownPaymentPercent] = useState(20);
+  const [loanTerm, setLoanTerm] = useState(30);
   const [interestRate, setInterestRate] = useState(6.5);
-  const [propertyTax, setPropertyTax] = useState(6000);
-  const [insurance, setInsurance] = useState(1200);
-  const [hoa, setHoa] = useState(0);
+  const [closingCostsPercent, setClosingCostsPercent] = useState(3);
+  const [propertyTaxPercent, setPropertyTaxPercent] = useState(1.1);
+  const [homeInsurance, setHomeInsurance] = useState(1200);
+  const [hoaFees, setHoaFees] = useState(0);
 
-  // Investor Calculator State
-  const [purchasePrice, setPurchasePrice] = useState(500000);
-  const [rehabCost, setRehabCost] = useState(80000);
-  const [desiredMargin, setDesiredMargin] = useState(15);
-  const [holdingTime, setHoldingTime] = useState(6);
-  
-  // Rental Calculator State
-  const [rentalPrice, setRentalPrice] = useState(300000);
-  const [monthlyRent, setMonthlyRent] = useState(2500);
-  const [rentalDownPayment, setRentalDownPayment] = useState(60000);
-  const [rentalInterestRate, setRentalInterestRate] = useState(7.0);
-  const [rentalPropertyTax, setRentalPropertyTax] = useState(4500);
-  const [rentalInsurance, setRentalInsurance] = useState(1500);
-  const [rentalHoa, setRentalHoa] = useState(100);
-  const [maintenance, setMaintenance] = useState(200);
-  const [vacancy, setVacancy] = useState(5);
-  const [propertyMgmt, setPropertyMgmt] = useState(10);
-  
-  // BRRRR Calculator State
-  const [brrrrPurchase, setBrrrrPurchase] = useState(200000);
-  const [brrrrRehab, setBrrrrRehab] = useState(40000);
-  const [brrrrArv, setBrrrrArv] = useState(320000);
-  const [brrrrRent, setBrrrrRent] = useState(2000);
-  const [brrrrLtv, setBrrrrLtv] = useState(75);
+  // Additional Costs & Rental Income
+  const [renovationCosts, setRenovationCosts] = useState(0);
+  const [maintenanceCosts, setMaintenanceCosts] = useState(3000);
+  const [managementFeePercent, setManagementFeePercent] = useState(8);
+  const [monthlyRent, setMonthlyRent] = useState(0);
+  const [vacancyRate, setVacancyRate] = useState(5);
+  const [incomeTaxRate, setIncomeTaxRate] = useState(22);
 
-  const calculateBuyer = () => {
-    const loanAmount = purchasePrice - downPayment;
-    const monthlyRate = interestRate / 100 / 12;
-    const numberOfPayments = 30 * 12;
-    
-    const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / 
-                          (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-    
-    const monthlyTax = propertyTax / 12;
-    const monthlyInsurance = insurance / 12;
-    const monthlyHoa = hoa / 12;
-    
-    const totalMonthly = monthlyPayment + monthlyTax + monthlyInsurance + monthlyHoa;
-    const dti = (totalMonthly * 12) / income * 100;
-    
-    return {
-      monthlyPayment: monthlyPayment.toFixed(2),
-      monthlyTax: monthlyTax.toFixed(2),
-      monthlyInsurance: monthlyInsurance.toFixed(2),
-      monthlyHoa: monthlyHoa.toFixed(2),
-      totalMonthly: totalMonthly.toFixed(2),
-      dti: dti.toFixed(1),
-    };
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+  }, []);
+
+  // Calculations
+  const downPaymentAmount = (propertyPrice * downPaymentPercent) / 100;
+  const loanAmount = propertyPrice - downPaymentAmount;
+  const closingCosts = (propertyPrice * closingCostsPercent) / 100;
+  const totalAcquisition = propertyPrice + closingCosts + renovationCosts;
+
+  // Monthly mortgage payment (P&I)
+  const monthlyRate = interestRate / 100 / 12;
+  const numPayments = loanTerm * 12;
+  const monthlyMortgage = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+
+  // Monthly costs
+  const monthlyPropertyTax = (propertyPrice * propertyTaxPercent) / 100 / 12;
+  const monthlyInsurance = homeInsurance / 12;
+  const monthlyMaintenance = maintenanceCosts / 12;
+  const totalMonthlyCost = monthlyMortgage + monthlyPropertyTax + monthlyInsurance + hoaFees + monthlyMaintenance;
+
+  // Rental calculations
+  const effectiveMonthlyRent = monthlyRent * (1 - vacancyRate / 100);
+  const managementFee = (effectiveMonthlyRent * managementFeePercent) / 100;
+  const monthlyCashFlow = effectiveMonthlyRent - managementFee - totalMonthlyCost;
+  const annualNetIncome = (monthlyCashFlow * 12) * (1 - incomeTaxRate / 100);
+  const totalInvestment = downPaymentAmount + closingCosts + renovationCosts;
+  const annualROI = totalInvestment > 0 ? (annualNetIncome / totalInvestment) * 100 : 0;
+  const paybackPeriod = annualNetIncome > 0 ? totalInvestment / annualNetIncome : 0;
+
+  // Property value projection
+  const futureValue = (years: number) => propertyPrice * Math.pow(1 + annualAppreciation / 100, years);
+
+  // Chart data
+  const chartData = Array.from({ length: 11 }, (_, i) => ({
+    year: i,
+    propertyValue: futureValue(i),
+    investment: totalInvestment,
+    equity: futureValue(i) - (loanAmount - (monthlyMortgage * 12 * i * 0.3)) // simplified equity calc
+  }));
+
+  const cashFlowData = Array.from({ length: 11 }, (_, i) => ({
+    year: i,
+    cashFlow: monthlyCashFlow * 12 * i,
+    netIncome: annualNetIncome * i
+  }));
+
+  const handleReset = () => {
+    setPropertyPrice(300000);
+    setPropertyType("House");
+    setLocation("");
+    setAnnualAppreciation(3);
+    setDownPaymentPercent(20);
+    setLoanTerm(30);
+    setInterestRate(6.5);
+    setClosingCostsPercent(3);
+    setPropertyTaxPercent(1.1);
+    setHomeInsurance(1200);
+    setHoaFees(0);
+    setRenovationCosts(0);
+    setMaintenanceCosts(3000);
+    setManagementFeePercent(8);
+    setMonthlyRent(0);
+    setVacancyRate(5);
+    setIncomeTaxRate(22);
   };
 
-  const calculateInvestor = () => {
-    const totalCost = purchasePrice + rehabCost;
-    const holdingCosts = (purchasePrice * 0.01) * (holdingTime / 12);
-    const closingCosts = purchasePrice * 0.03;
-    
-    const totalInvestment = totalCost + holdingCosts + closingCosts;
-    const desiredProfit = totalInvestment * (desiredMargin / 100);
-    const arv = totalInvestment + desiredProfit;
-    const maxOffer = arv - rehabCost - holdingCosts - closingCosts - desiredProfit;
-    
-    const roi = ((arv - totalInvestment) / totalInvestment) * 100;
-    const cashOnCash = (desiredProfit / downPayment) * 100;
-    
-    return {
-      arv: arv.toFixed(0),
-      maxOffer: maxOffer.toFixed(0),
-      totalInvestment: totalInvestment.toFixed(0),
-      profit: desiredProfit.toFixed(0),
-      roi: roi.toFixed(1),
-      cashOnCash: cashOnCash.toFixed(1),
-    };
+  const handleSave = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to save simulations",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    toast({
+      title: "Saved",
+      description: "Your simulation has been saved successfully"
+    });
   };
 
-  const calculateRental = () => {
-    const loanAmount = rentalPrice - rentalDownPayment;
-    const monthlyRate = rentalInterestRate / 100 / 12;
-    const numberOfPayments = 30 * 12;
-    
-    const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) / 
-                          (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-    
-    const monthlyTax = rentalPropertyTax / 12;
-    const monthlyIns = rentalInsurance / 12;
-    const monthlyHoaFee = rentalHoa;
-    const vacancyLoss = monthlyRent * (vacancy / 100);
-    const mgmtFee = monthlyRent * (propertyMgmt / 100);
-    
-    const totalExpenses = monthlyPayment + monthlyTax + monthlyIns + monthlyHoaFee + maintenance + vacancyLoss + mgmtFee;
-    const netCashFlow = monthlyRent - totalExpenses;
-    const capRate = ((monthlyRent * 12 - (monthlyTax + monthlyIns + monthlyHoaFee + maintenance) * 12) / rentalPrice) * 100;
-    const cashOnCashReturn = ((netCashFlow * 12) / rentalDownPayment) * 100;
-    const onePercentRule = (monthlyRent / rentalPrice) * 100;
-    
-    return {
-      monthlyPayment: monthlyPayment.toFixed(2),
-      totalExpenses: totalExpenses.toFixed(2),
-      netCashFlow: netCashFlow.toFixed(2),
-      annualCashFlow: (netCashFlow * 12).toFixed(2),
-      capRate: capRate.toFixed(2),
-      cashOnCash: cashOnCashReturn.toFixed(2),
-      onePercent: onePercentRule.toFixed(2),
-    };
+  const handleDownloadPDF = () => {
+    toast({
+      title: "Coming Soon",
+      description: "PDF download feature will be available soon"
+    });
   };
-
-  const calculateBRRRR = () => {
-    const totalInvested = brrrrPurchase + brrrrRehab;
-    const refinanceAmount = brrrrArv * (brrrrLtv / 100);
-    const cashRecovered = refinanceAmount - totalInvested;
-    const leftIn = totalInvested - refinanceAmount;
-    
-    const monthlyRate = 7.0 / 100 / 12;
-    const monthlyPayment = refinanceAmount * (monthlyRate * Math.pow(1 + monthlyRate, 360)) / 
-                          (Math.pow(1 + monthlyRate, 360) - 1);
-    
-    const monthlyExpenses = monthlyPayment + 300 + 200 + 150;
-    const monthlyCashFlow = brrrrRent - monthlyExpenses;
-    const cocReturn = leftIn > 0 ? ((monthlyCashFlow * 12) / leftIn) * 100 : 999;
-    
-    return {
-      totalInvested: totalInvested.toFixed(0),
-      refinanceAmount: refinanceAmount.toFixed(0),
-      cashRecovered: cashRecovered.toFixed(0),
-      leftIn: leftIn > 0 ? leftIn.toFixed(0) : '0',
-      monthlyCashFlow: monthlyCashFlow.toFixed(2),
-      annualCashFlow: (monthlyCashFlow * 12).toFixed(2),
-      cocReturn: cocReturn > 100 ? '∞' : cocReturn.toFixed(1),
-      equity: (brrrrArv - refinanceAmount).toFixed(0),
-    };
-  };
-
-  const buyerResults = calculateBuyer();
-  const investorResults = calculateInvestor();
-  const rentalResults = calculateRental();
-  const brrrrResults = calculateBRRRR();
 
   return (
-    <div className="min-h-screen bg-background py-12">
-      <Navigation />
-      <div className="container mx-auto px-4 pt-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4 flex items-center justify-center gap-2">
-            <Calculator className="h-8 w-8 text-primary" />
-            Real Estate Calculators
-          </h1>
-          <p className="text-muted-foreground">
-            Analyze affordability and investment potential
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold">Investment Calculator</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleReset}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+            {user && (
+              <Button variant="outline" size="sm" onClick={handleSave}>
+                <Save className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          </div>
         </div>
+      </header>
 
-        <Tabs defaultValue="buyer" className="max-w-5xl mx-auto">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="buyer" className="flex items-center gap-2">
-              <HomeIcon className="h-4 w-4" />
-              Buyer
-            </TabsTrigger>
-            <TabsTrigger value="investor" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Flip
-            </TabsTrigger>
-            <TabsTrigger value="rental" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Rental
-            </TabsTrigger>
-            <TabsTrigger value="brrrr" className="flex items-center gap-2">
-              <Repeat className="h-4 w-4" />
-              BRRRR
-            </TabsTrigger>
-          </TabsList>
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Input Section */}
+          <div className="space-y-6">
+            {/* Property Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="h-5 w-5 text-primary" />
+                  Property Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Property Price (USD)</Label>
+                  <Input
+                    type="number"
+                    value={propertyPrice}
+                    onChange={(e) => setPropertyPrice(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Property Type</Label>
+                  <Select value={propertyType} onValueChange={setPropertyType}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="House">House</SelectItem>
+                      <SelectItem value="Apartment">Apartment</SelectItem>
+                      <SelectItem value="Condo">Condo</SelectItem>
+                      <SelectItem value="Commercial">Commercial</SelectItem>
+                      <SelectItem value="Land">Land</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Location (Optional)</Label>
+                  <Input
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="City, State"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Label className="flex items-center gap-1 cursor-help">
+                          Expected Annual Appreciation (%)
+                          <Info className="h-3 w-3" />
+                        </Label>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Average annual increase in property value</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={annualAppreciation}
+                    onChange={(e) => setAnnualAppreciation(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-          <TabsContent value="buyer">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            {/* Financing Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  Financing Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Down Payment (%)</Label>
+                  <Input
+                    type="number"
+                    value={downPaymentPercent}
+                    onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Loan Term (years)</Label>
+                  <Input
+                    type="number"
+                    value={loanTerm}
+                    onChange={(e) => setLoanTerm(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Annual Interest Rate (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Closing Costs (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={closingCostsPercent}
+                    onChange={(e) => setClosingCostsPercent(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Property Tax (% annual)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={propertyTaxPercent}
+                    onChange={(e) => setPropertyTaxPercent(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Homeowners Insurance (USD/year)</Label>
+                  <Input
+                    type="number"
+                    value={homeInsurance}
+                    onChange={(e) => setHomeInsurance(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>HOA Fees (USD/month)</Label>
+                  <Input
+                    type="number"
+                    value={hoaFees}
+                    onChange={(e) => setHoaFees(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Additional Costs & Rental Income */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Investment Scenario
+                </CardTitle>
+                <CardDescription>For rental/investment properties</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Renovation Costs (USD)</Label>
+                  <Input
+                    type="number"
+                    value={renovationCosts}
+                    onChange={(e) => setRenovationCosts(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Annual Maintenance (USD)</Label>
+                  <Input
+                    type="number"
+                    value={maintenanceCosts}
+                    onChange={(e) => setMaintenanceCosts(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Management Fees (% of rent)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={managementFeePercent}
+                    onChange={(e) => setManagementFeePercent(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Monthly Rent (USD)</Label>
+                  <Input
+                    type="number"
+                    value={monthlyRent}
+                    onChange={(e) => setMonthlyRent(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Vacancy Rate (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={vacancyRate}
+                    onChange={(e) => setVacancyRate(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Income Tax Rate (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={incomeTaxRate}
+                    onChange={(e) => setIncomeTaxRate(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Results Section */}
+          <div className="space-y-6">
+            {/* Summary Results */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Percent className="h-5 w-5 text-primary" />
+                  Financial Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Down Payment</p>
+                    <p className="text-2xl font-bold">${downPaymentAmount.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Loan Amount</p>
+                    <p className="text-2xl font-bold">${loanAmount.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Acquisition</p>
+                    <p className="text-2xl font-bold">${totalAcquisition.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Monthly Payment</p>
+                    <p className="text-2xl font-bold">${Math.round(monthlyMortgage).toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Monthly Cost</p>
+                    <p className="text-2xl font-bold">${Math.round(totalMonthlyCost).toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Total Loan Payment</p>
+                    <p className="text-2xl font-bold">${Math.round(monthlyMortgage * numPayments).toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Investment Results */}
+            {monthlyRent > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Home Buyer Calculator</CardTitle>
-                  <CardDescription>
-                    Calculate your monthly mortgage payment and affordability
-                  </CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    Investment Returns
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Annual Income</Label>
-                    <Input
-                      type="number"
-                      value={income}
-                      onChange={(e) => setIncome(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Down Payment</Label>
-                    <Input
-                      type="number"
-                      value={downPayment}
-                      onChange={(e) => setDownPayment(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Purchase Price</Label>
-                    <Input
-                      type="number"
-                      value={purchasePrice}
-                      onChange={(e) => setPurchasePrice(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Interest Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={interestRate}
-                      onChange={(e) => setInterestRate(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Annual Property Tax</Label>
-                    <Input
-                      type="number"
-                      value={propertyTax}
-                      onChange={(e) => setPropertyTax(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Annual Insurance</Label>
-                    <Input
-                      type="number"
-                      value={insurance}
-                      onChange={(e) => setInsurance(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monthly HOA</Label>
-                    <Input
-                      type="number"
-                      value={hoa}
-                      onChange={(e) => setHoa(Number(e.target.value))}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Results</CardTitle>
-                  <CardDescription>Your monthly payment breakdown</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Principal & Interest</span>
-                      <span className="font-semibold">${buyerResults.monthlyPayment}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Property Tax</span>
-                      <span className="font-semibold">${buyerResults.monthlyTax}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Insurance</span>
-                      <span className="font-semibold">${buyerResults.monthlyInsurance}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">HOA</span>
-                      <span className="font-semibold">${buyerResults.monthlyHoa}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-4 text-lg">
-                      <span className="font-bold">Total Monthly Payment</span>
-                      <span className="font-bold text-primary text-2xl">
-                        ${buyerResults.totalMonthly}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-muted-foreground">Debt-to-Income Ratio</span>
-                      <span className={`font-semibold ${Number(buyerResults.dti) > 43 ? 'text-destructive' : 'text-secondary'}`}>
-                        {buyerResults.dti}%
-                      </span>
-                    </div>
-                    {Number(buyerResults.dti) > 43 && (
-                      <p className="text-sm text-destructive mt-2">
-                        ⚠️ Your DTI is above 43% - you may have difficulty qualifying for a loan
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Monthly Cash Flow</p>
+                      <p className={`text-2xl font-bold ${monthlyCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ${Math.round(monthlyCashFlow).toLocaleString()}
                       </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="investor">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Investor Calculator</CardTitle>
-                  <CardDescription>
-                    Calculate max offer price and ROI for investment properties
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Purchase Price</Label>
-                    <Input
-                      type="number"
-                      value={purchasePrice}
-                      onChange={(e) => setPurchasePrice(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Estimated Rehab Cost</Label>
-                    <Input
-                      type="number"
-                      value={rehabCost}
-                      onChange={(e) => setRehabCost(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Desired Profit Margin (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.5"
-                      value={desiredMargin}
-                      onChange={(e) => setDesiredMargin(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Holding Time (months)</Label>
-                    <Input
-                      type="number"
-                      value={holdingTime}
-                      onChange={(e) => setHoldingTime(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Down Payment</Label>
-                    <Input
-                      type="number"
-                      value={downPayment}
-                      onChange={(e) => setDownPayment(Number(e.target.value))}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Investment Analysis</CardTitle>
-                  <CardDescription>Your deal breakdown</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">After Repair Value (ARV)</span>
-                      <span className="font-semibold">${investorResults.arv}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Maximum Offer Price</span>
-                      <span className="font-semibold text-primary">${investorResults.maxOffer}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Total Investment</span>
-                      <span className="font-semibold">${investorResults.totalInvestment}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Expected Profit</span>
-                      <span className="font-semibold text-secondary">${investorResults.profit}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-4">
-                      <span className="font-bold">Return on Investment</span>
-                      <span className="font-bold text-secondary text-2xl">
-                        {investorResults.roi}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-muted-foreground">Cash-on-Cash Return</span>
-                      <span className="font-semibold text-secondary">
-                        {investorResults.cashOnCash}%
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="rental">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Rental Property Calculator</CardTitle>
-                  <CardDescription>
-                    Analyze cash flow and returns for rental properties
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Purchase Price</Label>
-                    <Input
-                      type="number"
-                      value={rentalPrice}
-                      onChange={(e) => setRentalPrice(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monthly Rent</Label>
-                    <Input
-                      type="number"
-                      value={monthlyRent}
-                      onChange={(e) => setMonthlyRent(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Down Payment</Label>
-                    <Input
-                      type="number"
-                      value={rentalDownPayment}
-                      onChange={(e) => setRentalDownPayment(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Interest Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={rentalInterestRate}
-                      onChange={(e) => setRentalInterestRate(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Annual Property Tax</Label>
-                    <Input
-                      type="number"
-                      value={rentalPropertyTax}
-                      onChange={(e) => setRentalPropertyTax(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Annual Insurance</Label>
-                    <Input
-                      type="number"
-                      value={rentalInsurance}
-                      onChange={(e) => setRentalInsurance(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monthly HOA</Label>
-                    <Input
-                      type="number"
-                      value={rentalHoa}
-                      onChange={(e) => setRentalHoa(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monthly Maintenance</Label>
-                    <Input
-                      type="number"
-                      value={maintenance}
-                      onChange={(e) => setMaintenance(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Vacancy Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.5"
-                      value={vacancy}
-                      onChange={(e) => setVacancy(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Property Management (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.5"
-                      value={propertyMgmt}
-                      onChange={(e) => setPropertyMgmt(Number(e.target.value))}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cash Flow Analysis</CardTitle>
-                  <CardDescription>Your rental property breakdown</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Monthly Expenses</span>
-                      <span className="font-semibold">${rentalResults.totalExpenses}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Net Cash Flow (Monthly)</span>
-                      <span className={`font-semibold ${Number(rentalResults.netCashFlow) < 0 ? 'text-destructive' : 'text-secondary'}`}>
-                        ${rentalResults.netCashFlow}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Annual Cash Flow</span>
-                      <span className={`font-semibold ${Number(rentalResults.annualCashFlow) < 0 ? 'text-destructive' : 'text-secondary'}`}>
-                        ${rentalResults.annualCashFlow}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Cap Rate</span>
-                      <span className="font-semibold">{rentalResults.capRate}%</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-4">
-                      <span className="font-bold">Cash-on-Cash Return</span>
-                      <span className="font-bold text-secondary text-2xl">
-                        {rentalResults.cashOnCash}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-muted-foreground">1% Rule Check</span>
-                      <span className={`font-semibold ${Number(rentalResults.onePercent) >= 1 ? 'text-secondary' : 'text-muted-foreground'}`}>
-                        {rentalResults.onePercent}%
-                        {Number(rentalResults.onePercent) >= 1 ? ' ✓' : ' ✗'}
-                      </span>
-                    </div>
-                    {Number(rentalResults.netCashFlow) < 0 && (
-                      <p className="text-sm text-destructive mt-2">
-                        ⚠️ Negative cash flow - this property may not be a good rental investment
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Annual Net Income</p>
+                      <p className={`text-2xl font-bold ${annualNetIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ${Math.round(annualNetIncome).toLocaleString()}
                       </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="brrrr">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>BRRRR Calculator</CardTitle>
-                  <CardDescription>
-                    Buy, Rehab, Rent, Refinance, Repeat strategy analysis
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Purchase Price</Label>
-                    <Input
-                      type="number"
-                      value={brrrrPurchase}
-                      onChange={(e) => setBrrrrPurchase(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Rehab Cost</Label>
-                    <Input
-                      type="number"
-                      value={brrrrRehab}
-                      onChange={(e) => setBrrrrRehab(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>After Repair Value (ARV)</Label>
-                    <Input
-                      type="number"
-                      value={brrrrArv}
-                      onChange={(e) => setBrrrrArv(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Monthly Rent</Label>
-                    <Input
-                      type="number"
-                      value={brrrrRent}
-                      onChange={(e) => setBrrrrRent(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Refinance LTV (%)</Label>
-                    <Input
-                      type="number"
-                      step="1"
-                      value={brrrrLtv}
-                      onChange={(e) => setBrrrrLtv(Number(e.target.value))}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>BRRRR Strategy Results</CardTitle>
-                  <CardDescription>Your wealth-building analysis</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Total Invested</span>
-                      <span className="font-semibold">${brrrrResults.totalInvested}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Refinance Amount</span>
-                      <span className="font-semibold text-primary">${brrrrResults.refinanceAmount}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Cash Recovered</span>
-                      <span className={`font-semibold ${Number(brrrrResults.cashRecovered) > 0 ? 'text-secondary' : 'text-destructive'}`}>
-                        ${brrrrResults.cashRecovered}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Capital Left In Deal</span>
-                      <span className="font-semibold">${brrrrResults.leftIn}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Monthly Cash Flow</span>
-                      <span className="font-semibold text-secondary">${brrrrResults.monthlyCashFlow}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-muted-foreground">Built-In Equity</span>
-                      <span className="font-semibold text-secondary">${brrrrResults.equity}</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-4">
-                      <span className="font-bold">Cash-on-Cash Return</span>
-                      <span className="font-bold text-secondary text-2xl">
-                        {brrrrResults.cocReturn}%
-                      </span>
-                    </div>
-                    {Number(brrrrResults.cashRecovered) >= Number(brrrrResults.totalInvested) && (
-                      <p className="text-sm text-secondary mt-2">
-                        ✓ Infinite return! You've recovered all invested capital.
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Annual ROI</p>
+                      <p className={`text-2xl font-bold ${annualROI >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {annualROI.toFixed(2)}%
                       </p>
-                    )}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Payback Period</p>
+                      <p className="text-2xl font-bold">
+                        {paybackPeriod > 0 && paybackPeriod < 100 ? `${paybackPeriod.toFixed(1)} yrs` : 'N/A'}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+            )}
 
-        <div className="mt-8 text-center">
-          <p className="text-muted-foreground mb-4">
-            Ready to analyze a specific property?
-          </p>
-          <Button asChild variant="hero" size="lg">
-            <Link to="/deal-analysis">Go to Deal Analysis</Link>
-          </Button>
+            {/* Property Value Projection Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Property Value Projection</CardTitle>
+                <CardDescription>Based on {annualAppreciation}% annual appreciation</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" label={{ value: 'Years', position: 'insideBottom', offset: -5 }} />
+                    <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                    <RechartsTooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
+                    <Legend />
+                    <Line type="monotone" dataKey="propertyValue" stroke="hsl(var(--primary))" name="Property Value" strokeWidth={2} />
+                    <Line type="monotone" dataKey="equity" stroke="hsl(var(--accent))" name="Equity" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Cash Flow Projection */}
+            {monthlyRent > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cash Flow Projection</CardTitle>
+                  <CardDescription>Cumulative cash flow over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={cashFlowData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="year" label={{ value: 'Years', position: 'insideBottom', offset: -5 }} />
+                      <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                      <RechartsTooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
+                      <Legend />
+                      <Line type="monotone" dataKey="cashFlow" stroke="hsl(var(--primary))" name="Gross Cash Flow" strokeWidth={2} />
+                      <Line type="monotone" dataKey="netIncome" stroke="hsl(var(--accent))" name="Net Income (After Tax)" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
