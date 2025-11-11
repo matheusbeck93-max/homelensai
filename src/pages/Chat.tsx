@@ -103,6 +103,19 @@ export default function Chat() {
       }
     };
     init();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
+      if (session) {
+        loadConversations();
+        loadUserProfile();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Handle initial prompt from navigation state

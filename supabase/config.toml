@@ -21,3 +21,6 @@ verify_jwt = true
 [functions.fetch-property]
 verify_jwt = false
 
+[functions.calculator-insights]
+verify_jwt = true
+

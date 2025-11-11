@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Home, Download, RotateCcw, Save, ArrowLeft, DollarSign, TrendingUp, Percent, Calendar, Info } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Home, Download, RotateCcw, Save, ArrowLeft, DollarSign, TrendingUp, Percent, Calendar, Info, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,9 @@ export default function Calculators() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  const [aiInsights, setAiInsights] = useState<string>("");
 
   // Property Information
   const [propertyPrice, setPropertyPrice] = useState(300000);
@@ -39,10 +43,23 @@ export default function Calculators() {
   const [vacancyRate, setVacancyRate] = useState(5);
   const [incomeTaxRate, setIncomeTaxRate] = useState(22);
 
+  // Buying Power Calculator
+  const [annualIncome, setAnnualIncome] = useState(80000);
+  const [monthlyDebts, setMonthlyDebts] = useState(500);
+  const [downPaymentAvailable, setDownPaymentAvailable] = useState(60000);
+  const [buyingPowerInterestRate, setBuyingPowerInterestRate] = useState(6.5);
+  const [buyingPowerLoanTerm, setBuyingPowerLoanTerm] = useState(30);
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-    });
+      
+      if (!session) {
+        setShowAuthModal(true);
+      }
+    };
+    checkAuth();
   }, []);
 
   // Calculations
@@ -131,8 +148,94 @@ export default function Calculators() {
     });
   };
 
+  // Buying Power Calculations
+  const monthlyIncome = annualIncome / 12;
+  const maxDebtToIncomeRatio = 0.43; // Standard DTI ratio
+  const maxMonthlyPayment = (monthlyIncome * maxDebtToIncomeRatio) - monthlyDebts;
+  
+  const buyingPowerMonthlyRate = buyingPowerInterestRate / 100 / 12;
+  const buyingPowerNumPayments = buyingPowerLoanTerm * 12;
+  const maxLoanAmount = maxMonthlyPayment * (Math.pow(1 + buyingPowerMonthlyRate, buyingPowerNumPayments) - 1) / 
+    (buyingPowerMonthlyRate * Math.pow(1 + buyingPowerMonthlyRate, buyingPowerNumPayments));
+  
+  const maxPurchasePrice = maxLoanAmount + downPaymentAvailable;
+
+  const handleGenerateInsights = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to generate AI insights",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoadingInsights(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("calculator-insights", {
+        body: {
+          financialSummary: {
+            propertyPrice,
+            downPaymentAmount,
+            loanAmount,
+            totalAcquisition,
+            monthlyMortgage: Math.round(monthlyMortgage),
+            totalMonthlyCost: Math.round(totalMonthlyCost),
+            monthlyCashFlow: monthlyRent > 0 ? Math.round(monthlyCashFlow) : null,
+            annualROI: monthlyRent > 0 ? annualROI : null,
+            paybackPeriod: monthlyRent > 0 ? paybackPeriod : null
+          },
+          buyingPower: {
+            annualIncome,
+            monthlyDebts,
+            downPaymentAvailable,
+            maxPurchasePrice: Math.round(maxPurchasePrice),
+            maxLoanAmount: Math.round(maxLoanAmount),
+            maxMonthlyPayment: Math.round(maxMonthlyPayment)
+          }
+        }
+      });
+
+      if (error) throw error;
+      setAiInsights(data.insights);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingInsights(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Auth Modal */}
+      <Dialog open={showAuthModal} onOpenChange={(open) => {
+        if (!open && !user) {
+          navigate('/');
+        }
+        setShowAuthModal(open);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Authentication Required</DialogTitle>
+            <DialogDescription>
+              You need to be logged in to access the Investment Calculator.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-4">
+            <Button onClick={() => navigate('/auth?mode=signup')}>
+              Sign Up
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/auth?mode=login')}>
+              Log In
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
@@ -379,6 +482,65 @@ export default function Calculators() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Buying Power Calculator */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Buying Power Summary
+                </CardTitle>
+                <CardDescription>Calculate your purchasing power</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Annual Income (USD)</Label>
+                  <Input
+                    type="number"
+                    value={annualIncome}
+                    onChange={(e) => setAnnualIncome(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Monthly Debts (USD)</Label>
+                  <Input
+                    type="number"
+                    value={monthlyDebts}
+                    onChange={(e) => setMonthlyDebts(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Down Payment Available (USD)</Label>
+                  <Input
+                    type="number"
+                    value={downPaymentAvailable}
+                    onChange={(e) => setDownPaymentAvailable(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Interest Rate (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={buyingPowerInterestRate}
+                    onChange={(e) => setBuyingPowerInterestRate(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Loan Term (years)</Label>
+                  <Input
+                    type="number"
+                    value={buyingPowerLoanTerm}
+                    onChange={(e) => setBuyingPowerLoanTerm(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Results Section */}
@@ -460,6 +622,77 @@ export default function Calculators() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Buying Power Results */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  Buying Power Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Max Purchase Price</p>
+                    <p className="text-2xl font-bold text-primary">${Math.round(maxPurchasePrice).toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Max Loan Amount</p>
+                    <p className="text-2xl font-bold">${Math.round(maxLoanAmount).toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Max Monthly Payment</p>
+                    <p className="text-2xl font-bold">${Math.round(maxMonthlyPayment).toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Down Payment</p>
+                    <p className="text-2xl font-bold">${downPaymentAvailable.toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Insights */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI Insights
+                </CardTitle>
+                <CardDescription>Get personalized analysis from AI</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!aiInsights ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">
+                      Generate AI-powered insights based on your financial summary and buying power
+                    </p>
+                    <Button 
+                      onClick={handleGenerateInsights}
+                      disabled={isLoadingInsights}
+                    >
+                      {isLoadingInsights ? "Generating..." : "Generate Insights"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="prose prose-sm max-w-none text-foreground">
+                      {aiInsights.split('\n').map((paragraph, i) => (
+                        <p key={i} className="mb-2">{paragraph}</p>
+                      ))}
+                    </div>
+                    <Button 
+                      variant="outline"
+                      onClick={handleGenerateInsights}
+                      disabled={isLoadingInsights}
+                    >
+                      Regenerate Insights
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Property Value Projection Chart */}
             <Card>
