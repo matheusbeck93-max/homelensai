@@ -23,23 +23,23 @@ serve(async (req) => {
     const prompt = `You are a real estate investment advisor. Analyze the following financial data and provide clear, actionable insights in 3-4 paragraphs:
 
 Financial Summary:
-- Property Price: $${financialSummary.propertyPrice.toLocaleString()}
-- Down Payment: $${financialSummary.downPaymentAmount.toLocaleString()}
-- Loan Amount: $${financialSummary.loanAmount.toLocaleString()}
-- Total Acquisition Cost: $${financialSummary.totalAcquisition.toLocaleString()}
-- Monthly Mortgage Payment: $${financialSummary.monthlyMortgage.toLocaleString()}
-- Total Monthly Cost: $${financialSummary.totalMonthlyCost.toLocaleString()}
-${financialSummary.monthlyCashFlow !== null ? `- Monthly Cash Flow: $${financialSummary.monthlyCashFlow.toLocaleString()}` : ''}
-${financialSummary.annualROI !== null ? `- Annual ROI: ${financialSummary.annualROI.toFixed(2)}%` : ''}
-${financialSummary.paybackPeriod !== null && financialSummary.paybackPeriod < 100 ? `- Payback Period: ${financialSummary.paybackPeriod.toFixed(1)} years` : ''}
+- Property Price: $${financialSummary.propertyPrice?.toLocaleString() || '0'}
+- Down Payment: $${financialSummary.downPaymentAmount?.toLocaleString() || '0'}
+- Loan Amount: $${financialSummary.loanAmount?.toLocaleString() || '0'}
+- Total Acquisition Cost: $${financialSummary.totalAcquisition?.toLocaleString() || '0'}
+- Monthly Mortgage Payment: $${financialSummary.monthlyMortgage?.toLocaleString() || '0'}
+- Total Monthly Cost: $${financialSummary.totalMonthlyCost?.toLocaleString() || '0'}
+${financialSummary.monthlyCashFlow !== null && financialSummary.monthlyCashFlow !== undefined ? `- Monthly Cash Flow: $${financialSummary.monthlyCashFlow.toLocaleString()}` : ''}
+${financialSummary.annualROI !== null && financialSummary.annualROI !== undefined ? `- Annual ROI: ${financialSummary.annualROI.toFixed(2)}%` : ''}
+${financialSummary.paybackPeriod !== null && financialSummary.paybackPeriod !== undefined && financialSummary.paybackPeriod < 100 ? `- Payback Period: ${financialSummary.paybackPeriod.toFixed(1)} years` : ''}
 
-Buying Power:
-- Annual Income: $${buyingPower.annualIncome.toLocaleString()}
-- Monthly Debts: $${buyingPower.monthlyDebts.toLocaleString()}
-- Down Payment Available: $${buyingPower.downPaymentAvailable.toLocaleString()}
-- Maximum Purchase Price: $${buyingPower.maxPurchasePrice.toLocaleString()}
-- Maximum Loan Amount: $${buyingPower.maxLoanAmount.toLocaleString()}
-- Maximum Monthly Payment: $${buyingPower.maxMonthlyPayment.toLocaleString()}
+Buying Power (${buyingPower.scenario || 'Moderate'} Scenario - ${buyingPower.dtiRatio || 30}% DTI):
+- Annual Income: $${buyingPower.annualIncome?.toLocaleString() || '0'}
+- Monthly Debts: $${buyingPower.monthlyDebts?.toLocaleString() || '0'}
+- Down Payment Available: $${buyingPower.downPaymentAvailable?.toLocaleString() || '0'}
+- Maximum Purchase Price: $${buyingPower.maxPurchasePrice?.toLocaleString() || '0'}
+- Maximum Loan Amount: $${buyingPower.maxLoanAmount?.toLocaleString() || '0'}
+- Maximum Monthly Payment: $${buyingPower.maxMonthlyPayment?.toLocaleString() || '0'}
 
 Provide:
 1. An assessment of whether this property fits within their buying power
