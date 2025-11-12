@@ -20,7 +20,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const prompt = `You are a real estate investment advisor. Analyze the following financial data and provide clear, actionable insights in 3-4 paragraphs:
+    const prompt = `You are a real estate investment advisor. Analyze the following financial data and provide clear, actionable insights in concise bullet-point format:
 
 Financial Summary:
 - Property Price: $${financialSummary.propertyPrice?.toLocaleString() || '0'}
@@ -41,13 +41,23 @@ Buying Power (${buyingPower.scenario || 'Moderate'} Scenario - ${buyingPower.dti
 - Maximum Loan Amount: $${buyingPower.maxLoanAmount?.toLocaleString() || '0'}
 - Maximum Monthly Payment: $${buyingPower.maxMonthlyPayment?.toLocaleString() || '0'}
 
-Provide:
-1. An assessment of whether this property fits within their buying power
-2. Analysis of the investment viability (cash flow, ROI, risks)
-3. Key considerations and recommendations
-4. Potential red flags or opportunities
+Provide insights in the following bullet-point format (4-6 bullet points total):
+- First bullet: DTI ratio and whether it's within a healthy range
+- Second bullet: Estimated purchase power based on the selected scenario (${buyingPower.scenario || 'Moderate'})
+- Third bullet: 2-3 specific, actionable recommendations (e.g., down payment tips, financing advice, market conditions)
 
-Keep it concise but informative. Write in a professional yet friendly tone.`;
+Requirements:
+- Use bullet points (one per line, starting with "-")
+- Keep each bullet concise (1-2 sentences max)
+- Professional yet friendly tone
+- Focus on actionable insights
+- Include specific numbers from the data
+
+Example format:
+- Your DTI ratio is X%, which is [assessment].
+- With an annual income of $X, your estimated purchase power is around $X ([Scenario] scenario).
+- [Specific recommendation based on the data].
+- [Additional recommendation or consideration].`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

@@ -49,6 +49,7 @@ export default function Calculators() {
   const [downPaymentAvailable, setDownPaymentAvailable] = useState(60000);
   const [buyingPowerInterestRate, setBuyingPowerInterestRate] = useState(6.5);
   const [buyingPowerLoanTerm, setBuyingPowerLoanTerm] = useState(30);
+  const [scenario, setScenario] = useState<'conservative' | 'moderate' | 'aggressive'>('moderate');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -150,8 +151,10 @@ export default function Calculators() {
 
   // Buying Power Calculations
   const monthlyIncome = annualIncome / 12;
-  const maxDebtToIncomeRatio = 0.43; // Standard DTI ratio
-  const maxMonthlyPayment = (monthlyIncome * maxDebtToIncomeRatio) - monthlyDebts;
+  
+  // DTI based on scenario
+  const dtiRatio = scenario === 'conservative' ? 0.28 : scenario === 'moderate' ? 0.30 : 0.43;
+  const maxMonthlyPayment = (monthlyIncome * dtiRatio) - monthlyDebts;
   
   const buyingPowerMonthlyRate = buyingPowerInterestRate / 100 / 12;
   const buyingPowerNumPayments = buyingPowerLoanTerm * 12;
@@ -191,7 +194,9 @@ export default function Calculators() {
             downPaymentAvailable,
             maxPurchasePrice: Math.round(maxPurchasePrice),
             maxLoanAmount: Math.round(maxLoanAmount),
-            maxMonthlyPayment: Math.round(maxMonthlyPayment)
+            maxMonthlyPayment: Math.round(maxMonthlyPayment),
+            scenario: scenario.charAt(0).toUpperCase() + scenario.slice(1),
+            dtiRatio: Math.round(dtiRatio * 100)
           }
         }
       });
@@ -494,6 +499,19 @@ export default function Calculators() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
+                  <Label>Scenario</Label>
+                  <Select value={scenario} onValueChange={(value: any) => setScenario(value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conservative">Conservative (28% DTI)</SelectItem>
+                      <SelectItem value="moderate">Moderate (30% DTI)</SelectItem>
+                      <SelectItem value="aggressive">Aggressive (43% DTI)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label>Annual Income (USD)</Label>
                   <Input
                     type="number"
@@ -658,7 +676,7 @@ export default function Calculators() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-primary" />
-                  AI Insights
+                  💡 AI Insight
                 </CardTitle>
                 <CardDescription>Get personalized analysis from AI</CardDescription>
               </CardHeader>
@@ -677,18 +695,32 @@ export default function Calculators() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="prose prose-sm max-w-none text-foreground">
-                      {aiInsights.split('\n').map((paragraph, i) => (
-                        <p key={i} className="mb-2">{paragraph}</p>
-                      ))}
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <div className="space-y-2 text-foreground whitespace-pre-wrap">
+                        {aiInsights}
+                      </div>
                     </div>
-                    <Button 
-                      variant="outline"
-                      onClick={handleGenerateInsights}
-                      disabled={isLoadingInsights}
-                    >
-                      Regenerate Insights
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline"
+                        onClick={handleGenerateInsights}
+                        disabled={isLoadingInsights}
+                        className="flex-1"
+                      >
+                        Regenerate Insights
+                      </Button>
+                      <Button 
+                        onClick={() => navigate('/chat', { 
+                          state: { 
+                            initialMessage: aiInsights,
+                            newConversation: true 
+                          } 
+                        })}
+                        className="flex-1"
+                      >
+                        Start Chat with this Insight
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
