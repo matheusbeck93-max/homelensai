@@ -392,6 +392,36 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_calculations: {
+        Row: {
+          calculation_type: string
+          created_at: string
+          data: Json
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calculation_type: string
+          created_at?: string
+          data: Json
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calculation_type?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_searches: {
         Row: {
           alert_enabled: boolean | null

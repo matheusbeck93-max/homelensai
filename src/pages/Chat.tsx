@@ -120,17 +120,22 @@ export default function Chat() {
 
   // Handle initial prompt from navigation state
   useEffect(() => {
-    if (location.state?.initialPrompt) {
+    const initialPrompt = location.state?.initialPrompt;
+    const initialMessage = location.state?.initialMessage;
+    
+    if (initialPrompt || initialMessage) {
+      const message = initialPrompt || initialMessage;
+      
       // If newConversation flag is set, start fresh
       if (location.state?.newConversation) {
         setCurrentConversationId(null);
         setMessages([]);
       }
       
-      setInput(location.state.initialPrompt);
+      setInput(message);
       // Auto-send the message after a brief delay
       setTimeout(() => {
-        handleSendWithQuery(location.state.initialPrompt);
+        handleSendWithQuery(message);
       }, 500);
       // Clear the navigation state
       navigate("/chat", {

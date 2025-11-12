@@ -7,13 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Home, Download, RotateCcw, Save, ArrowLeft, DollarSign, TrendingUp, Percent, Calendar, Info, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function Calculators() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -21,33 +22,33 @@ export default function Calculators() {
   const [aiInsights, setAiInsights] = useState<string>("");
 
   // Property Information
-  const [propertyPrice, setPropertyPrice] = useState(300000);
+  const [propertyPrice, setPropertyPrice] = useState(0);
   const [propertyType, setPropertyType] = useState("House");
   const [location, setLocation] = useState("");
-  const [annualAppreciation, setAnnualAppreciation] = useState(3);
+  const [annualAppreciation, setAnnualAppreciation] = useState(0);
 
   // Financing Details
-  const [downPaymentPercent, setDownPaymentPercent] = useState(20);
+  const [downPaymentPercent, setDownPaymentPercent] = useState(0);
   const [loanTerm, setLoanTerm] = useState(30);
-  const [interestRate, setInterestRate] = useState(6.5);
-  const [closingCostsPercent, setClosingCostsPercent] = useState(3);
-  const [propertyTaxPercent, setPropertyTaxPercent] = useState(1.1);
-  const [homeInsurance, setHomeInsurance] = useState(1200);
+  const [interestRate, setInterestRate] = useState(0);
+  const [closingCostsPercent, setClosingCostsPercent] = useState(0);
+  const [propertyTaxPercent, setPropertyTaxPercent] = useState(0);
+  const [homeInsurance, setHomeInsurance] = useState(0);
   const [hoaFees, setHoaFees] = useState(0);
 
   // Additional Costs & Rental Income
   const [renovationCosts, setRenovationCosts] = useState(0);
-  const [maintenanceCosts, setMaintenanceCosts] = useState(3000);
-  const [managementFeePercent, setManagementFeePercent] = useState(8);
+  const [maintenanceCosts, setMaintenanceCosts] = useState(0);
+  const [managementFeePercent, setManagementFeePercent] = useState(0);
   const [monthlyRent, setMonthlyRent] = useState(0);
-  const [vacancyRate, setVacancyRate] = useState(5);
-  const [incomeTaxRate, setIncomeTaxRate] = useState(22);
+  const [vacancyRate, setVacancyRate] = useState(0);
+  const [incomeTaxRate, setIncomeTaxRate] = useState(0);
 
   // Buying Power Calculator
-  const [annualIncome, setAnnualIncome] = useState(80000);
-  const [monthlyDebts, setMonthlyDebts] = useState(500);
-  const [downPaymentAvailable, setDownPaymentAvailable] = useState(60000);
-  const [buyingPowerInterestRate, setBuyingPowerInterestRate] = useState(6.5);
+  const [annualIncome, setAnnualIncome] = useState(0);
+  const [monthlyDebts, setMonthlyDebts] = useState(0);
+  const [downPaymentAvailable, setDownPaymentAvailable] = useState(0);
+  const [buyingPowerInterestRate, setBuyingPowerInterestRate] = useState(0);
   const [buyingPowerLoanTerm, setBuyingPowerLoanTerm] = useState(30);
   const [scenario, setScenario] = useState<'conservative' | 'moderate' | 'aggressive'>('moderate');
 
@@ -61,6 +62,35 @@ export default function Calculators() {
       }
     };
     checkAuth();
+
+    // Load saved calculation data if passed from navigation
+    if (location.state?.calculationData) {
+      const data = location.state.calculationData;
+      setPropertyPrice(data.propertyPrice || 0);
+      setPropertyType(data.propertyType || "House");
+      setLocation(data.location || "");
+      setAnnualAppreciation(data.annualAppreciation || 0);
+      setDownPaymentPercent(data.downPaymentPercent || 0);
+      setLoanTerm(data.loanTerm || 30);
+      setInterestRate(data.interestRate || 0);
+      setClosingCostsPercent(data.closingCostsPercent || 0);
+      setPropertyTaxPercent(data.propertyTaxPercent || 0);
+      setHomeInsurance(data.homeInsurance || 0);
+      setHoaFees(data.hoaFees || 0);
+      setRenovationCosts(data.renovationCosts || 0);
+      setMaintenanceCosts(data.maintenanceCosts || 0);
+      setManagementFeePercent(data.managementFeePercent || 0);
+      setMonthlyRent(data.monthlyRent || 0);
+      setVacancyRate(data.vacancyRate || 0);
+      setIncomeTaxRate(data.incomeTaxRate || 0);
+      setAnnualIncome(data.annualIncome || 0);
+      setMonthlyDebts(data.monthlyDebts || 0);
+      setDownPaymentAvailable(data.downPaymentAvailable || 0);
+      setBuyingPowerInterestRate(data.buyingPowerInterestRate || 0);
+      setBuyingPowerLoanTerm(data.buyingPowerLoanTerm || 30);
+      setScenario(data.scenario || 'moderate');
+      setAiInsights(data.aiInsights || "");
+    }
   }, []);
 
   // Calculations
@@ -107,23 +137,34 @@ export default function Calculators() {
   }));
 
   const handleReset = () => {
-    setPropertyPrice(300000);
+    setPropertyPrice(0);
     setPropertyType("House");
     setLocation("");
-    setAnnualAppreciation(3);
-    setDownPaymentPercent(20);
+    setAnnualAppreciation(0);
+    setDownPaymentPercent(0);
     setLoanTerm(30);
-    setInterestRate(6.5);
-    setClosingCostsPercent(3);
-    setPropertyTaxPercent(1.1);
-    setHomeInsurance(1200);
+    setInterestRate(0);
+    setClosingCostsPercent(0);
+    setPropertyTaxPercent(0);
+    setHomeInsurance(0);
     setHoaFees(0);
     setRenovationCosts(0);
-    setMaintenanceCosts(3000);
-    setManagementFeePercent(8);
+    setMaintenanceCosts(0);
+    setManagementFeePercent(0);
     setMonthlyRent(0);
-    setVacancyRate(5);
-    setIncomeTaxRate(22);
+    setVacancyRate(0);
+    setIncomeTaxRate(0);
+    setAnnualIncome(0);
+    setMonthlyDebts(0);
+    setDownPaymentAvailable(0);
+    setBuyingPowerInterestRate(0);
+    setBuyingPowerLoanTerm(30);
+    setScenario('moderate');
+    setAiInsights("");
+    toast({
+      title: "Reset Successful",
+      description: "All values have been reset"
+    });
   };
 
   const handleSave = async () => {
@@ -136,10 +177,56 @@ export default function Calculators() {
       return;
     }
 
-    toast({
-      title: "Saved",
-      description: "Your simulation has been saved successfully"
-    });
+    try {
+      const calculationData = {
+        propertyPrice,
+        propertyType,
+        location,
+        annualAppreciation,
+        downPaymentPercent,
+        loanTerm,
+        interestRate,
+        closingCostsPercent,
+        propertyTaxPercent,
+        homeInsurance,
+        hoaFees,
+        renovationCosts,
+        maintenanceCosts,
+        managementFeePercent,
+        monthlyRent,
+        vacancyRate,
+        incomeTaxRate,
+        annualIncome,
+        monthlyDebts,
+        downPaymentAvailable,
+        buyingPowerInterestRate,
+        buyingPowerLoanTerm,
+        scenario,
+        aiInsights
+      };
+
+      const { error } = await supabase
+        .from('saved_calculations')
+        .insert({
+          user_id: user.id,
+          name: location || `Calculation ${new Date().toLocaleDateString()}`,
+          calculation_type: 'investment',
+          data: calculationData
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Saved",
+        description: "Your calculation has been saved successfully"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDownloadPDF = () => {
