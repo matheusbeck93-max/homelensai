@@ -48,9 +48,6 @@ export default function Calculators() {
   const [annualIncome, setAnnualIncome] = useState(0);
   const [monthlyDebts, setMonthlyDebts] = useState(0);
   const [downPaymentAvailable, setDownPaymentAvailable] = useState(0);
-  const [buyingPowerInterestRate, setBuyingPowerInterestRate] = useState(0);
-  const [buyingPowerLoanTerm, setBuyingPowerLoanTerm] = useState(30);
-  const [scenario, setScenario] = useState<'conservative' | 'moderate' | 'aggressive'>('moderate');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -58,7 +55,8 @@ export default function Calculators() {
       setUser(session?.user ?? null);
       
       if (!session) {
-        setShowAuthModal(true);
+        navigate('/auth?redirect=/calculators');
+        return;
       }
     };
     checkAuth();
@@ -86,9 +84,6 @@ export default function Calculators() {
       setAnnualIncome(data.annualIncome || 0);
       setMonthlyDebts(data.monthlyDebts || 0);
       setDownPaymentAvailable(data.downPaymentAvailable || 0);
-      setBuyingPowerInterestRate(data.buyingPowerInterestRate || 0);
-      setBuyingPowerLoanTerm(data.buyingPowerLoanTerm || 30);
-      setScenario(data.scenario || 'moderate');
       setAiInsights(data.aiInsights || "");
     }
   }, []);
@@ -157,9 +152,6 @@ export default function Calculators() {
     setAnnualIncome(0);
     setMonthlyDebts(0);
     setDownPaymentAvailable(0);
-    setBuyingPowerInterestRate(0);
-    setBuyingPowerLoanTerm(30);
-    setScenario('moderate');
     setAiInsights("");
     toast({
       title: "Reset Successful",
@@ -199,9 +191,6 @@ export default function Calculators() {
         annualIncome,
         monthlyDebts,
         downPaymentAvailable,
-        buyingPowerInterestRate,
-        buyingPowerLoanTerm,
-        scenario,
         aiInsights
       };
 
@@ -236,19 +225,17 @@ export default function Calculators() {
     });
   };
 
-  // Buying Power Calculations
+  // Buying Power Calculations (independent of financing terms)
   const monthlyIncome = annualIncome / 12;
   
-  // DTI based on scenario
-  const dtiRatio = scenario === 'conservative' ? 0.28 : scenario === 'moderate' ? 0.30 : 0.43;
-  const maxMonthlyPayment = (monthlyIncome * dtiRatio) - monthlyDebts;
+  // Calculate actual DTI based on income and debts
+  const actualDTI = monthlyIncome > 0 ? (monthlyDebts / monthlyIncome) * 100 : 0;
   
-  const buyingPowerMonthlyRate = buyingPowerInterestRate / 100 / 12;
-  const buyingPowerNumPayments = buyingPowerLoanTerm * 12;
-  const maxLoanAmount = maxMonthlyPayment * (Math.pow(1 + buyingPowerMonthlyRate, buyingPowerNumPayments) - 1) / 
-    (buyingPowerMonthlyRate * Math.pow(1 + buyingPowerMonthlyRate, buyingPowerNumPayments));
+  // Maximum affordable monthly payment (using 30% DTI standard)
+  const maxAffordablePayment = (monthlyIncome * 0.30) - monthlyDebts;
   
-  const maxPurchasePrice = maxLoanAmount + downPaymentAvailable;
+  // Buying power is independent - just show what they can afford based on down payment
+  const estimatedBuyingPower = downPaymentAvailable > 0 ? downPaymentAvailable / 0.20 : 0; // Assuming 20% down standard
 
   const handleGenerateInsights = async () => {
     if (!user) {
@@ -279,11 +266,12 @@ export default function Calculators() {
             annualIncome,
             monthlyDebts,
             downPaymentAvailable,
-            maxPurchasePrice: Math.round(maxPurchasePrice),
-            maxLoanAmount: Math.round(maxLoanAmount),
-            maxMonthlyPayment: Math.round(maxMonthlyPayment),
-            scenario: scenario.charAt(0).toUpperCase() + scenario.slice(1),
-            dtiRatio: Math.round(dtiRatio * 100)
+            estimatedBuyingPower: Math.round(estimatedBuyingPower),
+            maxAffordablePayment: Math.round(maxAffordablePayment),
+            actualDTI: actualDTI.toFixed(2),
+            propertyLocation,
+            propertyPrice,
+            propertyType
           }
         }
       });
@@ -303,31 +291,6 @@ export default function Calculators() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Auth Modal */}
-      <Dialog open={showAuthModal} onOpenChange={(open) => {
-        if (!open && !user) {
-          navigate('/');
-        }
-        setShowAuthModal(open);
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Authentication Required</DialogTitle>
-            <DialogDescription>
-              You need to be logged in to access the Investment Calculator.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 mt-4">
-            <Button onClick={() => navigate('/auth?mode=signup')}>
-              Sign Up
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/auth?mode=login')}>
-              Log In
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
@@ -363,10 +326,24 @@ export default function Calculators() {
             {/* Property Information */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Home className="h-5 w-5 text-primary" />
-                  Property Information
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Home className="h-5 w-5 text-primary" />
+                    Property Information
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setPropertyPrice(0);
+                      setPropertyType("House");
+                      setPropertyLocation("");
+                      setAnnualAppreciation(0);
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -430,10 +407,27 @@ export default function Calculators() {
             {/* Financing Details */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  Financing Details
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Financing Details
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setDownPayment(0);
+                      setLoanTerm(30);
+                      setInterestRate(0);
+                      setClosingCostsPercent(0);
+                      setPropertyTaxPercent(0);
+                      setHomeInsurance(0);
+                      setHoaFees(0);
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -579,26 +573,28 @@ export default function Calculators() {
             {/* Buying Power Calculator */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Buying Power Summary
-                </CardTitle>
-                <CardDescription>Calculate your purchasing power</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      Buying Power Summary
+                    </CardTitle>
+                    <CardDescription>Calculate your purchasing power independently</CardDescription>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setAnnualIncome(0);
+                      setMonthlyDebts(0);
+                      setDownPaymentAvailable(0);
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label>Scenario</Label>
-                  <Select value={scenario} onValueChange={(value: any) => setScenario(value)}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="conservative">Conservative (28% DTI)</SelectItem>
-                      <SelectItem value="moderate">Moderate (30% DTI)</SelectItem>
-                      <SelectItem value="aggressive">Aggressive (43% DTI)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div>
                   <Label>Annual Income (USD)</Label>
                   <Input
@@ -623,25 +619,6 @@ export default function Calculators() {
                     type="number"
                     value={downPaymentAvailable}
                     onChange={(e) => setDownPaymentAvailable(Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Interest Rate (%)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={buyingPowerInterestRate}
-                    onChange={(e) => setBuyingPowerInterestRate(Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Loan Term (years)</Label>
-                  <Input
-                    type="number"
-                    value={buyingPowerLoanTerm}
-                    onChange={(e) => setBuyingPowerLoanTerm(Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>
@@ -740,19 +717,21 @@ export default function Calculators() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Max Purchase Price</p>
-                    <p className="text-2xl font-bold text-primary">${Math.round(maxPurchasePrice).toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Your DTI Ratio</p>
+                    <p className={`text-2xl font-bold ${actualDTI < 30 ? 'text-green-600' : actualDTI < 43 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      {actualDTI.toFixed(1)}%
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Max Loan Amount</p>
-                    <p className="text-2xl font-bold">${Math.round(maxLoanAmount).toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Estimated Buying Power</p>
+                    <p className="text-2xl font-bold text-primary">${Math.round(estimatedBuyingPower).toLocaleString()}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Max Monthly Payment</p>
-                    <p className="text-2xl font-bold">${Math.round(maxMonthlyPayment).toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Max Affordable Payment</p>
+                    <p className="text-2xl font-bold">${Math.round(maxAffordablePayment).toLocaleString()}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Down Payment</p>
+                    <p className="text-sm text-muted-foreground">Down Payment Available</p>
                     <p className="text-2xl font-bold">${downPaymentAvailable.toLocaleString()}</p>
                   </div>
                 </div>
@@ -801,7 +780,8 @@ export default function Calculators() {
                         onClick={() => navigate('/chat', { 
                           state: { 
                             initialMessage: aiInsights,
-                            newConversation: true 
+                            newConversation: true,
+                            skipAuthCheck: true
                           } 
                         })}
                         className="flex-1"

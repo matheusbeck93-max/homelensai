@@ -20,9 +20,11 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const prompt = `You are a real estate investment advisor. Analyze the following financial data and provide clear, actionable insights in concise bullet-point format:
+    const prompt = `You are a real estate investment advisor. Analyze the following financial data and provide clear, actionable insights. You can analyze each segment independently OR provide an overall assessment if all data is provided.
 
-Financial Summary:
+${financialSummary.propertyPrice > 0 ? `
+PROPERTY & INVESTMENT SCENARIO:
+- Property: ${buyingPower.propertyType || 'N/A'} in ${buyingPower.propertyLocation || 'location not specified'}
 - Property Price: $${financialSummary.propertyPrice?.toLocaleString() || '0'}
 - Down Payment: $${financialSummary.downPaymentAmount?.toLocaleString() || '0'}
 - Loan Amount: $${financialSummary.loanAmount?.toLocaleString() || '0'}
@@ -32,32 +34,56 @@ Financial Summary:
 ${financialSummary.monthlyCashFlow !== null && financialSummary.monthlyCashFlow !== undefined ? `- Monthly Cash Flow: $${financialSummary.monthlyCashFlow.toLocaleString()}` : ''}
 ${financialSummary.annualROI !== null && financialSummary.annualROI !== undefined ? `- Annual ROI: ${financialSummary.annualROI.toFixed(2)}%` : ''}
 ${financialSummary.paybackPeriod !== null && financialSummary.paybackPeriod !== undefined && financialSummary.paybackPeriod < 100 ? `- Payback Period: ${financialSummary.paybackPeriod.toFixed(1)} years` : ''}
+` : ''}
 
-Buying Power (${buyingPower.scenario || 'Moderate'} Scenario - ${buyingPower.dtiRatio || 30}% DTI):
+${buyingPower.annualIncome > 0 ? `
+BUYING POWER ANALYSIS:
 - Annual Income: $${buyingPower.annualIncome?.toLocaleString() || '0'}
 - Monthly Debts: $${buyingPower.monthlyDebts?.toLocaleString() || '0'}
+- Current DTI Ratio: ${buyingPower.actualDTI}%
 - Down Payment Available: $${buyingPower.downPaymentAvailable?.toLocaleString() || '0'}
-- Maximum Purchase Price: $${buyingPower.maxPurchasePrice?.toLocaleString() || '0'}
-- Maximum Loan Amount: $${buyingPower.maxLoanAmount?.toLocaleString() || '0'}
-- Maximum Monthly Payment: $${buyingPower.maxMonthlyPayment?.toLocaleString() || '0'}
+- Estimated Buying Power: $${buyingPower.estimatedBuyingPower?.toLocaleString() || '0'}
+- Max Affordable Monthly Payment: $${buyingPower.maxAffordablePayment?.toLocaleString() || '0'}
+` : ''}
 
-Provide insights in the following bullet-point format (4-6 bullet points total):
-- First bullet: DTI ratio and whether it's within a healthy range
-- Second bullet: Estimated purchase power based on the selected scenario (${buyingPower.scenario || 'Moderate'})
-- Third bullet: 2-3 specific, actionable recommendations (e.g., down payment tips, financing advice, market conditions)
+Provide insights in bullet-point format (4-8 bullets depending on available data):
+
+${buyingPower.annualIncome > 0 ? `
+BUYING POWER INSIGHTS:
+- Assess the DTI ratio (${buyingPower.actualDTI}%) - Is it healthy? (Under 30% is excellent, 30-43% is acceptable, above 43% is risky)
+- Evaluate their estimated buying power of $${buyingPower.estimatedBuyingPower?.toLocaleString() || '0'} based on their down payment
+- Provide actionable recommendations to improve buying power if needed
+` : ''}
+
+${financialSummary.propertyPrice > 0 && buyingPower.propertyLocation ? `
+MARKET VALUATION INSIGHTS (CRITICAL - Include local market context):
+- Research and provide insights on ${buyingPower.propertyLocation} market conditions
+- Is $${financialSummary.propertyPrice?.toLocaleString()} reasonable for a ${buyingPower.propertyType} in this area?
+- Compare to typical market prices and trends in ${buyingPower.propertyLocation}
+- Mention any market factors (appreciation trends, inventory levels, demand)
+` : ''}
+
+${financialSummary.propertyPrice > 0 && buyingPower.annualIncome > 0 ? `
+COMBINED ANALYSIS:
+- Compare the property price ($${financialSummary.propertyPrice?.toLocaleString()}) against their buying power ($${buyingPower.estimatedBuyingPower?.toLocaleString()})
+- Is this property within their budget? If not, by how much?
+- Provide specific recommendations based on the gap (if any)
+` : ''}
+
+${financialSummary.monthlyCashFlow !== null && financialSummary.monthlyCashFlow !== undefined ? `
+INVESTMENT ANALYSIS:
+- Evaluate the investment potential with ${financialSummary.monthlyCashFlow >= 0 ? 'positive' : 'negative'} cash flow of $${financialSummary.monthlyCashFlow?.toLocaleString()}
+- Assess the ${financialSummary.annualROI?.toFixed(2)}% ROI - is this competitive?
+- Comment on the payback period and long-term potential
+` : ''}
 
 Requirements:
 - Use bullet points (one per line, starting with "-")
-- Keep each bullet concise (1-2 sentences max)
+- Be specific and data-driven
 - Professional yet friendly tone
 - Focus on actionable insights
-- Include specific numbers from the data
-
-Example format:
-- Your DTI ratio is X%, which is [assessment].
-- With an annual income of $X, your estimated purchase power is around $X ([Scenario] scenario).
-- [Specific recommendation based on the data].
-- [Additional recommendation or consideration].`;
+- ALWAYS include market reasoning when property location is provided
+- Analyze segments independently when only partial data is provided`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
