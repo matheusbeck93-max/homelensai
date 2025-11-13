@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, User, Mail, Save, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, User, Mail, Save, Trash2, AlertTriangle, Calculator, Edit, Trash } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Navigation } from "@/components/Navigation";
 import {
@@ -21,15 +21,28 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+interface SavedCalculation {
+  id: string;
+  name: string;
+  calculation_type: string;
+  data: any;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [savedCalculations, setSavedCalculations] = useState<SavedCalculation[]>([]);
+  const [showDeleteCalcDialog, setShowDeleteCalcDialog] = useState(false);
+  const [calcToDelete, setCalcToDelete] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     loadProfile();
+    loadCalculations();
   }, []);
 
   const loadProfile = async () => {
@@ -48,6 +61,59 @@ export default function Settings() {
     if (profile) {
       setFullName(profile.full_name || "");
       setEmail(profile.email || user.email || "");
+    }
+  };
+
+  const loadCalculations = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('saved_calculations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSavedCalculations(data || []);
+    } catch (error: any) {
+      console.error('Error loading calculations:', error);
+    }
+  };
+
+  const handleEditCalculation = (calculation: SavedCalculation) => {
+    navigate('/calculators', { 
+      state: { calculationData: calculation.data } 
+    });
+  };
+
+  const handleDeleteCalculation = async () => {
+    if (!calcToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('saved_calculations')
+        .delete()
+        .eq('id', calcToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Calculation deleted successfully",
+      });
+
+      loadCalculations();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setShowDeleteCalcDialog(false);
+      setCalcToDelete(null);
     }
   };
 
@@ -170,6 +236,61 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Saved Calculators */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="h-5 w-5" />
+                Saved Calculators
+              </CardTitle>
+              <CardDescription>
+                View and manage your saved calculations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {savedCalculations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No saved calculations yet. Go to Calculators to create and save your first calculation.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {savedCalculations.map((calc) => (
+                    <div
+                      key={calc.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-medium">{calc.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(calc.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditCalculation(calc)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setCalcToDelete(calc.id);
+                            setShowDeleteCalcDialog(true);
+                          }}
+                        >
+                          <Trash className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Appearance */}
           <Card>
             <CardHeader>
@@ -270,6 +391,27 @@ export default function Settings() {
           </Card>
         </div>
       </div>
+
+      {/* Delete Calculation Confirmation Dialog */}
+      <AlertDialog open={showDeleteCalcDialog} onOpenChange={setShowDeleteCalcDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Calculation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this calculation? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCalcToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCalculation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
