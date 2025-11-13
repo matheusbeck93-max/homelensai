@@ -24,7 +24,7 @@ export default function Calculators() {
   // Property Information
   const [propertyPrice, setPropertyPrice] = useState(0);
   const [propertyType, setPropertyType] = useState("House");
-  const [location, setLocation] = useState("");
+  const [propertyLocation, setPropertyLocation] = useState("");
   const [annualAppreciation, setAnnualAppreciation] = useState(0);
 
   // Financing Details
@@ -68,7 +68,7 @@ export default function Calculators() {
       const data = location.state.calculationData;
       setPropertyPrice(data.propertyPrice || 0);
       setPropertyType(data.propertyType || "House");
-      setLocation(data.location || "");
+      setPropertyLocation(data.propertyLocation || "");
       setAnnualAppreciation(data.annualAppreciation || 0);
       setDownPaymentPercent(data.downPaymentPercent || 0);
       setLoanTerm(data.loanTerm || 30);
@@ -139,7 +139,7 @@ export default function Calculators() {
   const handleReset = () => {
     setPropertyPrice(0);
     setPropertyType("House");
-    setLocation("");
+    setPropertyLocation("");
     setAnnualAppreciation(0);
     setDownPaymentPercent(0);
     setLoanTerm(30);
@@ -181,7 +181,7 @@ export default function Calculators() {
       const calculationData = {
         propertyPrice,
         propertyType,
-        location,
+        propertyLocation,
         annualAppreciation,
         downPaymentPercent,
         loanTerm,
@@ -207,12 +207,12 @@ export default function Calculators() {
 
       const { error } = await supabase
         .from('saved_calculations')
-        .insert({
+        .insert([{
           user_id: user.id,
-          name: location || `Calculation ${new Date().toLocaleDateString()}`,
+          name: propertyLocation || `Calculation ${new Date().toLocaleDateString()}`,
           calculation_type: 'investment',
           data: calculationData
-        });
+        }]);
 
       if (error) throw error;
 
@@ -396,8 +396,8 @@ export default function Calculators() {
                 <div>
                   <Label>Location (Optional)</Label>
                   <Input
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
+                    value={propertyLocation}
+                    onChange={(e) => setPropertyLocation(e.target.value)}
                     placeholder="City, State"
                     className="mt-1"
                   />
