@@ -122,6 +122,7 @@ export default function Chat() {
   useEffect(() => {
     const initialPrompt = location.state?.initialPrompt;
     const initialMessage = location.state?.initialMessage;
+    const skipAuthCheck = location.state?.skipAuthCheck; // For calculator insights
     
     if (initialPrompt || initialMessage) {
       const message = initialPrompt || initialMessage;
@@ -133,10 +134,19 @@ export default function Chat() {
       }
       
       setInput(message);
-      // Auto-send the message after a brief delay
-      setTimeout(() => {
-        handleSendWithQuery(message);
-      }, 500);
+      
+      // If coming from calculators (skipAuthCheck), send immediately
+      if (skipAuthCheck) {
+        setTimeout(() => {
+          handleSendWithQuery(message);
+        }, 500);
+      } else {
+        // Normal flow - auto-send after delay
+        setTimeout(() => {
+          handleSendWithQuery(message);
+        }, 500);
+      }
+      
       // Clear the navigation state
       navigate("/chat", {
         replace: true,

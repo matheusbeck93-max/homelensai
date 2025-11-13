@@ -28,7 +28,7 @@ export default function Calculators() {
   const [annualAppreciation, setAnnualAppreciation] = useState(0);
 
   // Financing Details
-  const [downPaymentPercent, setDownPaymentPercent] = useState(0);
+  const [downPayment, setDownPayment] = useState(0);
   const [loanTerm, setLoanTerm] = useState(30);
   const [interestRate, setInterestRate] = useState(0);
   const [closingCostsPercent, setClosingCostsPercent] = useState(0);
@@ -70,7 +70,7 @@ export default function Calculators() {
       setPropertyType(data.propertyType || "House");
       setPropertyLocation(data.propertyLocation || "");
       setAnnualAppreciation(data.annualAppreciation || 0);
-      setDownPaymentPercent(data.downPaymentPercent || 0);
+      setDownPayment(data.downPayment || 0);
       setLoanTerm(data.loanTerm || 30);
       setInterestRate(data.interestRate || 0);
       setClosingCostsPercent(data.closingCostsPercent || 0);
@@ -94,7 +94,7 @@ export default function Calculators() {
   }, []);
 
   // Calculations
-  const downPaymentAmount = (propertyPrice * downPaymentPercent) / 100;
+  const downPaymentAmount = downPayment;
   const loanAmount = propertyPrice - downPaymentAmount;
   const closingCosts = (propertyPrice * closingCostsPercent) / 100;
   const totalAcquisition = propertyPrice + closingCosts + renovationCosts;
@@ -141,7 +141,7 @@ export default function Calculators() {
     setPropertyType("House");
     setPropertyLocation("");
     setAnnualAppreciation(0);
-    setDownPaymentPercent(0);
+    setDownPayment(0);
     setLoanTerm(30);
     setInterestRate(0);
     setClosingCostsPercent(0);
@@ -183,7 +183,7 @@ export default function Calculators() {
         propertyType,
         propertyLocation,
         annualAppreciation,
-        downPaymentPercent,
+        downPayment,
         loanTerm,
         interestRate,
         closingCostsPercent,
@@ -437,11 +437,12 @@ export default function Calculators() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Down Payment (%)</Label>
+                  <Label>Down Payment ($)</Label>
                   <Input
                     type="number"
-                    value={downPaymentPercent}
-                    onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
+                    value={downPayment}
+                    onChange={(e) => setDownPayment(Number(e.target.value))}
+                    min="0"
                     className="mt-1"
                   />
                 </div>
