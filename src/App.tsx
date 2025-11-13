@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import SavedSearches from "./pages/SavedSearches";
+import SavedCalculations from "./pages/SavedCalculations";
 import Calculators from "./pages/Calculators";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ function App() {
             <Route path="/property/:id" element={<PropertyDetail />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/saved-searches" element={<SavedSearches />} />
+            <Route path="/saved-calculations" element={<SavedCalculations />} />
             <Route path="/calculators" element={<Calculators />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
