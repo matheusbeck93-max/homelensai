@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const redirectPath = searchParams.get('redirect') || '/';
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +50,7 @@ export default function Auth() {
         title: "Success!",
         description: "Your account has been created. Welcome to HomeLens!",
       });
-      navigate("/chat");
+      navigate(redirectPath);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -90,7 +92,7 @@ export default function Auth() {
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
-      navigate("/chat");
+      navigate(redirectPath);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
