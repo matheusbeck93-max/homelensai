@@ -68,6 +68,7 @@ export default function Chat() {
   const [isRecording, setIsRecording] = useState(false);
   const [guestMessageCount, setGuestMessageCount] = useState(0);
   const [showGuestModal, setShowGuestModal] = useState(false);
+  const [skipAuthDialog, setSkipAuthDialog] = useState(false); // Track if auth dialog should be skipped
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -123,6 +124,12 @@ export default function Chat() {
     const initialPrompt = location.state?.initialPrompt;
     const initialMessage = location.state?.initialMessage;
     const skipAuthCheck = location.state?.skipAuthCheck; // For calculator insights
+    
+    // Persist skipAuthCheck flag to prevent auth dialog from showing
+    if (skipAuthCheck) {
+      setSkipAuthDialog(true);
+      setHasShownAuthDialog(true); // Mark as shown to prevent future dialogs
+    }
     
     if (initialPrompt || initialMessage) {
       const message = initialPrompt || initialMessage;
@@ -219,7 +226,8 @@ export default function Chat() {
       setMessages(prev => [...prev, assistantMessage]);
 
       // Show auth dialog after first response if not authenticated and hasn't been shown yet
-      if (!isAuthenticated && !hasShownAuthDialog) {
+      // Don't show if skipAuthDialog is true (coming from calculator insights)
+      if (!isAuthenticated && !hasShownAuthDialog && !skipAuthDialog) {
         setTimeout(() => {
           setShowAuthDialog(true);
           setHasShownAuthDialog(true);

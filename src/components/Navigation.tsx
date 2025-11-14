@@ -34,11 +34,14 @@ export function Navigation() {
   };
 
   const navItems = user ? [
-    { label: 'Chat', path: '/chat' },
     { label: 'Saved Searches', path: '/saved-searches' },
     { label: 'Profile', path: '/profile' },
     { label: 'Settings', path: '/settings' },
   ] : [];
+  
+  const publicNavItems = [
+    { label: 'HomeLens Investor', path: '/investor' },
+  ];
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b">
@@ -55,6 +58,15 @@ export function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
+            {publicNavItems.map((item) => (
+              <Button
+                key={item.path}
+                variant="ghost"
+                onClick={() => navigate(item.path)}
+              >
+                {item.label}
+              </Button>
+            ))}
             {navItems.map((item) => (
               <Button
                 key={item.path}
@@ -87,6 +99,19 @@ export function Navigation() {
               </SheetTrigger>
               <SheetContent side="right" className="w-64">
                 <div className="flex flex-col gap-4 mt-8">
+                  {publicNavItems.map((item) => (
+                    <Button
+                      key={item.path}
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => {
+                        navigate(item.path);
+                        setMobileOpen(false);
+                      }}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
                   {navItems.map((item) => (
                     <Button
                       key={item.path}

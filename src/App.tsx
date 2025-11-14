@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import SavedSearches from "./pages/SavedSearches";
 import Calculators from "./pages/Calculators";
+import Investor from "./pages/Investor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ function App() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/saved-searches" element={<SavedSearches />} />
             <Route path="/calculators" element={<Calculators />} />
+            <Route path="/investor" element={<Investor />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
