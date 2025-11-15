@@ -29,8 +29,7 @@ export default function Calculators() {
   const [propertyTaxRate, setPropertyTaxRate] = useState(1.2);
   const [insuranceAnnual, setInsuranceAnnual] = useState(0);
   const [hoaMonthly, setHoaMonthly] = useState(0);
-  const [pmiRate, setPmiRate] = useState(0.5);
-  const [points, setPoints] = useState(0);
+  const [pmiRate, setPmiRate] = useState(0.5); // Auto-populated with typical rate
   const [closingCosts, setClosingCosts] = useState(0);
 
   useEffect(() => {
@@ -66,7 +65,6 @@ export default function Calculators() {
     setInsuranceAnnual(0);
     setHoaMonthly(0);
     setPmiRate(0.5);
-    setPoints(0);
     setClosingCosts(0);
     setAiInsights("");
   };
@@ -86,7 +84,6 @@ export default function Calculators() {
     setInsuranceAnnual(0);
     setHoaMonthly(0);
     setPmiRate(0.5);
-    setPoints(0);
     setClosingCosts(0);
   };
 
@@ -130,8 +127,9 @@ export default function Calculators() {
   // Calculate actual DTI based on income and debts
   const actualDTI = monthlyIncome > 0 ? (monthlyDebts / monthlyIncome) * 100 : 0;
   
-  // Maximum affordable monthly payment (using 30% DTI standard)
-  const maxAffordablePayment = (monthlyIncome * 0.30) - monthlyDebts;
+  // Maximum affordable monthly mortgage payment (28% of gross income, industry standard)
+  // This is the max housing payment they can afford, separate from existing debts
+  const maxAffordablePayment = monthlyIncome * 0.28;
   
   // Buying power is independent - just show what they can afford based on down payment
   const estimatedBuyingPower = downPaymentAvailable > 0 ? downPaymentAvailable / 0.20 : 0; // Assuming 20% down standard
@@ -198,7 +196,6 @@ export default function Calculators() {
             propertyTaxRate,
             insuranceAnnual,
             pmiRate,
-            points,
             closingCosts
           }
         }
@@ -389,29 +386,6 @@ export default function Calculators() {
                     />
                   </div>
                   <div>
-                    <Label>PMI Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={pmiRate || ""}
-                      onChange={(e) => setPmiRate(Number(e.target.value))}
-                      className="mt-1"
-                      placeholder="If down < 20%"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Points (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={points || ""}
-                      onChange={(e) => setPoints(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
                     <Label>Closing Costs ($)</Label>
                     <Input
                       type="number"
@@ -497,9 +471,12 @@ export default function Calculators() {
                   </div>
                 </div>
                 {downPaymentPercent < 20 && (
-                  <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
+                  <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg space-y-1">
                     <p className="text-sm text-yellow-800 dark:text-yellow-200">
                       ⚠️ PMI required: Down payment is {downPaymentPercent.toFixed(1)}% (less than 20%)
+                    </p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                      PMI auto-populated with typical rate (0.5%). Adjust if needed.
                     </p>
                   </div>
                 )}
