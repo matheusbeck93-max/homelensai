@@ -14,29 +14,15 @@ serve(async (req) => {
   }
 
   try {
-    const { financialSummary, buyingPower } = await req.json();
+    const { buyingPower, mortgage } = await req.json();
 
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const prompt = `You are a real estate investment advisor. Analyze the following financial data and provide clear, actionable insights. You can analyze each segment independently OR provide an overall assessment if all data is provided.
+    const prompt = `You are a U.S. real estate and mortgage advisor. Analyze the following financial data and provide clear, actionable insights. You can analyze each calculator independently OR provide a combined assessment if both are filled.
 
-${financialSummary.propertyPrice > 0 ? `
-PROPERTY & INVESTMENT SCENARIO:
-- Property: ${buyingPower.propertyType || 'N/A'} in ${buyingPower.propertyLocation || 'location not specified'}
-- Property Price: $${financialSummary.propertyPrice?.toLocaleString() || '0'}
-- Down Payment: $${financialSummary.downPaymentAmount?.toLocaleString() || '0'}
-- Loan Amount: $${financialSummary.loanAmount?.toLocaleString() || '0'}
-- Total Acquisition Cost: $${financialSummary.totalAcquisition?.toLocaleString() || '0'}
-- Monthly Mortgage Payment: $${financialSummary.monthlyMortgage?.toLocaleString() || '0'}
-- Total Monthly Cost: $${financialSummary.totalMonthlyCost?.toLocaleString() || '0'}
-${financialSummary.monthlyCashFlow !== null && financialSummary.monthlyCashFlow !== undefined ? `- Monthly Cash Flow: $${financialSummary.monthlyCashFlow.toLocaleString()}` : ''}
-${financialSummary.annualROI !== null && financialSummary.annualROI !== undefined ? `- Annual ROI: ${financialSummary.annualROI.toFixed(2)}%` : ''}
-${financialSummary.paybackPeriod !== null && financialSummary.paybackPeriod !== undefined && financialSummary.paybackPeriod < 100 ? `- Payback Period: ${financialSummary.paybackPeriod.toFixed(1)} years` : ''}
-` : ''}
-
-${buyingPower.annualIncome > 0 ? `
+${buyingPower && buyingPower.annualIncome > 0 ? `
 BUYING POWER ANALYSIS:
 - Annual Income: $${buyingPower.annualIncome?.toLocaleString() || '0'}
 - Monthly Debts: $${buyingPower.monthlyDebts?.toLocaleString() || '0'}
@@ -46,35 +32,48 @@ BUYING POWER ANALYSIS:
 - Max Affordable Monthly Payment: $${buyingPower.maxAffordablePayment?.toLocaleString() || '0'}
 ` : ''}
 
+${mortgage && mortgage.homePrice > 0 ? `
+MORTGAGE CALCULATION (PITI):
+- Home Price: $${mortgage.homePrice?.toLocaleString() || '0'}
+- Down Payment: $${mortgage.downPayment?.toLocaleString() || '0'} (${mortgage.downPaymentPercent}%)
+- Loan Amount: $${mortgage.loanAmount?.toLocaleString() || '0'}
+- Interest Rate: ${mortgage.interestRate}%
+- Loan Term: ${mortgage.loanTerm} years
+- Monthly P&I: $${mortgage.monthlyPI?.toLocaleString() || '0'}
+- Monthly Property Tax: $${mortgage.monthlyPropertyTax?.toLocaleString() || '0'} (${mortgage.propertyTaxRate}% annually)
+- Monthly Insurance: $${mortgage.monthlyInsurance?.toLocaleString() || '0'}
+- Monthly HOA: $${mortgage.hoaMonthly?.toLocaleString() || '0'}
+${mortgage.monthlyPMI > 0 ? `- Monthly PMI: $${mortgage.monthlyPMI?.toLocaleString() || '0'} (${mortgage.pmiRate}%)` : ''}
+- TOTAL Monthly Payment: $${mortgage.totalMonthlyPayment?.toLocaleString() || '0'}
+${mortgage.points > 0 ? `- Points: ${mortgage.points}%` : ''}
+${mortgage.closingCosts > 0 ? `- Closing Costs: $${mortgage.closingCosts?.toLocaleString() || '0'}` : ''}
+` : ''}
+
 Provide insights in bullet-point format (4-8 bullets depending on available data):
 
-${buyingPower.annualIncome > 0 ? `
-BUYING POWER INSIGHTS:
+${buyingPower && buyingPower.annualIncome > 0 ? `
+💵 BUYING POWER INSIGHTS:
 - Assess the DTI ratio (${buyingPower.actualDTI}%) - Is it healthy? (Under 30% is excellent, 30-43% is acceptable, above 43% is risky)
 - Evaluate their estimated buying power of $${buyingPower.estimatedBuyingPower?.toLocaleString() || '0'} based on their down payment
+- Provide Conservative, Standard, and Aggressive spending capacity estimates (10%, 20%, 30% of disposable income)
 - Provide actionable recommendations to improve buying power if needed
 ` : ''}
 
-${financialSummary.propertyPrice > 0 && buyingPower.propertyLocation ? `
-MARKET VALUATION INSIGHTS (CRITICAL - Include local market context):
-- Research and provide insights on ${buyingPower.propertyLocation} market conditions
-- Is $${financialSummary.propertyPrice?.toLocaleString()} reasonable for a ${buyingPower.propertyType} in this area?
-- Compare to typical market prices and trends in ${buyingPower.propertyLocation}
-- Mention any market factors (appreciation trends, inventory levels, demand)
+${mortgage && mortgage.homePrice > 0 ? `
+🏡 MORTGAGE ANALYSIS:
+- Break down what makes up the monthly payment (P&I, taxes, insurance, HOA, PMI)
+- Is this a manageable payment for most homebuyers?
+${mortgage.downPaymentPercent < 20 ? `- Note that PMI is required (down payment is ${mortgage.downPaymentPercent}% - less than 20%)` : '- Good: No PMI needed (down payment ≥ 20%)'}
+- Compare interest rate (${mortgage.interestRate}%) to current market averages
+- Mention if FHA, VA, or USDA might be better loan options
 ` : ''}
 
-${financialSummary.propertyPrice > 0 && buyingPower.annualIncome > 0 ? `
-COMBINED ANALYSIS:
-- Compare the property price ($${financialSummary.propertyPrice?.toLocaleString()}) against their buying power ($${buyingPower.estimatedBuyingPower?.toLocaleString()})
-- Is this property within their budget? If not, by how much?
-- Provide specific recommendations based on the gap (if any)
-` : ''}
-
-${financialSummary.monthlyCashFlow !== null && financialSummary.monthlyCashFlow !== undefined ? `
-INVESTMENT ANALYSIS:
-- Evaluate the investment potential with ${financialSummary.monthlyCashFlow >= 0 ? 'positive' : 'negative'} cash flow of $${financialSummary.monthlyCashFlow?.toLocaleString()}
-- Assess the ${financialSummary.annualROI?.toFixed(2)}% ROI - is this competitive?
-- Comment on the payback period and long-term potential
+${buyingPower && buyingPower.annualIncome > 0 && mortgage && mortgage.homePrice > 0 ? `
+🔀 COMBINED ANALYSIS:
+- Compare the mortgage payment ($${mortgage.totalMonthlyPayment?.toLocaleString()}) to max affordable payment ($${buyingPower.maxAffordablePayment?.toLocaleString()})
+- Is this mortgage affordable based on their buying power?
+- Calculate housing expense ratio: What % of monthly income goes to this payment?
+- Provide specific recommendations based on affordability gap (if any)
 ` : ''}
 
 Requirements:
@@ -82,8 +81,8 @@ Requirements:
 - Be specific and data-driven
 - Professional yet friendly tone
 - Focus on actionable insights
-- ALWAYS include market reasoning when property location is provided
-- Analyze segments independently when only partial data is provided`;
+- Analyze calculators independently when only partial data is provided
+- For mortgage analysis, explain PITI components and affordability`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -94,7 +93,7 @@ Requirements:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are a knowledgeable real estate investment advisor providing clear, actionable insights.' },
+          { role: 'system', content: 'You are a knowledgeable U.S. mortgage and real estate financial advisor providing clear, actionable insights.' },
           { role: 'user', content: prompt }
         ],
       }),
