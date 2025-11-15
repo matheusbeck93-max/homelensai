@@ -277,8 +277,8 @@ export default function Index() {
                         </DropdownMenuItem>)}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="ghost" onClick={() => navigate('/chat')} className="hidden sm:flex">
-                  Chat
+                <Button variant="ghost" onClick={() => navigate('/investor')} className="hidden sm:flex">
+                  HomeLens Investor
                 </Button>
                 <Button variant="ghost" onClick={() => navigate('/calculators')} className="hidden sm:flex">
                   Calculator
@@ -290,6 +290,9 @@ export default function Index() {
                   Sign Out
                 </Button>
               </> : <>
+                <Button variant="ghost" onClick={() => navigate('/investor')} className="hidden sm:flex">
+                  HomeLens Investor
+                </Button>
                 <Button variant="ghost" onClick={() => navigate('/calculators')} className="hidden sm:flex">
                   Calculator
                 </Button>

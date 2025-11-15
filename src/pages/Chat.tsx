@@ -142,11 +142,14 @@ export default function Chat() {
       
       setInput(message);
       
-      // If coming from calculators (skipAuthCheck), send immediately
-      if (skipAuthCheck) {
+      // If coming from calculators (skipAuthCheck) and user is authenticated, send immediately
+      if (skipAuthCheck && isAuthenticated) {
         setTimeout(() => {
           handleSendWithQuery(message);
         }, 500);
+      } else if (skipAuthCheck && !isAuthenticated) {
+        // If not authenticated but skipAuthCheck is true, just set the message without showing dialog
+        // The user can send it manually when ready
       } else {
         // Normal flow - auto-send after delay
         setTimeout(() => {
