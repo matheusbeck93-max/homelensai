@@ -21,6 +21,18 @@ export default function Calculators() {
   const [monthlyDebts, setMonthlyDebts] = useState(0);
   const [downPaymentAvailable, setDownPaymentAvailable] = useState(0);
 
+  // Mortgage Calculator
+  const [homePrice, setHomePrice] = useState(0);
+  const [downPayment, setDownPayment] = useState(0);
+  const [interestRate, setInterestRate] = useState(0);
+  const [loanTerm, setLoanTerm] = useState(30);
+  const [propertyTaxRate, setPropertyTaxRate] = useState(1.2);
+  const [insuranceAnnual, setInsuranceAnnual] = useState(0);
+  const [hoaMonthly, setHoaMonthly] = useState(0);
+  const [pmiRate, setPmiRate] = useState(0.5);
+  const [points, setPoints] = useState(0);
+  const [closingCosts, setClosingCosts] = useState(0);
+
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -46,7 +58,36 @@ export default function Calculators() {
     setAnnualIncome(0);
     setMonthlyDebts(0);
     setDownPaymentAvailable(0);
+    setHomePrice(0);
+    setDownPayment(0);
+    setInterestRate(0);
+    setLoanTerm(30);
+    setPropertyTaxRate(1.2);
+    setInsuranceAnnual(0);
+    setHoaMonthly(0);
+    setPmiRate(0.5);
+    setPoints(0);
+    setClosingCosts(0);
     setAiInsights("");
+  };
+
+  const handleResetBuyingPower = () => {
+    setAnnualIncome(0);
+    setMonthlyDebts(0);
+    setDownPaymentAvailable(0);
+  };
+
+  const handleResetMortgage = () => {
+    setHomePrice(0);
+    setDownPayment(0);
+    setInterestRate(0);
+    setLoanTerm(30);
+    setPropertyTaxRate(1.2);
+    setInsuranceAnnual(0);
+    setHoaMonthly(0);
+    setPmiRate(0.5);
+    setPoints(0);
+    setClosingCosts(0);
   };
 
   const handleSave = async () => {
@@ -95,6 +136,30 @@ export default function Calculators() {
   // Buying power is independent - just show what they can afford based on down payment
   const estimatedBuyingPower = downPaymentAvailable > 0 ? downPaymentAvailable / 0.20 : 0; // Assuming 20% down standard
 
+  // Mortgage Calculations
+  const loanAmount = homePrice - downPayment;
+  const downPaymentPercent = homePrice > 0 ? (downPayment / homePrice) * 100 : 0;
+  const monthlyInterestRate = interestRate / 100 / 12;
+  const numberOfPayments = loanTerm * 12;
+  
+  // Calculate monthly P&I using amortization formula
+  const monthlyPI = loanAmount > 0 && monthlyInterestRate > 0
+    ? loanAmount * (monthlyInterestRate * Math.pow(1 + monthlyInterestRate, numberOfPayments)) / 
+      (Math.pow(1 + monthlyInterestRate, numberOfPayments) - 1)
+    : 0;
+  
+  // Property taxes (annual to monthly)
+  const monthlyPropertyTax = (homePrice * (propertyTaxRate / 100)) / 12;
+  
+  // Insurance (annual to monthly)
+  const monthlyInsurance = insuranceAnnual > 0 ? insuranceAnnual / 12 : (homePrice * 0.0035) / 12; // Estimate if not provided
+  
+  // PMI (only if down payment < 20%)
+  const monthlyPMI = downPaymentPercent < 20 ? (loanAmount * (pmiRate / 100)) / 12 : 0;
+  
+  // Total monthly payment (PITI + HOA + PMI)
+  const totalMonthlyPayment = monthlyPI + monthlyPropertyTax + monthlyInsurance + hoaMonthly + monthlyPMI;
+
   const handleGenerateInsights = async () => {
     if (!user) {
       toast({
@@ -116,6 +181,25 @@ export default function Calculators() {
             estimatedBuyingPower: Math.round(estimatedBuyingPower),
             maxAffordablePayment: Math.round(maxAffordablePayment),
             actualDTI: actualDTI.toFixed(2)
+          },
+          mortgage: {
+            homePrice,
+            downPayment,
+            downPaymentPercent: downPaymentPercent.toFixed(2),
+            loanAmount,
+            interestRate,
+            loanTerm,
+            monthlyPI: Math.round(monthlyPI),
+            monthlyPropertyTax: Math.round(monthlyPropertyTax),
+            monthlyInsurance: Math.round(monthlyInsurance),
+            monthlyPMI: Math.round(monthlyPMI),
+            hoaMonthly,
+            totalMonthlyPayment: Math.round(totalMonthlyPayment),
+            propertyTaxRate,
+            insuranceAnnual,
+            pmiRate,
+            points,
+            closingCosts
           }
         }
       });
@@ -142,7 +226,7 @@ export default function Calculators() {
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-bold">Buying Power Calculator</h1>
+            <h1 className="text-xl font-bold">Financial Calculators</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleReset}>
@@ -174,11 +258,7 @@ export default function Calculators() {
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => {
-                      setAnnualIncome(0);
-                      setMonthlyDebts(0);
-                      setDownPaymentAvailable(0);
-                    }}
+                    onClick={handleResetBuyingPower}
                   >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
@@ -215,6 +295,134 @@ export default function Calculators() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Mortgage Calculator */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Mortgage Calculator
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleResetMortgage}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
+                <CardDescription>Calculate your monthly PITI payment</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Home Price ($)</Label>
+                    <Input
+                      type="number"
+                      value={homePrice || ""}
+                      onChange={(e) => setHomePrice(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Down Payment ($)</Label>
+                    <Input
+                      type="number"
+                      value={downPayment || ""}
+                      onChange={(e) => setDownPayment(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Interest Rate (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={interestRate || ""}
+                      onChange={(e) => setInterestRate(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Loan Term (years)</Label>
+                    <Input
+                      type="number"
+                      value={loanTerm || ""}
+                      onChange={(e) => setLoanTerm(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Property Tax Rate (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={propertyTaxRate || ""}
+                      onChange={(e) => setPropertyTaxRate(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Annual Insurance ($)</Label>
+                    <Input
+                      type="number"
+                      value={insuranceAnnual || ""}
+                      onChange={(e) => setInsuranceAnnual(Number(e.target.value))}
+                      className="mt-1"
+                      placeholder="Auto-estimated if empty"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Monthly HOA ($)</Label>
+                    <Input
+                      type="number"
+                      value={hoaMonthly || ""}
+                      onChange={(e) => setHoaMonthly(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>PMI Rate (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={pmiRate || ""}
+                      onChange={(e) => setPmiRate(Number(e.target.value))}
+                      className="mt-1"
+                      placeholder="If down < 20%"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Points (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={points || ""}
+                      onChange={(e) => setPoints(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Closing Costs ($)</Label>
+                    <Input
+                      type="number"
+                      value={closingCosts || ""}
+                      onChange={(e) => setClosingCosts(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Results Section */}
@@ -248,6 +456,53 @@ export default function Calculators() {
                     <p className="text-2xl font-bold">${downPaymentAvailable.toLocaleString()}</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Mortgage Results */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  Monthly Payment Breakdown (PITI)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <span className="text-sm text-muted-foreground">Principal & Interest</span>
+                    <span className="font-semibold">${Math.round(monthlyPI).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <span className="text-sm text-muted-foreground">Property Taxes</span>
+                    <span className="font-semibold">${Math.round(monthlyPropertyTax).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <span className="text-sm text-muted-foreground">Homeowners Insurance</span>
+                    <span className="font-semibold">${Math.round(monthlyInsurance).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b">
+                    <span className="text-sm text-muted-foreground">HOA Fees</span>
+                    <span className="font-semibold">${hoaMonthly.toLocaleString()}</span>
+                  </div>
+                  {monthlyPMI > 0 && (
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-sm text-muted-foreground">PMI (Down &lt; 20%)</span>
+                      <span className="font-semibold text-yellow-600">${Math.round(monthlyPMI).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="font-bold">Total Monthly Payment</span>
+                    <span className="text-2xl font-bold text-primary">${Math.round(totalMonthlyPayment).toLocaleString()}</span>
+                  </div>
+                </div>
+                {downPaymentPercent < 20 && (
+                  <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      ⚠️ PMI required: Down payment is {downPaymentPercent.toFixed(1)}% (less than 20%)
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
