@@ -60,15 +60,10 @@ export default function Chat() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [showProfileSelector, setShowProfileSelector] = useState(true);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasShownAuthDialog, setHasShownAuthDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedChatsToDelete, setSelectedChatsToDelete] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [guestMessageCount, setGuestMessageCount] = useState(0);
-  const [showGuestModal, setShowGuestModal] = useState(false);
-  const [skipAuthDialog, setSkipAuthDialog] = useState(false); // Track if auth dialog should be skipped
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -123,13 +118,6 @@ export default function Chat() {
   useEffect(() => {
     const initialPrompt = location.state?.initialPrompt;
     const initialMessage = location.state?.initialMessage;
-    const skipAuthCheck = location.state?.skipAuthCheck; // For calculator insights
-    
-    // Persist skipAuthCheck flag to prevent auth dialog from showing
-    if (skipAuthCheck) {
-      setSkipAuthDialog(true);
-      setHasShownAuthDialog(true); // Mark as shown to prevent future dialogs
-    }
     
     if (initialPrompt || initialMessage) {
       const message = initialPrompt || initialMessage;
@@ -142,20 +130,10 @@ export default function Chat() {
       
       setInput(message);
       
-      // If coming from calculators (skipAuthCheck) and user is authenticated, send immediately
-      if (skipAuthCheck && isAuthenticated) {
-        setTimeout(() => {
-          handleSendWithQuery(message);
-        }, 500);
-      } else if (skipAuthCheck && !isAuthenticated) {
-        // If not authenticated but skipAuthCheck is true, just set the message without showing dialog
-        // The user can send it manually when ready
-      } else {
-        // Normal flow - auto-send after delay
-        setTimeout(() => {
-          handleSendWithQuery(message);
-        }, 500);
-      }
+      // Auto-send after delay
+      setTimeout(() => {
+        handleSendWithQuery(message);
+      }, 500);
       
       // Clear the navigation state
       navigate("/chat", {
@@ -227,15 +205,6 @@ export default function Chat() {
         properties: properties
       };
       setMessages(prev => [...prev, assistantMessage]);
-
-      // Show auth dialog after first response if not authenticated and hasn't been shown yet
-      // Don't show if skipAuthDialog is true (coming from calculator insights)
-      if (!isAuthenticated && !hasShownAuthDialog && !skipAuthDialog) {
-        setTimeout(() => {
-          setShowAuthDialog(true);
-          setHasShownAuthDialog(true);
-        }, 1000);
-      }
 
       // Save conversation if authenticated
       if (isAuthenticated) {
@@ -497,15 +466,6 @@ export default function Chat() {
   const handleSendWithProperty = async (propertyData?: Property) => {
     if (!input.trim() && !imageFile && !propertyData || loading) return;
     if (!input.trim() && !imageFile || loading) return;
-
-    // Check for guest user message limit
-    if (!isAuthenticated) {
-      if (guestMessageCount >= 5) {
-        setShowGuestModal(true);
-        return;
-      }
-      setGuestMessageCount(prev => prev + 1);
-    }
 
     let conversationId = currentConversationId;
 
@@ -956,52 +916,6 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Auth Dialog */}
-      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sign in to continue</DialogTitle>
-            <DialogDescription>
-              Create an account or sign in to save your conversations and access all features.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 mt-4">
-            <Button onClick={() => navigate("/auth")} className="w-full">
-              Sign In / Sign Up
-            </Button>
-            <Button variant="outline" onClick={() => setShowAuthDialog(false)} className="w-full">
-              Continue as Guest
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Guest Message Limit Dialog */}
-      <Dialog open={showGuestModal} onOpenChange={setShowGuestModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>You've reached the guest limit</DialogTitle>
-            <DialogDescription>
-              You've sent 5 messages as a guest. Sign up to continue using HomeLens AI or continue temporarily as a guest.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-3 mt-4">
-            <Button onClick={() => navigate("/auth")} className="w-full">
-              Sign Up / Sign In
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowGuestModal(false);
-                setGuestMessageCount(0); // Reset counter to allow continuation
-              }} 
-              className="w-full"
-            >
-              Continue as Guest
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Conversations Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
