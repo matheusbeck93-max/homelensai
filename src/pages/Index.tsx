@@ -249,9 +249,9 @@ export default function Index() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl hidden sm:inline">HomeLens</span>
+            <span className="font-bold text-xl">HomeLens</span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-4">
             <div style={{ position: 'relative', zIndex: 10000 }}>
               <InstallPrompt variant="button" />
             </div>
@@ -259,7 +259,7 @@ export default function Index() {
             {user ? <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="hidden sm:flex">
+                    <Button variant="ghost">
                       <History className="h-4 w-4 mr-2" />
                       Activity
                     </Button>
@@ -277,13 +277,13 @@ export default function Index() {
                         </DropdownMenuItem>)}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="ghost" onClick={() => navigate('/investor')} className="hidden sm:flex">
+                <Button variant="ghost" onClick={() => navigate('/investor')}>
                   HomeLens Investor
                 </Button>
-                <Button variant="ghost" onClick={() => navigate('/calculators')} className="hidden sm:flex">
+                <Button variant="ghost" onClick={() => navigate('/calculators')}>
                   Calculator
                 </Button>
-                <Button variant="ghost" onClick={() => navigate('/profile')} className="hidden sm:flex">
+                <Button variant="ghost" onClick={() => navigate('/profile')}>
                   Profile
                 </Button>
                 <Button variant="outline" onClick={handleLogout} size="sm">
@@ -310,7 +310,7 @@ export default function Index() {
         <div className="relative z-10 container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
             {messages.length === 0 ? <div className="text-center space-y-8">
-                <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-12">
+                <h1 className="text-5xl font-bold text-foreground mb-12">
                   Find your new home
                 </h1>
                 <div className="bg-card border rounded-2xl p-6 shadow-lg">
