@@ -284,10 +284,10 @@ export default function Index() {
                   Sign Out
                 </Button>
               </> : <>
-                <Button variant="ghost" onClick={() => navigate('/investor')} className="hidden sm:flex">
+                <Button variant="ghost" onClick={() => navigate('/investor')}>
                   HomeLens Investor
                 </Button>
-                <Button variant="ghost" onClick={() => navigate('/calculators')} className="hidden sm:flex">
+                <Button variant="ghost" onClick={() => navigate('/calculators')}>
                   Calculator
                 </Button>
                 <Button onClick={() => navigate('/auth')} size="sm">
