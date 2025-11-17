@@ -92,25 +92,20 @@ export default function Index() {
     await supabase.auth.signOut();
     setUser(null);
   };
-
   const startVoiceRecording = () => {
     try {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      
       if (!SpeechRecognition) {
         alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
         return;
       }
-
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
-
       recognition.onstart = () => {
         setIsRecording(true);
       };
-
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setInput(transcript);
@@ -120,7 +115,6 @@ export default function Index() {
           handleSend();
         }, 100);
       };
-
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         setIsRecording(false);
@@ -128,11 +122,9 @@ export default function Index() {
           alert('Microphone access denied. Please enable microphone permissions.');
         }
       };
-
       recognition.onend = () => {
         setIsRecording(false);
       };
-
       recognitionRef.current = recognition;
       recognition.start();
     } catch (error) {
@@ -140,7 +132,6 @@ export default function Index() {
       setIsRecording(false);
     }
   };
-
   const stopVoiceRecording = () => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
@@ -252,7 +243,10 @@ export default function Index() {
             <span className="font-bold text-xl">HomeLens</span>
           </div>
           <div className="flex items-center gap-4">
-            <div style={{ position: 'relative', zIndex: 10000 }}>
+            <div style={{
+            position: 'relative',
+            zIndex: 10000
+          }}>
               <InstallPrompt variant="button" />
             </div>
             <ThemeToggle />
@@ -316,13 +310,7 @@ export default function Index() {
                 <div className="bg-card border rounded-2xl p-6 shadow-lg">
                   <Textarea placeholder={animatedPlaceholder} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="min-h-[100px] mb-4" />
                   <div className="flex gap-2">
-                    <Button 
-                      onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
-                      disabled={loading}
-                      variant={isRecording ? "destructive" : "outline"}
-                      size="lg"
-                      className={isRecording ? "animate-pulse" : ""}
-                    >
+                    <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading} variant={isRecording ? "destructive" : "outline"} size="lg" className={isRecording ? "animate-pulse" : ""}>
                       {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                     </Button>
                     <Button onClick={handleSend} disabled={loading} className="flex-1">
@@ -362,12 +350,7 @@ export default function Index() {
                 </ScrollArea>
                 <div className="mt-4 flex gap-2">
                   <Textarea placeholder="Follow up question..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="flex-1" />
-                  <Button 
-                    onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
-                    disabled={loading}
-                    variant={isRecording ? "destructive" : "outline"}
-                    className={isRecording ? "animate-pulse" : ""}
-                  >
+                  <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading} variant={isRecording ? "destructive" : "outline"} className={isRecording ? "animate-pulse" : ""}>
                     {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                   </Button>
                   <Button onClick={handleSend} disabled={loading}>
@@ -380,11 +363,7 @@ export default function Index() {
       </section>
 
       {/* Video Introduction Section - Only show when no messages */}
-      {messages.length === 0 && <section className="py-16 bg-background">
-          <div className="container mx-auto px-4">
-            
-          </div>
-        </section>}
+      {messages.length === 0}
 
       {/* Footer */}
       <footer className="bg-muted py-8">
