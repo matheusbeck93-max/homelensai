@@ -234,7 +234,7 @@ export default function Index() {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen">
+  return <div className="min-h-screen pb-24 lg:pb-8">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-40 bg-background/80 backdrop-blur-md border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">

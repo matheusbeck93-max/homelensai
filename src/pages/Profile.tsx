@@ -134,7 +134,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto px-4 py-12 pt-24 pb-24 md:pb-12">
+      <div className="container mx-auto px-4 py-12 pt-24 pb-24 lg:pb-12">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
