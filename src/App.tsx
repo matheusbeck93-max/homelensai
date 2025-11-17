@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import Index from "./pages/Index";
 import PropertyDetail from "./pages/PropertyDetail";
 import Chat from "./pages/Chat";
@@ -35,6 +36,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <MobileBottomNav />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
