@@ -240,7 +240,7 @@ export default function Calculators() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Input Section */}
           <div className="space-y-6">

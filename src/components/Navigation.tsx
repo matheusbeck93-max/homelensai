@@ -91,63 +91,6 @@ export function Navigation() {
           {/* Mobile Navigation */}
           <div className="flex md:hidden items-center gap-2">
             <ThemeToggle />
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-64">
-                <div className="flex flex-col gap-4 mt-8">
-                  {publicNavItems.map((item) => (
-                    <Button
-                      key={item.path}
-                      variant="ghost"
-                      className="justify-start"
-                      onClick={() => {
-                        navigate(item.path);
-                        setMobileOpen(false);
-                      }}
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                  {navItems.map((item) => (
-                    <Button
-                      key={item.path}
-                      variant="ghost"
-                      className="justify-start"
-                      onClick={() => {
-                        navigate(item.path);
-                        setMobileOpen(false);
-                      }}
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
-                  {user ? (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        handleLogout();
-                        setMobileOpen(false);
-                      }}
-                    >
-                      Sign Out
-                    </Button>
-                  ) : (
-                    <Button 
-                      onClick={() => {
-                        navigate('/auth');
-                        setMobileOpen(false);
-                      }}
-                    >
-                      Sign In
-                    </Button>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
       </div>

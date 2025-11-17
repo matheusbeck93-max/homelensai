@@ -299,7 +299,7 @@ export default function Index() {
       </nav>
 
       {/* Hero Section with Search */}
-      <section className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted">
+      <section className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pb-24 md:pb-0">
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
