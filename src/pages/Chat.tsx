@@ -780,7 +780,7 @@ export default function Chat() {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4 pb-24 md:pb-4">
+        <ScrollArea className="flex-1 p-4 pb-24 lg:pb-4">
           <div className="max-w-4xl mx-auto space-y-6">
             {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
             setUserProfile(profile);

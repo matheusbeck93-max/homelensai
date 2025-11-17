@@ -146,7 +146,7 @@ export default function SavedSearches() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="container mx-auto py-8 px-4 pt-24 pb-24 md:pb-8">
+        <div className="container mx-auto py-8 px-4 pt-24 pb-24 lg:pb-8">
           <Skeleton className="h-12 w-64 mb-8" />
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -161,7 +161,7 @@ export default function SavedSearches() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto py-8 px-4 pt-24 pb-24 md:pb-8">
+      <div className="container mx-auto py-8 px-4 pt-24 pb-24 lg:pb-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-2 mb-2">

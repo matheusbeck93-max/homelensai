@@ -57,7 +57,7 @@ export function Navigation() {
           </button>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2">
             {publicNavItems.map((item) => (
               <Button
                 key={item.path}
@@ -88,8 +88,8 @@ export function Navigation() {
             )}
           </div>
 
-          {/* Mobile Navigation */}
-          <div className="flex md:hidden items-center gap-2">
+          {/* Mobile/Tablet Navigation */}
+          <div className="flex lg:hidden items-center gap-2">
             <ThemeToggle />
           </div>
         </div>
