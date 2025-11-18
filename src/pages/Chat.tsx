@@ -879,7 +879,7 @@ export default function Chat() {
         </ScrollArea>
 
         {/* Input Area */}
-        <div className="border-t p-4">
+        <div className="border-t p-4 pb-24 lg:pb-4">
           <div className="max-w-4xl mx-auto">
             {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
