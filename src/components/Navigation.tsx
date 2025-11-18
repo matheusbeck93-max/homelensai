@@ -59,7 +59,7 @@ export function Navigation() {
 
           {/* Navigation - All screens */}
           <div className="flex items-center gap-2">
-            {location.pathname === '/' && (
+            {/^(\/($|home$|index$))/.test(location.pathname) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost">
