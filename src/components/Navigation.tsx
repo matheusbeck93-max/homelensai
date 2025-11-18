@@ -42,6 +42,8 @@ export function Navigation() {
   const publicNavItems = [
     { label: 'HomeLens Investor', path: '/investor' },
   ];
+  
+  const desktopOnlyNavItems = publicNavItems; // Show only on desktop
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b">
@@ -58,7 +60,7 @@ export function Navigation() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-2">
-            {publicNavItems.map((item) => (
+            {desktopOnlyNavItems.map((item) => (
               <Button
                 key={item.path}
                 variant="ghost"
