@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Home, Menu, Sparkles, Bookmark, User, Settings } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -13,6 +13,7 @@ import {
 
 export function Navigation() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<any>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -58,29 +59,31 @@ export function Navigation() {
 
           {/* Navigation - All screens */}
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost">
-                  <Menu className="h-5 w-5" />
-                  <span className="ml-2">Features</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {allFeatureItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <DropdownMenuItem
-                      key={item.path}
-                      onClick={() => navigate(item.path)}
-                      className="cursor-pointer"
-                    >
-                      <Icon className="h-4 w-4 mr-2" />
-                      {item.label}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {location.pathname === '/' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost">
+                    <Menu className="h-5 w-5" />
+                    <span className="ml-2">Features</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {allFeatureItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={item.path}
+                        onClick={() => navigate(item.path)}
+                        className="cursor-pointer"
+                      >
+                        <Icon className="h-4 w-4 mr-2" />
+                        {item.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             
             <ThemeToggle />
             
