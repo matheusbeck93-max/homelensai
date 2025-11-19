@@ -10,6 +10,8 @@ import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { PropertyComparison } from "@/components/PropertyComparison";
 import PropertyCarousel from "@/components/PropertyCarousel";
+import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
+import { UIBlock } from "@/types/ui-blocks";
 import ReactMarkdown from "react-markdown";
 import heroBackground from "@/assets/american-house-hero.jpg";
 import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
@@ -296,11 +298,20 @@ export default function Index() {
         }
       });
       if (error) throw error;
-      let toolType, toolData;
+      let toolType, toolData, uiBlock;
       let cleanedResponse = data.response;
+      
+      // Try to parse JSON response for tools or UI blocks
       try {
         const jsonResponse = JSON.parse(data.response);
-        if (jsonResponse.type) {
+        
+        // Check for UI block
+        if (jsonResponse.type && jsonResponse.type.startsWith('ui_block/')) {
+          uiBlock = jsonResponse as UIBlock;
+          cleanedResponse = jsonResponse.message || '';
+        }
+        // Check for legacy tool format
+        else if (jsonResponse.type) {
           toolType = jsonResponse.type;
           toolData = jsonResponse.data;
           cleanedResponse = jsonResponse.message || '';
@@ -312,7 +323,8 @@ export default function Index() {
         role: "assistant",
         content: cleanedResponse,
         toolType,
-        toolData
+        toolData,
+        uiBlock
       }]);
     } catch (error) {
       console.error(error);
@@ -447,21 +459,38 @@ export default function Index() {
                 </div>
                 <ScrollArea className="flex-1 min-h-0 pr-4">
                   <div className="space-y-4">
-                    {messages.map((msg, i) => <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                        {msg.role === 'assistant' && <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                            <Bot className="h-5 w-5 text-primary-foreground" />
-                          </div>}
-                        <div className={`max-w-[80%] rounded-2xl p-4 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                          <ReactMarkdown components={{
-                      a: MarkdownLink
-                    }}>{msg.content}</ReactMarkdown>
-                          {msg.toolType === 'calculator' && <InlineCalculator />}
-                          {msg.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={msg.toolData} />}
-                          {msg.toolType === 'property_comparison' && msg.toolData && <div className="mt-4">
-                              <PropertyComparison properties={msg.toolData} onRemove={() => {}} onClear={() => {}} />
-                            </div>}
-                        </div>
-                      </div>)}
+                     {messages.map((msg, i) => (
+                       <div key={i}>
+                         {/* Render UI Block if present (above the message) */}
+                         {msg.role === 'assistant' && msg.uiBlock && (
+                           <div className="mb-4">
+                             <UIBlockRenderer 
+                               block={msg.uiBlock}
+                               onPropertyAnalyze={(property) => {
+                                 setInput(`Analyze this property: ${property.listingUrl || property.address}`);
+                               }}
+                             />
+                           </div>
+                         )}
+                         
+                         {/* Message content */}
+                         <div className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                           {msg.role === 'assistant' && <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                               <Bot className="h-5 w-5 text-primary-foreground" />
+                             </div>}
+                           <div className={`max-w-[80%] rounded-2xl p-4 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                             <ReactMarkdown components={{
+                         a: MarkdownLink
+                       }}>{msg.content}</ReactMarkdown>
+                             {msg.toolType === 'calculator' && <InlineCalculator />}
+                             {msg.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={msg.toolData} />}
+                             {msg.toolType === 'property_comparison' && msg.toolData && <div className="mt-4">
+                                 <PropertyComparison properties={msg.toolData} onRemove={() => {}} onClear={() => {}} />
+                               </div>}
+                           </div>
+                         </div>
+                       </div>
+                     ))}
                     {loading && <div className="text-muted-foreground">Thinking...</div>}
                     <div ref={scrollRef} />
                   </div>
