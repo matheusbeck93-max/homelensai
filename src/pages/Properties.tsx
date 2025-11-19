@@ -16,17 +16,20 @@ import { Search } from "lucide-react";
 interface Property {
   id: string;
   address: string;
-  city: string;
-  state: string;
-  price: number;
-  beds: number;
-  baths: number;
-  sqft: number;
+  city?: string | null;
+  state?: string | null;
+  price: number | null;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
   image_urls?: string[];
+  photoUrl?: string | null;
   image_url?: string;
   description?: string;
   externalLink?: string;
+  listingUrl?: string | null;
   zip?: string;
+  status?: string | null;
 }
 
 export default function Properties() {
@@ -135,7 +138,16 @@ export default function Properties() {
         {/* Property Carousel */}
         {properties.length > 0 && (
           <PropertyCarousel 
-            properties={properties.map(p => ({ ...p, image_url: p.image_url || p.image_urls?.[0] || '' }))} 
+            properties={properties.map(p => ({ 
+              ...p, 
+              photoUrl: p.image_url || p.image_urls?.[0] || null,
+              city: p.city || null,
+              state: p.state || null,
+              price: p.price || null,
+              beds: p.beds || null,
+              baths: p.baths || null,
+              sqft: p.sqft || null
+            }))} 
             onSelectProperty={handlePropertySelect}
           />
         )}

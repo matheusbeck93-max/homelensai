@@ -16,16 +16,19 @@ interface Message {
 interface Property {
   id: string;
   address: string;
-  city: string;
-  state: string;
-  price: number;
-  beds: number;
-  baths: number;
-  sqft: number;
+  city?: string | null;
+  state?: string | null;
+  price: number | null;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
   image_urls?: string[];
+  photoUrl?: string | null;
   image_url?: string;
   description?: string;
   externalLink?: string;
+  listingUrl?: string | null;
+  status?: string | null;
 }
 
 interface FollowUpChatProps {
