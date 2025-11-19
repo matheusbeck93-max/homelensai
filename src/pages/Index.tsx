@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, Bot, Send, Plus, History, Mic, MicOff } from "lucide-react";
+import { Home, Bot, Send, Plus, History, Mic, MicOff, Search as SearchIcon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { PropertyComparison } from "@/components/PropertyComparison";
+import PropertyCarousel from "@/components/PropertyCarousel";
 import ReactMarkdown from "react-markdown";
 import heroBackground from "@/assets/american-house-hero.jpg";
 import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
@@ -16,6 +17,7 @@ import { Play } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
+import { useToast } from "@/hooks/use-toast";
 const MarkdownLink = ({
   href,
   children
@@ -24,6 +26,7 @@ const MarkdownLink = ({
   </a>;
 export default function Index() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
@@ -31,6 +34,8 @@ export default function Index() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pastConversations, setPastConversations] = useState<any[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [searchProperties, setSearchProperties] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
@@ -180,11 +185,92 @@ export default function Index() {
     setInput("");
     setConversationId(null);
   };
+  
+  const handlePropertySearch = async (query: string) => {
+    setSearchLoading(true);
+    try {
+      // Extract location and other parameters from natural language query
+      // For now, we'll parse basic patterns
+      const priceMatch = query.match(/under (\$?[\d,]+k?)/i);
+      const bedsMatch = query.match(/(\d+)\s*(bed|bedroom)/i);
+      const cityStateMatch = query.match(/in\s+([a-z\s,]+)/i);
+      
+      let location = '';
+      if (cityStateMatch) {
+        location = cityStateMatch[1].trim();
+      }
+      
+      if (!location) {
+        toast({
+          title: "Location Required",
+          description: "Please specify a location in your search (e.g., 'in Austin, TX')",
+          variant: "destructive"
+        });
+        setSearchLoading(false);
+        return;
+      }
+      
+      const params: any = { location };
+      
+      if (priceMatch) {
+        const priceStr = priceMatch[1].replace(/[$,]/g, '');
+        const price = priceStr.includes('k') 
+          ? parseInt(priceStr) * 1000 
+          : parseInt(priceStr);
+        params.maxPrice = price;
+      }
+      
+      if (bedsMatch) {
+        params.minBeds = parseInt(bedsMatch[1]);
+      }
+      
+      const { data, error } = await supabase.functions.invoke('search-listings', {
+        body: params
+      });
+      
+      if (error) throw error;
+      
+      if (data?.listings && data.listings.length > 0) {
+        setSearchProperties(data.listings);
+        toast({
+          title: "Properties Found",
+          description: `Found ${data.listings.length} properties matching your criteria`
+        });
+      } else {
+        toast({
+          title: "No Properties Found",
+          description: "Try adjusting your search criteria",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: "Search Error",
+        description: "Failed to search properties. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+  
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
-    // Always redirect to /chat with the new prompt to start a fresh conversation
+    // Check if this looks like a property search query
     if (messages.length === 0) {
+      const isPropertySearch = (
+        /find|search|show|looking for/i.test(input) && 
+        (/home|house|property|condo|apartment|in\s+[a-z]/i.test(input))
+      );
+      
+      if (isPropertySearch) {
+        await handlePropertySearch(input);
+        return;
+      }
+      
+      // Otherwise redirect to chat for AI conversation
       navigate('/chat', {
         state: {
           initialPrompt: input,
@@ -307,15 +393,47 @@ export default function Index() {
                 <h1 className="text-5xl font-bold text-foreground mb-12">
                   Find your new home
                 </h1>
+                
+                {/* Property Search Results */}
+                {searchProperties.length > 0 && (
+                  <div className="mb-8">
+                    <PropertyCarousel 
+                      properties={searchProperties}
+                      onSelectProperty={(property) => {
+                        toast({
+                          title: "Property Selected",
+                          description: `Analyzing ${property.address}`
+                        });
+                      }}
+                    />
+                  </div>
+                )}
+                
                 <div className="bg-card border rounded-2xl p-6 shadow-lg">
-                  <Textarea placeholder={animatedPlaceholder} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="min-h-[100px] mb-4" />
+                  <Textarea 
+                    placeholder={searchProperties.length > 0 ? "Ask about these properties or search again..." : animatedPlaceholder}
+                    value={input} 
+                    onChange={e => setInput(e.target.value)} 
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
+                    className="min-h-[100px] mb-4" 
+                    disabled={searchLoading}
+                  />
                   <div className="flex gap-2">
-                    <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading} variant={isRecording ? "destructive" : "outline"} size="lg" className={isRecording ? "animate-pulse" : ""}>
+                    <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading || searchLoading} variant={isRecording ? "destructive" : "outline"} size="lg" className={isRecording ? "animate-pulse" : ""}>
                       {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                     </Button>
-                    <Button onClick={handleSend} disabled={loading} className="flex-1">
-                      <Send className="h-4 w-4 mr-2" />
-                      Ask HomeLens
+                    <Button onClick={handleSend} disabled={loading || searchLoading} className="flex-1">
+                      {searchLoading ? (
+                        <>
+                          <SearchIcon className="h-4 w-4 mr-2 animate-spin" />
+                          Searching...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          {searchProperties.length > 0 ? "Ask HomeLens" : "Search Properties"}
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>

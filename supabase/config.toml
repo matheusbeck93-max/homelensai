@@ -24,3 +24,6 @@ verify_jwt = false
 [functions.calculator-insights]
 verify_jwt = true
 
+[functions.search-listings]
+verify_jwt = false
+

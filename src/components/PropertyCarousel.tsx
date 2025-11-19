@@ -7,14 +7,16 @@ import { Home, Bed, Bath, Square } from "lucide-react";
 interface Property {
   id: string;
   address: string;
-  city: string;
-  state: string;
-  price: number;
-  beds: number;
-  baths: number;
-  sqft: number;
-  image_url: string;
+  city?: string | null;
+  state?: string | null;
+  price: number | null;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
+  photoUrl: string | null;
+  listingUrl?: string | null;
   description?: string;
+  status?: string | null;
 }
 
 interface PropertyCarouselProps {
@@ -43,36 +45,55 @@ export default function PropertyCarousel({ properties, onSelectProperty }: Prope
             <CarouselItem key={property.id} className="md:basis-1/2 lg:basis-1/3">
               <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
                 <div onClick={() => onSelectProperty(property)}>
-                  <div className="aspect-video relative overflow-hidden">
-                    <img
-                      src={property.image_url}
-                      alt={property.address}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="aspect-video relative overflow-hidden bg-muted">
+                    {property.photoUrl ? (
+                      <img
+                        src={property.photoUrl}
+                        alt={property.address}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Home className="h-16 w-16 text-muted-foreground/20" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
-                    <p className="text-2xl font-bold text-primary mb-2">
-                      {formatPrice(property.price)}
-                    </p>
+                    {property.price && (
+                      <p className="text-2xl font-bold text-primary mb-2">
+                        {formatPrice(property.price)}
+                      </p>
+                    )}
                     <p className="text-sm font-medium mb-2 line-clamp-1">
                       {property.address}
                     </p>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      {property.city}, {property.state}
-                    </p>
+                    {(property.city || property.state) && (
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {property.city}{property.city && property.state ? ', ' : ''}{property.state}
+                      </p>
+                    )}
                     <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Bed className="h-4 w-4" />
-                        <span>{property.beds} beds</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Bath className="h-4 w-4" />
-                        <span>{property.baths} baths</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Square className="h-4 w-4" />
-                        <span>{property.sqft} sqft</span>
-                      </div>
+                      {property.beds !== null && (
+                        <div className="flex items-center gap-1">
+                          <Bed className="h-4 w-4" />
+                          <span>{property.beds} beds</span>
+                        </div>
+                      )}
+                      {property.baths !== null && (
+                        <div className="flex items-center gap-1">
+                          <Bath className="h-4 w-4" />
+                          <span>{property.baths} baths</span>
+                        </div>
+                      )}
+                      {property.sqft !== null && (
+                        <div className="flex items-center gap-1">
+                          <Square className="h-4 w-4" />
+                          <span>{property.sqft} sqft</span>
+                        </div>
+                      )}
                     </div>
                     {property.description && (
                       <p className="text-xs text-muted-foreground mt-3 line-clamp-2">
