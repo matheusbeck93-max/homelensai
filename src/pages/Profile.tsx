@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Navigation } from "@/components/Navigation";
 import { EmptyState } from "@/components/EmptyState";
-import { User, LogOut, Heart, Home, DollarSign, MapPin, TrendingUp, Settings } from "lucide-react";
+import { User, LogOut, Heart, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
 
 interface Property {
   id: string;
@@ -134,7 +134,20 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto px-4 py-12 pt-24 pb-24 lg:pb-12">
+      
+      {/* Back Button */}
+      <div className="container mx-auto px-4 pt-20">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/')}
+          className="mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Home
+        </Button>
+      </div>
+      
+      <div className="container mx-auto px-4 pb-24 lg:pb-12">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
