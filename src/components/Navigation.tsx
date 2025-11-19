@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Home, Menu, Sparkles, Bookmark, User, Settings } from "lucide-react";
+import { Home, Menu, Sparkles, Calculator } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,13 +35,9 @@ export function Navigation() {
     navigate('/');
   };
 
-  const allFeatureItems = [
+  const featureItems = [
     { label: 'HomeLens Investor', path: '/investor', icon: Sparkles },
-    ...(user ? [
-      { label: 'Saved Searches', path: '/saved-searches', icon: Bookmark },
-      { label: 'Profile', path: '/profile', icon: User },
-      { label: 'Settings', path: '/settings', icon: Settings },
-    ] : []),
+    { label: 'Calculator', path: '/calculators', icon: Calculator },
   ];
 
   return (
@@ -68,7 +64,7 @@ export function Navigation() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  {allFeatureItems.map((item) => {
+                  {featureItems.map((item) => {
                     const Icon = item.icon;
                     return (
                       <DropdownMenuItem
