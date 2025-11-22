@@ -1,16 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Home, Menu, Sparkles, Calculator, X } from "lucide-react";
+import { Home, MessageSquare, Calculator, TrendingUp, Menu } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -44,66 +38,57 @@ export function Navigation() {
     navigate('/');
   };
 
-  const featureItems = [
-    { label: 'HomeLens Investor', path: '/investor', icon: Sparkles },
-    { label: 'Calculator', path: '/calculators', icon: Calculator },
+  const navItems = [
+    { label: 'Home', path: '/', icon: Home },
+    { label: 'Chat', path: '/chat', icon: MessageSquare },
+    { label: 'Calculators', path: '/calculators', icon: Calculator },
+    { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
 
   return (
     <nav className="sticky top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <Home className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl">HomeLens</span>
-          </button>
+        {/* Logo */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
+          <Home className="h-6 w-6 text-primary" />
+          <span className="font-bold text-xl">HomeLens</span>
+        </button>
 
-          {/* Desktop Navigation */}
-          {!isMobile && (
-            <div className="flex items-center gap-2">
-              {/^(\/($|home$|index$))/.test(location.pathname) && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost">
-                      <Menu className="h-5 w-5" />
-                      <span className="ml-2">Features</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    {featureItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <DropdownMenuItem
-                          key={item.path}
-                          onClick={() => navigate(item.path)}
-                          className="cursor-pointer"
-                        >
-                          <Icon className="h-4 w-4 mr-2" />
-                          {item.label}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              
-              <ThemeToggle />
-              
-              {user ? (
-                <Button variant="outline" onClick={handleLogout}>
-                  Sign Out
+        {/* Desktop Navigation */}
+        {!isMobile && (
+          <div className="flex items-center gap-6">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <Button
+                  key={item.path}
+                  variant="ghost"
+                  onClick={() => navigate(item.path)}
+                  className={isActive ? "text-primary" : ""}
+                >
+                  <Icon className="h-4 w-4 mr-2" />
+                  {item.label}
                 </Button>
-              ) : (
-                <Button onClick={() => navigate('/auth')}>
-                  Sign In
-                </Button>
-              )}
-            </div>
-          )}
+              );
+            })}
+            
+            <ThemeToggle />
+            
+            {user ? (
+              <Button variant="outline" onClick={handleLogout}>
+                Sign Out
+              </Button>
+            ) : (
+              <Button onClick={() => navigate('/auth')}>
+                Sign In
+              </Button>
+            )}
+          </div>
+        )}
 
           {/* Mobile Hamburger Menu */}
           {isMobile && (
@@ -132,9 +117,8 @@ export function Navigation() {
                       Home
                     </Button>
                     
-                    <div className="border-t pt-4">
-                      <p className="text-sm font-medium mb-2 px-2">Features</p>
-                      {featureItems.map((item) => {
+                    <div className="space-y-1">
+                      {navItems.slice(1).map((item) => {
                         const Icon = item.icon;
                         return (
                           <Button
@@ -208,7 +192,6 @@ export function Navigation() {
               </Sheet>
             </div>
           )}
-        </div>
       </div>
     </nav>
   );
