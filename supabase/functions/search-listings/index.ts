@@ -30,48 +30,35 @@ interface HomeLensListing {
   zip?: string;
 }
 
-// TypeScript interfaces for Realty in US API response
-interface RealtyAddress {
-  line?: string;
-  city?: string;
-  state_code?: string;
-  postal_code?: string;
-}
-
-interface RealtyLocation {
-  address?: RealtyAddress;
-}
-
-interface RealtyDescription {
-  beds?: number;
-  baths?: number;
-  sqft?: number;
-  list_price?: number;
-  sold_price?: number;
-  type?: string;
-}
-
-interface RealtyPhoto {
-  href?: string;
-}
-
-interface RealtyProperty {
+// TypeScript interfaces for Realtor API response
+interface RealtorProperty {
   property_id?: string;
   listing_id?: string;
-  location?: RealtyLocation;
-  description?: RealtyDescription;
-  primary_photo?: RealtyPhoto;
-  photos?: RealtyPhoto[];
+  address?: {
+    line?: string;
+    city?: string;
+    state_code?: string;
+    postal_code?: string;
+  };
+  price?: number;
+  list_price?: number;
+  beds?: number;
+  beds_min?: number;
+  baths?: number;
+  baths_min?: number;
+  sqft?: number;
+  building_size?: {
+    size?: number;
+  };
+  primary_photo?: {
+    href?: string;
+  };
+  thumbnail?: string;
+  photo?: string;
+  rdc_web_url?: string;
   href?: string;
   status?: string;
-}
-
-interface RealtyApiResponse {
-  data?: {
-    home_search?: {
-      results?: RealtyProperty[];
-    };
-  };
+  prop_status?: string;
 }
 
 // TODO: Implement caching for search results
@@ -117,7 +104,7 @@ serve(async (req) => {
     const city = locationParts[0];
     const stateOrZip = locationParts[1] || '';
 
-    // Build query parameters for Realty in US API
+    // Build query parameters for Realtor API
     const params = new URLSearchParams();
     
     // Location parameters
@@ -139,7 +126,7 @@ serve(async (req) => {
     if (minBeds) params.append('beds_min', minBeds.toString());
     if (maxBeds) params.append('beds_max', maxBeds.toString());
 
-    // Property type mapping
+    // Property type mapping for Realtor API
     if (propertyType && propertyType !== 'any') {
       const typeMap: Record<string, string> = {
         'house': 'single_family',
@@ -152,16 +139,17 @@ serve(async (req) => {
 
     params.append('limit', '20');
     params.append('offset', '0');
+    params.append('sort', 'relevance');
 
-    const apiUrl = `https://realty-in-us.p.rapidapi.com/properties/v3/list?${params.toString()}`;
+    const apiUrl = `https://realtor.p.rapidapi.com/api/v2/for-sale?${params.toString()}`;
     
-    console.log('Calling Realty API:', apiUrl);
+    console.log('Calling Realtor API:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'X-RapidAPI-Key': rapidApiKey,
-        'X-RapidAPI-Host': 'realty-in-us.p.rapidapi.com'
+        'X-RapidAPI-Host': 'realtor.p.rapidapi.com'
       }
     });
 
@@ -173,7 +161,7 @@ serve(async (req) => {
       if (response.status === 401 || response.status === 403) {
         return new Response(
           JSON.stringify({ 
-            error: 'Authentication or API key error with Realty in US.',
+            error: 'Authentication or API key error with Realtor API.',
             details: 'Please check your RapidAPI key configuration.'
           }),
           { 
@@ -186,7 +174,7 @@ serve(async (req) => {
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ 
-            error: 'Rate limit reached for Realty in US API.',
+            error: 'Rate limit reached for Realtor API.',
             details: 'Please try again in a few moments.'
           }),
           { 
@@ -209,33 +197,32 @@ serve(async (req) => {
       );
     }
 
-    const data: RealtyApiResponse = await response.json();
-    console.log('Realty API response received, properties count:', data?.data?.home_search?.results?.length || 0);
+    const data = await response.json();
+    console.log('Realtor API response received, properties count:', data?.properties?.length || 0);
 
-    // Normalize the response to HomeLens format
-    const properties: RealtyProperty[] = data?.data?.home_search?.results || [];
+    // Normalize the response to HomeLens format (Realtor API structure)
+    const properties = data?.properties || [];
     
-    const listings: HomeLensListing[] = properties.map((prop: RealtyProperty) => {
-      const location = prop.location || {};
-      const description = prop.description || {};
-      const primaryPhoto = prop.primary_photo?.href || prop.photos?.[0]?.href || null;
+    const listings: HomeLensListing[] = properties.map((prop: any) => {
+      const address = prop.address || {};
+      const primaryPhoto = prop.primary_photo?.href || prop.thumbnail || prop.photo || null;
       
       console.log(`Property ${prop.property_id}: Photo URL = ${primaryPhoto}`);
       
       return {
         id: prop.property_id || prop.listing_id || `prop-${Math.random().toString(36).substr(2, 9)}`,
-        address: `${location.address?.line || ''}, ${location.address?.city || ''}, ${location.address?.state_code || ''} ${location.address?.postal_code || ''}`.trim(),
-        price: description.sold_price || description.list_price || null,
-        beds: description.beds || null,
-        baths: description.baths || null,
-        sqft: description.sqft || null,
+        address: `${address.line || ''}, ${address.city || ''}, ${address.state_code || ''} ${address.postal_code || ''}`.trim(),
+        price: prop.price || prop.list_price || null,
+        beds: prop.beds || prop.beds_min || null,
+        baths: prop.baths || prop.baths_min || null,
+        sqft: prop.sqft || prop.building_size?.size || null,
         photoUrl: primaryPhoto,
-        listingUrl: prop.href || null,
-        status: description.type || prop.status || 'for_sale',
-        source: 'realty-in-us',
-        city: location.address?.city || undefined,
-        state: location.address?.state_code || undefined,
-        zip: location.address?.postal_code || undefined,
+        listingUrl: prop.rdc_web_url || prop.href || null,
+        status: prop.status || prop.prop_status || 'for_sale',
+        source: 'realtor',
+        city: address.city || undefined,
+        state: address.state_code || undefined,
+        zip: address.postal_code || undefined,
       };
     });
 
