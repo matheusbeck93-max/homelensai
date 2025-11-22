@@ -30,10 +30,37 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
   title,
   inputs: initialInputs,
 }) => {
-  const [inputs, setInputs] = useState(initialInputs);
+  const [inputs, setInputs] = useState({
+    ...initialInputs,
+    // Ensure no negative values with validation
+    price: Math.max(0, initialInputs.price),
+    downPct: Math.max(0, Math.min(100, initialInputs.downPct)),
+    ratePct: Math.max(0, initialInputs.ratePct),
+    years: Math.max(1, Math.min(50, initialInputs.years)),
+    rentMonthly: Math.max(0, initialInputs.rentMonthly),
+    vacancyPct: Math.max(0, Math.min(100, initialInputs.vacancyPct)),
+    taxPct: Math.max(0, initialInputs.taxPct),
+    insuranceAnnual: Math.max(0, initialInputs.insuranceAnnual),
+    repairsPct: Math.max(0, Math.min(100, initialInputs.repairsPct)),
+    capexPct: Math.max(0, Math.min(100, initialInputs.capexPct)),
+    managementPct: Math.max(0, Math.min(100, initialInputs.managementPct)),
+    hoaMonthly: Math.max(0, initialInputs.hoaMonthly),
+    closingCosts: Math.max(0, initialInputs.closingCosts)
+  });
 
   const updateInput = (field: keyof typeof inputs, value: number) => {
-    setInputs((prev) => ({ ...prev, [field]: value }));
+    // Basic validation
+    let validatedValue = Math.max(0, value);
+    
+    // Percentage fields should be capped at 100
+    if (['downPct', 'vacancyPct', 'taxPct', 'repairsPct', 'capexPct', 'managementPct'].includes(field)) {
+      validatedValue = Math.min(100, validatedValue);
+    }
+    if (field === 'years') {
+      validatedValue = Math.max(1, Math.min(50, validatedValue));
+    }
+    
+    setInputs((prev) => ({ ...prev, [field]: validatedValue }));
   };
 
   const results = calculateInvestorMetrics(

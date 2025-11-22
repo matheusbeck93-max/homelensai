@@ -17,7 +17,7 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
   onAnalyze,
 }) => {
   return (
-    <div className="w-full mb-6">
+    <div className="w-full mb-6" role="region" aria-label="Property search results">
       <div className="flex items-center gap-2 mb-4">
         <Home className="h-5 w-5 text-primary" />
         <h3 className="text-lg font-semibold">{title}</h3>
@@ -26,11 +26,11 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
 
       {/* Horizontal scrolling container */}
       <div className="relative">
-        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted scrollbar-track-background">
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-muted scrollbar-track-background touch-pan-x">
           {properties.map((property) => (
             <Card
               key={property.id}
-              className="flex-shrink-0 w-[320px] overflow-hidden hover:shadow-lg transition-shadow snap-start"
+              className="flex-shrink-0 w-[90vw] max-w-[320px] overflow-hidden hover:shadow-lg transition-shadow snap-start"
             >
               {/* Property Image */}
               <div className="aspect-video relative overflow-hidden bg-muted">
@@ -106,20 +106,24 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                       size="sm"
                       className="flex-1"
                       onClick={() => window.open(property.listingUrl!, '_blank')}
+                      aria-label={`View details for ${property.address}`}
                     >
                       <ExternalLink className="h-4 w-4 mr-1" />
                       View Details
                     </Button>
                   )}
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => onAnalyze?.(property)}
-                  >
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                    Analyze
-                  </Button>
+                  {onAnalyze && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => onAnalyze(property)}
+                      aria-label={`Analyze ${property.address}`}
+                    >
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      Analyze
+                    </Button>
+                  )}
                 </div>
               </div>
             </Card>

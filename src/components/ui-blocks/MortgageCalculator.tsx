@@ -26,10 +26,34 @@ export const MortgageCalculator: React.FC<MortgageCalculatorProps> = ({
   title,
   inputs: initialInputs,
 }) => {
-  const [inputs, setInputs] = useState(initialInputs);
+  const [inputs, setInputs] = useState({
+    ...initialInputs,
+    // Ensure no negative values
+    price: Math.max(0, initialInputs.price),
+    downPct: Math.max(0, Math.min(100, initialInputs.downPct)),
+    ratePct: Math.max(0, initialInputs.ratePct),
+    years: Math.max(1, Math.min(50, initialInputs.years)),
+    taxPct: Math.max(0, initialInputs.taxPct),
+    insuranceAnnual: Math.max(0, initialInputs.insuranceAnnual),
+    hoaMonthly: Math.max(0, initialInputs.hoaMonthly),
+    pmiPct: Math.max(0, initialInputs.pmiPct),
+    pointsPct: Math.max(0, initialInputs.pointsPct),
+    closingCosts: Math.max(0, initialInputs.closingCosts)
+  });
 
   const updateInput = (field: keyof typeof inputs, value: number) => {
-    setInputs((prev) => ({ ...prev, [field]: value }));
+    // Basic validation
+    let validatedValue = Math.max(0, value);
+    
+    // Additional constraints for specific fields
+    if (field === 'downPct' || field === 'taxPct' || field === 'pmiPct' || field === 'pointsPct') {
+      validatedValue = Math.min(100, validatedValue);
+    }
+    if (field === 'years') {
+      validatedValue = Math.max(1, Math.min(50, validatedValue));
+    }
+    
+    setInputs((prev) => ({ ...prev, [field]: validatedValue }));
   };
 
   const results = calculateMortgage(
