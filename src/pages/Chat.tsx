@@ -13,6 +13,7 @@ import PropertyCarousel from "@/components/PropertyCarousel";
 import ProfileSelector from "@/components/ProfileSelector";
 import ReactMarkdown from "react-markdown";
 import { Navigation } from "@/components/Navigation";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EmptyState } from "@/components/EmptyState";
 import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
@@ -955,5 +956,8 @@ export default function Chat() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
     </div>;
 }
