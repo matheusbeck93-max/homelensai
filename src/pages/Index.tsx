@@ -11,8 +11,12 @@ import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { PropertyComparison } from "@/components/PropertyComparison";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
-import { UIBlock } from "@/types/ui-blocks";
+import { UIBlock, HomeLensListing } from "@/types/ui-blocks";
 import ReactMarkdown from "react-markdown";
+import { isPropertySearchQuery, parsePropertySearchQuery } from "@/utils/propertySearchHelpers";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import heroBackground from "@/assets/american-house-hero.jpg";
 import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
 import { Play } from "lucide-react";
@@ -36,8 +40,9 @@ export default function Index() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pastConversations, setPastConversations] = useState<any[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [searchProperties, setSearchProperties] = useState<any[]>([]);
+  const [searchProperties, setSearchProperties] = useState<HomeLensListing[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
@@ -190,40 +195,16 @@ export default function Index() {
   
   const handlePropertySearch = async (query: string) => {
     setSearchLoading(true);
+    setSearchError(null);
+    
     try {
-      // Extract location and other parameters from natural language query
-      // For now, we'll parse basic patterns
-      const priceMatch = query.match(/under (\$?[\d,]+k?)/i);
-      const bedsMatch = query.match(/(\d+)\s*(bed|bedroom)/i);
-      const cityStateMatch = query.match(/in\s+([a-z\s,]+)/i);
+      // Parse the query using helper
+      const params = parsePropertySearchQuery(query);
       
-      let location = '';
-      if (cityStateMatch) {
-        location = cityStateMatch[1].trim();
-      }
-      
-      if (!location) {
-        toast({
-          title: "Location Required",
-          description: "Please specify a location in your search (e.g., 'in Austin, TX')",
-          variant: "destructive"
-        });
+      if (!params.location) {
+        setSearchError("Please specify a location in your search (e.g., 'in Austin, TX')");
         setSearchLoading(false);
         return;
-      }
-      
-      const params: any = { location };
-      
-      if (priceMatch) {
-        const priceStr = priceMatch[1].replace(/[$,]/g, '');
-        const price = priceStr.includes('k') 
-          ? parseInt(priceStr) * 1000 
-          : parseInt(priceStr);
-        params.maxPrice = price;
-      }
-      
-      if (bedsMatch) {
-        params.minBeds = parseInt(bedsMatch[1]);
       }
       
       const { data, error } = await supabase.functions.invoke('search-listings', {
@@ -232,46 +213,97 @@ export default function Index() {
       
       if (error) throw error;
       
-      if (data?.listings && data.listings.length > 0) {
+      if (data?.error) {
+        // Handle backend error responses
+        setSearchError(data.error + (data.details ? `: ${data.details}` : ''));
+        setSearchProperties([]);
+      } else if (data?.listings && data.listings.length > 0) {
         setSearchProperties(data.listings);
-        toast({
-          title: "Properties Found",
-          description: `Found ${data.listings.length} properties matching your criteria`
-        });
+        setSearchError(null);
+        
+        // Create synthetic assistant message with UI block
+        const syntheticMessage = {
+          role: "assistant",
+          content: `Here are ${data.listings.length} properties matching your criteria. Click "Analyze" on any property to get detailed insights.`,
+          uiBlock: {
+            type: "ui_block/property_results_carousel" as const,
+            title: "Property Search Results",
+            properties: data.listings
+          }
+        };
+        
+        setMessages([
+          { role: "user", content: query },
+          syntheticMessage
+        ]);
       } else {
-        toast({
-          title: "No Properties Found",
-          description: "Try adjusting your search criteria",
-          variant: "destructive"
-        });
+        setSearchError("No properties found. Try adjusting your search criteria.");
+        setSearchProperties([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Search error:', error);
+      const errorMessage = error?.message || "Failed to search properties. Please try again.";
+      setSearchError(errorMessage);
+      setSearchProperties([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+  
+  const handlePropertyAnalyze = async (property: HomeLensListing) => {
+    if (!property.listingUrl) {
       toast({
-        title: "Search Error",
-        description: "Failed to search properties. Please try again.",
+        title: "Cannot Analyze",
+        description: "This property doesn't have a listing URL available.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Create analysis message
+    const analysisMessage = `Analyze this property: ${property.listingUrl}`;
+    setInput(analysisMessage);
+    
+    // Add user message
+    const userMessage = { role: "user", content: analysisMessage };
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-chat", {
+        body: { messages: [...messages, userMessage] }
+      });
+      
+      if (error) throw error;
+      
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: data.response || "Analysis complete."
+      }]);
+    } catch (error) {
+      console.error('Analysis error:', error);
+      toast({
+        title: "Analysis Failed",
+        description: "Unable to analyze this property. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setSearchLoading(false);
+      setLoading(false);
     }
   };
   
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
-    // Check if this looks like a property search query
+    // Check if this looks like a property search query (only on first message)
+    if (messages.length === 0 && isPropertySearchQuery(input)) {
+      await handlePropertySearch(input);
+      return;
+    }
+    
+    // If we already have messages, continue in chat mode
     if (messages.length === 0) {
-      const isPropertySearch = (
-        /find|search|show|looking for/i.test(input) && 
-        (/home|house|property|condo|apartment|in\s+[a-z]/i.test(input))
-      );
-      
-      if (isPropertySearch) {
-        await handlePropertySearch(input);
-        return;
-      }
-      
       // Otherwise redirect to chat for AI conversation
       navigate('/chat', {
         state: {
@@ -406,17 +438,37 @@ export default function Index() {
                   Find your new home
                 </h1>
                 
-                {/* Property Search Results */}
-                {searchProperties.length > 0 && (
+                {/* Search Error Alert */}
+                {searchError && (
+                  <Alert variant="destructive" className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{searchError}</AlertDescription>
+                  </Alert>
+                )}
+                
+                {/* Loading Skeleton */}
+                {searchLoading && (
+                  <div className="mb-8 space-y-4">
+                    <div className="flex gap-4 overflow-x-auto pb-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="w-[90vw] max-w-[320px] flex-shrink-0">
+                          <Skeleton className="h-48 w-full mb-4" />
+                          <Skeleton className="h-6 w-3/4 mb-2" />
+                          <Skeleton className="h-4 w-1/2" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Property Search Results - DEPRECATED: Now using UIBlockRenderer */}
+                {/* This PropertyCarousel is kept for backwards compatibility but 
+                    new searches use the UIBlockRenderer with property_results_carousel block */}
+                {searchProperties.length > 0 && messages.length === 0 && (
                   <div className="mb-8">
                     <PropertyCarousel 
                       properties={searchProperties}
-                      onSelectProperty={(property) => {
-                        toast({
-                          title: "Property Selected",
-                          description: `Analyzing ${property.address}`
-                        });
-                      }}
+                      onSelectProperty={handlePropertyAnalyze}
                     />
                   </div>
                 )}
@@ -466,9 +518,7 @@ export default function Index() {
                            <div className="mb-4">
                              <UIBlockRenderer 
                                block={msg.uiBlock}
-                               onPropertyAnalyze={(property) => {
-                                 setInput(`Analyze this property: ${property.listingUrl || property.address}`);
-                               }}
+                               onPropertyAnalyze={handlePropertyAnalyze}
                              />
                            </div>
                          )}

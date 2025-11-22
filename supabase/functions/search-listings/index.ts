@@ -30,6 +30,55 @@ interface HomeLensListing {
   zip?: string;
 }
 
+// TypeScript interfaces for Realty in US API response
+interface RealtyAddress {
+  line?: string;
+  city?: string;
+  state_code?: string;
+  postal_code?: string;
+}
+
+interface RealtyLocation {
+  address?: RealtyAddress;
+}
+
+interface RealtyDescription {
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  list_price?: number;
+  sold_price?: number;
+  type?: string;
+}
+
+interface RealtyPhoto {
+  href?: string;
+}
+
+interface RealtyProperty {
+  property_id?: string;
+  listing_id?: string;
+  location?: RealtyLocation;
+  description?: RealtyDescription;
+  primary_photo?: RealtyPhoto;
+  photos?: RealtyPhoto[];
+  href?: string;
+  status?: string;
+}
+
+interface RealtyApiResponse {
+  data?: {
+    home_search?: {
+      results?: RealtyProperty[];
+    };
+  };
+}
+
+// TODO: Implement caching for search results
+// Consider using Deno KV or in-memory cache with TTL (5-10 minutes)
+// Cache key: `search:${location}:${minPrice}:${maxPrice}:${minBeds}:${maxBeds}:${propertyType}`
+// This would reduce RapidAPI usage and improve response times for repeated searches
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -119,8 +168,40 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Realty API error:', response.status, errorText);
+      
+      // Enhanced error handling with specific error codes
+      if (response.status === 401 || response.status === 403) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Authentication or API key error with Realty in US.',
+            details: 'Please check your RapidAPI key configuration.'
+          }),
+          { 
+            status: 502, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Rate limit reached for Realty in US API.',
+            details: 'Please try again in a few moments.'
+          }),
+          { 
+            status: 429, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch listings', details: errorText }),
+        JSON.stringify({ 
+          error: 'Failed to fetch listings', 
+          details: errorText,
+          statusCode: response.status
+        }),
         { 
           status: response.status, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -128,13 +209,13 @@ serve(async (req) => {
       );
     }
 
-    const data = await response.json();
+    const data: RealtyApiResponse = await response.json();
     console.log('Realty API response received, properties count:', data?.data?.home_search?.results?.length || 0);
 
     // Normalize the response to HomeLens format
-    const properties = data?.data?.home_search?.results || [];
+    const properties: RealtyProperty[] = data?.data?.home_search?.results || [];
     
-    const listings: HomeLensListing[] = properties.map((prop: any) => {
+    const listings: HomeLensListing[] = properties.map((prop: RealtyProperty) => {
       const location = prop.location || {};
       const description = prop.description || {};
       const primaryPhoto = prop.primary_photo?.href || prop.photos?.[0]?.href || null;
@@ -150,9 +231,9 @@ serve(async (req) => {
         listingUrl: prop.href || null,
         status: description.type || prop.status || 'for_sale',
         source: 'realty-in-us',
-        city: location.address?.city || null,
-        state: location.address?.state_code || null,
-        zip: location.address?.postal_code || null,
+        city: location.address?.city || undefined,
+        state: location.address?.state_code || undefined,
+        zip: location.address?.postal_code || undefined,
       };
     });
 

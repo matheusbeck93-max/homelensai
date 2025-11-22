@@ -31,10 +31,30 @@ export const IndividualBuyingPowerCalculator: React.FC<IndividualBuyingPowerCalc
   inputs: initialInputs,
   scenarios,
 }) => {
-  const [inputs, setInputs] = useState(initialInputs);
+  const [inputs, setInputs] = useState({
+    ...initialInputs,
+    // Ensure no negative values
+    incomeMonthly: Math.max(0, initialInputs.incomeMonthly),
+    debtsMonthly: Math.max(0, initialInputs.debtsMonthly),
+    expensesMonthly: Math.max(0, initialInputs.expensesMonthly),
+    savings: Math.max(0, initialInputs.savings),
+    creditScore: Math.max(300, Math.min(850, initialInputs.creditScore)),
+    investmentMonthly: Math.max(0, initialInputs.investmentMonthly)
+  });
 
   const updateInput = (field: keyof typeof inputs, value: number | string) => {
-    setInputs((prev) => ({ ...prev, [field]: value }));
+    if (typeof value === 'number') {
+      let validatedValue = Math.max(0, value);
+      
+      // Credit score should be between 300 and 850
+      if (field === 'creditScore') {
+        validatedValue = Math.max(300, Math.min(850, validatedValue));
+      }
+      
+      setInputs((prev) => ({ ...prev, [field]: validatedValue }));
+    } else {
+      setInputs((prev) => ({ ...prev, [field]: value }));
+    }
   };
 
   const results = calculateBuyingPower(
