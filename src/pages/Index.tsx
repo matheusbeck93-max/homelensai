@@ -369,11 +369,13 @@ export default function Index() {
   };
   const [featuredListings, setFeaturedListings] = useState<HomeLensListing[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(false);
+  const [featuredError, setFeaturedError] = useState<string | null>(null);
 
   // Load featured homes on mount
   useEffect(() => {
     const loadFeaturedHomes = async () => {
       setFeaturedLoading(true);
+      setFeaturedError(null);
       try {
         const { data, error } = await supabase.functions.invoke('search-listings', {
           body: {
@@ -383,11 +385,26 @@ export default function Index() {
           }
         });
         
-        if (!error && data?.listings) {
+        if (error) {
+          console.error('Featured homes API error:', error);
+          setFeaturedError('Unable to load featured homes right now.');
+          return;
+        }
+        
+        if (data?.error) {
+          console.error('Featured homes backend error:', data.error);
+          setFeaturedError(data.error);
+          return;
+        }
+        
+        if (data?.listings && data.listings.length > 0) {
           setFeaturedListings(data.listings.slice(0, 6));
+        } else {
+          setFeaturedError('No featured homes available at the moment.');
         }
       } catch (error) {
         console.error('Error loading featured homes:', error);
+        setFeaturedError('Failed to load featured homes. Please try a search above.');
       } finally {
         setFeaturedLoading(false);
       }
@@ -533,9 +550,9 @@ export default function Index() {
 
       {/* Featured Homes Section */}
       {messages.length === 0 && (
-        <section className="container mx-auto px-4 py-10">
+        <section className="container mx-auto px-4 py-10 mt-10 border-t border-muted">
           <div className="space-y-6">
-            <h2 className="text-3xl font-bold">Featured Homes</h2>
+            <h2 className="text-3xl font-bold">Featured Homes in Miami</h2>
             
             {featuredLoading ? (
               <div className="flex gap-4 overflow-x-auto pb-4">
@@ -547,13 +564,24 @@ export default function Index() {
                   </div>
                 ))}
               </div>
+            ) : featuredError ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{featuredError}</AlertDescription>
+              </Alert>
             ) : featuredListings.length > 0 ? (
               <PropertyResultsCarousel
                 title="Featured Listings"
                 properties={featuredListings}
                 onAnalyze={handlePropertyAnalyze}
               />
-            ) : null}
+            ) : (
+              <Alert>
+                <AlertDescription>
+                  No featured homes are available right now. Try a custom search above!
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         </section>
       )}

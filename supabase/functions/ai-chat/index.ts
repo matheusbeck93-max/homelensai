@@ -590,6 +590,48 @@ Provide balanced analysis covering:
 - Overall value assessment`
      };
 
+    // Define available tools
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "search_listings",
+          description: "Search for real estate listings in the US. Use this when users ask to find homes, properties, or real estate.",
+          parameters: {
+            type: "object",
+            properties: {
+              location: {
+                type: "string",
+                description: "City and state (e.g., 'Austin, TX' or 'Miami, FL')"
+              },
+              minPrice: {
+                type: "number",
+                description: "Minimum price in dollars"
+              },
+              maxPrice: {
+                type: "number",
+                description: "Maximum price in dollars"
+              },
+              minBeds: {
+                type: "number",
+                description: "Minimum number of bedrooms"
+              },
+              maxBeds: {
+                type: "number",
+                description: "Maximum number of bedrooms"
+              },
+              propertyType: {
+                type: "string",
+                enum: ["house", "condo", "townhome", "multi", "any"],
+                description: "Type of property"
+              }
+            },
+            required: ["location"]
+          }
+        }
+      }
+    ];
+
     const systemPrompt = `You are **HomeLens** 🏡, an advanced real estate intelligence agent specialized in the U.S. property market 🇺🇸.
 
 Your mission is to act as an interactive Real Estate consultant who helps users:
@@ -617,34 +659,36 @@ Your mission is to act as an interactive Real Estate consultant who helps users:
    - If you want to add a tip: keep it to 1 SHORT sentence and ask "Would you like me to explain this further?"
    - Be concise and direct. No unnecessary elaboration.
 
-🚨 **PROPERTY SEARCH RULE OVERRIDE** 🚨
+🚨 **PROPERTY SEARCH RULE - CRITICAL** 🚨
 
 When the user asks for homes (examples: "3 bedroom homes in Austin under 700k", "houses for sale in Miami", "condos in Phoenix with a pool"), you MUST:
 
-1. **Treat this as a structured REAL ESTATE SEARCH**.
-2. Call the \`search_listings\` tool with:
-   - location (city, state, ZIP)
-   - minPrice, maxPrice (if mentioned)
-   - minBeds, maxBeds (if mentioned)
-   - propertyType (if mentioned)
-3. When tool results come back:
-   - Return a UI block **FIRST**:
+1. **Parse the search criteria** from their request:
+   - Extract: location (city, state), price range, beds, property type
+   
+2. **Call the search_listings tool** with these parameters:
+   - location: "City, State" (e.g., "Austin, TX")
+   - minPrice: number (optional)
+   - maxPrice: number (optional)
+   - minBeds: number (optional)
+   - maxBeds: number (optional)
+   - propertyType: "house" | "condo" | "townhome" | "multi" | "any" (optional)
+
+3. **When tool results come back**, respond with a JSON object in this EXACT format:
    \`\`\`json
    {
      "type": "ui_block/property_results_carousel",
      "title": "Homes matching your criteria",
-     "properties": [...]
+     "properties": [...tool results...],
+     "message": "I found X properties matching your criteria. Click any card to analyze it in detail."
    }
    \`\`\`
-4. After the UI block, provide a natural-language summary:
-   - Number of listings
-   - Quick insights
-   - Guiding message: "Click a card above to analyze a home."
 
-**You MUST NOT respond with lists of external links (Zillow, Realtor, Redfin, Trulia).**  
-You may include them as a SECONDARY note **only if no listings were found**.
+4. **NEVER respond with external links** (Zillow, Realtor, Redfin, Trulia) for property searches.
+5. **NEVER make up property data** - always use the search_listings tool.
+6. If no results: Include helpful suggestions in the message field for adjusting search criteria.
 
-When analyzing a specific property URL, continue to use the existing analysis format.
+When analyzing a specific property URL (user pastes a link), continue to use the existing analysis format.
 
 2. **Format all responses with proper structure**: Use headers, bullet points, numbered lists, and short paragraphs
 3. **When multiple paths are possible**, display clickable scenario options like:
@@ -821,6 +865,7 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 
     console.log('Making OpenAI API call for regular chat...');
     
+    // First API call with tools enabled
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -836,6 +881,8 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
           },
           ...messages
         ],
+        tools: tools,
+        tool_choice: 'auto',
         max_tokens: 2000,
       }),
     });
@@ -853,7 +900,56 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
       throw new Error('Invalid response format from OpenAI');
     }
     
-    const assistantResponse = data.choices[0].message.content;
+    const assistantMessage = data.choices[0].message;
+    
+    // Check if model wants to call a tool
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      const toolCall = assistantMessage.tool_calls[0];
+      
+      if (toolCall.function.name === 'search_listings') {
+        console.log('AI requested search_listings tool with args:', toolCall.function.arguments);
+        
+        try {
+          const searchParams = JSON.parse(toolCall.function.arguments);
+          
+          // Call the search-listings edge function
+          const searchResponse = await supabase.functions.invoke('search-listings', {
+            body: searchParams
+          });
+          
+          if (searchResponse.error) {
+            console.error('Search listings error:', searchResponse.error);
+            throw searchResponse.error;
+          }
+          
+          const listings = searchResponse.data?.listings || [];
+          console.log(`Found ${listings.length} listings`);
+          
+          // Return the UI block with listings
+          return new Response(
+            JSON.stringify({ 
+              response: JSON.stringify({
+                type: "ui_block/property_results_carousel",
+                title: `Homes in ${searchParams.location}`,
+                properties: listings,
+                message: `I found ${listings.length} properties matching your criteria. Click "Analyze" on any property to get detailed insights.`
+              })
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (toolError) {
+          console.error('Error executing search_listings tool:', toolError);
+          return new Response(
+            JSON.stringify({ 
+              response: `I tried to search for properties but encountered an error: ${toolError instanceof Error ? toolError.message : 'Unknown error'}. Please try again or adjust your search criteria.`
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+    
+    const assistantResponse = assistantMessage.content;
     console.log('OpenAI response received, length:', assistantResponse?.length || 0);
 
     return new Response(
