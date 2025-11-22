@@ -220,6 +220,8 @@ serve(async (req) => {
       const description = prop.description || {};
       const primaryPhoto = prop.primary_photo?.href || prop.photos?.[0]?.href || null;
       
+      console.log(`Property ${prop.property_id}: Photo URL = ${primaryPhoto}`);
+      
       return {
         id: prop.property_id || prop.listing_id || `prop-${Math.random().toString(36).substr(2, 9)}`,
         address: `${location.address?.line || ''}, ${location.address?.city || ''}, ${location.address?.state_code || ''} ${location.address?.postal_code || ''}`.trim(),

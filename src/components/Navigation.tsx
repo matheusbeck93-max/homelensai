@@ -50,11 +50,11 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b">
-      <div className="container mx-auto px-4 py-4">
+    <nav className="sticky top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >

@@ -4,19 +4,9 @@
  * @returns true if it appears to be a property search
  */
 export const isPropertySearchQuery = (input: string): boolean => {
-  const lowerInput = input.toLowerCase();
-  
-  // Check for search intent keywords
-  const hasSearchIntent = /find|search|show|looking for|need|want/i.test(input);
-  
-  // Check for property keywords
-  const hasPropertyKeywords = /home|house|property|condo|apartment|townhome|real estate/i.test(input);
-  
-  // Check for location indicator
-  const hasLocation = /in\s+[a-z]/i.test(input);
-  
-  // Must have search intent AND (property keywords OR location)
-  return hasSearchIntent && (hasPropertyKeywords || hasLocation);
+  const hasHomeKeywords = /(home|house|condo|property|apartment|townhome|listing)s?/i.test(input);
+  const hasLocation = /(in|near)\s+[a-zA-Z]+/i.test(input) || /[A-Za-z]+,\s*[A-Za-z]{2}/.test(input);
+  return hasHomeKeywords && hasLocation;
 };
 
 /**

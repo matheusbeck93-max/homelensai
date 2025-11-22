@@ -11,6 +11,9 @@ import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { PropertyComparison } from "@/components/PropertyComparison";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
+import { PropertyResultsCarousel } from "@/components/ui-blocks/PropertyResultsCarousel";
+import { Navigation } from "@/components/Navigation";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { UIBlock, HomeLensListing } from "@/types/ui-blocks";
 import ReactMarkdown from "react-markdown";
 import { isPropertySearchQuery, parsePropertySearchQuery } from "@/utils/propertySearchHelpers";
@@ -364,72 +367,41 @@ export default function Index() {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen pb-24 lg:pb-8">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-40 bg-background/80 backdrop-blur-md border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Home className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl">HomeLens</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <div style={{
-            position: 'relative',
-            zIndex: 10000
-          }}>
-              <InstallPrompt variant="button" />
-            </div>
-            <ThemeToggle />
-            {user ? <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost">
-                      <History className="h-4 w-4 mr-2" />
-                      Activity
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64">
-                    <DropdownMenuLabel>Past Conversations</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {pastConversations.length === 0 ? <DropdownMenuItem disabled>No past conversations</DropdownMenuItem> : pastConversations.map(conv => <DropdownMenuItem key={conv.id} onClick={() => loadConversation(conv.id)} className="cursor-pointer">
-                          <div className="flex flex-col gap-1 w-full">
-                            <span className="font-medium truncate">{conv.title}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(conv.updated_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </DropdownMenuItem>)}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button variant="ghost" onClick={() => navigate('/investor')}>
-                  HomeLens Investor
-                </Button>
-                <Button variant="ghost" onClick={() => navigate('/calculators')}>
-                  Calculator
-                </Button>
-                <Button variant="ghost" onClick={() => navigate('/profile')}>
-                  Profile
-                </Button>
-                <Button variant="outline" onClick={handleLogout} size="sm">
-                  Sign Out
-                </Button>
-              </> : <>
-                <Button variant="ghost" onClick={() => navigate('/investor')}>
-                  HomeLens Investor
-                </Button>
-                <Button variant="ghost" onClick={() => navigate('/calculators')}>
-                  Calculator
-                </Button>
-                <Button onClick={() => navigate('/auth')} size="sm">
-                  Sign In
-                </Button>
-              </>}
-          </div>
-        </div>
-      </nav>
+  const [featuredListings, setFeaturedListings] = useState<HomeLensListing[]>([]);
+  const [featuredLoading, setFeaturedLoading] = useState(false);
+
+  // Load featured homes on mount
+  useEffect(() => {
+    const loadFeaturedHomes = async () => {
+      setFeaturedLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('search-listings', {
+          body: {
+            location: "Miami, FL",
+            minPrice: 300000,
+            maxPrice: 1500000
+          }
+        });
+        
+        if (!error && data?.listings) {
+          setFeaturedListings(data.listings.slice(0, 6));
+        }
+      } catch (error) {
+        console.error('Error loading featured homes:', error);
+      } finally {
+        setFeaturedLoading(false);
+      }
+    };
+    
+    loadFeaturedHomes();
+  }, []);
+
+  return <div className="min-h-screen pb-24 md:pb-8">
+      {/* Navigation - Import from component */}
+      <Navigation />
 
       {/* Hero Section with Search */}
-      <section className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pb-24 md:pb-0">
+      <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pt-20 pb-10">
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
@@ -473,7 +445,7 @@ export default function Index() {
                   </div>
                 )}
                 
-                <div className="bg-card border rounded-2xl p-6 shadow-lg">
+                <div className="bg-card border rounded-2xl p-6 shadow-md">
                   <Textarea 
                     placeholder={searchProperties.length > 0 ? "Ask about these properties or search again..." : animatedPlaceholder}
                     value={input} 
@@ -559,6 +531,33 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Featured Homes Section */}
+      {messages.length === 0 && (
+        <section className="container mx-auto px-4 py-10">
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold">Featured Homes</h2>
+            
+            {featuredLoading ? (
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="w-[90vw] max-w-[320px] flex-shrink-0">
+                    <Skeleton className="h-48 w-full mb-4 rounded-lg" />
+                    <Skeleton className="h-6 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : featuredListings.length > 0 ? (
+              <PropertyResultsCarousel
+                title="Featured Listings"
+                properties={featuredListings}
+                onAnalyze={handlePropertyAnalyze}
+              />
+            ) : null}
+          </div>
+        </section>
+      )}
+
       {/* Video Introduction Section - Only show when no messages */}
       {messages.length === 0}
 
@@ -568,5 +567,8 @@ export default function Index() {
           <p>&copy; 2025 HomeLens. All rights reserved.</p>
         </div>
       </footer>
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
     </div>;
 }
