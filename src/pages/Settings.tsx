@@ -10,6 +10,7 @@ import { ArrowLeft, User, Mail, Save, Trash2, AlertTriangle, Calculator, Edit, T
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Navigation } from "@/components/Navigation";
 import { SubscriptionSettings } from "@/components/subscription/SubscriptionSettings";
+import { AlertSettings } from "@/components/subscription/AlertSettings";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -315,6 +316,9 @@ export default function Settings() {
 
           {/* Subscription Settings */}
           <SubscriptionSettings />
+
+          {/* Smart Alerts */}
+          <AlertSettings />
 
           {/* Danger Zone */}
           <Card className="border-destructive">
