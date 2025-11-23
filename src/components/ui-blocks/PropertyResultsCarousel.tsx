@@ -136,24 +136,24 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
         </div>
         
         {/* List/Map Toggle */}
-        <div className="flex items-center gap-1 border rounded-md p-1">
+        <div className="flex items-center gap-2 border rounded-lg p-1 bg-muted/30">
           <Button
             variant={viewMode === "list" ? "default" : "ghost"}
             size="sm"
             onClick={() => setViewMode("list")}
-            className="h-8"
+            className="h-9 px-4"
           >
-            <List className="h-4 w-4 mr-1" />
+            <List className="h-4 w-4 mr-2" />
             List
           </Button>
           <Button
             variant={viewMode === "map" ? "default" : "ghost"}
             size="sm"
             onClick={() => setViewMode("map")}
-            className="h-8"
+            className="h-9 px-4"
             disabled={propertiesWithCoords.length === 0}
           >
-            <MapIcon className="h-4 w-4 mr-1" />
+            <MapIcon className="h-4 w-4 mr-2" />
             Map
           </Button>
         </div>
@@ -280,14 +280,22 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
 
           {/* Show all button */}
           {properties.length > MAX_VISIBLE && (
-            <div className="flex justify-end mt-2">
-              <button
-                type="button"
-                className="text-sm text-primary underline-offset-2 hover:underline font-medium"
+            <div className="flex justify-center mt-4">
+              <Button
+                variant="outline"
                 onClick={() => setExpanded(prev => !prev)}
+                className="min-w-[200px]"
               >
-                {expanded ? "Show less" : `Show all ${properties.length}`}
-              </button>
+                {expanded ? (
+                  <>
+                    Show less
+                  </>
+                ) : (
+                  <>
+                    Show all {properties.length} properties
+                  </>
+                )}
+              </Button>
             </div>
           )}
 
