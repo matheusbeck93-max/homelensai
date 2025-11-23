@@ -19,6 +19,8 @@ import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
+import { UIBlock } from "@/types/ui-blocks";
 const MarkdownLink = ({
   href,
   children
@@ -33,6 +35,7 @@ interface Message {
   properties?: Property[];
   toolType?: string;
   toolData?: any;
+  uiBlock?: UIBlock;
 }
 interface Property {
   id: string;
@@ -566,9 +569,15 @@ export default function Chat() {
       }
 
       // Try to parse as JSON for other tool invocations
+      let uiBlock: UIBlock | undefined;
       try {
         const jsonResponse = JSON.parse(data.response);
-        if (jsonResponse.type === "property_analysis") {
+        
+        // Check for UI blocks
+        if (jsonResponse.type?.startsWith("ui_block/")) {
+          uiBlock = jsonResponse as UIBlock;
+          cleanedResponse = jsonResponse.message || "";
+        } else if (jsonResponse.type === "property_analysis") {
           // Legacy property analysis format
           toolType = "property_analysis";
           toolData = jsonResponse.properties;
@@ -597,7 +606,8 @@ export default function Chat() {
         content: cleanedResponse,
         properties: properties,
         toolType: toolType,
-        toolData: toolData
+        toolData: toolData,
+        uiBlock: uiBlock
       };
       setMessages(prev => [...prev, assistantMessage]);
       await supabase.from("messages").insert({
@@ -781,8 +791,8 @@ export default function Chat() {
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4 pb-24 lg:pb-4">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <ScrollArea className="flex-1 p-4">
+          <div className="max-w-7xl mx-auto space-y-6 pb-6">
             {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
             setUserProfile(profile);
             setShowProfileSelector(false);
@@ -820,53 +830,74 @@ export default function Chat() {
                   </div>
                 </div>
               </div>}
-            {messages.map((message, index) => <div key={index} className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                {message.role === "assistant" && <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <Home className="h-6 w-6 text-primary-foreground" />
-                  </div>}
-                <div className={`max-w-[80%] rounded-2xl p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                  {message.image_url && <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />}
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown components={{
-                  a: MarkdownLink,
-                  h1: ({node, ...props}) => <h1 {...props} className="text-2xl font-bold mt-6 mb-3 text-foreground flex items-center gap-2" />,
-                  h2: ({node, ...props}) => <h2 {...props} className="text-xl font-semibold mt-5 mb-2 text-foreground flex items-center gap-2" />,
-                  h3: ({node, ...props}) => <h3 {...props} className="text-lg font-semibold mt-4 mb-2 text-foreground" />,
-                  p: ({node, ...props}) => <p {...props} className="mb-3 leading-relaxed text-foreground/90" />,
-                  ul: ({node, ...props}) => <ul {...props} className="space-y-2 mb-4 ml-1" />,
-                  ol: ({node, ...props}) => <ol {...props} className="space-y-2 mb-4 ml-6 list-decimal" />,
-                  li: ({node, ...props}) => (
-                    <li {...props} className="flex items-start gap-2 text-foreground/90">
-                      <span className="text-primary mt-1 flex-shrink-0">•</span>
-                      <span className="flex-1">{props.children}</span>
-                    </li>
-                  ),
-                  strong: ({node, ...props}) => <strong {...props} className="font-semibold text-foreground" />,
-                  code: ({node, className, children, ...props}) => {
-                    const isInline = !className?.includes('language-');
-                    return isInline ? (
-                      <code {...props} className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono text-primary">
-                        {children}
-                      </code>
-                    ) : (
-                      <code {...props} className="block p-3 bg-muted rounded-lg text-sm font-mono my-2 text-foreground/80 overflow-x-auto">
-                        {children}
-                      </code>
-                    );
-                  },
-                  blockquote: ({node, ...props}) => (
-                    <blockquote {...props} className="border-l-4 border-primary pl-4 py-2 my-3 bg-muted/30 rounded-r-lg text-foreground/90 italic" />
-                  ),
-                  hr: ({node, ...props}) => <hr {...props} className="my-6 border-border" />,
-                }}>
-                      {message.content}
-                    </ReactMarkdown>
+            {messages.map((message, index) => (
+              <div key={index}>
+                {/* Render UI Block if present (before message) */}
+                {message.uiBlock && message.role === "assistant" && (
+                  <div className="mb-6">
+                    <UIBlockRenderer 
+                      block={message.uiBlock} 
+                      onPropertyAnalyze={(property) => {
+                        setInput(`Analyze this property: ${property.listingUrl || property.address}`);
+                        setTimeout(() => handleSend(), 100);
+                      }}
+                    />
                   </div>
+                )}
+                
+                <div className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                  {message.role === "assistant" && (
+                    <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                      <Home className="h-6 w-6 text-primary-foreground" />
+                    </div>
+                  )}
+                  <div className={`max-w-[80%] rounded-2xl p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                    {message.image_url && <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />}
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown components={{
+                        a: MarkdownLink,
+                        h1: ({node, ...props}) => <h1 {...props} className="text-2xl font-bold mt-6 mb-3 text-foreground flex items-center gap-2" />,
+                        h2: ({node, ...props}) => <h2 {...props} className="text-xl font-semibold mt-5 mb-2 text-foreground flex items-center gap-2" />,
+                        h3: ({node, ...props}) => <h3 {...props} className="text-lg font-semibold mt-4 mb-2 text-foreground" />,
+                        p: ({node, ...props}) => <p {...props} className="mb-3 leading-relaxed text-foreground/90" />,
+                        ul: ({node, ...props}) => <ul {...props} className="space-y-2 mb-4 ml-1" />,
+                        ol: ({node, ...props}) => <ol {...props} className="space-y-2 mb-4 ml-6 list-decimal" />,
+                        li: ({node, ...props}) => (
+                          <li {...props} className="flex items-start gap-2 text-foreground/90">
+                            <span className="text-primary mt-1 flex-shrink-0">•</span>
+                            <span className="flex-1">{props.children}</span>
+                          </li>
+                        ),
+                        strong: ({node, ...props}) => <strong {...props} className="font-semibold text-foreground" />,
+                        code: ({node, className, children, ...props}) => {
+                          const isInline = !className?.includes('language-');
+                          return isInline ? (
+                            <code {...props} className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono text-primary">
+                              {children}
+                            </code>
+                          ) : (
+                            <code {...props} className="block p-3 bg-muted rounded-lg text-sm font-mono my-2 text-foreground/80 overflow-x-auto">
+                              {children}
+                            </code>
+                          );
+                        },
+                        blockquote: ({node, ...props}) => (
+                          <blockquote {...props} className="border-l-4 border-primary pl-4 py-2 my-3 bg-muted/30 rounded-r-lg text-foreground/90 italic" />
+                        ),
+                        hr: ({node, ...props}) => <hr {...props} className="my-6 border-border" />,
+                      }}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                  {message.role === "user" && (
+                    <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                      <User className="h-6 w-6 text-secondary-foreground" />
+                    </div>
+                  )}
                 </div>
-                {message.role === "user" && <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                    <User className="h-6 w-6 text-secondary-foreground" />
-                  </div>}
-              </div>)}
+              </div>
+            ))}
             {loading && <div className="flex gap-4">
                 <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                   <Home className="h-6 w-6 text-primary-foreground animate-pulse" />
@@ -879,9 +910,9 @@ export default function Chat() {
           </div>
         </ScrollArea>
 
-        {/* Input Area */}
-        <div className="border-t p-4 pb-24 lg:pb-4">
-          <div className="max-w-4xl mx-auto">
+        {/* Input Area - Sticky at bottom */}
+        <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4 pb-24 lg:pb-4">
+          <div className="max-w-7xl mx-auto">
             {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
                 <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => {
