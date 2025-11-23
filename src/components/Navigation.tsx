@@ -37,17 +37,18 @@ export function Navigation() {
     setUser(null);
     navigate('/');
   };
-
+ 
   const navItems = [
     { label: 'Home', path: '/', icon: Home },
     { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
-
+ 
   const handleGoHome = () => {
     console.log('Navigating to homepage');
-    navigate('/');
+    navigate('/', { replace: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -69,13 +70,18 @@ export function Navigation() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
+              const isHome = item.path === '/';
               return (
                 <Button
                   key={item.path}
                   variant="ghost"
                   onClick={() => {
                     console.log(`Navigation: ${item.label} clicked, navigating to ${item.path}`);
-                    navigate(item.path);
+                    if (isHome) {
+                      handleGoHome();
+                    } else {
+                      navigate(item.path);
+                    }
                   }}
                   className={isActive ? "text-primary" : ""}
                 >
