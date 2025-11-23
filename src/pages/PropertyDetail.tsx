@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles, Map as MapIcon } from "lucide-react";
+import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles, Map as MapIcon, Briefcase } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ExternalLinks } from "@/components/ExternalLinks";
@@ -15,11 +16,14 @@ import { NeighborhoodPersonality } from "@/components/NeighborhoodPersonality";
 import { PropertyMap } from "@/components/PropertyMap";
 import { PropertyPDFExport } from "@/components/PropertyPDFExport";
 import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
+import { AddToPortfolioDialog } from "@/components/portfolio/AddToPortfolioDialog";
+import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 
 export default function PropertyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isPremium } = useSubscription();
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -29,6 +33,8 @@ export default function PropertyDetail() {
   const [neighborhoodPersonality, setNeighborhoodPersonality] = useState<string>("");
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -268,6 +274,22 @@ export default function PropertyDetail() {
               variant="outline"
               size="lg"
               className="w-full"
+              onClick={() => {
+                if (isPremium) {
+                  setShowAddToPortfolio(true);
+                } else {
+                  setShowUpgrade(true);
+                }
+              }}
+            >
+              <Briefcase className="mr-2 h-5 w-5" />
+              Add to Portfolio
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full"
               onClick={handleMapToggle}
             >
               {showMap ? (
@@ -360,6 +382,20 @@ export default function PropertyDetail() {
           ) : null}
         </div>
       </div>
+
+      <AddToPortfolioDialog
+        isOpen={showAddToPortfolio}
+        onClose={() => setShowAddToPortfolio(false)}
+        propertyId={property.id}
+        propertyPrice={property.price}
+      />
+
+      <UpgradeModal
+        isOpen={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        reason="Portfolio Builder is a Premium feature"
+        feature="Track multiple properties with combined cash flow analysis and ROI calculations"
+      />
     </div>
   );
 }
