@@ -65,13 +65,49 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
         el.style.backgroundSize = 'cover';
         el.style.cursor = 'pointer';
 
-        const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-          <div style="padding: 8px; min-width: 200px;">
-            <p style="font-weight: bold; margin-bottom: 4px;">${formatCurrency(property.price || 0)}</p>
-            <p style="font-size: 12px; margin-bottom: 4px;">${property.address}</p>
-            <p style="font-size: 11px; color: #666;">${property.beds || 0} bed • ${property.baths || 0} bath • ${property.sqft?.toLocaleString() || 0} sqft</p>
-          </div>
-        `);
+        // Create popup container
+        const popupDiv = document.createElement('div');
+        popupDiv.style.padding = '8px';
+        popupDiv.style.minWidth = '200px';
+        popupDiv.innerHTML = `
+          <p style="font-weight: bold; margin-bottom: 4px;">${formatCurrency(property.price || 0)}</p>
+          <p style="font-size: 12px; margin-bottom: 4px;">${property.address}</p>
+          <p style="font-size: 11px; color: #666; margin-bottom: 8px;">${property.beds || 0} bed • ${property.baths || 0} bath • ${property.sqft?.toLocaleString() || 0} sqft</p>
+          <button 
+            id="analyze-btn-${property.id}"
+            style="
+              width: 100%;
+              padding: 6px 12px;
+              background: hsl(var(--primary));
+              color: white;
+              border: none;
+              border-radius: 6px;
+              font-size: 12px;
+              font-weight: 500;
+              cursor: pointer;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity='0.9'"
+            onmouseout="this.style.opacity='1'"
+          >
+            Analyze Property
+          </button>
+        `;
+
+        // Add click handler to the analyze button
+        const popup = new mapboxgl.Popup({ offset: 25 })
+          .setDOMContent(popupDiv);
+
+        // Wait for popup to open, then attach event listener
+        popup.on('open', () => {
+          const analyzeBtn = document.getElementById(`analyze-btn-${property.id}`);
+          if (analyzeBtn && onAnalyze) {
+            analyzeBtn.addEventListener('click', () => {
+              onAnalyze(property);
+              popup.remove(); // Close the popup after clicking
+            });
+          }
+        });
 
         new mapboxgl.Marker(el)
           .setLngLat([property.lng, property.lat])
