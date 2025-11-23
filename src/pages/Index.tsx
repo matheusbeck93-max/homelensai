@@ -370,19 +370,55 @@ export default function Index() {
   const [featuredListings, setFeaturedListings] = useState<HomeLensListing[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(false);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Load featured homes on mount
+  // Try to get user's geolocation on mount
+  useEffect(() => {
+    if (!("geolocation" in navigator)) {
+      setLocationError("Geolocation not supported, using a default city.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setUserLocation({ lat: latitude, lon: longitude });
+      },
+      (err) => {
+        console.warn("Geolocation error:", err);
+        setLocationError(err.message || "Unable to access location, using a default city.");
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 600000,
+      }
+    );
+  }, []);
+
+  // Load featured homes based on user location or default
   useEffect(() => {
     const loadFeaturedHomes = async () => {
       setFeaturedLoading(true);
       setFeaturedError(null);
       try {
+        const payload: any = {};
+
+        if (userLocation) {
+          // Use user's coordinates if available
+          payload.latitude = userLocation.lat;
+          payload.longitude = userLocation.lon;
+        } else {
+          // Fallback to default city
+          payload.location = "Miami, FL";
+          payload.minPrice = 300000;
+          payload.maxPrice = 1500000;
+          payload.minBeds = 2;
+        }
+
         const { data, error } = await supabase.functions.invoke('search-listings', {
-          body: {
-            location: "Miami, FL",
-            minPrice: 300000,
-            maxPrice: 1500000
-          }
+          body: payload
         });
         
         if (error) {
@@ -411,7 +447,7 @@ export default function Index() {
     };
     
     loadFeaturedHomes();
-  }, []);
+  }, [userLocation]);
 
   return <div className="min-h-screen pb-24 md:pb-8">
       {/* Navigation - Import from component */}
@@ -552,7 +588,16 @@ export default function Index() {
       {messages.length === 0 && (
         <section className="container mx-auto px-4 py-10 mt-10 border-t border-muted">
           <div className="space-y-6">
-            <h2 className="text-3xl font-bold">Featured Homes in Miami</h2>
+            <div>
+              <h2 className="text-3xl font-bold">
+                {userLocation ? "Featured Homes near you" : "Featured Homes in Miami"}
+              </h2>
+              {locationError && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {locationError} Showing homes in a default market instead.
+                </p>
+              )}
+            </div>
             
             {featuredLoading ? (
               <div className="flex gap-4 overflow-x-auto pb-4">
@@ -571,7 +616,7 @@ export default function Index() {
               </Alert>
             ) : featuredListings.length > 0 ? (
               <PropertyResultsCarousel
-                title="Featured Listings"
+                title={userLocation ? "Homes near you" : "Featured Listings in Miami"}
                 properties={featuredListings}
                 onAnalyze={handlePropertyAnalyze}
               />

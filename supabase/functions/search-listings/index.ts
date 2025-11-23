@@ -6,12 +6,14 @@ const corsHeaders = {
 };
 
 interface SearchParams {
-  location: string;
+  location?: string;
   minPrice?: number;
   maxPrice?: number;
   minBeds?: number;
   maxBeds?: number;
   propertyType?: 'house' | 'condo' | 'townhome' | 'multi' | 'any';
+  latitude?: number;
+  longitude?: number;
 }
 
 interface HomeLensListing {
@@ -36,13 +38,13 @@ serve(async (req) => {
   }
 
   try {
-    const { location, minPrice, maxPrice, minBeds, maxBeds, propertyType } = await req.json() as SearchParams;
+    const { location, minPrice, maxPrice, minBeds, maxBeds, propertyType, latitude, longitude } = await req.json() as SearchParams;
 
-    console.log('Search request:', { location, minPrice, maxPrice, minBeds, maxBeds, propertyType });
+    console.log('Search request:', { location, latitude, longitude, minPrice, maxPrice, minBeds, maxBeds, propertyType });
 
-    if (!location) {
+    if (!location && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
       return new Response(
-        JSON.stringify({ error: 'Location is required' }),
+        JSON.stringify({ error: 'Either location or latitude/longitude is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -60,20 +62,6 @@ serve(async (req) => {
       );
     }
 
-    // Parse location
-    const isZip = /^\d{5}$/.test(location.trim());
-    let city = '';
-    let stateCode = '';
-    let postalCode = '';
-
-    if (isZip) {
-      postalCode = location.trim();
-    } else {
-      const parts = location.split(',').map(s => s.trim());
-      city = parts[0] || '';
-      stateCode = parts[1] || '';
-    }
-
     // Build POST body for Realty in US API v3/list
     const requestBody: any = {
       limit: 20,
@@ -85,12 +73,34 @@ serve(async (req) => {
       }
     };
 
-    // Add location
-    if (postalCode) {
-      requestBody.postal_code = postalCode;
-    } else {
-      if (city) requestBody.city = city;
-      if (stateCode) requestBody.state_code = stateCode;
+    // Prioritize lat/lon if provided, otherwise use location string
+    if (typeof latitude === 'number' && typeof longitude === 'number') {
+      requestBody.lat = latitude;
+      requestBody.lon = longitude;
+      // Add a reasonable radius (in miles) for location-based searches
+      requestBody.radius = 25;
+    } else if (location) {
+      // Parse location string
+      const isZip = /^\d{5}$/.test(location.trim());
+      let city = '';
+      let stateCode = '';
+      let postalCode = '';
+
+      if (isZip) {
+        postalCode = location.trim();
+      } else {
+        const parts = location.split(',').map(s => s.trim());
+        city = parts[0] || '';
+        stateCode = parts[1] || '';
+      }
+
+      // Add location
+      if (postalCode) {
+        requestBody.postal_code = postalCode;
+      } else {
+        if (city) requestBody.city = city;
+        if (stateCode) requestBody.state_code = stateCode;
+      }
     }
 
     // Add price filters
