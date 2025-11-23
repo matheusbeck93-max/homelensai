@@ -788,7 +788,7 @@ export default function Chat() {
 
           {/* Messages - Scrollable */}
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+            <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
             {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
             setUserProfile(profile);
             setShowProfileSelector(false);
@@ -908,7 +908,7 @@ export default function Chat() {
 
           {/* Input Area - Sticky at bottom */}
           <div className="border-t bg-background p-4 pb-24 md:pb-4 flex-shrink-0">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-6xl mx-auto">
             {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
                 <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => {
