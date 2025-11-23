@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Home, Bot, Send, Plus, History, Mic, MicOff, Search as SearchIcon, Bookmark, Trash2, Edit } from "lucide-react";
+import { Home, Bot, Send, Plus, History, Mic, MicOff, Search as SearchIcon, Bookmark, Trash2, Edit, Heart } from "lucide-react";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,6 +55,7 @@ export default function Index() {
   const [savedSearches, setSavedSearches] = useState<any[]>([]);
   const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
   const [editingSearchName, setEditingSearchName] = useState<string>("");
+  const [analyzedProperty, setAnalyzedProperty] = useState<HomeLensListing | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
@@ -267,6 +269,9 @@ export default function Index() {
       });
       return;
     }
+    
+    // Store the analyzed property
+    setAnalyzedProperty(property);
     
     // Show conversation box
     setShowConversation(true);
@@ -758,6 +763,13 @@ export default function Index() {
                 Property Analysis
               </h3>
               <div className="flex gap-2">
+                {analyzedProperty && (
+                  <FavoriteButton 
+                    propertyId={analyzedProperty.id} 
+                    userId={user?.id} 
+                    variant="icon"
+                  />
+                )}
                 {searchQuery && (
                   <Button 
                     variant="ghost" 

@@ -1,4 +1,4 @@
-import { Home, Calculator, TrendingUp, User } from "lucide-react";
+import { Home, Calculator, TrendingUp, Heart } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +25,7 @@ export function MobileBottomNav() {
     { icon: Home, label: "Home", path: "/" },
     { icon: Calculator, label: "Calculators", path: "/calculators" },
     { icon: TrendingUp, label: "Investor", path: "/investor" },
-    { icon: User, label: user ? "Profile" : "Sign In", path: user ? "/profile" : "/auth" },
+    { icon: Heart, label: "Favorites", path: "/favorites" },
   ];
 
   return (
