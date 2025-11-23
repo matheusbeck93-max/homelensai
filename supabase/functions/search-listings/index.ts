@@ -6,12 +6,72 @@ const corsHeaders = {
 };
 
 interface SearchParams {
-  location?: string;
+  location?: string; // "City, ST" or ZIP code
   minPrice?: number;
   maxPrice?: number;
   minBeds?: number;
   maxBeds?: number;
   propertyType?: 'house' | 'condo' | 'townhome' | 'multi' | 'any';
+}
+
+// US state name → state code mapping
+const STATE_MAP: Record<string, string> = {
+  alabama:"AL", alaska:"AK", arizona:"AZ", arkansas:"AR", california:"CA",
+  colorado:"CO", connecticut:"CT", delaware:"DE", "district of columbia":"DC",
+  florida:"FL", georgia:"GA", hawaii:"HI", idaho:"ID", illinois:"IL",
+  indiana:"IN", iowa:"IA", kansas:"KS", kentucky:"KY", louisiana:"LA",
+  maine:"ME", maryland:"MD", massachusetts:"MA", michigan:"MI",
+  minnesota:"MN", mississippi:"MS", missouri:"MO", montana:"MT",
+  nebraska:"NE", nevada:"NV", "new hampshire":"NH", "new jersey":"NJ",
+  "new mexico":"NM", "new york":"NY", "north carolina":"NC",
+  "north dakota":"ND", ohio:"OH", oklahoma:"OK", oregon:"OR",
+  pennsylvania:"PA", "rhode island":"RI", "south carolina":"SC",
+  "south dakota":"SD", tennessee:"TN", texas:"TX", utah:"UT", vermont:"VT",
+  virginia:"VA", washington:"WA", "west virginia":"WV", wisconsin:"WI",
+  wyoming:"WY"
+};
+
+function parseLocation(raw?: string): {
+  city?: string;
+  stateCode?: string;
+  postalCode?: string;
+} {
+  if (!raw) return {};
+  const value = raw.trim().replace(/\s+/g, " ");
+
+  // Check if it's a ZIP code
+  if (/^\d{5}$/.test(value)) {
+    return { postalCode: value };
+  }
+
+  let cityPart = value;
+  let statePart = "";
+
+  // Parse "City, ST" or "City ST" format
+  if (value.includes(",")) {
+    const [city, state] = value.split(",").map(s => s.trim());
+    cityPart = city;
+    statePart = state;
+  } else {
+    const parts = value.split(" ");
+    if (parts.length > 1) {
+      statePart = parts[parts.length - 1];
+      cityPart = parts.slice(0, -1).join(" ");
+    }
+  }
+
+  let stateCode = "";
+  if (statePart.length === 2) {
+    stateCode = statePart.toUpperCase();
+  } else {
+    const key = statePart.toLowerCase();
+    stateCode = STATE_MAP[key] || "";
+  }
+
+  return {
+    city: cityPart || undefined,
+    stateCode: stateCode || undefined,
+  };
 }
 
 interface HomeLensListing {
@@ -54,6 +114,10 @@ serve(async (req) => {
     }
 
     // Build POST body for Realty in US API v3/list
+    const DEFAULT_AREA = "Miami, FL";
+    const rawLocation = location && location.trim().length > 0 ? location : DEFAULT_AREA;
+    const { city, stateCode, postalCode } = parseLocation(rawLocation);
+
     const requestBody: any = {
       limit: 20,
       offset: 0,
@@ -64,22 +128,15 @@ serve(async (req) => {
       }
     };
 
-    // Determine location - use provided location or default to Miami, FL
-    const DEFAULT_AREA = "Miami, FL";
-    const searchLocation = location || DEFAULT_AREA;
-    
-    const isZip = /^\d{5}$/.test(searchLocation.trim());
-    
-    if (isZip) {
-      requestBody.postal_code = searchLocation.trim();
+    // Add location to payload
+    if (postalCode) {
+      requestBody.postal_code = postalCode;
     } else {
-      const parts = searchLocation.split(',').map(s => s.trim());
-      const city = parts[0] || '';
-      const stateCode = parts[1] || '';
-      
       if (city) requestBody.city = city;
       if (stateCode) requestBody.state_code = stateCode;
     }
+
+    console.log('Parsed location:', { city, stateCode, postalCode });
 
     // Add price filters
     if (minPrice) requestBody.price_min = minPrice;

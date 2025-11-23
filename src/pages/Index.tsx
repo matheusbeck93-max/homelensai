@@ -426,7 +426,7 @@ export default function Index() {
         const firstListings = first.data?.listings ?? [];
 
         if (firstListings.length > 0) {
-          setFeaturedListings(firstListings.slice(0, 6));
+          setFeaturedListings(firstListings);
           return;
         }
 
@@ -457,7 +457,7 @@ export default function Index() {
           }
 
           const fallbackListings = fallback.data?.listings ?? [];
-          setFeaturedListings(fallbackListings.slice(0, 6));
+          setFeaturedListings(fallbackListings);
           return;
         }
 
@@ -625,11 +625,14 @@ export default function Index() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold">
+                <h2 className="text-2xl font-bold">
                   {preferredArea
                     ? `Featured Homes near ${preferredArea}`
                     : "Featured Homes near you"}
                 </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Handpicked properties in your area
+                </p>
                 {featuredError && (
                   <p className="text-sm text-red-500 mt-2">{featuredError}</p>
                 )}
