@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, User, Mail, Save, Trash2, AlertTriangle, Calculator, Edit, Trash } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Navigation } from "@/components/Navigation";
+import { SubscriptionSettings } from "@/components/subscription/SubscriptionSettings";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -312,38 +313,8 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Account */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Account</CardTitle>
-              <CardDescription>
-                Manage your account settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-medium mb-2">Current Plan</h3>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-semibold">Free Plan</p>
-                    <p className="text-sm text-muted-foreground">
-                      All features included
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-primary">$0</p>
-                    <p className="text-sm text-muted-foreground">per month</p>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-medium mb-2">Usage</h3>
-                <p className="text-sm text-muted-foreground">
-                  You have unlimited access to all features
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Subscription Settings */}
+          <SubscriptionSettings />
 
           {/* Danger Zone */}
           <Card className="border-destructive">

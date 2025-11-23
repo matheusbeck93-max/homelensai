@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Home, Calculator, TrendingUp, Menu, Heart } from "lucide-react";
+import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +21,7 @@ export function Navigation() {
   const isMobile = useIsMobile();
   const [user, setUser] = useState<any>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { tier, loading: subscriptionLoading } = useSubscription();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -92,6 +95,26 @@ export function Navigation() {
             })}
             
             <ThemeToggle />
+            
+            <ThemeToggle />
+            
+            {user && !subscriptionLoading && tier === 'free' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/pricing')}
+                className="gap-1.5"
+              >
+                <Sparkles className="h-4 w-4" />
+                Upgrade to Pro
+              </Button>
+            )}
+
+            {user && !subscriptionLoading && (tier === 'pro' || tier === 'premium') && (
+              <div className="flex items-center gap-2">
+                <SubscriptionBadge tier={tier} />
+              </div>
+            )}
             
             {user ? (
               <Button variant="outline" onClick={handleLogout}>
