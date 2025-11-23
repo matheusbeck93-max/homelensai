@@ -47,6 +47,8 @@ export default function Index() {
   const [searchProperties, setSearchProperties] = useState<HomeLensListing[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showConversation, setShowConversation] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
@@ -200,6 +202,7 @@ export default function Index() {
   const handlePropertySearch = async (query: string) => {
     setSearchLoading(true);
     setSearchError(null);
+    setSearchQuery(query);
     
     try {
       // Parse the query using helper
@@ -231,22 +234,6 @@ export default function Index() {
       } else if (data?.listings && data.listings.length > 0) {
         setSearchProperties(data.listings);
         setSearchError(null);
-        
-        // Create synthetic assistant message with UI block
-        const syntheticMessage = {
-          role: "assistant",
-          content: `Here are ${data.listings.length} properties matching your criteria. Click "Analyze" on any property to get detailed insights.`,
-          uiBlock: {
-            type: "ui_block/property_results_carousel" as const,
-            title: "Property Search Results",
-            properties: data.listings
-          }
-        };
-        
-        setMessages([
-          { role: "user", content: query },
-          syntheticMessage
-        ]);
       } else {
         setSearchError("No properties found. Try adjusting your search criteria.");
         setSearchProperties([]);
@@ -271,9 +258,11 @@ export default function Index() {
       return;
     }
     
+    // Show conversation box
+    setShowConversation(true);
+    
     // Create analysis message
     const analysisMessage = `Analyze this property: ${property.listingUrl}`;
-    setInput(analysisMessage);
     
     // Add user message
     const userMessage = { role: "user", content: analysisMessage };
@@ -307,23 +296,15 @@ export default function Index() {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
-    // Check if this looks like a property search query (only on first message)
-    if (messages.length === 0 && isPropertySearchQuery(input)) {
+    // Check if this looks like a property search query
+    if (isPropertySearchQuery(input)) {
       await handlePropertySearch(input);
+      setInput("");
       return;
     }
     
-    // If we already have messages, continue in chat mode
-    if (messages.length === 0) {
-      // Otherwise redirect to chat for AI conversation
-      navigate('/chat', {
-        state: {
-          initialPrompt: input,
-          newConversation: true
-        }
-      });
-      return;
-    }
+    // For non-search queries, show conversation box and continue chat
+    setShowConversation(true);
     const userMessage = {
       role: "user",
       content: input
@@ -506,135 +487,92 @@ export default function Index() {
         {/* Content */}
         <main className="relative z-10 max-w-5xl mx-auto px-4 w-full space-y-6">
           <div className="w-full">
-            {messages.length === 0 ? <div className="text-center space-y-8">
-                <h1 className="text-5xl font-bold text-foreground mb-12">
-                  Find your new home
-                </h1>
-                
-                {/* Search Error Alert */}
-                {searchError && (
-                  <Alert variant="destructive" className="mb-6">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{searchError}</AlertDescription>
-                  </Alert>
-                )}
-                
-                {/* Loading Skeleton */}
-                {searchLoading && (
-                  <div className="mb-8 space-y-4">
-                    <div className="flex gap-4 overflow-x-auto pb-4">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="w-[90vw] max-w-[320px] flex-shrink-0">
-                          <Skeleton className="h-48 w-full mb-4" />
-                          <Skeleton className="h-6 w-3/4 mb-2" />
-                          <Skeleton className="h-4 w-1/2" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Property Search Results - DEPRECATED: Now using UIBlockRenderer */}
-                {/* This PropertyCarousel is kept for backwards compatibility but 
-                    new searches use the UIBlockRenderer with property_results_carousel block */}
-                {searchProperties.length > 0 && messages.length === 0 && (
-                  <div className="mb-8">
-                    <PropertyCarousel 
-                      properties={searchProperties}
-                      onSelectProperty={handlePropertyAnalyze}
-                    />
-                  </div>
-                )}
-                
-                <div className="bg-card border rounded-2xl p-6 shadow-md">
-                  <Textarea 
-                    placeholder={searchProperties.length > 0 ? "Ask about these properties or search again..." : animatedPlaceholder}
-                    value={input} 
-                    onChange={e => setInput(e.target.value)} 
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
-                    className="min-h-[100px] mb-4" 
-                    disabled={searchLoading}
-                  />
-                  <div className="flex gap-2">
-                    <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading || searchLoading} variant={isRecording ? "destructive" : "outline"} size="lg" className={isRecording ? "animate-pulse" : ""}>
-                      {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                    </Button>
-                    <Button onClick={handleSend} disabled={loading || searchLoading} className="flex-1">
-                      {searchLoading ? (
-                        <>
-                          <SearchIcon className="h-4 w-4 mr-2 animate-spin" />
-                          Searching...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          {searchProperties.length > 0 ? "Ask HomeLens" : "Search Properties"}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div> : <div className="bg-card border rounded-2xl p-6 h-[85vh] flex flex-col shadow-lg">
-                <div className="flex justify-between items-center mb-4 pb-4 border-b">
-                  <h2 className="text-lg font-semibold">Conversation</h2>
-                  <Button variant="outline" size="sm" onClick={handleNewConversation}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Chat
+            <div className="text-center space-y-8">
+              <h1 className="text-5xl font-bold text-foreground mb-12">
+                Find your new home
+              </h1>
+              
+              <div className="bg-card border rounded-2xl p-6 shadow-md">
+                <Textarea 
+                  placeholder={animatedPlaceholder}
+                  value={input} 
+                  onChange={e => setInput(e.target.value)} 
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
+                  className="min-h-[100px] mb-4" 
+                  disabled={searchLoading}
+                />
+                <div className="flex gap-2">
+                  <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading || searchLoading} variant={isRecording ? "destructive" : "outline"} size="lg" className={isRecording ? "animate-pulse" : ""}>
+                    {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                  </Button>
+                  <Button onClick={handleSend} disabled={loading || searchLoading} className="flex-1">
+                    {searchLoading ? (
+                      <>
+                        <SearchIcon className="h-4 w-4 mr-2 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Search Properties
+                      </>
+                    )}
                   </Button>
                 </div>
-                <ScrollArea className="flex-1 min-h-0 pr-4">
-                  <div className="space-y-4">
-                     {messages.map((msg, i) => (
-                       <div key={i}>
-                         {/* Render UI Block if present (above the message) */}
-                         {msg.role === 'assistant' && msg.uiBlock && (
-                           <div className="mb-4">
-                             <UIBlockRenderer 
-                               block={msg.uiBlock}
-                               onPropertyAnalyze={handlePropertyAnalyze}
-                             />
-                           </div>
-                         )}
-                         
-                         {/* Message content */}
-                         <div className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                           {msg.role === 'assistant' && <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                               <Bot className="h-5 w-5 text-primary-foreground" />
-                             </div>}
-                           <div className={`max-w-[80%] rounded-2xl p-4 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                             <ReactMarkdown components={{
-                         a: MarkdownLink
-                       }}>{msg.content}</ReactMarkdown>
-                             {msg.toolType === 'calculator' && <InlineCalculator />}
-                             {msg.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={msg.toolData} />}
-                             {msg.toolType === 'property_comparison' && msg.toolData && <div className="mt-4">
-                                 <PropertyComparison properties={msg.toolData} onRemove={() => {}} onClear={() => {}} />
-                               </div>}
-                           </div>
-                         </div>
-                       </div>
-                     ))}
-                    {loading && <div className="text-muted-foreground">Thinking...</div>}
-                    <div ref={scrollRef} />
-                  </div>
-                </ScrollArea>
-                <div className="mt-4 flex gap-2">
-                  <Textarea placeholder="Follow up question..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} className="flex-1" />
-                  <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading} variant={isRecording ? "destructive" : "outline"} className={isRecording ? "animate-pulse" : ""}>
-                    {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  </Button>
-                  <Button onClick={handleSend} disabled={loading}>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>}
+              </div>
+            </div>
           </div>
         </main>
       </section>
 
+      {/* Search Results Section */}
+      {(searchProperties.length > 0 || searchLoading || searchError) && (
+        <section className="container mx-auto px-4 py-8">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold">
+                {searchQuery ? `Search Results for "${searchQuery}"` : "Search Results"}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {searchProperties.length > 0 && `Found ${searchProperties.length} properties`}
+              </p>
+            </div>
+            
+            {/* Search Error Alert */}
+            {searchError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{searchError}</AlertDescription>
+              </Alert>
+            )}
+            
+            {/* Loading Skeleton */}
+            {searchLoading && (
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="w-[90vw] max-w-[320px] flex-shrink-0">
+                    <Skeleton className="h-48 w-full mb-4" />
+                    <Skeleton className="h-6 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Property Search Results */}
+            {searchProperties.length > 0 && !searchLoading && (
+              <PropertyResultsCarousel
+                title="Property Search Results"
+                properties={searchProperties}
+                onAnalyze={handlePropertyAnalyze}
+              />
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Featured Homes Section */}
-      {messages.length === 0 && (
-        <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
+      <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
             <div>
@@ -697,10 +635,102 @@ export default function Index() {
             )}
           </div>
         </section>
-      )}
 
-      {/* Video Introduction Section - Only show when no messages */}
-      {messages.length === 0}
+      {/* Floating Conversation Box */}
+      {showConversation && messages.length > 0 && (
+        <div className="fixed bottom-4 right-4 w-full max-w-md z-50 animate-in slide-in-from-bottom-5">
+          <div className="bg-card border rounded-2xl shadow-2xl flex flex-col max-h-[600px]">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Bot className="h-5 w-5 text-primary" />
+                Property Analysis
+              </h3>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleNewConversation}
+                  className="h-8 w-8 p-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowConversation(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+            </div>
+            
+            <ScrollArea className="flex-1 p-4 min-h-0">
+              <div className="space-y-4">
+                {messages.map((msg, i) => (
+                  <div key={i}>
+                    {/* Render UI Block if present */}
+                    {msg.role === 'assistant' && msg.uiBlock && (
+                      <div className="mb-4">
+                        <UIBlockRenderer 
+                          block={msg.uiBlock}
+                          onPropertyAnalyze={handlePropertyAnalyze}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Message content */}
+                    <div className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                      {msg.role === 'assistant' && (
+                        <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                          <Bot className="h-5 w-5 text-primary-foreground" />
+                        </div>
+                      )}
+                      <div className={`max-w-[80%] rounded-2xl p-4 text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                        <ReactMarkdown components={{ a: MarkdownLink }}>{msg.content}</ReactMarkdown>
+                        {msg.toolType === 'calculator' && <InlineCalculator />}
+                        {msg.toolType === 'deal_analysis' && <InlineDealAnalysis initialData={msg.toolData} />}
+                        {msg.toolType === 'property_comparison' && msg.toolData && (
+                          <div className="mt-4">
+                            <PropertyComparison properties={msg.toolData} onRemove={() => {}} onClear={() => {}} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {loading && <div className="text-muted-foreground text-sm">Thinking...</div>}
+                <div ref={scrollRef} />
+              </div>
+            </ScrollArea>
+            
+            <div className="p-4 border-t flex gap-2">
+              <Textarea 
+                placeholder="Ask a follow-up question..." 
+                value={input} 
+                onChange={e => setInput(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
+                className="min-h-[60px] flex-1" 
+                disabled={loading}
+              />
+              <div className="flex flex-col gap-2">
+                <Button 
+                  onClick={isRecording ? stopVoiceRecording : startVoiceRecording} 
+                  disabled={loading} 
+                  variant={isRecording ? "destructive" : "outline"}
+                  size="sm"
+                  className={isRecording ? "animate-pulse" : ""}
+                >
+                  {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </Button>
+                <Button onClick={handleSend} disabled={loading} size="sm">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="bg-muted py-8">
