@@ -489,7 +489,7 @@ export default function Index() {
       <Navigation />
 
       {/* Hero Section with Search */}
-      <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pt-20 pb-10">
+      <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pt-20 pb-4">
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
@@ -621,7 +621,7 @@ export default function Index() {
 
       {/* Featured Homes Section */}
       {messages.length === 0 && (
-        <section className="container mx-auto px-4 py-10 mt-10 border-t border-muted">
+        <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
