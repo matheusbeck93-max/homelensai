@@ -238,10 +238,10 @@ serve(async (req) => {
     console.log('Realtor API response received, data keys:', Object.keys(data));
 
     const properties = data?.data?.home_search?.results || data?.data?.results || data?.results || [];
-    console.log('Properties count:', properties.length);
+    console.log('Properties count before filtering:', properties.length);
 
     // Normalize to HomeLens format with coordinates
-    const listings: HomeLensListing[] = properties.map((prop: any) => {
+    let listings: HomeLensListing[] = properties.map((prop: any) => {
       const location = prop.location || {};
       const address = location.address || {};
       const coordinate = address.coordinate || location.coordinate || {};
@@ -266,7 +266,24 @@ serve(async (req) => {
       };
     });
 
-    console.log('Returning normalized listings:', listings.length);
+    // CRITICAL: Post-filter to ensure results match the requested state
+    // API sometimes returns results from wrong states with similar city names
+    if (stateCode) {
+      const beforeFilter = listings.length;
+      listings = listings.filter(listing => {
+        const listingState = listing.state?.toUpperCase();
+        const requestedState = stateCode.toUpperCase();
+        return listingState === requestedState;
+      });
+      const afterFilter = listings.length;
+      console.log(`State filter applied: ${beforeFilter} -> ${afterFilter} (requested: ${stateCode})`);
+      
+      if (afterFilter === 0 && beforeFilter > 0) {
+        console.warn(`All ${beforeFilter} results filtered out - they were from wrong states`);
+      }
+    }
+
+    console.log('Returning filtered normalized listings:', listings.length);
 
     return new Response(
       JSON.stringify({ listings }),
