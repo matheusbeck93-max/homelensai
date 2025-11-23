@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { PropertyResultsCarousel } from "@/components/ui-blocks/PropertyResultsCarousel";
 import { UIBlock, HomeLensListing } from "@/types/ui-blocks";
+import FollowUpChat from "@/components/FollowUpChat";
 const MarkdownLink = ({
   href,
   children
@@ -67,6 +68,7 @@ export default function Chat() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedChatsToDelete, setSelectedChatsToDelete] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [latestProperties, setLatestProperties] = useState<Property[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -609,6 +611,23 @@ export default function Chat() {
         uiBlock: uiBlock
       };
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Update latest properties for FollowUpChat
+      if (uiBlock?.type === "ui_block/property_results_carousel") {
+        setLatestProperties(uiBlock.properties.map(p => ({
+          id: p.id,
+          address: p.address,
+          city: p.city ?? "",
+          state: p.state ?? "",
+          price: p.price ?? 0,
+          beds: p.beds ?? 0,
+          baths: p.baths ?? 0,
+          sqft: p.sqft ?? 0,
+          image_url: p.photoUrl ?? "",
+        })));
+      } else if (properties && properties.length > 0) {
+        setLatestProperties(properties);
+      }
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         role: "assistant",
@@ -785,7 +804,7 @@ export default function Chat() {
           </div>
 
           {/* Messages - Scrollable */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" style={{ paddingBottom: latestProperties.length > 0 ? '180px' : '0' }}>
             <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
             {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
             setUserProfile(profile);
@@ -940,7 +959,7 @@ export default function Chat() {
           </div>
 
           {/* Input Area - Sticky at bottom */}
-          <div className="border-t bg-background p-4 pb-24 md:pb-4 flex-shrink-0">
+          <div className="border-t bg-background p-4 flex-shrink-0" style={{ marginBottom: latestProperties.length > 0 ? '160px' : '0' }}>
             <div className="max-w-6xl mx-auto">
             {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
@@ -978,6 +997,15 @@ export default function Chat() {
         </div>
       </div>
 
+      {/* Follow-up Chat - Always visible when properties exist */}
+      {latestProperties.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 md:left-64">
+          <FollowUpChat 
+            context={`Properties from your search: ${latestProperties.length} listings`}
+            properties={latestProperties}
+          />
+        </div>
+      )}
 
       {/* Delete Conversations Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
