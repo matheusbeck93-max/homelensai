@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Edit, ExternalLink } from "lucide-react";
+import { Trash2, Edit, ExternalLink, TrendingUp } from "lucide-react";
 import { EditPortfolioDialog } from "./EditPortfolioDialog";
+import { InvestmentProjections } from "./InvestmentProjections";
 import type { PortfolioProperty } from "@/pages/Portfolio";
 import { useNavigate } from "react-router-dom";
 
@@ -16,6 +17,7 @@ interface PortfolioPropertyCardProps {
 export function PortfolioPropertyCard({ portfolioProperty, onRemove, onUpdate }: PortfolioPropertyCardProps) {
   const navigate = useNavigate();
   const [showEdit, setShowEdit] = useState(false);
+  const [showProjections, setShowProjections] = useState(false);
   const { property } = portfolioProperty;
 
   const calculateMetrics = () => {
@@ -112,11 +114,18 @@ export function PortfolioPropertyCard({ portfolioProperty, onRemove, onUpdate }:
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowEdit(true)}
+              onClick={() => setShowProjections(!showProjections)}
               className="flex-1"
             >
-              <Edit className="h-3 w-3 mr-1" />
-              Edit
+              <TrendingUp className="h-3 w-3 mr-1" />
+              {showProjections ? 'Hide' : 'Show'} Projections
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowEdit(true)}
+            >
+              <Edit className="h-3 w-3" />
             </Button>
             <Button
               variant="destructive"
@@ -128,6 +137,12 @@ export function PortfolioPropertyCard({ portfolioProperty, onRemove, onUpdate }:
           </div>
         </div>
       </Card>
+
+      {showProjections && (
+        <div className="mt-4">
+          <InvestmentProjections portfolioProperty={portfolioProperty} />
+        </div>
+      )}
 
       <EditPortfolioDialog
         isOpen={showEdit}
