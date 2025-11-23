@@ -184,6 +184,8 @@ export type Database = {
           buyer_type: string | null
           commute_preferences: Json | null
           created_at: string | null
+          daily_analysis_count: number | null
+          daily_analysis_last_reset: string | null
           desired_monthly_payment: number | null
           email: string | null
           full_name: string | null
@@ -192,6 +194,9 @@ export type Database = {
           onboarding_completed: boolean | null
           property_types: string[] | null
           risk_level: string | null
+          subscription_cancel_at: string | null
+          subscription_renews_at: string | null
+          subscription_status: string | null
           updated_at: string | null
           user_profile: string | null
         }
@@ -201,6 +206,8 @@ export type Database = {
           buyer_type?: string | null
           commute_preferences?: Json | null
           created_at?: string | null
+          daily_analysis_count?: number | null
+          daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
           full_name?: string | null
@@ -209,6 +216,9 @@ export type Database = {
           onboarding_completed?: boolean | null
           property_types?: string[] | null
           risk_level?: string | null
+          subscription_cancel_at?: string | null
+          subscription_renews_at?: string | null
+          subscription_status?: string | null
           updated_at?: string | null
           user_profile?: string | null
         }
@@ -218,6 +228,8 @@ export type Database = {
           buyer_type?: string | null
           commute_preferences?: Json | null
           created_at?: string | null
+          daily_analysis_count?: number | null
+          daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
           full_name?: string | null
@@ -226,6 +238,9 @@ export type Database = {
           onboarding_completed?: boolean | null
           property_types?: string[] | null
           risk_level?: string | null
+          subscription_cancel_at?: string | null
+          subscription_renews_at?: string | null
+          subscription_status?: string | null
           updated_at?: string | null
           user_profile?: string | null
         }

@@ -14,6 +14,7 @@ import SavedSearches from "./pages/SavedSearches";
 import Calculators from "./pages/Calculators";
 import Investor from "./pages/Investor";
 import Favorites from "./pages/Favorites";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function App() {
               <Route path="/calculators" element={<Calculators />} />
               <Route path="/investor" element={<Investor />} />
               <Route path="/favorites" element={<Favorites />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
