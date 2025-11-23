@@ -739,8 +739,5 @@ export default function Index() {
           </div>
         </DialogContent>
       </Dialog>
-      
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav />
     </div>;
 }
