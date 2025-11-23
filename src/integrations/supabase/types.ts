@@ -177,6 +177,62 @@ export type Database = {
           },
         ]
       }
+      portfolio_properties: {
+        Row: {
+          added_at: string
+          created_at: string | null
+          down_payment_pct: number
+          id: string
+          interest_rate_pct: number
+          loan_term_years: number
+          monthly_expenses: number
+          monthly_rent: number
+          notes: string | null
+          property_id: string
+          purchase_price: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          created_at?: string | null
+          down_payment_pct?: number
+          id?: string
+          interest_rate_pct?: number
+          loan_term_years?: number
+          monthly_expenses?: number
+          monthly_rent?: number
+          notes?: string | null
+          property_id: string
+          purchase_price: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          created_at?: string | null
+          down_payment_pct?: number
+          id?: string
+          interest_rate_pct?: number
+          loan_term_years?: number
+          monthly_expenses?: number
+          monthly_rent?: number
+          notes?: string | null
+          property_id?: string
+          purchase_price?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           alert_email_enabled: boolean | null

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles, Briefcase } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +47,8 @@ export function Navigation() {
     { label: 'Investor', path: '/investor', icon: TrendingUp },
     { label: 'Favorites', path: '/favorites', icon: Heart },
   ];
+
+  const portfolioNavItem = { label: 'Portfolio', path: '/portfolio', icon: Briefcase, requiresPremium: true };
  
   const handleGoHome = () => {
     console.log('Navigating to homepage');
@@ -93,6 +95,18 @@ export function Navigation() {
                 </Button>
               );
             })}
+            
+            {/* Portfolio - Premium only */}
+            {tier === 'premium' && (
+              <Button
+                variant="ghost"
+                onClick={() => navigate(portfolioNavItem.path)}
+                className={location.pathname === portfolioNavItem.path ? "text-primary" : ""}
+              >
+                <Briefcase className="h-4 w-4 mr-2" />
+                {portfolioNavItem.label}
+              </Button>
+            )}
             
             <ThemeToggle />
             
@@ -173,6 +187,21 @@ export function Navigation() {
                           </Button>
                         );
                       })}
+                      
+                      {/* Portfolio - Premium only */}
+                      {tier === 'premium' && (
+                        <Button
+                          variant="ghost"
+                          className="justify-start w-full"
+                          onClick={() => {
+                            navigate('/portfolio');
+                            setMobileOpen(false);
+                          }}
+                        >
+                          <Briefcase className="h-4 w-4 mr-2" />
+                          Portfolio
+                        </Button>
+                      )}
                     </div>
 
                     {user && (
