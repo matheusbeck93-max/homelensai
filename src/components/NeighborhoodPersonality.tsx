@@ -14,9 +14,10 @@ interface NeighborhoodPersonalityProps {
   city: string;
   state: string;
   zip: string;
+  onPersonalityGenerated?: (personality: string) => void;
 }
 
-export function NeighborhoodPersonality({ address, city, state, zip }: NeighborhoodPersonalityProps) {
+export function NeighborhoodPersonality({ address, city, state, zip, onPersonalityGenerated }: NeighborhoodPersonalityProps) {
   const [personality, setPersonality] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -41,6 +42,7 @@ export function NeighborhoodPersonality({ address, city, state, zip }: Neighborh
 
       if (data?.personality) {
         setPersonality(data.personality);
+        onPersonalityGenerated?.(data.personality);
       }
     } catch (error: any) {
       console.error('Error generating neighborhood personality:', error);

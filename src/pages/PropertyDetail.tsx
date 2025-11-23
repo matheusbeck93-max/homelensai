@@ -13,6 +13,7 @@ import { ExternalLinks } from "@/components/ExternalLinks";
 import { NeighborhoodInsights } from "@/components/NeighborhoodInsights";
 import { NeighborhoodPersonality } from "@/components/NeighborhoodPersonality";
 import { PropertyMap } from "@/components/PropertyMap";
+import { PropertyPDFExport } from "@/components/PropertyPDFExport";
 import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
 
 export default function PropertyDetail() {
@@ -25,6 +26,7 @@ export default function PropertyDetail() {
   const [analysis, setAnalysis] = useState<string>("");
   const [userId, setUserId] = useState<string | undefined>();
   const [neighborhoodInsights, setNeighborhoodInsights] = useState<NeighborhoodInsightsType | null>(null);
+  const [neighborhoodPersonality, setNeighborhoodPersonality] = useState<string>("");
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
@@ -281,6 +283,12 @@ export default function PropertyDetail() {
               )}
             </Button>
 
+            <PropertyPDFExport 
+              property={property}
+              analysis={analysis}
+              neighborhoodPersonality={neighborhoodPersonality}
+            />
+
             {analysis && (
               <Card>
                 <CardHeader>
@@ -327,6 +335,7 @@ export default function PropertyDetail() {
             city={property.city}
             state={property.state}
             zip={property.zip}
+            onPersonalityGenerated={setNeighborhoodPersonality}
           />
         </div>
 

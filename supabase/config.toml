@@ -39,3 +39,6 @@ verify_jwt = false
 [functions.check-property-alerts]
 verify_jwt = false
 
+[functions.generate-property-pdf]
+verify_jwt = true
+
