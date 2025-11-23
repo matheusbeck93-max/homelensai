@@ -189,6 +189,18 @@ export default function Chat() {
       role: "user",
       content: trimmed
     };
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-chat", {
+        body: {
+          messages: [userMessage],
+          hasImage: false,
+          userProfile: userProfile
+        }
+      });
+      if (error) throw error;
 
       // Check if response contains property search trigger
       let properties: Property[] | undefined;
@@ -220,7 +232,7 @@ export default function Chat() {
               data: convData
             } = await supabase.from("conversations").insert({
               user_id: user.id,
-              title: query.slice(0, 50)
+              title: trimmed.slice(0, 50)
             }).select().single();
             if (convData) {
               conversationId = convData.id;
