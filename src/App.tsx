@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
+import { ComparisonProvider } from "@/contexts/ComparisonContext";
 import Index from "./pages/Index";
 import PropertyDetail from "./pages/PropertyDetail";
 import Auth from "./pages/Auth";
@@ -23,27 +24,29 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <FavoritesProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/property/:id" element={<PropertyDetail />} />
-              <Route path="/chat" element={<Navigate to="/" replace />} />
-              <Route path="/saved-searches" element={<SavedSearches />} />
-              <Route path="/calculators" element={<Calculators />} />
-              <Route path="/investor" element={<Investor />} />
-              <Route path="/favorites" element={<Favorites />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <MobileBottomNav />
-          </BrowserRouter>
-        </TooltipProvider>
+        <ComparisonProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/property/:id" element={<PropertyDetail />} />
+                <Route path="/chat" element={<Navigate to="/" replace />} />
+                <Route path="/saved-searches" element={<SavedSearches />} />
+                <Route path="/calculators" element={<Calculators />} />
+                <Route path="/investor" element={<Investor />} />
+                <Route path="/favorites" element={<Favorites />} />
+                <Route path="/pricing" element={<Pricing />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <MobileBottomNav />
+            </BrowserRouter>
+          </TooltipProvider>
+        </ComparisonProvider>
       </FavoritesProvider>
     </QueryClientProvider>
   );
