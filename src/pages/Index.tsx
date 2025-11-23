@@ -13,7 +13,6 @@ import PropertyCarousel from "@/components/PropertyCarousel";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { PropertyResultsCarousel } from "@/components/ui-blocks/PropertyResultsCarousel";
 import { Navigation } from "@/components/Navigation";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { UIBlock, HomeLensListing } from "@/types/ui-blocks";
 import ReactMarkdown from "react-markdown";
 import { isPropertySearchQuery, parsePropertySearchQuery } from "@/utils/propertySearchHelpers";
