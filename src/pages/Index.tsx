@@ -208,6 +208,8 @@ export default function Index() {
     setSearchLoading(true);
     setSearchError(null);
     setSearchQuery(query);
+    // Close conversation panel when doing a new search
+    setShowConversation(false);
     
     try {
       // Parse the query using helper
