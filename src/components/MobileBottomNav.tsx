@@ -39,7 +39,10 @@ export function MobileBottomNav() {
           return (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => {
+                console.log(`MobileBottomNav: ${item.label} clicked, navigating to ${item.path}`);
+                navigate(item.path);
+              }}
               className={cn(
                 "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px]",
                 isActive 

@@ -777,7 +777,10 @@ export default function Chat() {
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={() => navigate("/")}
+              onClick={() => {
+                console.log('Chat home button clicked, navigating to /');
+                navigate("/");
+              }}
               className="flex-shrink-0"
             >
               <Home className="h-6 w-6 text-primary" />

@@ -50,7 +50,10 @@ export function Navigation() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => {
+            console.log('Navigation logo clicked, navigating to /');
+            navigate('/');
+          }}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
           <Home className="h-6 w-6 text-primary" />
@@ -67,7 +70,10 @@ export function Navigation() {
                 <Button
                   key={item.path}
                   variant="ghost"
-                  onClick={() => navigate(item.path)}
+                  onClick={() => {
+                    console.log(`Navigation: ${item.label} clicked, navigating to ${item.path}`);
+                    navigate(item.path);
+                  }}
                   className={isActive ? "text-primary" : ""}
                 >
                   <Icon className="h-4 w-4 mr-2" />
