@@ -28,11 +28,8 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
   // Initialize map when switching to map view
   React.useEffect(() => {
     if (viewMode === 'map' && mapContainer.current && !map.current) {
-      // Get mapbox token from localStorage or env
-      const token = localStorage.getItem('mapbox_token') || '';
-      if (!token) {
-        return;
-      }
+      // Use hardcoded Mapbox public token
+      const token = 'pk.eyJ1IjoicGJlY2sxMyIsImEiOiJjbWliMjQzZHgxNHVwMmxvYXJyOWZxa3RsIn0.Vk9tWn1vghY9Vw6RRKLpaA';
 
       mapboxgl.accessToken = token;
 
@@ -131,10 +128,6 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
           {propertiesWithCoords.length === 0 ? (
             <div className="w-full h-96 bg-muted rounded-lg flex items-center justify-center">
               <p className="text-muted-foreground">No location data available for these properties</p>
-            </div>
-          ) : !localStorage.getItem('mapbox_token') ? (
-            <div className="w-full h-96 bg-muted rounded-lg flex items-center justify-center">
-              <p className="text-muted-foreground">Please configure Mapbox token to view map</p>
             </div>
           ) : (
             <div ref={mapContainer} className="w-full h-96 rounded-lg" />
