@@ -762,12 +762,13 @@ export default function Index() {
                 <Bot className="h-5 w-5 text-primary" />
                 Property Analysis
               </h3>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1">
                 {analyzedProperty && (
                   <FavoriteButton 
                     propertyId={analyzedProperty.id} 
                     userId={user?.id} 
                     variant="icon"
+                    position="relative"
                   />
                 )}
                 {searchQuery && (

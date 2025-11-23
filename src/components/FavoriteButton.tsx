@@ -8,9 +8,10 @@ interface FavoriteButtonProps {
   propertyId: string;
   userId: string | undefined;
   variant?: "default" | "icon";
+  position?: "absolute" | "relative";
 }
 
-export function FavoriteButton({ propertyId, userId, variant = "default" }: FavoriteButtonProps) {
+export function FavoriteButton({ propertyId, userId, variant = "default", position = "absolute" }: FavoriteButtonProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -84,16 +85,18 @@ export function FavoriteButton({ propertyId, userId, variant = "default" }: Favo
   };
 
   if (variant === "icon") {
+    const positionClass = position === "absolute" ? "absolute top-4 right-4" : "";
+    
     return (
       <Button
         variant="ghost"
-        size="icon"
+        size="sm"
         onClick={toggleFavorite}
         disabled={loading || !userId}
-        className="absolute top-4 right-4 bg-background/80 backdrop-blur-sm hover:bg-background"
+        className={`${positionClass} ${position === "absolute" ? "bg-background/80 backdrop-blur-sm hover:bg-background" : ""} h-8 w-8 p-0`}
       >
         <Heart
-          className={`h-5 w-5 ${isFavorite ? "fill-red-500 text-red-500" : ""}`}
+          className={`h-4 w-4 ${isFavorite ? "fill-red-500 text-red-500" : ""}`}
         />
       </Button>
     );
