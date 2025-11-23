@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Home, MessageSquare, Calculator, TrendingUp, Menu } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,6 @@ export function Navigation() {
  
   const navItems = [
     { label: 'Home', path: '/', icon: Home },
-    { label: 'Chat', path: '/chat', icon: MessageSquare },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
