@@ -33,3 +33,6 @@ verify_jwt = false
 [functions.compare-properties]
 verify_jwt = true
 
+[functions.neighborhood-personality]
+verify_jwt = false
+
