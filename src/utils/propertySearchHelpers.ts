@@ -33,12 +33,14 @@ export const parsePropertySearchQuery = (query: string) => {
   const cityStateMatch = query.match(/in\s+([a-z\s,]+)/i);
   const location = cityStateMatch ? cityStateMatch[1].trim() : '';
   
-  // Extract property type
+  // Extract property type - only set specific type if explicitly mentioned
+  // Generic terms like "home", "homes", "property", "properties" return all types
   let propertyType: 'house' | 'condo' | 'townhome' | 'multi' | 'any' = 'any';
   if (/\bcondo/i.test(query)) propertyType = 'condo';
   else if (/townhome/i.test(query)) propertyType = 'townhome';
   else if (/multi[-\s]?family/i.test(query)) propertyType = 'multi';
-  else if (/house|home/i.test(query)) propertyType = 'house';
+  else if (/single[-\s]?family\s+house/i.test(query)) propertyType = 'house';
+  // Note: "home", "homes", "property", "properties" default to 'any' for broader results
   
   return {
     location,
