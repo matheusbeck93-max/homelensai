@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Home, User, Send, LogOut, Mic, MicOff, Calculator } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Upload, Download, Menu, Home, User, Send, LogOut, Mic, MicOff, Calculator, Bot } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import PropertyCarousel from "@/components/PropertyCarousel";
@@ -21,6 +21,7 @@ import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { PropertyResultsCarousel } from "@/components/ui-blocks/PropertyResultsCarousel";
 import { UIBlock, HomeLensListing } from "@/types/ui-blocks";
 import FollowUpChat from "@/components/FollowUpChat";
+import { isPropertySearchQuery, parsePropertySearchQuery } from "@/utils/propertySearchHelpers";
 const MarkdownLink = ({
   href,
   children
@@ -468,8 +469,126 @@ export default function Chat() {
       handleSendWithProperty(property);
     }, 100);
   };
+
+  // Handle property search by calling search-listings edge function
+  const handlePropertySearch = async (query: string) => {
+    setLoading(true);
+    
+    try {
+      // Parse the query using helper
+      const params = parsePropertySearchQuery(query);
+      
+      if (!params.location) {
+        toast({
+          title: "Missing Location",
+          description: "Please specify a location in your search (e.g., 'in Austin, TX')",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Use unified payload format with defaults for broad search
+      const { data, error } = await supabase.functions.invoke('search-listings', {
+        body: {
+          location: params.location,
+          minPrice: params.maxPrice ? 0 : undefined,
+          maxPrice: params.maxPrice,
+          minBeds: params.minBeds,
+          propertyType: params.propertyType || 'any'
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.error) {
+        // Handle backend error responses
+        toast({
+          title: "Search Error",
+          description: data.error + (data.details ? `: ${data.details}` : ''),
+          variant: "destructive"
+        });
+      } else if (data?.listings && data.listings.length > 0) {
+        // Create user message
+        const userMessage: Message = {
+          role: "user",
+          content: query
+        };
+        
+        // Create synthetic assistant message with UI block
+        const syntheticMessage: Message = {
+          role: "assistant",
+          content: `Here are ${data.listings.length} properties matching your criteria. Click "Analyze" on any property to get detailed insights.`,
+          uiBlock: {
+            type: "ui_block/property_results_carousel" as const,
+            title: `Property Search Results (${data.listings.length} results)`,
+            properties: data.listings
+          }
+        };
+        
+        setMessages([userMessage, syntheticMessage]);
+        setInput("");
+        
+        // Save to conversation if authenticated
+        if (isAuthenticated) {
+          let conversationId = currentConversationId;
+          if (!conversationId) {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: convData } = await supabase.from("conversations").insert({
+                user_id: user.id,
+                title: query.slice(0, 50)
+              }).select().single();
+              if (convData) {
+                conversationId = convData.id;
+                setConversations(prev => [convData, ...prev]);
+                setCurrentConversationId(convData.id);
+              }
+            }
+          }
+          if (conversationId) {
+            await supabase.from("messages").insert([
+              {
+                conversation_id: conversationId,
+                role: "user",
+                content: userMessage.content
+              },
+              {
+                conversation_id: conversationId,
+                role: "assistant",
+                content: syntheticMessage.content
+              }
+            ]);
+          }
+        }
+      } else {
+        toast({
+          title: "No Results",
+          description: "No properties found. Try adjusting your search criteria.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Search error:', error);
+      toast({
+        title: "Search Failed",
+        description: error?.message || "Failed to search properties. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendWithProperty = async (propertyData?: Property) => {
     if (!input.trim() && !imageFile && !propertyData || loading) return;
+    
+    // Check if this looks like a property search query on the first message
+    if (messages.length === 0 && input.trim() && isPropertySearchQuery(input)) {
+      await handlePropertySearch(input);
+      return;
+    }
+    
     if (!input.trim() && !imageFile || loading) return;
 
     let conversationId = currentConversationId;
@@ -728,83 +847,30 @@ export default function Chat() {
       setIsRecording(false);
     }
   };
-  const ConversationSidebar = () => <div className="flex flex-col h-full bg-muted/30">
-      <div className="p-4 border-b">
-        <Button onClick={createNewConversation} className="w-full" variant="outline">
-          <Plus className="mr-2 h-4 w-4" />
-          New Chat
-        </Button>
-      </div>
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-2">
-          {conversations.map(conv => <div key={conv.id} onClick={() => setCurrentConversationId(conv.id)} className={`p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors flex items-center justify-between group ${currentConversationId === conv.id ? "bg-muted" : ""}`}>
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate text-sm">{conv.title}</span>
-              </div>
-              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 h-8 w-8 hover:bg-destructive/10 hover:text-destructive" onClick={e => deleteConversation(conv.id, e)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>)}
-        </div>
-      </ScrollArea>
-      <div className="p-4 border-t space-y-2">
-        <Button onClick={() => navigate("/calculators")} className="w-full" variant="outline">
-          <Calculator className="mr-2 h-4 w-4" />
-          Investment Calculator
-        </Button>
-        <Button onClick={() => {
-        setShowDeleteDialog(true);
-        setSelectedChatsToDelete([]);
-      }} className="w-full" variant="outline" disabled={conversations.length === 0}>
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete chats
-        </Button>
-        <Button onClick={() => navigate("/settings")} className="w-full" variant="outline">
-          <User className="mr-2 h-4 w-4" />
-          Settings
-        </Button>
-        <Button onClick={handleLogout} className="w-full" variant="outline">
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
-      </div>
-    </div>;
   return <div className="flex flex-col h-screen bg-background">
       {/* Top Navigation */}
       <Navigation />
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Desktop Sidebar */}
-        <div className="hidden md:block w-64 border-r flex-shrink-0">
-          <ConversationSidebar />
-        </div>
-
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 max-w-7xl mx-auto w-full">
           {/* Chat Header */}
           <div className="border-b p-4 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <Sheet>
-                <SheetTrigger asChild className="md:hidden">
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-64 p-0">
-                  <ConversationSidebar />
-                </SheetContent>
-              </Sheet>
-              <h1 className="text-xl font-bold">AI Assistant</h1>
+            <h1 className="text-xl font-bold">Conversation</h1>
+            <div className="flex gap-2">
+              {messages.length > 0 && <Button variant="outline" size="sm" onClick={exportConversation}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>}
+              {isAuthenticated && <Button variant="outline" size="sm" onClick={createNewConversation}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Chat
+                </Button>}
             </div>
-            {messages.length > 0 && <Button variant="outline" size="sm" onClick={exportConversation}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>}
           </div>
 
           {/* Messages - Scrollable */}
-          <div className="flex-1 overflow-y-auto" style={{ paddingBottom: latestProperties.length > 0 ? '180px' : '0' }}>
+          <ScrollArea className="flex-1 min-h-0">
             <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
             {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
             setUserProfile(profile);
@@ -818,9 +884,9 @@ export default function Chat() {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto text-left">
                   <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2">🏡 Property Analysis</h3>
+                    <h3 className="font-semibold mb-2">🏡 Property Search</h3>
                     <p className="text-sm text-muted-foreground">
-                      Upload property images or provide addresses for detailed investment analysis
+                      Find properties in any city - just type "find homes in Austin, Texas"
                     </p>
                   </div>
                   <div className="p-4 border rounded-lg">
@@ -890,14 +956,9 @@ export default function Chat() {
                 
                 <div className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                   {message.role === "assistant" && (
-                    <button
-                      type="button"
-                      onClick={() => navigate("/")}
-                      className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity"
-                      aria-label="Go to homepage"
-                    >
-                      <Home className="h-6 w-6 text-primary-foreground" />
-                    </button>
+                    <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-6 w-6 text-primary-foreground" />
+                    </div>
                   )}
                   <div className={`max-w-[80%] rounded-2xl p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                     {message.image_url && <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />}
@@ -948,7 +1009,7 @@ export default function Chat() {
             ))}
             {loading && <div className="flex gap-4">
                 <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                  <Home className="h-6 w-6 text-primary-foreground animate-pulse" />
+                  <Bot className="h-6 w-6 text-primary-foreground animate-pulse" />
                 </div>
                 <div className="bg-muted rounded-2xl p-4">
                   <p className="text-muted-foreground">Analyzing...</p>
@@ -956,10 +1017,10 @@ export default function Chat() {
               </div>}
               <div ref={scrollRef} />
             </div>
-          </div>
+          </ScrollArea>
 
           {/* Input Area - Sticky at bottom */}
-          <div className="border-t bg-background p-4 flex-shrink-0" style={{ marginBottom: latestProperties.length > 0 ? '160px' : '0' }}>
+          <div className="border-t bg-background p-4 flex-shrink-0">
             <div className="max-w-6xl mx-auto">
             {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
@@ -975,7 +1036,14 @@ export default function Chat() {
               <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={loading}>
                 <Upload className="h-4 w-4" />
               </Button>
-              <Textarea placeholder="Ask about properties, mortgages, investments, or upload a property image..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyPress} disabled={loading} className="min-h-[60px] resize-none flex-1" />
+              <Textarea 
+                placeholder={messages.length === 0 ? "Search for properties (e.g., 'find homes in Austin, Texas') or ask anything..." : "Ask follow-up questions..."}
+                value={input} 
+                onChange={e => setInput(e.target.value)} 
+                onKeyDown={handleKeyPress} 
+                disabled={loading} 
+                className="min-h-[60px] resize-none flex-1" 
+              />
               <Button 
                 onClick={isRecording ? stopVoiceRecording : startVoiceRecording}
                 disabled={loading}
@@ -997,29 +1065,19 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Follow-up Chat - Always visible when properties exist */}
-      {latestProperties.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 md:left-64">
-          <FollowUpChat 
-            context={`Properties from your search: ${latestProperties.length} listings`}
-            properties={latestProperties}
-          />
-        </div>
-      )}
-
       {/* Delete Conversations Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Excluir conversas</DialogTitle>
+            <DialogTitle>Delete conversations</DialogTitle>
             <DialogDescription>
-              Selecione as conversas que deseja excluir. Esta ação não pode ser desfeita.
+              Select the conversations you want to delete. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
             <div className="flex items-center gap-2 mb-4 pb-2 border-b">
               <Checkbox checked={selectedChatsToDelete.length === conversations.length && conversations.length > 0} onCheckedChange={selectAllChats} />
-              <span className="text-sm font-medium">Selecionar todos ({conversations.length})</span>
+              <span className="text-sm font-medium">Select all ({conversations.length})</span>
             </div>
             <ScrollArea className="max-h-[40vh]">
               <div className="space-y-2">
@@ -1028,7 +1086,7 @@ export default function Chat() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{conv.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(conv.updated_at).toLocaleDateString("pt-BR")}
+                        {new Date(conv.updated_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>)}
@@ -1037,10 +1095,10 @@ export default function Chat() {
           </div>
           <div className="flex gap-3 mt-4">
             <Button onClick={deleteSelectedConversations} variant="destructive" className="flex-1" disabled={selectedChatsToDelete.length === 0}>
-              Excluir {selectedChatsToDelete.length > 0 && `(${selectedChatsToDelete.length})`}
+              Delete {selectedChatsToDelete.length > 0 && `(${selectedChatsToDelete.length})`}
             </Button>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="flex-1">
-              Cancelar
+              Cancel
             </Button>
           </div>
         </DialogContent>
