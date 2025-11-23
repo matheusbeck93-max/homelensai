@@ -1,0 +1,111 @@
+.homelens-hero-animation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.homelens-hero-svg {
+  width: 220px;
+  height: 220px;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .homelens-hero-svg {
+    width: 180px;
+    height: 180px;
+  }
+}
+
+/* Colors use design system tokens */
+.hero-house-walls {
+  fill: hsl(var(--muted));
+  stroke: hsl(var(--primary));
+  stroke-width: 2;
+  animation: walls-enter 600ms ease-out forwards;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.hero-house-roof {
+  fill: hsl(var(--primary));
+  stroke: hsl(var(--foreground));
+  stroke-width: 2;
+  animation: roof-enter 700ms ease-out 200ms forwards;
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+.hero-house-door {
+  fill: hsl(var(--background));
+  stroke: hsl(var(--primary));
+  stroke-width: 1.5;
+  animation: door-enter 600ms ease-out 400ms forwards;
+  opacity: 0;
+  transform: scale(0.9);
+  transform-origin: center bottom;
+}
+
+.hero-house-window {
+  fill: hsl(var(--background));
+  stroke: hsl(var(--primary));
+  stroke-width: 1.5;
+  animation: window-enter 600ms ease-out 450ms forwards;
+  opacity: 0;
+  transform: scale(0.9);
+  transform-origin: center center;
+}
+
+@keyframes walls-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes roof-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    transform: translateY(2px);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes door-enter {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes window-enter {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Subtle looping glow around the house */
+.homelens-hero-svg {
+  animation: hero-pulse 4s ease-in-out infinite;
+}
+
+@keyframes hero-pulse {
+  0%, 70%, 100% {
+    filter: drop-shadow(0 0 0 hsl(var(--primary) / 0));
+  }
+  80% {
+    filter: drop-shadow(0 0 12px hsl(var(--primary) / 0.35));
+  }
+}

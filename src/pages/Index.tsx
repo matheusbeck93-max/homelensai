@@ -20,7 +20,7 @@ import { isPropertySearchQuery, parsePropertySearchQuery } from "@/utils/propert
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { HouseBuildAnimation } from "@/components/HouseBuildAnimation";
+import { HouseHeroAnimation } from "@/components/HouseHeroAnimation";
 import heroBackground from "@/assets/american-house-hero.jpg";
 import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
 import { Play } from "lucide-react";
@@ -609,9 +609,9 @@ export default function Index() {
         <main className="relative z-10 max-w-5xl mx-auto px-4 w-full space-y-6">
           <div className="w-full">
             <div className="text-center space-y-8">
-              {/* Lottie Animation */}
-              <HouseBuildAnimation />
-              
+              {/* SVG House Animation */}
+              <HouseHeroAnimation />
+               
               <h1 className="text-5xl font-bold text-foreground mb-12 animate-fade-up">
                 Find your new home
               </h1>
