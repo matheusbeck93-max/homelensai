@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles } from "lucide-react";
+import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles, Map as MapIcon, Key } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ExternalLinks } from "@/components/ExternalLinks";
 import { NeighborhoodInsights } from "@/components/NeighborhoodInsights";
+import { PropertyMap } from "@/components/PropertyMap";
+import { MapboxTokenDialog } from "@/components/MapboxTokenDialog";
 import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
 
 export default function PropertyDetail() {
@@ -24,6 +26,9 @@ export default function PropertyDetail() {
   const [userId, setUserId] = useState<string | undefined>();
   const [neighborhoodInsights, setNeighborhoodInsights] = useState<NeighborhoodInsightsType | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [showTokenDialog, setShowTokenDialog] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -32,6 +37,12 @@ export default function PropertyDetail() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id);
     });
+
+    // Check for Mapbox token
+    const storedToken = localStorage.getItem("mapbox_public_token");
+    if (storedToken) {
+      setMapboxToken(storedToken);
+    }
   }, [id]);
 
   const fetchNeighborhoodInsights = async () => {
@@ -70,6 +81,19 @@ export default function PropertyDetail() {
       fetchNeighborhoodInsights();
     }
   }, [property]);
+
+  const handleMapToggle = () => {
+    if (!mapboxToken) {
+      setShowTokenDialog(true);
+    } else {
+      setShowMap(!showMap);
+    }
+  };
+
+  const handleTokenSaved = (token: string) => {
+    setMapboxToken(token);
+    setShowMap(true);
+  };
 
   const fetchProperty = async () => {
     try {
@@ -255,6 +279,26 @@ export default function PropertyDetail() {
 
             <FavoriteButton propertyId={property.id} userId={userId} />
 
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full"
+              onClick={handleMapToggle}
+            >
+              {showMap ? (
+                <>
+                  <MapIcon className="mr-2 h-5 w-5" />
+                  Hide Map
+                </>
+              ) : (
+                <>
+                  <MapIcon className="mr-2 h-5 w-5" />
+                  View on Map
+                  {!mapboxToken && <Key className="ml-2 h-4 w-4" />}
+                </>
+              )}
+            </Button>
+
             {analysis && (
               <Card>
                 <CardHeader>
@@ -281,6 +325,20 @@ export default function PropertyDetail() {
           </Card>
         )}
 
+        {/* Interactive Map */}
+        {showMap && mapboxToken && (
+          <div className="mt-8">
+            <PropertyMap
+              address={property.address}
+              city={property.city}
+              state={property.state}
+              zip={property.zip}
+              insights={neighborhoodInsights || undefined}
+              mapboxToken={mapboxToken}
+            />
+          </div>
+        )}
+
         {/* Neighborhood Insights */}
         <div className="mt-8">
           {loadingInsights ? (
@@ -302,6 +360,13 @@ export default function PropertyDetail() {
           ) : null}
         </div>
       </div>
+
+      {/* Mapbox Token Dialog */}
+      <MapboxTokenDialog
+        open={showTokenDialog}
+        onOpenChange={setShowTokenDialog}
+        onTokenSaved={handleTokenSaved}
+      />
     </div>
   );
 }
