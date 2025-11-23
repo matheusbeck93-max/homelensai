@@ -5,54 +5,20 @@ export const HouseHeroAnimation: React.FC = () => {
   return (
     <div className="homelens-hero-animation" aria-hidden="true">
       <svg
-        viewBox="0 0 120 120"
+        viewBox="0 0 24 24"
         className="homelens-hero-svg"
-        role="img"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
       >
-        {/* Walls */}
-        <rect
-          x="25"
-          y="50"
-          width="70"
-          height="50"
-          rx="4"
-          className="hero-house-walls"
+        {/* House outline - matches lucide Home icon exactly */}
+        <path
+          d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+          className="hero-logo-outline"
         />
-
-        {/* Roof */}
-        <polygon
-          points="60,25 20,55 100,55"
-          className="hero-house-roof"
-        />
-
-        {/* Door */}
-        <rect
-          x="52"
-          y="65"
-          width="16"
-          height="35"
-          rx="2"
-          className="hero-house-door"
-        />
-
-        {/* Left window */}
-        <rect
-          x="30"
-          y="60"
-          width="14"
-          height="12"
-          rx="2"
-          className="hero-house-window hero-house-window-left"
-        />
-
-        {/* Right window */}
-        <rect
-          x="76"
-          y="60"
-          width="14"
-          height="12"
-          rx="2"
-          className="hero-house-window hero-house-window-right"
+        {/* Door - matches lucide Home icon exactly */}
+        <path
+          d="M9 22V12h6v10"
+          className="hero-logo-door"
         />
       </svg>
     </div>
