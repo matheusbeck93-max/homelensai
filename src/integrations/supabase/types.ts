@@ -194,7 +194,10 @@ export type Database = {
           full_name: string | null
           id: string
           location_preferences: Json | null
+          max_price_range: number | null
+          min_bedrooms: number | null
           onboarding_completed: boolean | null
+          preferred_cities: string[] | null
           property_types: string[] | null
           risk_level: string | null
           subscription_cancel_at: string | null
@@ -202,6 +205,9 @@ export type Database = {
           subscription_status: string | null
           updated_at: string | null
           user_profile: string | null
+          weekly_picks_day: string | null
+          weekly_picks_enabled: boolean | null
+          weekly_picks_last_sent: string | null
         }
         Insert: {
           alert_email_enabled?: boolean | null
@@ -219,7 +225,10 @@ export type Database = {
           full_name?: string | null
           id: string
           location_preferences?: Json | null
+          max_price_range?: number | null
+          min_bedrooms?: number | null
           onboarding_completed?: boolean | null
+          preferred_cities?: string[] | null
           property_types?: string[] | null
           risk_level?: string | null
           subscription_cancel_at?: string | null
@@ -227,6 +236,9 @@ export type Database = {
           subscription_status?: string | null
           updated_at?: string | null
           user_profile?: string | null
+          weekly_picks_day?: string | null
+          weekly_picks_enabled?: boolean | null
+          weekly_picks_last_sent?: string | null
         }
         Update: {
           alert_email_enabled?: boolean | null
@@ -244,7 +256,10 @@ export type Database = {
           full_name?: string | null
           id?: string
           location_preferences?: Json | null
+          max_price_range?: number | null
+          min_bedrooms?: number | null
           onboarding_completed?: boolean | null
+          preferred_cities?: string[] | null
           property_types?: string[] | null
           risk_level?: string | null
           subscription_cancel_at?: string | null
@@ -252,6 +267,9 @@ export type Database = {
           subscription_status?: string | null
           updated_at?: string | null
           user_profile?: string | null
+          weekly_picks_day?: string | null
+          weekly_picks_enabled?: boolean | null
+          weekly_picks_last_sent?: string | null
         }
         Relationships: []
       }
@@ -559,6 +577,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weekly_picks_history: {
+        Row: {
+          created_at: string | null
+          email_sent: boolean | null
+          id: string
+          property_ids: string[]
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email_sent?: boolean | null
+          id?: string
+          property_ids: string[]
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email_sent?: boolean | null
+          id?: string
+          property_ids?: string[]
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

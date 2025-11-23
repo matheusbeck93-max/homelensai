@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Navigation } from "@/components/Navigation";
 import { SubscriptionSettings } from "@/components/subscription/SubscriptionSettings";
 import { AlertSettings } from "@/components/subscription/AlertSettings";
+import { WeeklyPicksSettings } from "@/components/subscription/WeeklyPicksSettings";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -319,6 +320,9 @@ export default function Settings() {
 
           {/* Smart Alerts */}
           <AlertSettings />
+
+          {/* Weekly Picks */}
+          <WeeklyPicksSettings />
 
           {/* Danger Zone */}
           <Card className="border-destructive">
