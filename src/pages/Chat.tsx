@@ -731,7 +731,6 @@ export default function Chat() {
         </div>
       </ScrollArea>
       <div className="p-4 border-t space-y-2">
-        <InstallPrompt variant="button" className="w-full" />
         <Button onClick={() => navigate("/calculators")} className="w-full" variant="outline">
           <Calculator className="mr-2 h-4 w-4" />
           Investment Calculator
