@@ -14,23 +14,28 @@ interface SearchParams {
   propertyType?: 'house' | 'condo' | 'townhome' | 'multi' | 'any';
 }
 
-// US state name → state code mapping
+// Complete US state name → state code mapping
 const STATE_MAP: Record<string, string> = {
-  alabama:"AL", alaska:"AK", arizona:"AZ", arkansas:"AR", california:"CA",
-  colorado:"CO", connecticut:"CT", delaware:"DE", "district of columbia":"DC",
-  florida:"FL", georgia:"GA", hawaii:"HI", idaho:"ID", illinois:"IL",
-  indiana:"IN", iowa:"IA", kansas:"KS", kentucky:"KY", louisiana:"LA",
-  maine:"ME", maryland:"MD", massachusetts:"MA", michigan:"MI",
-  minnesota:"MN", mississippi:"MS", missouri:"MO", montana:"MT",
-  nebraska:"NE", nevada:"NV", "new hampshire":"NH", "new jersey":"NJ",
-  "new mexico":"NM", "new york":"NY", "north carolina":"NC",
-  "north dakota":"ND", ohio:"OH", oklahoma:"OK", oregon:"OR",
-  pennsylvania:"PA", "rhode island":"RI", "south carolina":"SC",
-  "south dakota":"SD", tennessee:"TN", texas:"TX", utah:"UT", vermont:"VT",
-  virginia:"VA", washington:"WA", "west virginia":"WV", wisconsin:"WI",
-  wyoming:"WY"
+  "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA",
+  "colorado": "CO", "connecticut": "CT", "delaware": "DE", "district of columbia": "DC",
+  "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID", "illinois": "IL",
+  "indiana": "IN", "iowa": "IA", "kansas": "KS", "kentucky": "KY", "louisiana": "LA",
+  "maine": "ME", "maryland": "MD", "massachusetts": "MA", "michigan": "MI",
+  "minnesota": "MN", "mississippi": "MS", "missouri": "MO", "montana": "MT",
+  "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ",
+  "new mexico": "NM", "new york": "NY", "north carolina": "NC",
+  "north dakota": "ND", "ohio": "OH", "oklahoma": "OK", "oregon": "OR",
+  "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
+  "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT",
+  "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI",
+  "wyoming": "WY"
 };
 
+// Robust location parser supporting multiple formats:
+// - "Arlington, VA" (comma-separated)
+// - "Arlington Virginia" (space-separated with full state name)
+// - "22201" (ZIP code)
+// - "City ST" (space-separated with state abbreviation)
 function parseLocation(raw?: string): {
   city?: string;
   stateCode?: string;
@@ -44,28 +49,61 @@ function parseLocation(raw?: string): {
     return { postalCode: value };
   }
 
-  let cityPart = value;
+  let cityPart = "";
   let statePart = "";
 
-  // Parse "City, ST" or "City ST" format
+  // Parse "City, ST" format (comma-separated)
   if (value.includes(",")) {
     const [city, state] = value.split(",").map(s => s.trim());
     cityPart = city;
     statePart = state;
   } else {
+    // Space-separated: "Arlington Virginia" or "Arlington VA"
     const parts = value.split(" ");
     if (parts.length > 1) {
-      statePart = parts[parts.length - 1];
-      cityPart = parts.slice(0, -1).join(" ");
+      // Last word might be state
+      const lastWord = parts[parts.length - 1];
+      
+      // Check if last word is a 2-letter state code
+      if (lastWord.length === 2) {
+        statePart = lastWord;
+        cityPart = parts.slice(0, -1).join(" ");
+      } else {
+        // Check if last word is a full state name
+        const stateKey = lastWord.toLowerCase();
+        if (STATE_MAP[stateKey]) {
+          statePart = lastWord;
+          cityPart = parts.slice(0, -1).join(" ");
+        } else {
+          // Try last two words as state name ("North Carolina")
+          if (parts.length > 2) {
+            const lastTwoWords = parts.slice(-2).join(" ").toLowerCase();
+            if (STATE_MAP[lastTwoWords]) {
+              statePart = parts.slice(-2).join(" ");
+              cityPart = parts.slice(0, -2).join(" ");
+            } else {
+              // Default: treat all as city
+              cityPart = value;
+            }
+          } else {
+            cityPart = value;
+          }
+        }
+      }
+    } else {
+      cityPart = value;
     }
   }
 
+  // Convert state to code
   let stateCode = "";
-  if (statePart.length === 2) {
-    stateCode = statePart.toUpperCase();
-  } else {
-    const key = statePart.toLowerCase();
-    stateCode = STATE_MAP[key] || "";
+  if (statePart) {
+    if (statePart.length === 2) {
+      stateCode = statePart.toUpperCase();
+    } else {
+      const key = statePart.toLowerCase();
+      stateCode = STATE_MAP[key] || "";
+    }
   }
 
   return {
@@ -85,9 +123,11 @@ interface HomeLensListing {
   listingUrl: string | null;
   status: string | null;
   source: string;
-  city?: string;
-  state?: string;
-  zip?: string;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 serve(async (req) => {
@@ -113,13 +153,13 @@ serve(async (req) => {
       );
     }
 
-    // Build POST body for Realty in US API v3/list
+    // Build POST body for Realty in US API v3/list with defaults
     const DEFAULT_AREA = "Miami, FL";
     const rawLocation = location && location.trim().length > 0 ? location : DEFAULT_AREA;
     const { city, stateCode, postalCode } = parseLocation(rawLocation);
 
     const requestBody: any = {
-      limit: 20,
+      limit: 60,
       offset: 0,
       status: ["for_sale", "ready_to_build"],
       sort: {
@@ -138,9 +178,9 @@ serve(async (req) => {
 
     console.log('Parsed location:', { city, stateCode, postalCode });
 
-    // Add price filters
-    if (minPrice) requestBody.price_min = minPrice;
-    if (maxPrice) requestBody.price_max = maxPrice;
+    // Add price filters with defaults for broad search
+    requestBody.price_min = minPrice ?? 0;
+    requestBody.price_max = maxPrice ?? 2000000;
 
     // Add beds filters
     if (minBeds) requestBody.beds_min = minBeds;
@@ -200,10 +240,11 @@ serve(async (req) => {
     const properties = data?.data?.home_search?.results || data?.data?.results || data?.results || [];
     console.log('Properties count:', properties.length);
 
-    // Normalize to HomeLens format
+    // Normalize to HomeLens format with coordinates
     const listings: HomeLensListing[] = properties.map((prop: any) => {
       const location = prop.location || {};
       const address = location.address || {};
+      const coordinate = address.coordinate || location.coordinate || {};
       const description = prop.description || {};
       
       return {
@@ -217,9 +258,11 @@ serve(async (req) => {
         listingUrl: prop.href || prop.rdc_web_url || null,
         status: prop.status || 'for_sale',
         source: 'realtor',
-        city: address.city || undefined,
-        state: address.state_code || undefined,
-        zip: address.postal_code || undefined,
+        city: address.city || null,
+        state: address.state_code || null,
+        zip: address.postal_code || null,
+        lat: coordinate.lat ?? null,
+        lng: coordinate.lon ?? null,
       };
     });
 

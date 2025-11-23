@@ -212,8 +212,15 @@ export default function Index() {
         return;
       }
       
+      // Use unified payload format with defaults for broad search
       const { data, error } = await supabase.functions.invoke('search-listings', {
-        body: params
+        body: {
+          location: params.location,
+          minPrice: params.maxPrice ? 0 : undefined,
+          maxPrice: params.maxPrice,
+          minBeds: params.minBeds,
+          propertyType: params.propertyType || 'any'
+        }
       });
       
       if (error) throw error;
@@ -373,6 +380,7 @@ export default function Index() {
   const [featuredLoading, setFeaturedLoading] = useState(false);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
   const [preferredArea, setPreferredArea] = useState<string | null>(null);
+  const [effectiveArea, setEffectiveArea] = useState<string>("");
   const [showAreaDialog, setShowAreaDialog] = useState(false);
   const [areaInput, setAreaInput] = useState("");
   
@@ -402,9 +410,8 @@ export default function Index() {
         // First attempt: preferred area (or default if user hasn't set one)
         const firstPayload = {
           location: primaryLocation,
-          minPrice: 300000,
-          maxPrice: 1500000,
-          minBeds: 2,
+          minPrice: 0,
+          maxPrice: 2000000,
         };
 
         const first = await supabase.functions.invoke("search-listings", {
@@ -414,12 +421,14 @@ export default function Index() {
         if (first.error) {
           setFeaturedError(first.error.message ?? "Unable to load featured homes.");
           setFeaturedListings([]);
+          setEffectiveArea("");
           return;
         }
 
         if (first.data?.error) {
           setFeaturedError(first.data.error);
           setFeaturedListings([]);
+          setEffectiveArea("");
           return;
         }
 
@@ -427,6 +436,7 @@ export default function Index() {
 
         if (firstListings.length > 0) {
           setFeaturedListings(firstListings);
+          setEffectiveArea(primaryLocation);
           return;
         }
 
@@ -436,9 +446,8 @@ export default function Index() {
           const fallback = await supabase.functions.invoke("search-listings", {
             body: {
               location: DEFAULT_AREA,
-              minPrice: 300000,
-              maxPrice: 1500000,
-              minBeds: 2,
+              minPrice: 0,
+              maxPrice: 2000000,
             },
           });
 
@@ -447,32 +456,37 @@ export default function Index() {
               fallback.error.message ?? "Unable to load featured homes."
             );
             setFeaturedListings([]);
+            setEffectiveArea("");
             return;
           }
 
           if (fallback.data?.error) {
             setFeaturedError(fallback.data.error);
             setFeaturedListings([]);
+            setEffectiveArea("");
             return;
           }
 
           const fallbackListings = fallback.data?.listings ?? [];
           setFeaturedListings(fallbackListings);
+          setEffectiveArea(DEFAULT_AREA);
           return;
         }
 
         // If no preferred area or both attempts returned zero listings
         setFeaturedListings([]);
+        setEffectiveArea("");
       } catch (error) {
         console.error('Error loading featured homes:', error);
         setFeaturedError('Failed to load featured homes. Please try a search above.');
+        setEffectiveArea("");
       } finally {
         setFeaturedLoading(false);
       }
     };
     
     loadFeaturedHomes();
-  }, [preferredArea, DEFAULT_AREA]);
+  }, [preferredArea]);
   
   const handleSaveArea = () => {
     const value = areaInput.trim();
@@ -489,10 +503,10 @@ export default function Index() {
       <Navigation />
 
       {/* Hero Section with Search */}
-      <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pt-20 pb-4">
+      <section className="relative w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pt-24 pb-6">
         {/* Content */}
-        <div className="relative z-10 container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
+        <main className="relative z-10 max-w-5xl mx-auto px-4 w-full space-y-6">
+          <div className="w-full">
             {messages.length === 0 ? <div className="text-center space-y-8">
                 <h1 className="text-5xl font-bold text-foreground mb-12">
                   Find your new home
@@ -616,7 +630,7 @@ export default function Index() {
                 </div>
               </div>}
           </div>
-        </div>
+        </main>
       </section>
 
       {/* Featured Homes Section */}
@@ -624,11 +638,11 @@ export default function Index() {
         <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <div>
+            <div>
                 <h2 className="text-2xl font-bold">
-                  {preferredArea
-                    ? `Featured Homes near ${preferredArea}`
-                    : "Featured Homes near you"}
+                  {effectiveArea
+                    ? `Featured Homes near ${effectiveArea}`
+                    : "Featured Homes"}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Handpicked properties in your area
@@ -662,9 +676,9 @@ export default function Index() {
             ) : featuredListings.length > 0 ? (
               <PropertyResultsCarousel
                 title={
-                  preferredArea
-                    ? `Homes near ${preferredArea}`
-                    : "Homes in our featured market"
+                  effectiveArea
+                    ? `Homes near ${effectiveArea}`
+                    : "Homes in featured market"
                 }
                 properties={featuredListings}
                 onAnalyze={handlePropertyAnalyze}
