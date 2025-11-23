@@ -24,6 +24,8 @@ import heroBackground from "@/assets/american-house-hero.jpg";
 import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
 import { Play } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import { useToast } from "@/hooks/use-toast";
@@ -370,74 +372,97 @@ export default function Index() {
   const [featuredListings, setFeaturedListings] = useState<HomeLensListing[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(false);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const [preferredArea, setPreferredArea] = useState<string | null>(null);
+  const [showAreaDialog, setShowAreaDialog] = useState(false);
+  const [areaInput, setAreaInput] = useState("");
+  
+  const DEFAULT_AREA = "Miami, FL";
 
-  // Try to get user's geolocation on mount
+  // Load preferred area from localStorage on mount
   useEffect(() => {
-    if (!("geolocation" in navigator)) {
-      setLocationError("Geolocation not supported, using a default city.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setUserLocation({ lat: latitude, lon: longitude });
-      },
-      (err) => {
-        console.warn("Geolocation error:", err);
-        setLocationError(err.message || "Unable to access location, using a default city.");
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 8000,
-        maximumAge: 600000,
+    try {
+      const stored = window.localStorage.getItem("homelens_preferred_area");
+      if (stored) {
+        setPreferredArea(stored);
+        setAreaInput(stored);
       }
-    );
+    } catch {
+      // ignore localStorage errors
+    }
   }, []);
 
-  // Load featured homes based on user location or default
+  // Load featured homes based on preferred area or default
   useEffect(() => {
     const loadFeaturedHomes = async () => {
       setFeaturedLoading(true);
       setFeaturedError(null);
       try {
-        const payload: any = {};
+        const primaryLocation = preferredArea || DEFAULT_AREA;
 
-        if (userLocation) {
-          // Use user's coordinates if available
-          payload.latitude = userLocation.lat;
-          payload.longitude = userLocation.lon;
-        } else {
-          // Fallback to default city
-          payload.location = "Miami, FL";
-          payload.minPrice = 300000;
-          payload.maxPrice = 1500000;
-          payload.minBeds = 2;
-        }
+        // First attempt: preferred area (or default if user hasn't set one)
+        const firstPayload = {
+          location: primaryLocation,
+          minPrice: 300000,
+          maxPrice: 1500000,
+          minBeds: 2,
+        };
 
-        const { data, error } = await supabase.functions.invoke('search-listings', {
-          body: payload
+        const first = await supabase.functions.invoke("search-listings", {
+          body: firstPayload,
         });
-        
-        if (error) {
-          console.error('Featured homes API error:', error);
-          setFeaturedError('Unable to load featured homes right now.');
+
+        if (first.error) {
+          setFeaturedError(first.error.message ?? "Unable to load featured homes.");
+          setFeaturedListings([]);
           return;
         }
-        
-        if (data?.error) {
-          console.error('Featured homes backend error:', data.error);
-          setFeaturedError(data.error);
+
+        if (first.data?.error) {
+          setFeaturedError(first.data.error);
+          setFeaturedListings([]);
           return;
         }
-        
-        if (data?.listings && data.listings.length > 0) {
-          setFeaturedListings(data.listings.slice(0, 6));
-        } else {
-          setFeaturedError('No featured homes available at the moment.');
+
+        const firstListings = first.data?.listings ?? [];
+
+        if (firstListings.length > 0) {
+          setFeaturedListings(firstListings.slice(0, 6));
+          return;
         }
+
+        // If user set a preferred area and it returned 0 listings,
+        // try one more time with DEFAULT_AREA as a fallback.
+        if (preferredArea && preferredArea !== DEFAULT_AREA) {
+          const fallback = await supabase.functions.invoke("search-listings", {
+            body: {
+              location: DEFAULT_AREA,
+              minPrice: 300000,
+              maxPrice: 1500000,
+              minBeds: 2,
+            },
+          });
+
+          if (fallback.error) {
+            setFeaturedError(
+              fallback.error.message ?? "Unable to load featured homes."
+            );
+            setFeaturedListings([]);
+            return;
+          }
+
+          if (fallback.data?.error) {
+            setFeaturedError(fallback.data.error);
+            setFeaturedListings([]);
+            return;
+          }
+
+          const fallbackListings = fallback.data?.listings ?? [];
+          setFeaturedListings(fallbackListings.slice(0, 6));
+          return;
+        }
+
+        // If no preferred area or both attempts returned zero listings
+        setFeaturedListings([]);
       } catch (error) {
         console.error('Error loading featured homes:', error);
         setFeaturedError('Failed to load featured homes. Please try a search above.');
@@ -447,7 +472,17 @@ export default function Index() {
     };
     
     loadFeaturedHomes();
-  }, [userLocation]);
+  }, [preferredArea, DEFAULT_AREA]);
+  
+  const handleSaveArea = () => {
+    const value = areaInput.trim();
+    if (!value) return;
+    setPreferredArea(value);
+    try {
+      window.localStorage.setItem("homelens_preferred_area", value);
+    } catch {}
+    setShowAreaDialog(false);
+  };
 
   return <div className="min-h-screen pb-24 md:pb-8">
       {/* Navigation - Import from component */}
@@ -588,15 +623,27 @@ export default function Index() {
       {messages.length === 0 && (
         <section className="container mx-auto px-4 py-10 mt-10 border-t border-muted">
           <div className="space-y-6">
-            <div>
-              <h2 className="text-3xl font-bold">
-                {userLocation ? "Featured Homes near you" : "Featured Homes in Miami"}
-              </h2>
-              {locationError && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  {locationError} Showing homes in a default market instead.
-                </p>
-              )}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold">
+                  {preferredArea
+                    ? `Featured Homes near ${preferredArea}`
+                    : "Featured Homes near you"}
+                </h2>
+                {featuredError && (
+                  <p className="text-sm text-red-500 mt-2">{featuredError}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                className="text-sm text-primary underline-offset-2 hover:underline"
+                onClick={() => {
+                  setAreaInput(preferredArea || "");
+                  setShowAreaDialog(true);
+                }}
+              >
+                Set your area
+              </button>
             </div>
             
             {featuredLoading ? (
@@ -609,21 +656,26 @@ export default function Index() {
                   </div>
                 ))}
               </div>
-            ) : featuredError ? (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{featuredError}</AlertDescription>
-              </Alert>
             ) : featuredListings.length > 0 ? (
               <PropertyResultsCarousel
-                title={userLocation ? "Homes near you" : "Featured Listings in Miami"}
+                title={
+                  preferredArea
+                    ? `Homes near ${preferredArea}`
+                    : "Homes in our featured market"
+                }
                 properties={featuredListings}
                 onAnalyze={handlePropertyAnalyze}
               />
             ) : (
               <Alert>
                 <AlertDescription>
-                  No featured homes are available right now. Try a custom search above!
+                  <span className="inline-flex items-center gap-2">
+                    <span>ⓘ</span>
+                    <span>
+                      No featured homes available for this area right now. Try adjusting
+                      your preferred area or use the search box above.
+                    </span>
+                  </span>
                 </AlertDescription>
               </Alert>
             )}
@@ -640,6 +692,37 @@ export default function Index() {
           <p>&copy; 2025 HomeLens. All rights reserved.</p>
         </div>
       </footer>
+      
+      {/* Set Area Dialog */}
+      <Dialog open={showAreaDialog} onOpenChange={setShowAreaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Your Area</DialogTitle>
+            <DialogDescription>
+              Enter a city and state (e.g., "Arlington, VA") or a ZIP code to
+              see homes near you.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="City, State or ZIP"
+              value={areaInput}
+              onChange={(e) => setAreaInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSaveArea();
+                }
+              }}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowAreaDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveArea}>Save</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
