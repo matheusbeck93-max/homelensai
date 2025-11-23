@@ -4,7 +4,9 @@
  * @returns true if it appears to be a property search
  */
 export const isPropertySearchQuery = (input: string): boolean => {
-  const hasHomeKeywords = /(home|house|condo|property|apartment|townhome|listing)s?/i.test(input);
+  // Match property-related keywords including plural forms
+  // Note: "properties" needs special handling since property -> properties (not propertys)
+  const hasHomeKeywords = /(homes?|houses?|condos?|propert(?:y|ies)|apartments?|townhomes?|listings?)/i.test(input);
   const hasLocation = /(in|near)\s+[a-zA-Z]+/i.test(input) || /[A-Za-z]+,\s*[A-Za-z]{2}/.test(input);
   return hasHomeKeywords && hasLocation;
 };
