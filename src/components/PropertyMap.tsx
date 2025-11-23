@@ -12,7 +12,6 @@ interface PropertyMapProps {
   state: string;
   zip: string;
   insights?: NeighborhoodInsights;
-  mapboxToken: string;
 }
 
 interface MarkerConfig {
@@ -23,7 +22,7 @@ interface MarkerConfig {
   description?: string;
 }
 
-export function PropertyMap({ address, city, state, zip, insights, mapboxToken }: PropertyMapProps) {
+export function PropertyMap({ address, city, state, zip, insights }: PropertyMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -32,8 +31,9 @@ export function PropertyMap({ address, city, state, zip, insights, mapboxToken }
   // Geocode the address to get coordinates
   const geocodeAddress = async (fullAddress: string): Promise<[number, number] | null> => {
     try {
+      const token = 'pk.eyJ1IjoicGJlY2sxMyIsImEiOiJjbWliMjQzZHgxNHVwMmxvYXJyOWZxa3RsIn0.Vk9tWn1vghY9Vw6RRKLpaA';
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${mapboxToken}`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${token}`
       );
       const data = await response.json();
       if (data.features && data.features.length > 0) {
@@ -46,10 +46,11 @@ export function PropertyMap({ address, city, state, zip, insights, mapboxToken }
   };
 
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
+    if (!mapContainer.current) return;
 
     const initializeMap = async () => {
-      mapboxgl.accessToken = mapboxToken;
+      const token = 'pk.eyJ1IjoicGJlY2sxMyIsImEiOiJjbWliMjQzZHgxNHVwMmxvYXJyOWZxa3RsIn0.Vk9tWn1vghY9Vw6RRKLpaA';
+      mapboxgl.accessToken = token;
 
       const fullAddress = `${address}, ${city}, ${state} ${zip}`;
       const coordinates = await geocodeAddress(fullAddress);
@@ -124,7 +125,7 @@ export function PropertyMap({ address, city, state, zip, insights, mapboxToken }
     return () => {
       map.current?.remove();
     };
-  }, [mapboxToken, address, city, state, zip]);
+  }, [address, city, state, zip]);
 
   const addCrimeHeatMap = (mapInstance: mapboxgl.Map, center: [number, number], crimeRate: number) => {
     // Create a circle layer to represent crime density
