@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Home, Bed, Bath, Square, ExternalLink, TrendingUp, List, Map as MapIcon } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
 import { formatCurrency } from "@/lib/calculations";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { ShareButton } from "@/components/ShareButton";
+import { supabase } from "@/integrations/supabase/client";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -20,10 +23,17 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [userId, setUserId] = useState<string | undefined>();
   const MAX_VISIBLE = 10;
   const visibleProperties = expanded ? properties : properties.slice(0, MAX_VISIBLE);
   const mapContainer = React.useRef<HTMLDivElement>(null);
   const map = React.useRef<mapboxgl.Map | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id);
+    });
+  }, []);
 
   // Initialize map when switching to map view
   React.useEffect(() => {
@@ -200,6 +210,16 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                         {property.status}
                       </div>
                     )}
+                    <ShareButton 
+                      property={{
+                        id: property.id,
+                        address: property.address,
+                        city: property.city || '',
+                        state: property.state || '',
+                        price: property.price || 0
+                      }} 
+                    />
+                    <FavoriteButton propertyId={property.id} userId={userId} variant="icon" />
                   </div>
 
                   {/* Property Details */}
@@ -325,6 +345,16 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                         {property.status}
                       </div>
                     )}
+                    <ShareButton 
+                      property={{
+                        id: property.id,
+                        address: property.address,
+                        city: property.city || '',
+                        state: property.state || '',
+                        price: property.price || 0
+                      }} 
+                    />
+                    <FavoriteButton propertyId={property.id} userId={userId} variant="icon" />
                   </div>
 
                   {/* Property Details */}
