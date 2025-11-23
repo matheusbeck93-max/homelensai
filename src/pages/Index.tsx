@@ -688,9 +688,7 @@ export default function Index() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold">
-                {searchLocation
-                  ? `Featured Homes near ${searchLocation}`
-                  : effectiveArea
+                {effectiveArea
                   ? `Featured Homes near ${effectiveArea}`
                   : "Featured Homes"}
               </h2>
@@ -752,8 +750,8 @@ export default function Index() {
       {/* Floating Conversation Box */}
       {showConversation && (
         <div className="fixed bottom-4 right-4 w-full max-w-md z-50 animate-in slide-in-from-bottom-5">
-          <div className="bg-card border rounded-2xl shadow-2xl flex flex-col max-h-[600px]">
-            <div className="flex justify-between items-center p-4 border-b">
+          <div className="bg-card border rounded-2xl shadow-2xl flex flex-col h-[600px]">
+            <div className="flex justify-between items-center p-4 border-b flex-shrink-0">
               <h3 className="font-semibold flex items-center gap-2">
                 <Bot className="h-5 w-5 text-primary" />
                 Property Analysis
@@ -800,8 +798,8 @@ export default function Index() {
               </div>
             </div>
             
-            <ScrollArea className="flex-1 p-4 min-h-0">
-              <div className="space-y-4">
+            <ScrollArea className="flex-1 p-4 overflow-y-auto">
+              <div className="space-y-4 pb-4">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
                     <Bot className="h-12 w-12 mb-4 text-primary" />
@@ -848,7 +846,7 @@ export default function Index() {
               </div>
             </ScrollArea>
             
-            <div className="p-4 border-t flex gap-2">
+            <div className="p-4 border-t flex gap-2 flex-shrink-0">
               <Textarea 
                 placeholder="Ask a follow-up question..." 
                 value={input} 
