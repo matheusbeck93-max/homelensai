@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, Bot, Send, Plus, History, Mic, MicOff, Search as SearchIcon } from "lucide-react";
+import { Home, Bot, Send, Plus, History, Mic, MicOff, Search as SearchIcon, Bookmark, Trash2, Edit } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +48,12 @@ export default function Index() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchLocation, setSearchLocation] = useState<string>("");
   const [showConversation, setShowConversation] = useState(false);
+  const [showSavedSearches, setShowSavedSearches] = useState(false);
+  const [savedSearches, setSavedSearches] = useState<any[]>([]);
+  const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
+  const [editingSearchName, setEditingSearchName] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
@@ -213,6 +218,9 @@ export default function Index() {
         setSearchLoading(false);
         return;
       }
+      
+      // Store the location for Featured Homes section
+      setSearchLocation(params.location);
       
       // Use unified payload format with defaults for broad search
       const { data, error } = await supabase.functions.invoke('search-listings', {
@@ -478,6 +486,107 @@ export default function Index() {
     setShowAreaDialog(false);
   };
 
+  const loadSavedSearches = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('saved_searches')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setSavedSearches(data);
+    }
+  };
+
+  const handleSaveSearch = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to save searches",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!searchQuery) return;
+    
+    const { error } = await supabase.from('saved_searches').insert({
+      user_id: user.id,
+      query_text: searchQuery,
+      filters_json: { location: searchLocation }
+    });
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save search",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Search saved successfully"
+      });
+      loadSavedSearches();
+    }
+  };
+
+  const handleDeleteSearch = async (searchId: string) => {
+    const { error } = await supabase
+      .from('saved_searches')
+      .delete()
+      .eq('id', searchId);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete search",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Search deleted"
+      });
+      loadSavedSearches();
+    }
+  };
+
+  const handleRenameSearch = async (searchId: string, newName: string) => {
+    const { error } = await supabase
+      .from('saved_searches')
+      .update({ query_text: newName })
+      .eq('id', searchId);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to rename search",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Search renamed"
+      });
+      loadSavedSearches();
+      setEditingSearchId(null);
+      setEditingSearchName("");
+    }
+  };
+
+  const handleLoadSavedSearch = (search: any) => {
+    handlePropertySearch(search.query_text);
+    setShowSavedSearches(false);
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadSavedSearches();
+    }
+  }, [user]);
+
   return <div className="min-h-screen pb-24 md:pb-8">
       {/* Navigation - Import from component */}
       <Navigation />
@@ -571,20 +680,21 @@ export default function Index() {
         </section>
       )}
 
-      {/* Featured Homes Section - Only show when no search results */}
-      {searchProperties.length === 0 && !searchLoading && (
-        <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">
-                  {effectiveArea
-                    ? `Featured Homes near ${effectiveArea}`
-                    : "Featured Homes"}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Handpicked properties in your area
-                </p>
+      {/* Featured Homes Section - Show based on search or default location */}
+      <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">
+                {searchLocation
+                  ? `Featured Homes near ${searchLocation}`
+                  : effectiveArea
+                  ? `Featured Homes near ${effectiveArea}`
+                  : "Featured Homes"}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Handpicked properties in your area
+              </p>
                 {featuredError && (
                   <p className="text-sm text-red-500 mt-2">{featuredError}</p>
                 )}
@@ -636,7 +746,6 @@ export default function Index() {
             )}
           </div>
         </section>
-      )}
 
       {/* Floating Conversation Box */}
       {showConversation && (
@@ -648,6 +757,26 @@ export default function Index() {
                 Property Analysis
               </h3>
               <div className="flex gap-2">
+                {searchQuery && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleSaveSearch}
+                    className="h-8 w-8 p-0"
+                    title="Save current search"
+                  >
+                    <Bookmark className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowSavedSearches(true)}
+                  className="h-8 w-8 p-0"
+                  title="View saved searches"
+                >
+                  <History className="h-4 w-4" />
+                  </Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -792,6 +921,93 @@ export default function Index() {
               <Button onClick={handleSaveArea}>Save</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Saved Searches Dialog */}
+      <Dialog open={showSavedSearches} onOpenChange={setShowSavedSearches}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Saved Searches</DialogTitle>
+            <DialogDescription>
+              Manage and load your saved property searches
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-3">
+              {savedSearches.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No saved searches yet</p>
+                  <p className="text-sm mt-2">Save a search to access it here later</p>
+                </div>
+              ) : (
+                savedSearches.map((search) => (
+                  <div key={search.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                    <div className="flex-1">
+                      {editingSearchId === search.id ? (
+                        <div className="flex gap-2">
+                          <Input
+                            value={editingSearchName}
+                            onChange={(e) => setEditingSearchName(e.target.value)}
+                            placeholder="Search name"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleRenameSearch(search.id, editingSearchName);
+                              }
+                            }}
+                          />
+                          <Button size="sm" onClick={() => handleRenameSearch(search.id, editingSearchName)}>
+                            Save
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setEditingSearchId(null);
+                            setEditingSearchName("");
+                          }}>
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-medium">{search.query_text}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(search.created_at).toLocaleDateString()}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    {editingSearchId !== search.id && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingSearchId(search.id);
+                            setEditingSearchName(search.query_text);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleLoadSavedSearch(search)}
+                        >
+                          Load
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteSearch(search.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>;
