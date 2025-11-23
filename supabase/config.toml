@@ -27,3 +27,6 @@ verify_jwt = true
 [functions.search-listings]
 verify_jwt = false
 
+[functions.neighborhood-insights]
+verify_jwt = false
+

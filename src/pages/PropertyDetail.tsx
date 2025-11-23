@@ -10,6 +10,8 @@ import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles }
 import { Skeleton } from "@/components/ui/skeleton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ExternalLinks } from "@/components/ExternalLinks";
+import { NeighborhoodInsights } from "@/components/NeighborhoodInsights";
+import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
 
 export default function PropertyDetail() {
   const { id } = useParams();
@@ -20,6 +22,8 @@ export default function PropertyDetail() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<string>("");
   const [userId, setUserId] = useState<string | undefined>();
+  const [neighborhoodInsights, setNeighborhoodInsights] = useState<NeighborhoodInsightsType | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -29,6 +33,43 @@ export default function PropertyDetail() {
       setUserId(user?.id);
     });
   }, [id]);
+
+  const fetchNeighborhoodInsights = async () => {
+    if (!property) return;
+
+    setLoadingInsights(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("neighborhood-insights", {
+        body: {
+          address: property.address,
+          city: property.city,
+          state: property.state,
+          zip: property.zip,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.insights) {
+        setNeighborhoodInsights(data.insights);
+      }
+    } catch (error: any) {
+      console.error('Error fetching neighborhood insights:', error);
+      toast({
+        title: "Could not load neighborhood data",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  useEffect(() => {
+    if (property && !neighborhoodInsights && !loadingInsights) {
+      fetchNeighborhoodInsights();
+    }
+  }, [property]);
 
   const fetchProperty = async () => {
     try {
@@ -239,6 +280,27 @@ export default function PropertyDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Neighborhood Insights */}
+        <div className="mt-8">
+          {loadingInsights ? (
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-64 mt-2" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : neighborhoodInsights ? (
+            <NeighborhoodInsights insights={neighborhoodInsights} />
+          ) : null}
+        </div>
       </div>
     </div>
   );
