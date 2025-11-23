@@ -20,6 +20,7 @@ import { isPropertySearchQuery, parsePropertySearchQuery } from "@/utils/propert
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { HouseBuildAnimation } from "@/components/HouseBuildAnimation";
 import heroBackground from "@/assets/american-house-hero.jpg";
 import videoThumbnail from "@/assets/homelens-intro-thumbnail.jpg";
 import { Play } from "lucide-react";
@@ -600,12 +601,18 @@ export default function Index() {
       <Navigation />
 
       {/* Hero Section with Search */}
-      <section className="relative w-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted pt-24 pb-6">
+      <section className="relative w-full flex items-center justify-center overflow-hidden pt-24 pb-6">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-muted animate-gradient-shift" />
+        
         {/* Content */}
         <main className="relative z-10 max-w-5xl mx-auto px-4 w-full space-y-6">
           <div className="w-full">
             <div className="text-center space-y-8">
-              <h1 className="text-5xl font-bold text-foreground mb-12">
+              {/* Lottie Animation */}
+              <HouseBuildAnimation />
+              
+              <h1 className="text-5xl font-bold text-foreground mb-12 animate-fade-up">
                 Find your new home
               </h1>
               
