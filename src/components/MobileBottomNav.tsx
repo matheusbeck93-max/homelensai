@@ -39,9 +39,11 @@ export function MobileBottomNav() {
           return (
             <button
               key={item.path}
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
                 console.log(`MobileBottomNav: ${item.label} clicked, navigating to ${item.path}`);
-                navigate(item.path);
+                navigate(item.path, { replace: false });
               }}
               className={cn(
                 "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px]",
