@@ -45,17 +45,18 @@ export function Navigation() {
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
 
+  const handleGoHome = () => {
+    console.log('Navigating to homepage');
+    navigate('/');
+  };
+
   return (
     <nav className="sticky top-0 w-full z-50 bg-background/95 backdrop-blur-md border-b">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            console.log('Navigation logo clicked, navigating to /');
-            navigate('/', { replace: false });
-          }}
+          onClick={handleGoHome}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
         >
           <Home className="h-6 w-6 text-primary" />
@@ -72,10 +73,9 @@ export function Navigation() {
                 <Button
                   key={item.path}
                   variant="ghost"
-                  onClick={(e) => {
-                    e.preventDefault();
+                  onClick={() => {
                     console.log(`Navigation: ${item.label} clicked, navigating to ${item.path}`);
-                    navigate(item.path, { replace: false });
+                    navigate(item.path);
                   }}
                   className={isActive ? "text-primary" : ""}
                 >
