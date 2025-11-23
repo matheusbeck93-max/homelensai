@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MapPin, Bed, Bath, Ruler, TrendingUp } from "lucide-react";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { ShareButton } from "@/components/ShareButton";
 import { supabase } from "@/integrations/supabase/client";
 
 interface PropertyCardProps {
@@ -63,6 +64,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
         <Badge className={`absolute top-2 left-2 ${getConditionColor(property.condition)}`}>
           {property.condition}
         </Badge>
+        <ShareButton property={property} />
         <FavoriteButton propertyId={property.id} userId={userId} variant="icon" />
       </div>
       <CardHeader>
