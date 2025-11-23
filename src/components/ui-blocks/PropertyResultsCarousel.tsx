@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Home, Bed, Bath, Square, ExternalLink, TrendingUp, List, Map as MapIcon, Heart } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Home, Bed, Bath, Square, ExternalLink, TrendingUp, List, Map as MapIcon, Heart, GitCompare } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
 import { formatCurrency } from "@/lib/calculations";
 import { ShareMenu } from "@/components/ShareMenu";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { useComparison } from "@/contexts/ComparisonContext";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PriceFairnessMeter } from "@/components/PriceFairnessMeter";
@@ -29,6 +31,7 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { isSelected, addToComparison, removeFromComparison, canAddMore } = useComparison();
   const { toast } = useToast();
   const { hasAccess } = useSubscription();
   const MAX_VISIBLE = 10;
@@ -73,6 +76,33 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
       title: wasFavorite ? "Removed from favorites" : "Added to favorites",
       description: wasFavorite ? "Property removed from your favorites" : "Property saved to your favorites",
     });
+  };
+
+  const handleToggleComparison = (e: React.MouseEvent | React.ChangeEvent, property: HomeLensListing) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (isSelected(property.id)) {
+      removeFromComparison(property.id);
+      toast({
+        title: "Removed from comparison",
+        description: "Property removed from comparison list",
+      });
+    } else {
+      if (!canAddMore) {
+        toast({
+          title: "Maximum reached",
+          description: "You can compare up to 4 properties at once",
+          variant: "destructive",
+        });
+        return;
+      }
+      addToComparison(property);
+      toast({
+        title: "Added to comparison",
+        description: "Property added to comparison list",
+      });
+    }
   };
 
   // Initialize map when switching to map view
@@ -278,6 +308,17 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                         }`}
                       />
                     </Button>
+                    <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm rounded-lg p-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={isSelected(property.id)}
+                          onCheckedChange={(e) => handleToggleComparison(e as any, property)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label="Add to comparison"
+                        />
+                        <span className="text-xs font-medium">Compare</span>
+                      </label>
+                    </div>
                   </div>
 
                   {/* Property Details */}
@@ -453,6 +494,17 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                         }`}
                       />
                     </Button>
+                    <div className="absolute bottom-2 left-2 bg-background/80 backdrop-blur-sm rounded-lg p-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={isSelected(property.id)}
+                          onCheckedChange={(e) => handleToggleComparison(e as any, property)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label="Add to comparison"
+                        />
+                        <span className="text-xs font-medium">Compare</span>
+                      </label>
+                    </div>
                   </div>
 
                   {/* Property Details */}
