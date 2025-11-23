@@ -571,11 +571,12 @@ export default function Index() {
         </section>
       )}
 
-      {/* Featured Homes Section */}
-      <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
+      {/* Featured Homes Section - Only show when no search results */}
+      {searchProperties.length === 0 && !searchLoading && (
+        <section className="container mx-auto px-4 py-4 mt-3 md:mt-4">
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-            <div>
+              <div>
                 <h2 className="text-2xl font-bold">
                   {effectiveArea
                     ? `Featured Homes near ${effectiveArea}`
@@ -635,9 +636,10 @@ export default function Index() {
             )}
           </div>
         </section>
+      )}
 
       {/* Floating Conversation Box */}
-      {showConversation && messages.length > 0 && (
+      {showConversation && (
         <div className="fixed bottom-4 right-4 w-full max-w-md z-50 animate-in slide-in-from-bottom-5">
           <div className="bg-card border rounded-2xl shadow-2xl flex flex-col max-h-[600px]">
             <div className="flex justify-between items-center p-4 border-b">
@@ -651,6 +653,7 @@ export default function Index() {
                   size="sm" 
                   onClick={handleNewConversation}
                   className="h-8 w-8 p-0"
+                  title="New conversation"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -659,6 +662,7 @@ export default function Index() {
                   size="sm" 
                   onClick={() => setShowConversation(false)}
                   className="h-8 w-8 p-0"
+                  title="Minimize"
                 >
                   ×
                 </Button>
@@ -667,8 +671,15 @@ export default function Index() {
             
             <ScrollArea className="flex-1 p-4 min-h-0">
               <div className="space-y-4">
-                {messages.map((msg, i) => (
-                  <div key={i}>
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+                    <Bot className="h-12 w-12 mb-4 text-primary" />
+                    <p className="text-sm">Start a conversation by clicking "Analyze" on any property or ask a question below.</p>
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((msg, i) => (
+                      <div key={i}>
                     {/* Render UI Block if present */}
                     {msg.role === 'assistant' && msg.uiBlock && (
                       <div className="mb-4">
@@ -696,10 +707,12 @@ export default function Index() {
                           </div>
                         )}
                       </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {loading && <div className="text-muted-foreground text-sm">Thinking...</div>}
+                  ))}
+                  {loading && <div className="text-muted-foreground text-sm">Thinking...</div>}
+                  </>
+                )}
                 <div ref={scrollRef} />
               </div>
             </ScrollArea>
@@ -730,6 +743,17 @@ export default function Index() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating "Ask AI" Button - Show when search results exist but conversation is closed */}
+      {searchProperties.length > 0 && !showConversation && (
+        <Button
+          onClick={() => setShowConversation(true)}
+          className="fixed bottom-4 right-4 z-50 rounded-full h-14 w-14 shadow-2xl"
+          size="lg"
+        >
+          <Bot className="h-6 w-6" />
+        </Button>
       )}
 
       {/* Footer */}
