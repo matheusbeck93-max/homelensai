@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ExternalLinks } from "@/components/ExternalLinks";
 import { NeighborhoodInsights } from "@/components/NeighborhoodInsights";
+import { NeighborhoodPersonality } from "@/components/NeighborhoodPersonality";
 import { PropertyMap } from "@/components/PropertyMap";
 import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
 
@@ -318,6 +319,16 @@ export default function PropertyDetail() {
             />
           </div>
         )}
+
+        {/* Neighborhood Personality AI */}
+        <div className="mt-8">
+          <NeighborhoodPersonality
+            address={property.address}
+            city={property.city}
+            state={property.state}
+            zip={property.zip}
+          />
+        </div>
 
         {/* Neighborhood Insights */}
         <div className="mt-8">
