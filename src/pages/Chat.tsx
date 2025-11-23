@@ -175,26 +175,20 @@ export default function Chat() {
     }
   }, [messages]);
   const handleSendWithQuery = async (query: string) => {
-    // This function is called when auto-sending from URL parameter
+    // This function is called when auto-sending from URL parameter or navigation state
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
+    // If this looks like a property search, use the unified property search flow
+    if (isPropertySearchQuery(trimmed)) {
+      await handlePropertySearch(trimmed);
+      return;
+    }
+
     const userMessage: Message = {
       role: "user",
-      content: query
+      content: trimmed
     };
-    setMessages(prev => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-    try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("ai-chat", {
-        body: {
-          messages: [userMessage],
-          hasImage: false,
-          userProfile: userProfile
-        }
-      });
-      if (error) throw error;
 
       // Check if response contains property search trigger
       let properties: Property[] | undefined;
