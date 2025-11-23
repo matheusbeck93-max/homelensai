@@ -18,94 +18,90 @@
   }
 }
 
-/* Colors use design system tokens */
-.hero-house-walls {
-  fill: hsl(var(--muted));
+/* Base style for logo outline and door - matches navbar Home icon */
+.hero-logo-outline,
+.hero-logo-door {
+  fill: none;
   stroke: hsl(var(--primary));
-  stroke-width: 2;
-  animation: walls-enter 600ms ease-out forwards;
-  opacity: 0;
-  transform: translateY(10px);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.hero-house-roof {
-  fill: hsl(var(--primary));
-  stroke: hsl(var(--foreground));
-  stroke-width: 2;
-  animation: roof-enter 700ms ease-out 200ms forwards;
-  opacity: 0;
-  transform: translateY(-12px);
+/* Continuous drawing animation for the outline */
+.hero-logo-outline {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: house-draw 3.5s ease-in-out infinite;
 }
 
-.hero-house-door {
-  fill: hsl(var(--background));
-  stroke: hsl(var(--primary));
-  stroke-width: 1.5;
-  animation: door-enter 600ms ease-out 400ms forwards;
-  opacity: 0;
-  transform: scale(0.9);
-  transform-origin: center bottom;
+/* Door pulses subtly after outline completes */
+.hero-logo-door {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: door-draw 3.5s ease-in-out infinite, door-pulse 3.5s ease-in-out infinite;
 }
 
-.hero-house-window {
-  fill: hsl(var(--background));
-  stroke: hsl(var(--primary));
-  stroke-width: 1.5;
-  animation: window-enter 600ms ease-out 450ms forwards;
-  opacity: 0;
-  transform: scale(0.9);
-  transform-origin: center center;
-}
-
-@keyframes walls-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes roof-enter {
+@keyframes house-draw {
   0% {
+    stroke-dashoffset: 100;
     opacity: 0;
-    transform: translateY(-12px);
   }
-  60% {
+  15% {
     opacity: 1;
-    transform: translateY(0);
   }
-  80% {
-    transform: translateY(2px);
+  45% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  95% {
+    stroke-dashoffset: 100;
+    opacity: 0.3;
   }
   100% {
-    transform: translateY(0);
-    opacity: 1;
+    stroke-dashoffset: 100;
+    opacity: 0;
   }
 }
 
-@keyframes door-enter {
-  to {
+@keyframes door-draw {
+  0%, 20% {
+    stroke-dashoffset: 30;
+    opacity: 0;
+  }
+  25% {
     opacity: 1;
+  }
+  50% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  75% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  95% {
+    stroke-dashoffset: 30;
+    opacity: 0.3;
+  }
+  100% {
+    stroke-dashoffset: 30;
+    opacity: 0;
+  }
+}
+
+@keyframes door-pulse {
+  0%, 50%, 100% {
     transform: scale(1);
   }
-}
-
-@keyframes window-enter {
-  to {
-    opacity: 1;
+  58% {
+    transform: scale(1.05);
+  }
+  65% {
     transform: scale(1);
-  }
-}
-
-/* Subtle looping glow around the house */
-.homelens-hero-svg {
-  animation: hero-pulse 4s ease-in-out infinite;
-}
-
-@keyframes hero-pulse {
-  0%, 70%, 100% {
-    filter: drop-shadow(0 0 0 hsl(var(--primary) / 0));
-  }
-  80% {
-    filter: drop-shadow(0 0 12px hsl(var(--primary) / 0.35));
   }
 }
