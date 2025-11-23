@@ -389,13 +389,14 @@ export default function Index() {
     }
   }, []);
 
-  // Load featured homes based on preferred area or default
+  // Load featured homes based on search location, preferred area, or default
   useEffect(() => {
     const loadFeaturedHomes = async () => {
       setFeaturedLoading(true);
       setFeaturedError(null);
       try {
-        const primaryLocation = preferredArea || DEFAULT_AREA;
+        // Priority: searchLocation > preferredArea > DEFAULT_AREA
+        const primaryLocation = searchLocation || preferredArea || DEFAULT_AREA;
 
         // First attempt: preferred area (or default if user hasn't set one)
         const firstPayload = {
@@ -430,9 +431,9 @@ export default function Index() {
           return;
         }
 
-        // If user set a preferred area and it returned 0 listings,
-        // try one more time with DEFAULT_AREA as a fallback.
-        if (preferredArea && preferredArea !== DEFAULT_AREA) {
+        // If searchLocation or preferred area returned 0 listings,
+        // try one more time with DEFAULT_AREA as a fallback (only if not already using default)
+        if (primaryLocation !== DEFAULT_AREA) {
           const fallback = await supabase.functions.invoke("search-listings", {
             body: {
               location: DEFAULT_AREA,
@@ -476,7 +477,7 @@ export default function Index() {
     };
     
     loadFeaturedHomes();
-  }, [preferredArea]);
+  }, [preferredArea, searchLocation]); // Re-run when searchLocation changes
   
   const handleSaveArea = () => {
     const value = areaInput.trim();
