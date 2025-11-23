@@ -45,3 +45,6 @@ verify_jwt = true
 [functions.send-weekly-picks]
 verify_jwt = false
 
+[functions.investment-projections]
+verify_jwt = true
+
