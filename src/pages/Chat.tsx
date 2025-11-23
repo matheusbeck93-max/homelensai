@@ -753,49 +753,42 @@ export default function Chat() {
         </Button>
       </div>
     </div>;
-  return <div className="flex h-screen bg-background overflow-hidden">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block w-64 border-r flex-shrink-0">
-        <ConversationSidebar />
-      </div>
+  return <div className="flex flex-col h-screen bg-background">
+      {/* Top Navigation */}
+      <Navigation />
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header */}
-        <div className="border-b p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sheet>
-              <SheetTrigger asChild className="md:hidden">
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <ConversationSidebar />
-              </SheetContent>
-            </Sheet>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => {
-                console.log('Chat home button clicked, navigating to /');
-                navigate("/");
-              }}
-              className="flex-shrink-0"
-            >
-              <Home className="h-6 w-6 text-primary" />
-            </Button>
-            <h1 className="text-xl font-bold">HomeLens AI Assistant</h1>
-          </div>
-          {messages.length > 0 && <Button variant="outline" size="sm" onClick={exportConversation}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block w-64 border-r flex-shrink-0">
+          <ConversationSidebar />
         </div>
 
-        {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="max-w-7xl mx-auto space-y-6 pb-6">
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Chat Header */}
+          <div className="border-b p-4 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Sheet>
+                <SheetTrigger asChild className="md:hidden">
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 p-0">
+                  <ConversationSidebar />
+                </SheetContent>
+              </Sheet>
+              <h1 className="text-xl font-bold">AI Assistant</h1>
+            </div>
+            {messages.length > 0 && <Button variant="outline" size="sm" onClick={exportConversation}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>}
+          </div>
+
+          {/* Messages - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
             {messages.length === 0 && showProfileSelector && <ProfileSelector onProfileChange={profile => {
             setUserProfile(profile);
             setShowProfileSelector(false);
@@ -909,13 +902,13 @@ export default function Chat() {
                   <p className="text-muted-foreground">Analyzing...</p>
                 </div>
               </div>}
-            <div ref={scrollRef} />
+              <div ref={scrollRef} />
+            </div>
           </div>
-        </ScrollArea>
 
-        {/* Input Area - Sticky at bottom */}
-        <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4 pb-24 lg:pb-4">
-          <div className="max-w-7xl mx-auto">
+          {/* Input Area - Sticky at bottom */}
+          <div className="border-t bg-background p-4 pb-24 md:pb-4 flex-shrink-0">
+            <div className="max-w-7xl mx-auto">
             {imagePreview && <div className="mb-2 relative inline-block">
                 <img src={imagePreview} alt="Preview" className="rounded-lg max-h-32" />
                 <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => {
@@ -947,6 +940,7 @@ export default function Chat() {
             <p className="text-xs text-muted-foreground mt-2 text-center">
               AI can make mistakes. Verify important information.
             </p>
+            </div>
           </div>
         </div>
       </div>

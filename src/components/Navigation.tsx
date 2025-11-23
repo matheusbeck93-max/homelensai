@@ -50,11 +50,13 @@ export function Navigation() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <button
-          onClick={() => {
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
             console.log('Navigation logo clicked, navigating to /');
-            navigate('/');
+            navigate('/', { replace: false });
           }}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
         >
           <Home className="h-6 w-6 text-primary" />
           <span className="font-bold text-xl">HomeLens</span>
@@ -70,9 +72,10 @@ export function Navigation() {
                 <Button
                   key={item.path}
                   variant="ghost"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
                     console.log(`Navigation: ${item.label} clicked, navigating to ${item.path}`);
-                    navigate(item.path);
+                    navigate(item.path, { replace: false });
                   }}
                   className={isActive ? "text-primary" : ""}
                 >
