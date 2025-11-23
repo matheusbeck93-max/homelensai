@@ -590,56 +590,28 @@ Provide balanced analysis covering:
 - Overall value assessment`
      };
 
-    // Define available tools
-    const tools = [
-      {
-        type: "function",
-        function: {
-          name: "search_listings",
-          description: "Search for real estate listings in the US. Use this when users ask to find homes, properties, or real estate.",
-          parameters: {
-            type: "object",
-            properties: {
-              location: {
-                type: "string",
-                description: "City and state (e.g., 'Austin, TX' or 'Miami, FL')"
-              },
-              minPrice: {
-                type: "number",
-                description: "Minimum price in dollars"
-              },
-              maxPrice: {
-                type: "number",
-                description: "Maximum price in dollars"
-              },
-              minBeds: {
-                type: "number",
-                description: "Minimum number of bedrooms"
-              },
-              maxBeds: {
-                type: "number",
-                description: "Maximum number of bedrooms"
-              },
-              propertyType: {
-                type: "string",
-                enum: ["house", "condo", "townhome", "multi", "any"],
-                description: "Type of property"
-              }
-            },
-            required: ["location"]
-          }
-        }
-      }
-    ];
+    // Define available tools - NO LISTING SEARCH
+    // Listing searches are handled by the main search bar on the homepage
+    const tools: any[] = [];
 
-    const systemPrompt = `You are **HomeLens** 🏡, an advanced real estate intelligence agent specialized in the U.S. property market 🇺🇸.
+    const systemPrompt = `You are **HomeLens Property Analysis Assistant** 🏡, specialized in analyzing specific properties in the U.S. market 🇺🇸.
 
-Your mission is to act as an interactive Real Estate consultant who helps users:
-- Search for properties using our internal property search API
-- Analyze property listings sent by users (via links) and provide a professional, concise analysis with key insights
-- Explain mortgages, taxes, flip houses, home equity, investment strategies, and first-time buyer benefits
-- **Provide inline tools when users request calculations or deal analysis**
-- Present clickable scenario cards whenever multiple options exist
+**🚨 CRITICAL: YOU ARE NOT A LISTING SEARCH ENGINE 🚨**
+
+Your role is ONLY to:
+- **Analyze specific properties** that users send to you (via property listing URLs)
+- Provide detailed financial analysis, investment metrics, and recommendations
+- Answer questions about mortgages, taxes, home equity, investment strategies, and buying processes
+- Calculate affordability, monthly payments, ROI, and other property metrics
+
+**YOU CANNOT AND MUST NOT:**
+- ❌ Search for new property listings
+- ❌ Find homes or properties in any location
+- ❌ Call any listing search APIs or tools
+- ❌ Generate lists of available properties
+
+**When users ask you to find homes/properties:**
+Politely respond: "I can't search for listings, but I can analyze specific properties you're interested in! Please use the main search bar on the homepage to find properties, then click 'Analyze' on any property card to get my detailed analysis. Or paste a property URL from Zillow, Realtor, Redfin, or other sites, and I'll analyze it for you."
 
 🧭 **BEHAVIORAL RULES**:
 
@@ -659,36 +631,7 @@ Your mission is to act as an interactive Real Estate consultant who helps users:
    - If you want to add a tip: keep it to 1 SHORT sentence and ask "Would you like me to explain this further?"
    - Be concise and direct. No unnecessary elaboration.
 
-🚨 **PROPERTY SEARCH RULE - CRITICAL** 🚨
-
-When the user asks for homes (examples: "3 bedroom homes in Austin under 700k", "houses for sale in Miami", "condos in Phoenix with a pool"), you MUST:
-
-1. **Parse the search criteria** from their request:
-   - Extract: location (city, state), price range, beds, property type
-   
-2. **Call the search_listings tool** with these parameters:
-   - location: "City, State" (e.g., "Austin, TX")
-   - minPrice: number (optional)
-   - maxPrice: number (optional)
-   - minBeds: number (optional)
-   - maxBeds: number (optional)
-   - propertyType: "house" | "condo" | "townhome" | "multi" | "any" (optional)
-
-3. **When tool results come back**, respond with a JSON object in this EXACT format:
-   \`\`\`json
-   {
-     "type": "ui_block/property_results_carousel",
-     "title": "Homes matching your criteria",
-     "properties": [...tool results...],
-     "message": "I found X properties matching your criteria. Click any card to analyze it in detail."
-   }
-   \`\`\`
-
-4. **NEVER respond with external links** (Zillow, Realtor, Redfin, Trulia) for property searches.
-5. **NEVER make up property data** - always use the search_listings tool.
-6. If no results: Include helpful suggestions in the message field for adjusting search criteria.
-
-When analyzing a specific property URL (user pastes a link), continue to use the existing analysis format.
+2. **PROPERTY ANALYSIS**: When a user sends a property URL (Zillow, Realtor, Redfin, etc.), provide detailed analysis including financial metrics, investment potential, and recommendations based on their buyer profile.
 
 2. **Format all responses with proper structure**: Use headers, bullet points, numbered lists, and short paragraphs
 3. **When multiple paths are possible**, display clickable scenario options like:
@@ -902,53 +845,7 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
     
     const assistantMessage = data.choices[0].message;
     
-    // Check if model wants to call a tool
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      const toolCall = assistantMessage.tool_calls[0];
-      
-      if (toolCall.function.name === 'search_listings') {
-        console.log('AI requested search_listings tool with args:', toolCall.function.arguments);
-        
-        try {
-          const searchParams = JSON.parse(toolCall.function.arguments);
-          
-          // Call the search-listings edge function
-          const searchResponse = await supabase.functions.invoke('search-listings', {
-            body: searchParams
-          });
-          
-          if (searchResponse.error) {
-            console.error('Search listings error:', searchResponse.error);
-            throw searchResponse.error;
-          }
-          
-          const listings = searchResponse.data?.listings || [];
-          console.log(`Found ${listings.length} listings`);
-          
-          // Return the UI block with listings
-          return new Response(
-            JSON.stringify({ 
-              response: JSON.stringify({
-                type: "ui_block/property_results_carousel",
-                title: `Homes in ${searchParams.location}`,
-                properties: listings,
-                message: `I found ${listings.length} properties matching your criteria. Click "Analyze" on any property to get detailed insights.`
-              })
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } catch (toolError) {
-          console.error('Error executing search_listings tool:', toolError);
-          return new Response(
-            JSON.stringify({ 
-              response: `I tried to search for properties but encountered an error: ${toolError instanceof Error ? toolError.message : 'Unknown error'}. Please try again or adjust your search criteria.`
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-    }
-    
+    // Since we removed the search_listings tool, we just return the assistant's response
     const assistantResponse = assistantMessage.content;
     console.log('OpenAI response received, length:', assistantResponse?.length || 0);
 
