@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Home, Calculator, TrendingUp, Menu } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Heart } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +42,7 @@ export function Navigation() {
     { label: 'Home', path: '/', icon: Home },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
+    { label: 'Favorites', path: '/favorites', icon: Heart },
   ];
  
   const handleGoHome = () => {
