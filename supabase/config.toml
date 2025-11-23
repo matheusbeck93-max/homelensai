@@ -36,3 +36,6 @@ verify_jwt = true
 [functions.neighborhood-personality]
 verify_jwt = false
 
+[functions.check-property-alerts]
+verify_jwt = false
+
