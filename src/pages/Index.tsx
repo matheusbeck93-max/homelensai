@@ -753,7 +753,7 @@ export default function Index() {
           size="lg"
           title="Open Property Analysis"
         >
-          <Bot className="h-6 w-6" />
+          <Home className="h-6 w-6" />
         </Button>
       )}
 
