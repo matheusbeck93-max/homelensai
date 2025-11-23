@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Home, Bed, Bath, Square, ExternalLink, TrendingUp, List, Map as MapIcon, Heart } from "lucide-react";
@@ -7,6 +7,10 @@ import { formatCurrency } from "@/lib/calculations";
 import { ShareMenu } from "@/components/ShareMenu";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useToast } from "@/hooks/use-toast";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PriceFairnessMeter } from "@/components/PriceFairnessMeter";
+import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { calculatePriceFairness } from "@/lib/pricingUtils";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -23,12 +27,42 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const { isFavorite, toggleFavorite } = useFavorites();
   const { toast } = useToast();
+  const { hasAccess } = useSubscription();
   const MAX_VISIBLE = 10;
   const visibleProperties = expanded ? properties : properties.slice(0, MAX_VISIBLE);
   const mapContainer = React.useRef<HTMLDivElement>(null);
   const map = React.useRef<mapboxgl.Map | null>(null);
+
+  const hasPriceFairnessAccess = hasAccess('PRICE_FAIRNESS_METER');
+
+  // Calculate price fairness for all properties
+  const propertyFairness = useMemo(() => {
+    const fairnessMap = new Map();
+    
+    // Only calculate if user has access
+    if (!hasPriceFairnessAccess) {
+      return fairnessMap;
+    }
+
+    properties.forEach(property => {
+      if (property.price && property.sqft) {
+        const result = calculatePriceFairness(
+          { price: property.price, sqft: property.sqft },
+          properties
+            .filter(p => p.price && p.sqft)
+            .map(p => ({ price: p.price!, sqft: p.sqft! }))
+        );
+        if (result) {
+          fairnessMap.set(property.id, result);
+        }
+      }
+    });
+    
+    return fairnessMap;
+  }, [properties, hasPriceFairnessAccess]);
 
   const handleToggleFavorite = (e: React.MouseEvent, property: HomeLensListing) => {
     e.stopPropagation();
@@ -255,6 +289,28 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                       </p>
                     )}
 
+                    {/* Price Fairness Meter */}
+                    {property.price && property.sqft && propertyFairness.get(property.id) && (
+                      <PriceFairnessMeter
+                        result={propertyFairness.get(property.id)!}
+                        isLocked={!hasPriceFairnessAccess}
+                        onUpgradeClick={() => setUpgradeModalOpen(true)}
+                      />
+                    )}
+                    {property.price && property.sqft && !hasPriceFairnessAccess && !propertyFairness.get(property.id) && (
+                      <PriceFairnessMeter
+                        result={{
+                          level: 'fair',
+                          percentageDiff: 0,
+                          medianPrice: 0,
+                          medianPricePerSqft: 0,
+                          propertyPricePerSqft: 0
+                        }}
+                        isLocked={true}
+                        onUpgradeClick={() => setUpgradeModalOpen(true)}
+                      />
+                    )}
+
                     {/* Address */}
                     <div className="min-h-[2.5rem]">
                       <p className="text-sm font-medium line-clamp-2">
@@ -408,6 +464,28 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                       </p>
                     )}
 
+                    {/* Price Fairness Meter */}
+                    {property.price && property.sqft && propertyFairness.get(property.id) && (
+                      <PriceFairnessMeter
+                        result={propertyFairness.get(property.id)!}
+                        isLocked={!hasPriceFairnessAccess}
+                        onUpgradeClick={() => setUpgradeModalOpen(true)}
+                      />
+                    )}
+                    {property.price && property.sqft && !hasPriceFairnessAccess && !propertyFairness.get(property.id) && (
+                      <PriceFairnessMeter
+                        result={{
+                          level: 'fair',
+                          percentageDiff: 0,
+                          medianPrice: 0,
+                          medianPricePerSqft: 0,
+                          propertyPricePerSqft: 0
+                        }}
+                        isLocked={true}
+                        onUpgradeClick={() => setUpgradeModalOpen(true)}
+                      />
+                    )}
+
                     {/* Address */}
                     <div className="min-h-[2.5rem]">
                       <p className="text-sm font-medium line-clamp-2">
@@ -481,6 +559,13 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
       <div className="mt-2 text-xs text-muted-foreground text-center">
         Data provided by Realty in US via RapidAPI
       </div>
+      
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        feature="Price Fairness Meter"
+        reason="Upgrade to Pro to see how this property's price compares to similar homes in the area"
+      />
     </div>
   );
 };
