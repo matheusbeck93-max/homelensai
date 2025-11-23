@@ -179,6 +179,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          alert_email_enabled: boolean | null
+          alert_price_drops: boolean | null
+          alert_status_changes: boolean | null
           budget_max: number | null
           budget_min: number | null
           buyer_type: string | null
@@ -201,6 +204,9 @@ export type Database = {
           user_profile: string | null
         }
         Insert: {
+          alert_email_enabled?: boolean | null
+          alert_price_drops?: boolean | null
+          alert_status_changes?: boolean | null
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
@@ -223,6 +229,9 @@ export type Database = {
           user_profile?: string | null
         }
         Update: {
+          alert_email_enabled?: boolean | null
+          alert_price_drops?: boolean | null
+          alert_status_changes?: boolean | null
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
@@ -351,6 +360,41 @@ export type Database = {
         }
         Relationships: []
       }
+      property_snapshots: {
+        Row: {
+          captured_at: string
+          created_at: string | null
+          id: string
+          price: number
+          property_id: string
+          status: string
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string | null
+          id?: string
+          price: number
+          property_id: string
+          status: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string | null
+          id?: string
+          price?: number
+          property_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_snapshots_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_vectors: {
         Row: {
           created_at: string | null
@@ -474,6 +518,44 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sent_alerts: {
+        Row: {
+          alert_type: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          property_id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          property_id: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          property_id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sent_alerts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
