@@ -745,12 +745,13 @@ export default function Index() {
         </div>
       )}
 
-      {/* Floating "Ask AI" Button - Show when search results exist but conversation is closed */}
-      {searchProperties.length > 0 && !showConversation && (
+      {/* Floating Property Analysis Button - Always accessible */}
+      {!showConversation && (
         <Button
           onClick={() => setShowConversation(true)}
           className="fixed bottom-4 right-4 z-50 rounded-full h-14 w-14 shadow-2xl"
           size="lg"
+          title="Open Property Analysis"
         >
           <Bot className="h-6 w-6" />
         </Button>
