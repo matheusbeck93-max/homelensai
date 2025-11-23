@@ -13,14 +13,13 @@ import PropertyCarousel from "@/components/PropertyCarousel";
 import ProfileSelector from "@/components/ProfileSelector";
 import ReactMarkdown from "react-markdown";
 import { Navigation } from "@/components/Navigation";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EmptyState } from "@/components/EmptyState";
 import InlineCalculator from "@/components/InlineCalculator";
 import InlineDealAnalysis from "@/components/InlineDealAnalysis";
 import { Checkbox } from "@/components/ui/checkbox";
-import { InstallPrompt } from "@/components/InstallPrompt";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
-import { UIBlock } from "@/types/ui-blocks";
+import { PropertyResultsCarousel } from "@/components/ui-blocks/PropertyResultsCarousel";
+import { UIBlock, HomeLensListing } from "@/types/ui-blocks";
 const MarkdownLink = ({
   href,
   children
@@ -840,11 +839,46 @@ export default function Chat() {
                   </div>
                 )}
                 
+                {/* Render legacy property results in unified format when no UI block is present */}
+                {!message.uiBlock && message.role === "assistant" && message.properties && message.properties.length > 0 && (
+                  <div className="mb-6">
+                    <PropertyResultsCarousel
+                      title="Properties matching your search"
+                      properties={message.properties.map((p) => ({
+                        id: p.id,
+                        address: p.address,
+                        price: p.price ?? 0,
+                        beds: p.beds ?? 0,
+                        baths: p.baths ?? 0,
+                        sqft: p.sqft ?? 0,
+                        photoUrl: (p as any).photoUrl || (p as any).image_url || (p as any).image_urls?.[0] || null,
+                        listingUrl: (p as any).listingUrl || (p as any).externalLink || null,
+                        status: (p as any).status ?? null,
+                        source: "ai-chat",
+                        city: (p as any).city ?? null,
+                        state: (p as any).state ?? null,
+                        zip: null,
+                        lat: null,
+                        lng: null,
+                      } as HomeLensListing))}
+                      onAnalyze={(property) => {
+                        setInput(`Analyze this property: ${property.listingUrl || property.address}`);
+                        setTimeout(() => handleSend(), 100);
+                      }}
+                    />
+                  </div>
+                )}
+                
                 <div className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                   {message.role === "assistant" && (
-                    <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/")}
+                      className="h-10 w-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0 hover:opacity-90 transition-opacity"
+                      aria-label="Go to homepage"
+                    >
                       <Home className="h-6 w-6 text-primary-foreground" />
-                    </div>
+                    </button>
                   )}
                   <div className={`max-w-[80%] rounded-2xl p-4 ${message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                     {message.image_url && <img src={message.image_url} alt="Uploaded" className="rounded-lg mb-2 max-w-sm" />}
@@ -983,8 +1017,5 @@ export default function Chat() {
           </div>
         </DialogContent>
       </Dialog>
-      
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav />
     </div>;
 }
