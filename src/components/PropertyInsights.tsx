@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, TrendingUp, Users, Home as HomeIcon } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
+import { DataFreshness } from "./DataFreshness";
 
 interface PropertyInsightsProps {
   insights?: HomeLensListing['insights'];
@@ -116,7 +117,10 @@ export function PropertyInsights({ insights, compact = false }: PropertyInsights
             )}
 
             <div className="text-[10px] text-muted-foreground pt-2">
-              Data from RentCast
+              <DataFreshness
+                sources={[{ name: "RentCast", type: "daily" }]}
+                className="text-[10px]"
+              />
             </div>
           </CardContent>
         </Card>
@@ -179,7 +183,10 @@ export function PropertyInsights({ insights, compact = false }: PropertyInsights
             )}
 
             <div className="text-[10px] text-muted-foreground pt-2">
-              Data from US Census (ZIP-level)
+              <DataFreshness
+                sources={[{ name: "US Census", type: "monthly" }]}
+                className="text-[10px]"
+              />
             </div>
           </CardContent>
         </Card>

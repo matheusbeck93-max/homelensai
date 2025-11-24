@@ -50,8 +50,8 @@ export default function Compare() {
     <div className="min-h-screen flex flex-col">
       <Navigation />
 
-      <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="mb-6 flex items-center justify-between">
+      <main className="flex-1 container mx-auto px-4 py-6 pb-24 md:pb-6">
+        <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
@@ -60,11 +60,11 @@ export default function Compare() {
             <ArrowLeft className="w-4 h-4" />
             Back to results
           </Button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
             <span className="text-sm text-muted-foreground">
               Comparing {selectedProperties.length} properties
             </span>
-            <Button variant="outline" onClick={clearComparison}>
+            <Button variant="outline" onClick={clearComparison} className="w-full sm:w-auto">
               Clear comparison
             </Button>
           </div>
@@ -87,13 +87,13 @@ export default function Compare() {
         )}
 
         {/* Comparison Table */}
-        <div className="overflow-x-auto">
-          <div className="inline-flex gap-4 pb-4">
+        <div className="overflow-x-auto -mx-4 px-4">
+          <div className="inline-flex gap-3 sm:gap-4 pb-4">
             {selectedProperties.map((property) => {
               const isPropertyFavorite = isFavorite(property.id);
 
               return (
-                <Card key={property.id} className="min-w-[280px] max-w-[320px] p-4">
+                <Card key={property.id} className="min-w-[260px] sm:min-w-[280px] max-w-[300px] sm:max-w-[320px] p-3 sm:p-4 flex-shrink-0">
                   {/* Property Header */}
                   <div className="relative mb-4">
                     {property.photoUrl && (

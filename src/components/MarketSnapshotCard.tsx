@@ -1,6 +1,7 @@
 import { BarChart3 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
+import { DataFreshness } from "./DataFreshness";
 
 export type MarketSnapshot = {
   areaLabel: string;
@@ -112,22 +113,28 @@ export function MarketSnapshotCard({
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-[10px] md:text-[11px] text-muted-foreground/80">
-        <span>Data from RentCast &amp; US Census (ZIP-level)</span>
+      <div className="mt-3 pt-3 border-t">
+        <DataFreshness
+          sources={[
+            { name: "RentCast API", type: "daily" },
+            { name: "US Census", type: "monthly" }
+          ]}
+          className="text-[10px]"
+        />
         {isFree && onUpgradeClick && (
           <Button
             variant="ghost"
             size="sm"
-            className="ml-2 h-auto py-0.5 px-2 text-[10px] text-primary hover:bg-primary/10"
+            className="mt-2 h-auto py-1 px-2 text-[10px] text-primary hover:bg-primary/10"
             onClick={onUpgradeClick}
           >
             Unlock full market insights with Pro
           </Button>
         )}
         {!isFree && (
-          <span className="ml-auto text-[10px] text-emerald-500/80">
+          <p className="mt-2 text-[10px] text-emerald-500/80">
             Pro insight: full ZIP-level rent & income metrics
-          </span>
+          </p>
         )}
       </div>
     </Card>

@@ -38,15 +38,15 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
-      <div className="relative flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             type="text"
             placeholder="Try: Find 3-bedroom fixers under $650k in Arlington with ROI over 15%"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-10 pr-4 py-6 text-lg border-2 focus:border-primary"
+            className="pl-10 pr-4 py-5 sm:py-6 text-base sm:text-lg border-2 focus:border-primary w-full"
             disabled={loading}
           />
         </div>
@@ -54,7 +54,7 @@ export function SearchBar({ onSearch, loading }: SearchBarProps) {
           type="submit" 
           size="lg" 
           disabled={loading || !query.trim()}
-          className="h-[56px] px-8"
+          className="h-[48px] sm:h-[56px] px-6 sm:px-8 w-full sm:w-auto"
         >
           {loading ? (
             <>

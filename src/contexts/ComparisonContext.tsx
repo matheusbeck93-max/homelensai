@@ -9,6 +9,7 @@ interface ComparisonContextType {
   removeFromComparison: (propertyId: string) => void;
   clearComparison: () => void;
   isSelected: (propertyId: string) => boolean;
+  isInComparison: (propertyId: string) => boolean;
   canAddMore: boolean;
   maxProperties: number;
 }
@@ -68,6 +69,10 @@ export function ComparisonProvider({ children }: { children: React.ReactNode }) 
     return selectedProperties.some(p => p.id === propertyId);
   };
 
+  const isInComparison = (propertyId: string) => {
+    return selectedProperties.some(p => p.id === propertyId);
+  };
+
   const canAddMore = selectedProperties.length < maxProperties;
 
   return (
@@ -78,6 +83,7 @@ export function ComparisonProvider({ children }: { children: React.ReactNode }) 
         removeFromComparison,
         clearComparison,
         isSelected,
+        isInComparison,
         canAddMore,
         maxProperties,
       }}
