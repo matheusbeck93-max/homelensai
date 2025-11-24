@@ -2,14 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { X, ArrowRight, Home } from "lucide-react";
 import { useComparison } from "@/contexts/ComparisonContext";
+import { useNavigate } from "react-router-dom";
 import { formatCurrency } from "@/lib/calculations";
 
-interface ComparisonFloatingBarProps {
-  onCompare: () => void;
-}
-
-export function ComparisonFloatingBar({ onCompare }: ComparisonFloatingBarProps) {
-  const { selectedProperties, removeFromComparison, clearComparison } = useComparison();
+export function ComparisonFloatingBar() {
+  const { selectedProperties, removeFromComparison, clearComparison, maxProperties } = useComparison();
+  const navigate = useNavigate();
 
   if (selectedProperties.length === 0) {
     return null;
@@ -22,7 +20,7 @@ export function ComparisonFloatingBar({ onCompare }: ComparisonFloatingBarProps)
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <h3 className="font-semibold text-sm">
-                Compare Properties ({selectedProperties.length}/4)
+                Compare Properties ({selectedProperties.length}/{maxProperties})
               </h3>
               {selectedProperties.length < 2 && (
                 <span className="text-xs text-muted-foreground">
@@ -80,7 +78,7 @@ export function ComparisonFloatingBar({ onCompare }: ComparisonFloatingBarProps)
               Clear
             </Button>
             <Button
-              onClick={onCompare}
+              onClick={() => navigate('/compare')}
               disabled={selectedProperties.length < 2}
               className="gap-2"
             >

@@ -5,13 +5,14 @@ import { Navigation } from "@/components/Navigation";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Heart, Bell, Briefcase, CreditCard, Settings } from "lucide-react";
+import { LayoutDashboard, Heart, Bell, Briefcase, CreditCard, Settings, Zap } from "lucide-react";
 import { OverviewPanel } from "@/components/console/OverviewPanel";
 import { FavoritesPanel } from "@/components/console/FavoritesPanel";
 import { SavedSearchesPanel } from "@/components/console/SavedSearchesPanel";
 import { InvestorPortfolioPanel } from "@/components/console/InvestorPortfolioPanel";
 import { SubscriptionPanel } from "@/components/console/SubscriptionPanel";
 import { AccountPreferencesPanel } from "@/components/console/AccountPreferencesPanel";
+import { AlertsPanel } from "@/components/console/AlertsPanel";
 
 export default function Console() {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ export default function Console() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-8">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 mb-8">
             <TabsTrigger value="overview" className="gap-2">
               <LayoutDashboard className="h-4 w-4" />
               <span className="hidden sm:inline">Overview</span>
@@ -99,6 +100,10 @@ export default function Console() {
             <TabsTrigger value="searches" className="gap-2">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Searches</span>
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="gap-2">
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">Alerts</span>
             </TabsTrigger>
             <TabsTrigger value="portfolio" className="gap-2">
               <Briefcase className="h-4 w-4" />
@@ -124,6 +129,10 @@ export default function Console() {
 
           <TabsContent value="searches">
             <SavedSearchesPanel />
+          </TabsContent>
+
+          <TabsContent value="alerts">
+            <AlertsPanel />
           </TabsContent>
 
           <TabsContent value="portfolio">

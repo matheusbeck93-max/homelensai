@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_events: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          property_id: string
+          property_snapshot: Json
+          read: boolean
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          property_id: string
+          property_snapshot: Json
+          read?: boolean
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          property_id?: string
+          property_snapshot?: Json
+          read?: boolean
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      alert_preferences: {
+        Row: {
+          channels: Json
+          created_at: string
+          enabled: boolean
+          frequency: string
+          id: string
+          last_run_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channels?: Json
+          created_at?: string
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channels?: Json
+          created_at?: string
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       analyses: {
         Row: {
           analysis_json: Json | null
@@ -55,6 +121,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      compare_sets: {
+        Row: {
+          created_at: string
+          id: string
+          property_ids: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          property_ids?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          property_ids?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       conversations: {
         Row: {

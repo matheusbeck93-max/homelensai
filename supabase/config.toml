@@ -1,5 +1,8 @@
 project_id = "yckcdxtatwolzilboahx"
 
+[functions.market-snapshot]
+verify_jwt = false
+
 [functions.enrich-property]
 verify_jwt = false
 

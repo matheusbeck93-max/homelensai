@@ -33,9 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useComparison } from "@/contexts/ComparisonContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
-import { ComparisonResults } from "@/components/comparison/ComparisonResults";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
-import { canRunComparison, incrementComparisonCount } from "@/lib/comparisonUtils";
 const MarkdownLink = ({
   href,
   children
@@ -65,8 +63,6 @@ export default function Index() {
   const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
   const [editingSearchName, setEditingSearchName] = useState<string>("");
   const [analyzedProperty, setAnalyzedProperty] = useState<HomeLensListing | null>(null);
-  const [comparisonResults, setComparisonResults] = useState<string | null>(null);
-  const [comparingProperties, setComparingProperties] = useState<HomeLensListing[]>([]);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -643,71 +639,6 @@ export default function Index() {
     setShowAreaDialog(false);
   };
 
-  const handleCompare = async () => {
-    if (selectedProperties.length < 2) {
-      toast({
-        title: "Not enough properties",
-        description: "Select at least 2 properties to compare",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!userId) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to use property comparison",
-        variant: "destructive"
-      });
-      navigate('/auth');
-      return;
-    }
-
-    // Check subscription access
-    const { canRun, reason } = await canRunComparison(userId, tier);
-    
-    if (!canRun) {
-      setUpgradeReason(reason || "Upgrade to Pro for unlimited property comparisons");
-      setUpgradeModalOpen(true);
-      return;
-    }
-
-    // Run comparison
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('compare-properties', {
-        body: { properties: selectedProperties }
-      });
-
-      if (error) throw error;
-
-      if (data.analysis) {
-        setComparisonResults(data.analysis);
-        setComparingProperties([...selectedProperties]);
-        
-        // Increment comparison count for free users
-        if (tier === 'free') {
-          incrementComparisonCount(userId);
-        }
-      }
-    } catch (error: any) {
-      console.error('Comparison error:', error);
-      toast({
-        title: "Comparison failed",
-        description: error.message || "Failed to generate comparison",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCloseComparison = () => {
-    setComparisonResults(null);
-    setComparingProperties([]);
-    clearComparison();
-  };
-
   const loadSavedSearches = async () => {
     if (!user) return;
     const { data, error } = await supabase
@@ -1256,16 +1187,7 @@ export default function Index() {
       </Dialog>
       
       {/* Comparison Floating Bar */}
-      <ComparisonFloatingBar onCompare={handleCompare} />
-      
-      {/* Comparison Results Modal */}
-      {comparisonResults && (
-        <ComparisonResults
-          properties={comparingProperties}
-          analysis={comparisonResults}
-          onClose={handleCloseComparison}
-        />
-      )}
+      <ComparisonFloatingBar />
       
       {/* Upgrade Modal */}
       <UpgradeModal
