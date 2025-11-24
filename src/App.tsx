@@ -18,6 +18,7 @@ import Favorites from "./pages/Favorites";
 import Pricing from "./pages/Pricing";
 import Portfolio from "./pages/Portfolio";
 import Console from "./pages/Console";
+import Compare from "./pages/Compare";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ function App() {
                 <Route path="/investor" element={<Investor />} />
                 <Route path="/favorites" element={<Favorites />} />
                 <Route path="/portfolio" element={<Portfolio />} />
+                <Route path="/compare" element={<Compare />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/profile" element={<Profile />} />

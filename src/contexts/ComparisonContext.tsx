@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { HomeLensListing } from '@/types/ui-blocks';
+import { useSubscription } from '@/hooks/useSubscription';
+import { toast } from 'sonner';
 
 interface ComparisonContextType {
   selectedProperties: HomeLensListing[];
@@ -8,14 +10,17 @@ interface ComparisonContextType {
   clearComparison: () => void;
   isSelected: (propertyId: string) => boolean;
   canAddMore: boolean;
+  maxProperties: number;
 }
 
 const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined);
 
-const MAX_COMPARISON_ITEMS = 4;
-
 export function ComparisonProvider({ children }: { children: React.ReactNode }) {
   const [selectedProperties, setSelectedProperties] = useState<HomeLensListing[]>([]);
+  const { tier } = useSubscription();
+
+  // Determine max based on subscription
+  const maxProperties = tier === "free" ? 2 : 5;
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -36,11 +41,17 @@ export function ComparisonProvider({ children }: { children: React.ReactNode }) 
   }, [selectedProperties]);
 
   const addToComparison = (property: HomeLensListing) => {
-    if (selectedProperties.length >= MAX_COMPARISON_ITEMS) {
+    if (selectedProperties.length >= maxProperties) {
+      if (tier === "free") {
+        toast.error("Free plan supports comparison of up to 2 properties. Upgrade to Pro to compare more homes.");
+      } else {
+        toast.error(`You can compare up to ${maxProperties} properties at a time.`);
+      }
       return;
     }
     if (!selectedProperties.find(p => p.id === property.id)) {
       setSelectedProperties(prev => [...prev, property]);
+      toast.success(`Added to comparison (${selectedProperties.length + 1}/${maxProperties})`);
     }
   };
 
@@ -50,13 +61,14 @@ export function ComparisonProvider({ children }: { children: React.ReactNode }) 
 
   const clearComparison = () => {
     setSelectedProperties([]);
+    toast.success("Comparison cleared");
   };
 
   const isSelected = (propertyId: string) => {
     return selectedProperties.some(p => p.id === propertyId);
   };
 
-  const canAddMore = selectedProperties.length < MAX_COMPARISON_ITEMS;
+  const canAddMore = selectedProperties.length < maxProperties;
 
   return (
     <ComparisonContext.Provider
@@ -67,6 +79,7 @@ export function ComparisonProvider({ children }: { children: React.ReactNode }) 
         clearComparison,
         isSelected,
         canAddMore,
+        maxProperties,
       }}
     >
       {children}
