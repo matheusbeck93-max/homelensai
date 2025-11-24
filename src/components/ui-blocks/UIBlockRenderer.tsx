@@ -34,6 +34,7 @@ export const UIBlockRenderer: React.FC<UIBlockRendererProps> = ({ block, onPrope
         <HomeLensInvestorCalculator
           title={block.title}
           inputs={block.inputs}
+          rentEstimate={block.rentEstimate}
         />
       );
 
