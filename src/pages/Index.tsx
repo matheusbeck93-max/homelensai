@@ -782,32 +782,32 @@ export default function Index() {
       <Navigation />
 
       {/* Hero Section with Search */}
-      <section className="relative w-full flex items-center justify-center overflow-hidden pt-24 pb-6">
+      <section className="relative w-full flex items-center justify-center overflow-hidden pt-20 pb-4 sm:pt-24 sm:pb-6">
         {/* Animated gradient background */}
         <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-muted animate-gradient-shift" />
         
         {/* Content */}
-        <main className="relative z-10 max-w-5xl mx-auto px-4 w-full space-y-6">
+        <main className="relative z-10 w-full max-w-5xl mx-auto px-4 space-y-4 sm:space-y-6">
           <div className="w-full">
-            <div className="text-center space-y-8">
+            <div className="text-center space-y-6 sm:space-y-8">
               {/* SVG House Animation */}
               <HouseHeroAnimation />
                
-              <h1 className="text-5xl font-bold text-foreground mb-12 animate-fade-up">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-8 sm:mb-12 animate-fade-up px-2">
                 Find your new home
               </h1>
               
-              <div className="bg-card border rounded-2xl p-6 shadow-md">
+              <div className="bg-card border rounded-2xl p-4 sm:p-6 shadow-md w-full max-w-full">
                 <Textarea 
                   placeholder={animatedPlaceholder}
                   value={input} 
                   onChange={e => setInput(e.target.value)} 
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
-                  className="min-h-[100px] mb-4" 
+                  className="min-h-[80px] sm:min-h-[100px] mb-4 text-sm sm:text-base" 
                   disabled={searchLoading}
                 />
-                <div className="flex gap-2">
-                  <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading || searchLoading} variant={isRecording ? "destructive" : "outline"} size="lg" className={isRecording ? "animate-pulse" : ""}>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button onClick={isRecording ? stopVoiceRecording : startVoiceRecording} disabled={loading || searchLoading} variant={isRecording ? "destructive" : "outline"} size="lg" className={`w-full sm:w-auto ${isRecording ? "animate-pulse" : ""}`}>
                     {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                   </Button>
                   <Button onClick={handleSend} disabled={loading || searchLoading} className="flex-1">
@@ -832,13 +832,13 @@ export default function Index() {
 
       {/* Search Results Section */}
       {(searchProperties.length > 0 || searchLoading || searchError) && (
-        <section className="container mx-auto px-4 py-8">
-          <div className="space-y-6">
+        <section className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-xl sm:text-2xl font-bold">
                 {searchQuery ? `Search Results for "${searchQuery}"` : "Search Results"}
               </h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 {searchProperties.length > 0 && `Found ${searchProperties.length} properties`}
               </p>
             </div>
@@ -847,7 +847,7 @@ export default function Index() {
             {searchError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{searchError}</AlertDescription>
+                <AlertDescription className="text-sm">{searchError}</AlertDescription>
               </Alert>
             )}
             

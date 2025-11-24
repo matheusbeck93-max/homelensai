@@ -37,16 +37,16 @@ export default function PropertyCarousel({ properties, onSelectProperty }: Prope
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-4">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="w-full max-w-full mx-auto py-4">
+      <div className="flex items-center gap-2 mb-4 px-2">
         <Home className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">Property Search Results</h3>
+        <h3 className="text-base sm:text-lg font-semibold">Property Search Results</h3>
       </div>
       <Carousel className="w-full">
-        <CarouselContent>
+        <CarouselContent className="-ml-2 sm:-ml-4">
           {properties.map((property) => (
-            <CarouselItem key={property.id} className="md:basis-1/2 lg:basis-1/3">
-              <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
+            <CarouselItem key={property.id} className="pl-2 sm:pl-4 basis-[85%] sm:basis-1/2 lg:basis-1/3">
+              <Card className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow w-full max-w-full">
                 <div onClick={() => onSelectProperty(property)}>
                   <div className="aspect-video relative overflow-hidden bg-muted">
                     {property.photoUrl ? (

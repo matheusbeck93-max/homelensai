@@ -88,36 +88,38 @@ export default function Console() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 mb-8">
-            <TabsTrigger value="overview" className="gap-2">
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="favorites" className="gap-2">
-              <Heart className="h-4 w-4" />
-              <span className="hidden sm:inline">Favorites</span>
-            </TabsTrigger>
-            <TabsTrigger value="searches" className="gap-2">
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Searches</span>
-            </TabsTrigger>
-            <TabsTrigger value="alerts" className="gap-2">
-              <Zap className="h-4 w-4" />
-              <span className="hidden sm:inline">Alerts</span>
-            </TabsTrigger>
-            <TabsTrigger value="portfolio" className="gap-2">
-              <Briefcase className="h-4 w-4" />
-              <span className="hidden sm:inline">Portfolio</span>
-            </TabsTrigger>
-            <TabsTrigger value="subscription" className="gap-2">
-              <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">Plan</span>
-            </TabsTrigger>
-            <TabsTrigger value="account" className="gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Account</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto mb-8 -mx-4 px-4">
+            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-7 gap-1">
+              <TabsTrigger value="overview" className="gap-2 flex-shrink-0">
+                <LayoutDashboard className="h-4 w-4" />
+                <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger value="favorites" className="gap-2 flex-shrink-0">
+                <Heart className="h-4 w-4" />
+                <span className="hidden sm:inline">Favorites</span>
+              </TabsTrigger>
+              <TabsTrigger value="searches" className="gap-2 flex-shrink-0">
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:inline">Searches</span>
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="gap-2 flex-shrink-0">
+                <Zap className="h-4 w-4" />
+                <span className="hidden sm:inline">Alerts</span>
+              </TabsTrigger>
+              <TabsTrigger value="portfolio" className="gap-2 flex-shrink-0">
+                <Briefcase className="h-4 w-4" />
+                <span className="hidden sm:inline">Portfolio</span>
+              </TabsTrigger>
+              <TabsTrigger value="subscription" className="gap-2 flex-shrink-0">
+                <CreditCard className="h-4 w-4" />
+                <span className="hidden sm:inline">Plan</span>
+              </TabsTrigger>
+              <TabsTrigger value="account" className="gap-2 flex-shrink-0">
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Account</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview">
             <OverviewPanel />
