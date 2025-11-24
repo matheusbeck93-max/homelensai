@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles, Briefcase } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles, Briefcase, LayoutDashboard } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -211,21 +211,12 @@ export function Navigation() {
                           variant="ghost"
                           className="justify-start w-full"
                           onClick={() => {
-                            navigate('/profile');
+                            navigate('/console');
                             setMobileOpen(false);
                           }}
                         >
-                          Profile
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="justify-start w-full"
-                          onClick={() => {
-                            navigate('/settings');
-                            setMobileOpen(false);
-                          }}
-                        >
-                          Settings
+                          <LayoutDashboard className="h-4 w-4 mr-2" />
+                          My HomeLens
                         </Button>
                       </div>
                     )}

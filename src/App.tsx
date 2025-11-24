@@ -17,6 +17,7 @@ import Investor from "./pages/Investor";
 import Favorites from "./pages/Favorites";
 import Pricing from "./pages/Pricing";
 import Portfolio from "./pages/Portfolio";
+import Console from "./pages/Console";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/property/:id" element={<PropertyDetail />} />
                 <Route path="/chat" element={<Navigate to="/" replace />} />
+                <Route path="/console" element={<Console />} />
                 <Route path="/saved-searches" element={<SavedSearches />} />
                 <Route path="/calculators" element={<Calculators />} />
                 <Route path="/investor" element={<Investor />} />
