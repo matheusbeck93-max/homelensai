@@ -24,11 +24,16 @@ interface HomeLensInvestorCalculatorProps {
     hoaMonthly: number;
     closingCosts: number;
   };
+  rentEstimate?: {
+    amount: number;
+    source: 'rentcast' | 'user';
+  };
 }
 
 export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProps> = ({
   title,
   inputs: initialInputs,
+  rentEstimate,
 }) => {
   const [inputs, setInputs] = useState({
     ...initialInputs,
@@ -164,13 +169,21 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
 
               <div>
                 <Label htmlFor="inv-rentMonthly">Monthly Rent</Label>
-                <Input
-                  id="inv-rentMonthly"
-                  type="number"
-                  value={inputs.rentMonthly}
-                  onChange={(e) => updateInput('rentMonthly', Number(e.target.value))}
-                  className="mt-1"
-                />
+                <div className="relative">
+                  <Input
+                    id="inv-rentMonthly"
+                    type="number"
+                    value={inputs.rentMonthly}
+                    onChange={(e) => updateInput('rentMonthly', Number(e.target.value))}
+                    className="mt-1"
+                  />
+                  {rentEstimate && rentEstimate.source === 'rentcast' && (
+                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                      <TrendingUp className="h-3 w-3" />
+                      <span>Pre-filled from RentCast (editable)</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -366,6 +379,22 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
             </div>
 
             <Separator />
+
+            {/* Market Data from RentCast */}
+            {rentEstimate && rentEstimate.source === 'rentcast' && (
+              <div className="bg-muted/30 p-3 rounded-lg">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Market Data
+                </h3>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Estimated Rent (RentCast)</span>
+                    <span className="font-medium text-foreground">{formatCurrency(rentEstimate.amount)}/mo</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="bg-muted/50 p-3 rounded-lg">
               <div className="text-xs text-muted-foreground mb-1">Break-Even Rent</div>

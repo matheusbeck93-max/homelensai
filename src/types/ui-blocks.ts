@@ -79,6 +79,10 @@ export type InvestorCalculatorBlock = {
     hoaMonthly: number;
     closingCosts: number;
   };
+  rentEstimate?: {
+    amount: number;
+    source: 'rentcast' | 'user';
+  };
 };
 
 export type BuyingPowerBlock = {

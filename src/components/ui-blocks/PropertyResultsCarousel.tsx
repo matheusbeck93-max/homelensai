@@ -373,6 +373,38 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                         </span>
                       </div>
                     )}
+                    
+                    {/* ZIP Market Summary - Pro/Premium feature */}
+                    {property.insights?.rentcast?.zip_market_summary && hasPriceFairnessAccess && (
+                      <div className="text-xs text-muted-foreground space-y-0.5 p-2 bg-muted/30 rounded-md">
+                        <div className="font-medium text-foreground mb-1">Market Insights (ZIP)</div>
+                        <div>Median Rent: {formatCurrency(property.insights.rentcast.zip_market_summary.median_rent || 0)}/mo</div>
+                        {property.insights.rentcast.zip_market_summary.median_home_value && (
+                          <div>Median Value: {formatCurrency(property.insights.rentcast.zip_market_summary.median_home_value)}</div>
+                        )}
+                        {property.insights.rentcast.zip_market_summary.trend_label && (
+                          <div className="capitalize">
+                            Trend: {property.insights.rentcast.zip_market_summary.trend_label}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Census Demographics - Pro/Premium feature */}
+                    {property.insights?.census && hasPriceFairnessAccess && (
+                      <div className="text-xs text-muted-foreground space-y-0.5 p-2 bg-muted/30 rounded-md">
+                        <div className="font-medium text-foreground mb-1">Demographics (ZIP)</div>
+                        {property.insights.census.median_household_income && (
+                          <div>Median Income: {formatCurrency(property.insights.census.median_household_income)}</div>
+                        )}
+                        {property.insights.census.owner_occupied_rate !== null && (
+                          <div>
+                            {Math.round((property.insights.census.owner_occupied_rate || 0) * 100)}% Owners, {' '}
+                            {Math.round((property.insights.census.renter_occupied_rate || 0) * 100)}% Renters
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Property Stats */}
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">

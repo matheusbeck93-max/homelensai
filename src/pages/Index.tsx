@@ -72,6 +72,47 @@ export default function Index() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
+  
+  // Enrich properties with RentCast and Census data
+  const enrichProperties = async (listings: HomeLensListing[]): Promise<HomeLensListing[]> => {
+    // Limit to first 10 properties to avoid API quota issues
+    const propertiesToEnrich = listings.slice(0, 10);
+    const remainingProperties = listings.slice(10);
+    
+    const enrichedPromises = propertiesToEnrich.map(async (property) => {
+      try {
+        // Only enrich if we have address and zip
+        if (!property.address || !property.zip) {
+          return property;
+        }
+        
+        const { data, error } = await supabase.functions.invoke('enrich-property', {
+          body: {
+            address: property.address,
+            city: property.city,
+            state: property.state,
+            zip: property.zip
+          }
+        });
+        
+        if (error || !data?.insights) {
+          console.log('Enrichment skipped for', property.address);
+          return property;
+        }
+        
+        return {
+          ...property,
+          insights: data.insights
+        };
+      } catch (e) {
+        console.log('Enrichment failed for', property.address, e);
+        return property;
+      }
+    });
+    
+    const enriched = await Promise.all(enrichedPromises);
+    return [...enriched, ...remainingProperties];
+  };
   useEffect(() => {
     supabase.auth.getSession().then(({
       data: {
@@ -310,8 +351,9 @@ export default function Index() {
         setSearchError(data.error + (data.details ? `: ${data.details}` : ''));
         setSearchProperties([]);
       } else if (data?.listings && data.listings.length > 0) {
-        // TODO: Add persona-based re-ranking here
-        setSearchProperties(data.listings);
+        // Enrich properties with RentCast & Census data
+        const enrichedListings = await enrichProperties(data.listings);
+        setSearchProperties(enrichedListings);
         setSearchError(null);
       } else {
         // Handle 0 results with relaxation suggestions
@@ -374,7 +416,8 @@ export default function Index() {
         days_on_market: null, // Not available in current type
         url: property.listingUrl || null,
         taxes_annual: null,
-        description_raw: null
+        description_raw: null,
+        insights: property.insights || undefined // Include insights if available
       };
       
       const userContext = {
@@ -535,7 +578,8 @@ export default function Index() {
         const firstListings = first.data?.listings ?? [];
 
         if (firstListings.length > 0) {
-          setFeaturedListings(firstListings);
+          const enriched = await enrichProperties(firstListings);
+          setFeaturedListings(enriched);
           setEffectiveArea(primaryLocation);
           return;
         }
@@ -568,7 +612,8 @@ export default function Index() {
           }
 
           const fallbackListings = fallback.data?.listings ?? [];
-          setFeaturedListings(fallbackListings);
+          const enriched = await enrichProperties(fallbackListings);
+          setFeaturedListings(enriched);
           setEffectiveArea(DEFAULT_AREA);
           return;
         }
