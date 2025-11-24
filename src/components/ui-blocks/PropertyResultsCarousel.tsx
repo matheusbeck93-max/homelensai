@@ -364,6 +364,16 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
                       )}
                     </div>
 
+                    {/* Insights Badge - Rent Estimate */}
+                    {property.insights?.rentcast?.rent_estimate && (
+                      <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md text-xs">
+                        <TrendingUp className="h-3 w-3 text-primary" />
+                        <span className="font-medium">
+                          Est. Rent: {formatCurrency(property.insights.rentcast.rent_estimate)}/mo
+                        </span>
+                      </div>
+                    )}
+
                     {/* Property Stats */}
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       {property.beds !== null && (

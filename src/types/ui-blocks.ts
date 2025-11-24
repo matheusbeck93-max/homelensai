@@ -14,6 +14,28 @@ export interface HomeLensListing {
   zip?: string | null;
   lat?: number | null;
   lng?: number | null;
+  insights?: {
+    rentcast?: {
+      rent_estimate?: number | null;
+      rent_low?: number | null;
+      rent_high?: number | null;
+      value_estimate?: number | null;
+      confidence?: string | null;
+      zip_market_summary?: {
+        median_rent?: number | null;
+        median_home_value?: number | null;
+        rent_to_price_ratio?: number | null;
+        trend_label?: string | null;
+      } | null;
+    };
+    census?: {
+      median_household_income?: number | null;
+      owner_occupied_rate?: number | null;
+      renter_occupied_rate?: number | null;
+      median_age?: number | null;
+      average_household_size?: number | null;
+    };
+  };
 }
 
 export type PropertyResultsCarouselBlock = {
