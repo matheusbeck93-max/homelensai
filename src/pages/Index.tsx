@@ -356,7 +356,7 @@ export default function Index() {
         setSearchError(null);
         
         // Fetch market snapshot for the search location
-        fetchMarketSnapshot(spec.zip, spec.city, spec.state);
+        await fetchMarketSnapshot(spec.zip, spec.city, spec.state);
       } else {
         // Handle 0 results with relaxation suggestions
         const relaxedSuggestions = [];

@@ -31,12 +31,31 @@ interface Property {
   status?: string | null;
 }
 
+interface MarketSnapshot {
+  areaLabel: string;
+  zip?: string | null;
+  city?: string | null;
+  state?: string | null;
+  medianRent?: number | null;
+  medianHomeValue?: number | null;
+  rentToPriceRatio?: number | null;
+  trendLabel?: string | null;
+  medianHouseholdIncome?: number | null;
+  ownerOccupiedRate?: number | null;
+  renterOccupiedRate?: number | null;
+  medianAge?: number | null;
+  averageHouseholdSize?: number | null;
+  hasRentcastData: boolean;
+  hasCensusData: boolean;
+}
+
 interface FollowUpChatProps {
   context?: string;
   properties?: Property[];
+  marketSnapshot?: MarketSnapshot | null;
 }
 
-export default function FollowUpChat({ context, properties = [] }: FollowUpChatProps) {
+export default function FollowUpChat({ context, properties = [], marketSnapshot }: FollowUpChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,7 +87,10 @@ export default function FollowUpChat({ context, properties = [] }: FollowUpChatP
       }
 
       const { data, error } = await supabase.functions.invoke("property-assistant", {
-        body: { query: contextPrompt },
+        body: { 
+          query: contextPrompt,
+          marketSnapshot: marketSnapshot || undefined
+        },
       });
 
       if (error) throw error;

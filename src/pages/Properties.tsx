@@ -38,6 +38,7 @@ export default function Properties() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [marketSnapshot, setMarketSnapshot] = useState<any>(null);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
@@ -77,12 +78,36 @@ export default function Properties() {
       
       setProperties(propsToUse);
 
+      // Fetch market snapshot for the location
+      const firstProperty = propsToUse[0];
+      let snapshot = null;
+      if (firstProperty?.zip || (firstProperty?.city && firstProperty?.state)) {
+        try {
+          const { data: snapshotData } = await supabase.functions.invoke('market-snapshot', {
+            body: {
+              location: {
+                zip: firstProperty.zip,
+                city: firstProperty.city,
+                state: firstProperty.state
+              }
+            }
+          });
+          if (snapshotData?.snapshot) {
+            snapshot = snapshotData.snapshot;
+            setMarketSnapshot(snapshot);
+          }
+        } catch (error) {
+          console.error('Market snapshot error:', error);
+        }
+      }
+
       // Get AI analysis of those properties
       const { data: assistantData, error: assistantError } = await supabase.functions.invoke('property-assistant', {
         body: { 
           query,
           categories,
-          properties: propsToUse
+          properties: propsToUse,
+          marketSnapshot: snapshot || undefined
         }
       });
 
@@ -225,7 +250,8 @@ export default function Properties() {
       {selectedProperty && (
         <FollowUpChat 
           context={`Selected Property: ${selectedProperty.address}, ${selectedProperty.city}, ${selectedProperty.state} - ${formatPrice(selectedProperty.price)}`} 
-          properties={[selectedProperty]} 
+          properties={[selectedProperty]}
+          marketSnapshot={marketSnapshot}
         />
       )}
     </div>

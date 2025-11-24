@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, categories, properties } = await req.json();
+    const { query, categories, properties, marketSnapshot } = await req.json();
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     
     if (!OPENAI_API_KEY) {
@@ -23,6 +23,27 @@ Your expertise includes property valuation, investment analysis, market trends, 
 
 ${properties && properties.length > 0 ? `\n🏘️ PROPERTIES TO ANALYZE: You have ${properties.length} specific properties to review. Focus your analysis on these properties:
 ${properties.map((p: any, i: number) => `\n${i + 1}. ${p.address}, ${p.city}, ${p.state} - $${p.price.toLocaleString()} | ${p.beds} bed, ${p.baths} bath, ${p.sqft} sqft`).join('')}\n` : ''}
+
+${marketSnapshot ? `\n📊 MARKET SNAPSHOT DATA (${marketSnapshot.areaLabel}):
+${marketSnapshot.hasRentcastData ? `\n**RentCast Market Metrics:**
+- Median Rent: ${marketSnapshot.medianRent ? `$${marketSnapshot.medianRent.toLocaleString()}/mo` : 'N/A'}
+- Median Home Value: ${marketSnapshot.medianHomeValue ? `$${marketSnapshot.medianHomeValue.toLocaleString()}` : 'N/A'}
+- Rent-to-Price Ratio: ${marketSnapshot.rentToPriceRatio ? `${(marketSnapshot.rentToPriceRatio * 100).toFixed(2)}%` : 'N/A'}
+- Market Trend: ${marketSnapshot.trendLabel || 'N/A'}` : ''}
+${marketSnapshot.hasCensusData ? `\n**US Census Demographics (ZIP-level):**
+- Median Household Income: ${marketSnapshot.medianHouseholdIncome ? `$${marketSnapshot.medianHouseholdIncome.toLocaleString()}` : 'N/A'}
+- Owner-Occupied Rate: ${marketSnapshot.ownerOccupiedRate != null ? `${(marketSnapshot.ownerOccupiedRate * 100).toFixed(1)}%` : 'N/A'}
+- Renter-Occupied Rate: ${marketSnapshot.renterOccupiedRate != null ? `${(marketSnapshot.renterOccupiedRate * 100).toFixed(1)}%` : 'N/A'}
+- Median Age: ${marketSnapshot.medianAge ? `${marketSnapshot.medianAge.toFixed(1)} years` : 'N/A'}
+- Average Household Size: ${marketSnapshot.averageHouseholdSize ? `${marketSnapshot.averageHouseholdSize.toFixed(2)} people` : 'N/A'}` : ''}
+
+**CRITICAL RULES FOR USING MARKET SNAPSHOT DATA:**
+- These are FACTUAL area-level statistics from RentCast and US Census Bureau
+- Use them to provide neighborhood context and investment analysis
+- NEVER extrapolate beyond what's provided - if a field is N/A, say "data not available"
+- Reference the source when citing: "According to RentCast..." or "Census data shows..."
+- Use this data to assess affordability, investment potential, and neighborhood characteristics
+\n` : ''}
 
 🎯 Your Capabilities:
 
