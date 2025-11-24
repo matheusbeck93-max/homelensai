@@ -34,6 +34,7 @@ import { useComparison } from "@/contexts/ComparisonContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { MarketSnapshotCard, MarketSnapshot } from "@/components/MarketSnapshotCard";
 const MarkdownLink = ({
   href,
   children
@@ -65,6 +66,7 @@ export default function Index() {
   const [analyzedProperty, setAnalyzedProperty] = useState<HomeLensListing | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string>("");
+  const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
@@ -346,11 +348,15 @@ export default function Index() {
       if (data?.error) {
         setSearchError(data.error + (data.details ? `: ${data.details}` : ''));
         setSearchProperties([]);
+        setMarketSnapshot(null);
       } else if (data?.listings && data.listings.length > 0) {
         // Enrich properties with RentCast & Census data
         const enrichedListings = await enrichProperties(data.listings);
         setSearchProperties(enrichedListings);
         setSearchError(null);
+        
+        // Fetch market snapshot for the search location
+        fetchMarketSnapshot(spec.zip, spec.city, spec.state);
       } else {
         // Handle 0 results with relaxation suggestions
         const relaxedSuggestions = [];
@@ -368,14 +374,45 @@ export default function Index() {
         
         setSearchError("No properties found matching your exact criteria." + suggestionText);
         setSearchProperties([]);
+        setMarketSnapshot(null);
       }
     } catch (error: any) {
       console.error('Search error:', error);
       const errorMessage = error?.message || "Failed to search properties. Please try again.";
       setSearchError(errorMessage);
       setSearchProperties([]);
+      setMarketSnapshot(null);
     } finally {
       setSearchLoading(false);
+    }
+  };
+  
+  const fetchMarketSnapshot = async (zip?: string, city?: string, state?: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('market-snapshot', {
+        body: {
+          location: {
+            zip: zip || undefined,
+            city: city || undefined,
+            state: state || undefined
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('Market snapshot error:', error);
+        setMarketSnapshot(null);
+        return;
+      }
+      
+      if (data?.snapshot) {
+        setMarketSnapshot(data.snapshot);
+      } else {
+        setMarketSnapshot(null);
+      }
+    } catch (error) {
+      console.error('Market snapshot error:', error);
+      setMarketSnapshot(null);
     }
   };
   
@@ -824,6 +861,20 @@ export default function Index() {
               </Alert>
             )}
             
+            {/* Market Snapshot Card */}
+            {marketSnapshot && (marketSnapshot.hasRentcastData || marketSnapshot.hasCensusData) && (
+              <div className="mb-6">
+                <MarketSnapshotCard
+                  snapshot={marketSnapshot}
+                  subscriptionStatus={tier || "free"}
+                  onUpgradeClick={() => {
+                    setUpgradeReason("Unlock full market insights including rent trends, demographics, and investment metrics");
+                    setUpgradeModalOpen(true);
+                  }}
+                />
+              </div>
+            )}
+            
             {/* Loading Skeleton */}
             {searchLoading && (
               <div className="flex gap-4 overflow-x-auto pb-4">
@@ -1192,9 +1243,12 @@ export default function Index() {
       {/* Upgrade Modal */}
       <UpgradeModal
         isOpen={upgradeModalOpen}
-        onClose={() => setUpgradeModalOpen(false)}
-        feature="Property Comparison"
-        reason={upgradeReason}
+        onClose={() => {
+          setUpgradeModalOpen(false);
+          setUpgradeReason("");
+        }}
+        feature="Market Insights"
+        reason={upgradeReason || "Upgrade to unlock powerful features"}
       />
     </div>;
 }
