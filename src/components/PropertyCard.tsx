@@ -7,6 +7,7 @@ import { MapPin, Bed, Bath, Ruler, TrendingUp } from "lucide-react";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareButton } from "@/components/ShareButton";
 import { supabase } from "@/integrations/supabase/client";
+import { PropertyInsights } from "@/components/PropertyInsights";
 
 interface PropertyCardProps {
   property: {
@@ -21,6 +22,28 @@ interface PropertyCardProps {
     condition: string;
     image_urls: string[];
     roi_percent?: number;
+    insights?: {
+      rentcast?: {
+        rent_estimate?: number | null;
+        rent_low?: number | null;
+        rent_high?: number | null;
+        value_estimate?: number | null;
+        confidence?: string | null;
+        zip_market_summary?: {
+          median_rent?: number | null;
+          median_home_value?: number | null;
+          rent_to_price_ratio?: number | null;
+          trend_label?: string | null;
+        } | null;
+      };
+      census?: {
+        median_household_income?: number | null;
+        owner_occupied_rate?: number | null;
+        renter_occupied_rate?: number | null;
+        median_age?: number | null;
+        average_household_size?: number | null;
+      };
+    };
   };
 }
 
@@ -95,6 +118,11 @@ export function PropertyCard({ property }: PropertyCardProps) {
           <div className="flex items-center gap-1 mt-4 text-secondary font-semibold">
             <TrendingUp className="h-4 w-4" />
             <span>ROI: {property.roi_percent}%</span>
+          </div>
+        )}
+        {property.insights && (
+          <div className="mt-4 pt-4 border-t">
+            <PropertyInsights insights={property.insights} compact />
           </div>
         )}
       </CardContent>

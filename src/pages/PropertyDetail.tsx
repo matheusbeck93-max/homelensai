@@ -18,6 +18,7 @@ import { PropertyPDFExport } from "@/components/PropertyPDFExport";
 import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
 import { AddToPortfolioDialog } from "@/components/portfolio/AddToPortfolioDialog";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { PropertyInsights } from "@/components/PropertyInsights";
 
 export default function PropertyDetail() {
   const { id } = useParams();
@@ -325,6 +326,13 @@ export default function PropertyDetail() {
             <ExternalLinks property={property} />
           </div>
         </div>
+
+        {/* Property Insights from RentCast & Census */}
+        {property.insights && (
+          <div className="mt-8">
+            <PropertyInsights insights={property.insights} />
+          </div>
+        )}
 
         {property.description && (
           <Card className="mt-8">

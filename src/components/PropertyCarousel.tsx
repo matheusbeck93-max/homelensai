@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Home, Bed, Bath, Square } from "lucide-react";
+import { PropertyInsights } from "@/components/PropertyInsights";
+import { HomeLensListing } from "@/types/ui-blocks";
 
 interface Property {
   id: string;
@@ -17,6 +19,7 @@ interface Property {
   listingUrl?: string | null;
   description?: string;
   status?: string | null;
+  insights?: HomeLensListing['insights'];
 }
 
 interface PropertyCarouselProps {
@@ -95,6 +98,14 @@ export default function PropertyCarousel({ properties, onSelectProperty }: Prope
                         </div>
                       )}
                     </div>
+                    
+                    {/* Property Insights */}
+                    {property.insights && (
+                      <div className="mt-3 pt-3 border-t">
+                        <PropertyInsights insights={property.insights} compact />
+                      </div>
+                    )}
+                    
                     {property.description && (
                       <p className="text-xs text-muted-foreground mt-3 line-clamp-2">
                         {property.description}
