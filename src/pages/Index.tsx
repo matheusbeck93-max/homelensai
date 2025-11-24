@@ -219,48 +219,116 @@ export default function Index() {
     setConversationId(null);
   };
   
+  const [lastSearchSpec, setLastSearchSpec] = useState<any>(null);
+  const [clarificationNeeded, setClarificationNeeded] = useState<string | null>(null);
+
   const handlePropertySearch = async (query: string) => {
     setSearchLoading(true);
     setSearchError(null);
+    setClarificationNeeded(null);
     setSearchQuery(query);
-    // Close conversation panel when doing a new search
     setShowConversation(false);
     
     try {
-      // Parse the query using helper
-      const params = parsePropertySearchQuery(query);
+      // Step 1: Build search spec using AI
+      const userProfile = {
+        preferredArea: preferredArea,
+        persona: tier === 'premium' ? 'investor' : 'first_time_buyer',
+        budgetMax: null
+      };
+
+      const { data: specData, error: specError } = await supabase.functions.invoke('ai-build-search-spec', {
+        body: {
+          query,
+          lastSearchSpec,
+          userProfile
+        }
+      });
       
-      if (!params.location) {
-        setSearchError("Please specify a location in your search (e.g., 'in Austin, TX')");
+      if (specError) throw specError;
+      
+      console.log('Search spec:', specData);
+      
+      // Step 2: Handle clarification
+      if (specData.needs_clarification) {
+        setClarificationNeeded(specData.clarification_question);
         setSearchLoading(false);
         return;
       }
       
-      // Store the location for Featured Homes section
-      setSearchLocation(params.location);
+      // Step 3: Handle non-search intents
+      if (specData.intent !== 'property_search') {
+        setSearchError("I can help you with that through the chat assistant. Try asking me in the chat!");
+        setSearchLoading(false);
+        return;
+      }
       
-      // Use unified payload format with defaults for broad search
+      const spec = specData.search_spec;
+      
+      // Step 4: Validate search spec
+      if (!spec.city && !spec.state && !spec.zip) {
+        setClarificationNeeded("Which city and state (or ZIP code) should I search in?");
+        setSearchLoading(false);
+        return;
+      }
+      
+      // Swap prices if backwards
+      if (spec.minPrice && spec.maxPrice && spec.minPrice > spec.maxPrice) {
+        [spec.minPrice, spec.maxPrice] = [spec.maxPrice, spec.minPrice];
+      }
+      
+      // Check for unrealistic prices
+      if (spec.maxPrice && spec.maxPrice < 10000) {
+        setClarificationNeeded("Did you mean $" + (spec.maxPrice * 1000).toLocaleString() + "? Please clarify your budget.");
+        setSearchLoading(false);
+        return;
+      }
+      
+      // Store search spec for next query
+      setLastSearchSpec(spec);
+      
+      // Build location string
+      const location = spec.zip || `${spec.city}, ${spec.state}`;
+      setSearchLocation(location);
+      
+      // Step 5: Call search-listings with validated params
       const { data, error } = await supabase.functions.invoke('search-listings', {
         body: {
-          location: params.location,
-          minPrice: params.maxPrice ? 0 : undefined,
-          maxPrice: params.maxPrice,
-          minBeds: params.minBeds,
-          propertyType: params.propertyType || 'any'
+          location,
+          minPrice: spec.minPrice,
+          maxPrice: spec.maxPrice,
+          minBeds: spec.minBeds,
+          maxBeds: spec.maxBeds,
+          minBaths: spec.minBaths,
+          propertyType: spec.propertyType || 'any'
         }
       });
       
       if (error) throw error;
       
       if (data?.error) {
-        // Handle backend error responses
         setSearchError(data.error + (data.details ? `: ${data.details}` : ''));
         setSearchProperties([]);
       } else if (data?.listings && data.listings.length > 0) {
+        // TODO: Add persona-based re-ranking here
         setSearchProperties(data.listings);
         setSearchError(null);
       } else {
-        setSearchError("No properties found. Try adjusting your search criteria.");
+        // Handle 0 results with relaxation suggestions
+        const relaxedSuggestions = [];
+        if (spec.maxPrice) {
+          const newMax = Math.round(spec.maxPrice * 1.15);
+          relaxedSuggestions.push(`Try up to $${newMax.toLocaleString()}`);
+        }
+        if (spec.minBeds && spec.minBeds > 2) {
+          relaxedSuggestions.push(`Include ${spec.minBeds - 1}+ bedroom properties`);
+        }
+        
+        const suggestionText = relaxedSuggestions.length > 0 
+          ? ` Would you like me to: ${relaxedSuggestions.join(' or ')}?`
+          : " Try adjusting your search criteria.";
+        
+        setSearchError("No properties found matching your exact criteria." + suggestionText);
         setSearchProperties([]);
       }
     } catch (error: any) {
@@ -274,40 +342,63 @@ export default function Index() {
   };
   
   const handlePropertyAnalyze = async (property: HomeLensListing) => {
-    if (!property.listingUrl) {
-      toast({
-        title: "Cannot Analyze",
-        description: "This property doesn't have a listing URL available.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Store the analyzed property
     setAnalyzedProperty(property);
-    
-    // Show conversation box
     setShowConversation(true);
     
-    // Create analysis message
-    const analysisMessage = `Analyze this property: ${property.listingUrl}`;
-    
-    // Add user message
-    const userMessage = { role: "user", content: analysisMessage };
+    const userMessage = { 
+      role: "user", 
+      content: `Analyze this property at ${property.address}, ${property.city}, ${property.state}` 
+    };
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setLoading(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: { messages: [...messages, userMessage] }
+      // Build structured listing data from HomeLensListing
+      // Note: Many fields are not available in the current HomeLensListing type
+      const listing = {
+        id: property.id || null,
+        address_line: property.address || null,
+        city: property.city || null,
+        state: property.state || null,
+        zip: property.zip || null,
+        price: property.price || null,
+        beds: property.beds || null,
+        baths: property.baths || null,
+        sqft: property.sqft || null,
+        lot_sqft: null, // Not available in current type
+        hoa_monthly: null, // Not available in current type
+        property_type: null, // Not available in current type
+        year_built: null, // Not available in current type
+        status: property.status || null,
+        days_on_market: null, // Not available in current type
+        url: property.listingUrl || null,
+        taxes_annual: null,
+        description_raw: null
+      };
+      
+      const userContext = {
+        persona: tier === 'premium' ? 'investor' : (tier === 'pro' ? 'move_up_buyer' : 'first_time_buyer'),
+        time_horizon_years: null,
+        budget_max: null,
+        down_payment_pct: 20,
+        interest_rate_pct: 6.5,
+        goal: null
+      };
+      
+      const { data, error } = await supabase.functions.invoke("ai-analyze-property", {
+        body: { 
+          source: "realty_in_us",
+          listing,
+          userContext
+        }
       });
       
       if (error) throw error;
       
       setMessages(prev => [...prev, {
         role: "assistant",
-        content: data.response || "Analysis complete."
+        content: data.analysis || "Analysis complete."
       }]);
     } catch (error) {
       console.error('Analysis error:', error);
@@ -744,6 +835,16 @@ export default function Index() {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{searchError}</AlertDescription>
+              </Alert>
+            )}
+            
+            {/* Clarification Message */}
+            {clarificationNeeded && (
+              <Alert>
+                <Bot className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Need more information:</strong> {clarificationNeeded}
+                </AlertDescription>
               </Alert>
             )}
             

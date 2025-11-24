@@ -3,6 +3,12 @@ project_id = "yckcdxtatwolzilboahx"
 [functions.ai-search]
 verify_jwt = false
 
+[functions.ai-build-search-spec]
+verify_jwt = false
+
+[functions.ai-analyze-property]
+verify_jwt = false
+
 [functions.ai-analyze]
 verify_jwt = true
 
