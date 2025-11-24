@@ -42,7 +42,7 @@ export function Navigation() {
   };
  
   const navItems = [
-    { label: 'Home', path: '/', icon: Home },
+    { label: 'My HomeLens', path: '/console', icon: LayoutDashboard },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
     { label: 'Favorites', path: '/favorites', icon: Heart },
@@ -75,18 +75,13 @@ export function Navigation() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
-              const isHome = item.path === '/';
               return (
                 <Button
                   key={item.path}
                   variant="ghost"
                   onClick={() => {
                     console.log(`Navigation: ${item.label} clicked, navigating to ${item.path}`);
-                    if (isHome) {
-                      handleGoHome();
-                    } else {
-                      navigate(item.path);
-                    }
+                    navigate(item.path);
                   }}
                   className={isActive ? "text-primary" : ""}
                 >
@@ -157,20 +152,8 @@ export function Navigation() {
                     <SheetTitle>Menu</SheetTitle>
                   </SheetHeader>
                   <div className="flex flex-col gap-4 mt-6">
-                    <Button
-                      variant="ghost"
-                      className="justify-start"
-                      onClick={() => {
-                        navigate('/');
-                        setMobileOpen(false);
-                      }}
-                    >
-                      <Home className="h-4 w-4 mr-2" />
-                      Home
-                    </Button>
-                    
                     <div className="space-y-1">
-                      {navItems.slice(1).map((item) => {
+                      {navItems.map((item) => {
                         const Icon = item.icon;
                         return (
                           <Button
