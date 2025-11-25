@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
-import { SearchBar } from "@/components/SearchBar";
 import { ConversationPanel, ConversationMessage } from "@/components/ConversationPanel";
 import { StickyChat } from "@/components/StickyChat";
 import { HouseHeroAnimation } from "@/components/HouseHeroAnimation";
@@ -11,6 +10,10 @@ import { HomeLensListing, UIBlock } from "@/types/ui-blocks";
 import { isPropertySearchQuery, parsePropertySearchQuery, parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
+import { Search, Calculator, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -19,6 +22,9 @@ export default function Index() {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [searchParams, setSearchParams] = useState<any>(null);
+  const [heroInput, setHeroInput] = useState("");
+  
+  const hasStartedConversation = messages.length > 0;
 
   // React Query for property search
   const { data: searchData, isLoading: searchLoading } = useQuery({
@@ -83,6 +89,11 @@ export default function Index() {
   }, [searchData, searchParams]);
 
   const handleSendMessage = async (messageText: string) => {
+    if (!messageText.trim()) return;
+    
+    // Clear hero input if used
+    setHeroInput("");
+    
     // Add user message
     const userMessage: ConversationMessage = {
       id: uuidv4(),
@@ -120,25 +131,37 @@ export default function Index() {
 
       if (error) throw error;
 
-      // Check if response indicates need for search
-      if (data.needsSearch) {
-        const assistantMessage: ConversationMessage = {
+      // Try to parse as JSON for UI blocks
+      let assistantMessage: ConversationMessage;
+      try {
+        const jsonData = typeof data.response === 'string' ? JSON.parse(data.response) : data;
+        if (jsonData.type && jsonData.type.startsWith('ui_block/')) {
+          assistantMessage = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: jsonData.message || '',
+            uiBlock: jsonData as UIBlock,
+            createdAt: new Date().toISOString()
+          };
+        } else {
+          assistantMessage = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: data.response || jsonData.message || 'I apologize, I couldn\'t process that request.',
+            createdAt: new Date().toISOString()
+          };
+        }
+      } catch {
+        // Not JSON, treat as plain text
+        assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: data.message || 'Please use the search bar above to find properties.',
+          content: data.response || data.message || 'I apologize, I couldn\'t process that request.',
           createdAt: new Date().toISOString()
         };
-        setMessages(prev => [...prev, assistantMessage]);
-      } else {
-        // Regular text response
-        const assistantMessage: ConversationMessage = {
-          id: uuidv4(),
-          role: 'assistant',
-          content: data.response || 'I apologize, I couldn\'t process that request.',
-          createdAt: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
       }
+      
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
       console.error('AI chat error:', error);
       toast({
@@ -156,83 +179,163 @@ export default function Index() {
     handleSendMessage(message);
   };
 
+  const handleHeroSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (heroInput.trim()) {
+      handleSendMessage(heroInput);
+    }
+  };
+
+  const quickActions = [
+    {
+      icon: Search,
+      title: "Search for homes",
+      prompt: "Find 3-bedroom homes under $500k in Austin, Texas",
+      description: "Natural language property search"
+    },
+    {
+      icon: Calculator,
+      title: "Calculate mortgage",
+      prompt: "What mortgage rate can I get?",
+      description: "Get personalized mortgage estimates"
+    },
+    {
+      icon: TrendingUp,
+      title: "Investment advice",
+      prompt: "How do I calculate ROI on a rental property?",
+      description: "Real estate investing insights"
+    }
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-24">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
 
       {/* Hero Section */}
-      <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
-        <HouseHeroAnimation />
-        <div className="relative z-10 text-center px-4 py-20 max-w-5xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-foreground">
-            Find Your Dream Home
-          </h1>
-          <p className="text-lg sm:text-xl mb-8 text-muted-foreground max-w-2xl mx-auto">
-            AI-powered real estate search and analysis. Ask me anything about properties, mortgages, or investments.
-          </p>
+      {!hasStartedConversation ? (
+        <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
+          <HouseHeroAnimation />
+          <div className="relative z-10 text-center px-4 py-20 max-w-5xl mx-auto">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-foreground">
+              Find Your Dream Home
+            </h1>
+            <p className="text-lg sm:text-xl mb-8 text-muted-foreground max-w-2xl mx-auto">
+              AI-powered real estate search and analysis. Ask me anything about properties, mortgages, or investments.
+            </p>
 
-          {/* Main Search Bar */}
-          <SearchBar onSearch={handleSendMessage} loading={searchLoading || conversationLoading} />
-        </div>
-      </section>
-
-      {/* Conversation Panel */}
-      <ConversationPanel
-        messages={messages}
-        loading={conversationLoading}
-        onPropertyAnalyze={handlePropertyAnalyze}
-      />
-
-      {/* Empty State when no conversation */}
-      {messages.length === 0 && (
-        <section className="py-16 px-4">
-          <div className="max-w-5xl mx-auto text-center space-y-8">
-            <h2 className="text-2xl font-semibold">How can I help you today?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div
-                onClick={() => handleSendMessage("Find 3-bedroom homes under $500k in Austin, Texas")}
-                className="p-6 border rounded-lg hover:bg-muted cursor-pointer transition"
-              >
-                <h3 className="font-semibold mb-2">Search for homes</h3>
-                <p className="text-sm text-muted-foreground">
-                  "Find 3-bedroom homes under $500k in Austin, Texas"
-                </p>
+            {/* Hero Search Input */}
+            <form onSubmit={handleHeroSubmit} className="max-w-3xl mx-auto">
+              <div className="flex gap-2">
+                <Input
+                  value={heroInput}
+                  onChange={(e) => setHeroInput(e.target.value)}
+                  placeholder="Try: Find 3-bedroom fixers under $650k in Arlington with ROI over 15%"
+                  disabled={conversationLoading || searchLoading}
+                  className="h-14 text-base"
+                />
+                <Button 
+                  type="submit"
+                  disabled={conversationLoading || searchLoading || !heroInput.trim()}
+                  size="lg"
+                  className="h-14 px-8"
+                >
+                  <Search className="h-5 w-5 mr-2" />
+                  Search
+                </Button>
               </div>
-              <div
-                onClick={() => handleSendMessage("What mortgage rate can I get?")}
-                className="p-6 border rounded-lg hover:bg-muted cursor-pointer transition"
-              >
-                <h3 className="font-semibold mb-2">Calculate mortgage</h3>
-                <p className="text-sm text-muted-foreground">
-                  "What mortgage rate can I get?"
-                </p>
-              </div>
-              <div
-                onClick={() => handleSendMessage("How do I calculate ROI on a rental property?")}
-                className="p-6 border rounded-lg hover:bg-muted cursor-pointer transition"
-              >
-                <h3 className="font-semibold mb-2">Investment advice</h3>
-                <p className="text-sm text-muted-foreground">
-                  "How do I calculate ROI on a rental property?"
-                </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Powered by AI – Search using natural language
+              </p>
+            </form>
+          </div>
+        </section>
+      ) : (
+        <section className="relative py-8 border-b">
+          <div className="max-w-5xl mx-auto px-4">
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Find Your Dream Home
+            </h1>
+            <p className="text-muted-foreground">
+              AI-powered real estate search and analysis
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* Quick Action Cards - Only show before conversation */}
+      {!hasStartedConversation && (
+        <section className="py-12 px-4">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-2xl font-semibold mb-8 text-center">How can I help you today?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {quickActions.map((action, idx) => (
+                <Card
+                  key={idx}
+                  onClick={() => handleSendMessage(action.prompt)}
+                  className="p-6 hover:bg-muted cursor-pointer transition-colors group"
+                >
+                  <action.icon className="h-10 w-10 mb-4 text-primary group-hover:scale-110 transition-transform" />
+                  <h3 className="font-semibold mb-2">{action.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {action.description}
+                  </p>
+                  <p className="text-sm text-primary italic">
+                    "{action.prompt}"
+                  </p>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Featured Homes - Only show before conversation */}
+      {!hasStartedConversation && (
+        <section className="py-12 px-4 bg-muted/30">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold mb-2">Featured Homes</h2>
+              <p className="text-muted-foreground">
+                Handpicked properties in popular markets
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {/* Featured homes will be populated via search-listings or static data */}
+              <div className="text-center col-span-full text-muted-foreground py-8">
+                Start a search to see featured properties
               </div>
             </div>
           </div>
         </section>
       )}
 
-      {/* Sticky Chat Input */}
-      <StickyChat
-        onSend={handleSendMessage}
-        loading={conversationLoading || searchLoading}
-      />
+      {/* Conversation Panel - Only show after conversation starts */}
+      {hasStartedConversation && (
+        <div className="pb-32">
+          <ConversationPanel
+            messages={messages}
+            loading={conversationLoading}
+            onPropertyAnalyze={handlePropertyAnalyze}
+          />
+        </div>
+      )}
+
+      {/* Sticky Chat Input - Only show after conversation starts */}
+      {hasStartedConversation && (
+        <StickyChat
+          onSend={handleSendMessage}
+          loading={conversationLoading || searchLoading}
+        />
+      )}
 
       {/* Footer */}
-      <footer className="bg-muted py-8 mt-auto">
-        <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>&copy; 2025 HomeLens. All rights reserved.</p>
-        </div>
-      </footer>
+      {!hasStartedConversation && (
+        <footer className="bg-muted py-8 mt-auto">
+          <div className="container mx-auto px-4 text-center text-muted-foreground">
+            <p>&copy; 2025 HomeLens. All rights reserved.</p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
