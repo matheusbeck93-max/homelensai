@@ -1,12 +1,79 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation schema
+const searchParamsSchema = z.object({
+  location: z.string().min(2).max(200).optional(),
+  minPrice: z.number().min(0).optional(),
+  maxPrice: z.number().max(100000000).optional(),
+  minBeds: z.number().min(0).max(20).optional(),
+  maxBeds: z.number().min(0).max(20).optional(),
+  propertyType: z.enum(['house', 'condo', 'townhome', 'multi', 'any']).optional(),
+});
+
+// Rate limiting
+interface RateLimitEntry {
+  count: number;
+  resetTime: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
+const RATE_LIMIT = { maxRequests: 30, windowMs: 60000 }; // 30 requests per minute
+
+function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const entry = rateLimitStore.get(userId);
+  
+  if (entry && now > entry.resetTime) {
+    rateLimitStore.delete(userId);
+  }
+  
+  const currentEntry = rateLimitStore.get(userId);
+  
+  if (!currentEntry) {
+    rateLimitStore.set(userId, { count: 1, resetTime: now + RATE_LIMIT.windowMs });
+    return { allowed: true, remaining: RATE_LIMIT.maxRequests - 1 };
+  }
+  
+  if (currentEntry.count >= RATE_LIMIT.maxRequests) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  currentEntry.count++;
+  return { allowed: true, remaining: RATE_LIMIT.maxRequests - currentEntry.count };
+}
+
+// Retry utility with exponential backoff
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isRetryable = error.status === 429 || error.status >= 500 || error.name === 'TypeError';
+      
+      if (attempt === maxRetries || !isRetryable) {
+        throw error;
+      }
+      
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 10000);
+      console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
 interface SearchParams {
-  location?: string; // "City, ST" or ZIP code
+  location?: string;
   minPrice?: number;
   maxPrice?: number;
   minBeds?: number;
@@ -31,11 +98,6 @@ const STATE_MAP: Record<string, string> = {
   "wyoming": "WY"
 };
 
-// Robust location parser supporting multiple formats:
-// - "Arlington, VA" (comma-separated)
-// - "Arlington Virginia" (space-separated with full state name)
-// - "22201" (ZIP code)
-// - "City ST" (space-separated with state abbreviation)
 function parseLocation(raw?: string): {
   city?: string;
   stateCode?: string;
@@ -44,7 +106,6 @@ function parseLocation(raw?: string): {
   if (!raw) return {};
   const value = raw.trim().replace(/\s+/g, " ");
 
-  // Check if it's a ZIP code
   if (/^\d{5}$/.test(value)) {
     return { postalCode: value };
   }
@@ -52,37 +113,30 @@ function parseLocation(raw?: string): {
   let cityPart = "";
   let statePart = "";
 
-  // Parse "City, ST" format (comma-separated)
   if (value.includes(",")) {
     const [city, state] = value.split(",").map(s => s.trim());
     cityPart = city;
     statePart = state;
   } else {
-    // Space-separated: "Arlington Virginia" or "Arlington VA"
     const parts = value.split(" ");
     if (parts.length > 1) {
-      // Last word might be state
       const lastWord = parts[parts.length - 1];
       
-      // Check if last word is a 2-letter state code
       if (lastWord.length === 2) {
         statePart = lastWord;
         cityPart = parts.slice(0, -1).join(" ");
       } else {
-        // Check if last word is a full state name
         const stateKey = lastWord.toLowerCase();
         if (STATE_MAP[stateKey]) {
           statePart = lastWord;
           cityPart = parts.slice(0, -1).join(" ");
         } else {
-          // Try last two words as state name ("North Carolina")
           if (parts.length > 2) {
             const lastTwoWords = parts.slice(-2).join(" ").toLowerCase();
             if (STATE_MAP[lastTwoWords]) {
               statePart = parts.slice(-2).join(" ");
               cityPart = parts.slice(0, -2).join(" ");
             } else {
-              // Default: treat all as city
               cityPart = value;
             }
           } else {
@@ -95,7 +149,6 @@ function parseLocation(raw?: string): {
     }
   }
 
-  // Convert state to code
   let stateCode = "";
   if (statePart) {
     if (statePart.length === 2) {
@@ -136,7 +189,48 @@ serve(async (req) => {
   }
 
   try {
-    const { location, minPrice, maxPrice, minBeds, maxBeds, propertyType } = await req.json() as SearchParams;
+    // Get user ID for rate limiting
+    const authHeader = req.headers.get('authorization');
+    const userId = authHeader?.split('Bearer ')[1]?.substring(0, 36) || 'anonymous';
+    
+    // Check rate limit
+    const rateLimit = checkRateLimit(userId);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Rate limit exceeded. Please try again later.',
+          retryAfter: 60 
+        }),
+        { 
+          status: 429,
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': '60'
+          } 
+        }
+      );
+    }
+    
+    // Parse and validate request body
+    const body = await req.json();
+    const validationResult = searchParamsSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid input parameters',
+          details: validationResult.error.errors 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    const { location, minPrice, maxPrice, minBeds, maxBeds, propertyType } = validationResult.data as SearchParams;
 
     console.log('Search request:', { location, minPrice, maxPrice, minBeds, maxBeds, propertyType });
 
@@ -153,7 +247,6 @@ serve(async (req) => {
       );
     }
 
-    // Build POST body for Realty in US API v3/list with defaults
     const DEFAULT_AREA = "Miami, FL";
     const rawLocation = location && location.trim().length > 0 ? location : DEFAULT_AREA;
     const { city, stateCode, postalCode } = parseLocation(rawLocation);
@@ -168,7 +261,6 @@ serve(async (req) => {
       }
     };
 
-    // Add location to payload
     if (postalCode) {
       requestBody.postal_code = postalCode;
     } else {
@@ -178,15 +270,12 @@ serve(async (req) => {
 
     console.log('Parsed location:', { city, stateCode, postalCode });
 
-    // Add price filters with defaults for broad search
     requestBody.price_min = minPrice ?? 0;
     requestBody.price_max = maxPrice ?? 2000000;
 
-    // Add beds filters
     if (minBeds) requestBody.beds_min = minBeds;
     if (maxBeds) requestBody.beds_max = maxBeds;
 
-    // Add property type
     if (propertyType && propertyType !== 'any') {
       const typeMap: Record<string, string> = {
         'house': 'single_family',
@@ -199,40 +288,26 @@ serve(async (req) => {
 
     console.log('Calling Realty in US API with body:', JSON.stringify(requestBody, null, 2));
 
-    const apiUrl = 'https://realty-in-us.p.rapidapi.com/properties/v3/list';
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-RapidAPI-Key': rapidApiKey,
-        'X-RapidAPI-Host': 'realty-in-us.p.rapidapi.com'
-      },
-      body: JSON.stringify(requestBody)
-    });
+    // Make API call with retry logic
+    const response = await retryWithBackoff(async () => {
+      const res = await fetch('https://realty-in-us.p.rapidapi.com/properties/v3/list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-RapidAPI-Key': rapidApiKey,
+          'X-RapidAPI-Host': 'realty-in-us.p.rapidapi.com'
+        },
+        body: JSON.stringify(requestBody)
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Realty API error:', response.status, errorText);
-      
-      let errorMessage = 'Failed to fetch listings';
-      let errorDetails = '';
-      
-      if (response.status === 401 || response.status === 403) {
-        errorMessage = 'Authentication or API key error with Realtor API.';
-        errorDetails = 'Please check your RapidAPI key configuration.';
-      } else if (response.status === 429) {
-        errorMessage = 'Rate limit reached for Realtor API.';
-        errorDetails = 'Please try again in a few moments.';
-      } else {
-        errorDetails = `API returned status ${response.status}`;
+      if (!res.ok) {
+        const error: any = new Error(`API request failed: ${res.status}`);
+        error.status = res.status;
+        throw error;
       }
-      
-      return new Response(
-        JSON.stringify({ error: errorMessage, details: errorDetails }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+
+      return res;
+    });
 
     const data = await response.json();
     console.log('Realtor API response received, data keys:', Object.keys(data));
@@ -240,7 +315,6 @@ serve(async (req) => {
     const properties = data?.data?.home_search?.results || data?.data?.results || data?.results || [];
     console.log('Properties count before filtering:', properties.length);
 
-    // Normalize to HomeLens format with coordinates
     let listings: HomeLensListing[] = properties.map((prop: any) => {
       const location = prop.location || {};
       const address = location.address || {};
@@ -266,8 +340,6 @@ serve(async (req) => {
       };
     });
 
-    // CRITICAL: Post-filter to ensure results match the requested state
-    // API sometimes returns results from wrong states with similar city names
     if (stateCode) {
       const beforeFilter = listings.length;
       listings = listings.filter(listing => {
@@ -287,7 +359,14 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ listings }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 200, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': rateLimit.remaining.toString()
+        } 
+      }
     );
 
   } catch (error) {
