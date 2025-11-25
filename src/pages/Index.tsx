@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { trackRateLimitError, trackApiError, trackValidationError } from "@/lib/sentry";
+import { searchQuerySchema } from "@/lib/validation";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import InlineCalculator from "@/components/InlineCalculator";
@@ -113,9 +114,19 @@ export default function Index() {
     if (cachedSearchData && searchParams) {
       const processSearchResults = async () => {
         if (cachedSearchData.error) {
-          setSearchError(cachedSearchData.error + (cachedSearchData.details ? `: ${cachedSearchData.details}` : ''));
+          const errorMsg = cachedSearchData.error + (cachedSearchData.details ? `: ${cachedSearchData.details}` : '');
+          setSearchError(errorMsg);
           setSearchProperties([]);
           setMarketSnapshot(null);
+          
+          // Track specific error types to Sentry
+          if (errorMsg.includes('429') || errorMsg.includes('rate limit')) {
+            trackRateLimitError('search-listings', 60);
+          } else if (errorMsg.includes('400') || errorMsg.includes('validation')) {
+            trackValidationError('search-listings', [cachedSearchData.details || cachedSearchData.error]);
+          } else {
+            trackApiError('search-listings', 500, cachedSearchData.error, cachedSearchData);
+          }
         } else if (cachedSearchData.listings && cachedSearchData.listings.length > 0) {
           // Enrich properties with RentCast & Census data
           const enrichedListings = await enrichProperties(cachedSearchData.listings);
@@ -139,7 +150,7 @@ export default function Index() {
           
           const suggestionText = relaxedSuggestions.length > 0 
             ? ` Would you like me to: ${relaxedSuggestions.join(' or ')}?`
-            : " Try adjusting your search criteria.";
+            : " Try adjusting your search criteria or searching a nearby area.";
           
           setSearchError("No properties found matching your exact criteria." + suggestionText);
           setSearchProperties([]);
@@ -156,23 +167,30 @@ export default function Index() {
   useEffect(() => {
     if (searchQueryError) {
       let errorMessage = "Failed to search properties. Please try again.";
+      const errorStr = String(searchQueryError);
       
-      if ((searchQueryError as Error)?.message === 'RATE_LIMIT_EXCEEDED') {
-        errorMessage = "You've made too many searches. Please wait 60 seconds and try again.";
+      if ((searchQueryError as Error)?.message === 'RATE_LIMIT_EXCEEDED' || errorStr.includes('429') || errorStr.includes('rate limit')) {
+        errorMessage = "Too many searches. Please wait about a minute and try again.";
+        trackRateLimitError('search-listings', 60);
         toast({
           title: "Rate Limit Reached",
           description: "Please wait a minute before searching again.",
           variant: "destructive",
         });
-      } else if ((searchQueryError as Error)?.message === 'VALIDATION_ERROR') {
-        errorMessage = "Invalid search parameters. Please check your search criteria and try again.";
+      } else if ((searchQueryError as Error)?.message === 'VALIDATION_ERROR' || errorStr.includes('400') || errorStr.includes('validation')) {
+        errorMessage = "Invalid search parameters. Please try a different query.";
+        trackValidationError('search-listings', [errorStr]);
         toast({
           title: "Invalid Search",
           description: "Please adjust your search criteria and try again.",
           variant: "destructive",
         });
+      } else if (errorStr.includes('500') || errorStr.includes('503')) {
+        errorMessage = "Service temporarily unavailable. Please try again in a moment.";
+        trackApiError('search-listings', 500, errorStr);
       } else if ((searchQueryError as Error)?.message) {
         errorMessage = (searchQueryError as Error).message;
+        trackApiError('search-listings', 500, errorStr);
       }
       
       setSearchError(errorMessage);
@@ -401,7 +419,42 @@ export default function Index() {
     setShowConversation(false);
     
     try {
-      // Step 1: Build search spec using AI
+      // Step 1: Try direct parser first (faster, no AI needed)
+      const parsedParams = parsePropertySearchQuery(query);
+      
+      if (parsedParams.isValid && parsedParams.location) {
+        console.log('Using direct parser:', parsedParams);
+        
+        // Validate prices
+        if (parsedParams.minPrice && parsedParams.maxPrice && parsedParams.minPrice > parsedParams.maxPrice) {
+          [parsedParams.minPrice, parsedParams.maxPrice] = [parsedParams.maxPrice, parsedParams.minPrice];
+        }
+        
+        // Check for unrealistically low prices
+        if (parsedParams.maxPrice && parsedParams.maxPrice < 10000) {
+          setClarificationNeeded(`Did you mean $${(parsedParams.maxPrice * 1000).toLocaleString()}? Please clarify your budget.`);
+          setSearchLoading(false);
+          return;
+        }
+        
+        // Use parsed params directly
+        setSearchLocation(parsedParams.location);
+        setLastSearchSpec(parsedParams);
+        
+        setSearchParams({
+          location: parsedParams.location,
+          minPrice: parsedParams.minPrice,
+          maxPrice: parsedParams.maxPrice,
+          minBeds: parsedParams.minBeds,
+          maxBeds: parsedParams.maxBeds,
+          minBaths: parsedParams.minBaths,
+          propertyType: parsedParams.propertyType || 'any',
+        });
+        
+        return; // Success - React Query will handle the search
+      }
+      
+      // Step 2: Fallback to AI if direct parser didn't find valid location
       const userProfile = {
         preferredArea: preferredArea,
         persona: tier === 'premium' ? 'investor' : 'first_time_buyer',
@@ -610,6 +663,18 @@ export default function Index() {
   
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+
+    // Validate input
+    try {
+      searchQuerySchema.parse({ query: input });
+    } catch (error: any) {
+      toast({
+        title: "Invalid Input",
+        description: error.errors?.[0]?.message || "Please enter a valid search query",
+        variant: "destructive"
+      });
+      return;
+    }
 
     // Check if this looks like a property search query
     if (isPropertySearchQuery(input)) {

@@ -48,6 +48,17 @@ export const searchQuerySchema = z.object({
     .max(500, { message: "Search query must be less than 500 characters" }),
 });
 
+// Property search params validation (for direct parser)
+export const propertySearchParamsSchema = z.object({
+  location: z.string().min(2, { message: "Location is required" }),
+  minPrice: z.number().min(0).optional(),
+  maxPrice: z.number().min(0).optional(),
+  minBeds: z.number().int().min(0).max(20).optional(),
+  maxBeds: z.number().int().min(0).max(20).optional(),
+  minBaths: z.number().min(0).max(20).optional(),
+  propertyType: z.enum(['house', 'condo', 'townhome', 'multi', 'any']).optional(),
+});
+
 // Deal analysis validation schema
 export const dealAnalysisSchema = z.object({
   address: z
