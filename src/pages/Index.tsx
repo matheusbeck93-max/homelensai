@@ -137,7 +137,7 @@ export default function Index() {
           const spec = searchParams;
           await fetchMarketSnapshot(spec.zip, spec.city, spec.state);
         } else {
-          // Handle 0 results with relaxation suggestions
+          // Handle 0 results - try to suggest alternative locations
           const spec = searchParams;
           const relaxedSuggestions = [];
           if (spec.maxPrice) {
@@ -146,6 +146,11 @@ export default function Index() {
           }
           if (spec.minBeds && spec.minBeds > 2) {
             relaxedSuggestions.push(`Include ${spec.minBeds - 1}+ bedroom properties`);
+          }
+          
+          // Fetch location suggestions if we have a location
+          if (spec.location) {
+            fetchLocationSuggestions(spec.location);
           }
           
           const suggestionText = relaxedSuggestions.length > 0 
@@ -410,11 +415,42 @@ export default function Index() {
   
   const [lastSearchSpec, setLastSearchSpec] = useState<any>(null);
   const [clarificationNeeded, setClarificationNeeded] = useState<string | null>(null);
+  const [locationSuggestions, setLocationSuggestions] = useState<Array<{location: string, reason: string}>>([]);
+
+  const fetchLocationSuggestions = async (location: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-suggest-location', {
+        body: { location }
+      });
+      
+      if (error) {
+        console.error('Location suggestions error:', error);
+        return;
+      }
+      
+      if (data?.suggestions && data.suggestions.length > 0) {
+        setLocationSuggestions(data.suggestions);
+      }
+    } catch (error) {
+      console.error('Failed to fetch location suggestions:', error);
+    }
+  };
+
+  const handleLocationSuggestionClick = (suggestedLocation: string) => {
+    // Clear previous suggestions
+    setLocationSuggestions([]);
+    setSearchError(null);
+    
+    // Trigger new search with suggested location
+    const newQuery = searchQuery.replace(/(?:in|near|at|around)\s+[^,]+(?:,\s*\w+)?/i, `in ${suggestedLocation}`);
+    handlePropertySearch(newQuery);
+  };
 
   const handlePropertySearch = async (query: string) => {
     setSearchLoading(true);
     setSearchError(null);
     setClarificationNeeded(null);
+    setLocationSuggestions([]);
     setSearchQuery(query);
     setShowConversation(false);
     
@@ -538,6 +574,12 @@ export default function Index() {
       
       if (error?.message) {
         errorMessage = error.message;
+      }
+      
+      // Try to extract location from query for suggestions
+      const parsedParams = parsePropertySearchQuery(query);
+      if (parsedParams.location) {
+        fetchLocationSuggestions(parsedParams.location);
       }
       
       setSearchError(errorMessage);
@@ -1030,10 +1072,39 @@ export default function Index() {
             
             {/* Search Error Alert */}
             {searchError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm">{searchError}</AlertDescription>
-              </Alert>
+              <div className="space-y-4">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">{searchError}</AlertDescription>
+                </Alert>
+                
+                {/* Location Suggestions "Did you mean?" */}
+                {locationSuggestions.length > 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-3">
+                        <p className="font-semibold text-sm">Did you mean one of these locations?</p>
+                        <div className="flex flex-wrap gap-2">
+                          {locationSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleLocationSuggestionClick(suggestion.location)}
+                              className="inline-flex items-center px-3 py-1.5 rounded-md bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors"
+                              title={suggestion.reason}
+                            >
+                              {suggestion.location}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Click a location to search there instead
+                        </p>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
             )}
             
             {/* Clarification Message */}
