@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { trackRateLimitError, trackApiError, trackValidationError } from "@/lib/sentry";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import InlineCalculator from "@/components/InlineCalculator";
@@ -86,11 +87,15 @@ export default function Index() {
       if (error) {
         // Handle specific error types
         if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
+          trackRateLimitError('search-listings', 60);
           throw new Error('RATE_LIMIT_EXCEEDED');
         }
         if (error.message?.includes('Invalid input') || error.message?.includes('400')) {
+          trackValidationError('search-listings', [error.message]);
           throw new Error('VALIDATION_ERROR');
         }
+        // Track other API errors
+        trackApiError('search-listings', 500, error.message, { searchParams });
         throw error;
       }
       
