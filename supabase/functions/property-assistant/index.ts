@@ -1,9 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const assistantRequestSchema = z.object({
+  query: z.string().min(1).max(5000),
+  categories: z.array(z.string()).optional(),
+  properties: z.array(z.any()).optional(),
+  marketSnapshot: z.any().optional(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,7 +20,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, categories, properties, marketSnapshot } = await req.json();
+    // Parse and validate request body
+    const body = await req.json();
+    const validationResult = assistantRequestSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid input parameters',
+          details: validationResult.error.errors 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    const { query, categories, properties, marketSnapshot } = validationResult.data;
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     
     if (!OPENAI_API_KEY) {

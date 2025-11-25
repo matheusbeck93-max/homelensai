@@ -1,9 +1,74 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const enrichParamsSchema = z.object({
+  address: z.string().min(5).max(200),
+  city: z.string().min(1).max(100).optional(),
+  state: z.string().length(2).optional(),
+  zip: z.string().min(5).max(10),
+});
+
+// Rate limiting
+interface RateLimitEntry {
+  count: number;
+  resetTime: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
+const RATE_LIMIT = { maxRequests: 60, windowMs: 60000 }; // 60 requests per minute
+
+function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const entry = rateLimitStore.get(userId);
+  
+  if (entry && now > entry.resetTime) {
+    rateLimitStore.delete(userId);
+  }
+  
+  const currentEntry = rateLimitStore.get(userId);
+  
+  if (!currentEntry) {
+    rateLimitStore.set(userId, { count: 1, resetTime: now + RATE_LIMIT.windowMs });
+    return { allowed: true, remaining: RATE_LIMIT.maxRequests - 1 };
+  }
+  
+  if (currentEntry.count >= RATE_LIMIT.maxRequests) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  currentEntry.count++;
+  return { allowed: true, remaining: RATE_LIMIT.maxRequests - currentEntry.count };
+}
+
+// Retry utility
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      const isRetryable = error.status === 429 || error.status >= 500 || error.name === 'TypeError';
+      
+      if (attempt === maxRetries || !isRetryable) {
+        throw error;
+      }
+      
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 10000);
+      console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,7 +76,47 @@ serve(async (req) => {
   }
 
   try {
-    const { address, city, state, zip } = await req.json();
+    // Get user ID for rate limiting
+    const authHeader = req.headers.get('authorization');
+    const userId = authHeader?.split('Bearer ')[1]?.substring(0, 36) || 'anonymous';
+    
+    // Check rate limit
+    const rateLimit = checkRateLimit(userId);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Rate limit exceeded. Please try again later.',
+          retryAfter: 60 
+        }),
+        { 
+          status: 429,
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': '60'
+          } 
+        }
+      );
+    }
+    
+    // Parse and validate request body
+    const body = await req.json();
+    const validationResult = enrichParamsSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid input parameters',
+          details: validationResult.error.errors 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    const { address, city, state, zip } = validationResult.data;
     
     const RENTCAST_API_KEY = Deno.env.get('RENTCAST_API_KEY');
     const CENSUS_API_KEY = Deno.env.get('CENSUS_API_KEY');
@@ -33,11 +138,20 @@ serve(async (req) => {
         const rentcastUrl = `https://api.rentcast.io/v1/avm/rent?${rentcastParams}`;
         console.log('Calling RentCast API:', rentcastUrl);
 
-        const rentcastResponse = await fetch(rentcastUrl, {
-          headers: {
-            'X-Api-Key': RENTCAST_API_KEY,
-            'Accept': 'application/json',
-          },
+        // Fetch with retry logic
+        const rentcastResponse = await retryWithBackoff(async () => {
+          const res = await fetch(rentcastUrl, {
+            headers: {
+              'X-Api-Key': RENTCAST_API_KEY,
+              'Accept': 'application/json',
+            },
+          });
+          if (!res.ok && (res.status === 429 || res.status >= 500)) {
+            const error: any = new Error(`RentCast API error: ${res.status}`);
+            error.status = res.status;
+            throw error;
+          }
+          return res;
         });
 
         if (rentcastResponse.ok) {
@@ -56,11 +170,19 @@ serve(async (req) => {
           if (zip) {
             try {
               const marketUrl = `https://api.rentcast.io/v1/markets?zipCode=${zip}`;
-              const marketResponse = await fetch(marketUrl, {
-                headers: {
-                  'X-Api-Key': RENTCAST_API_KEY,
-                  'Accept': 'application/json',
-                },
+              const marketResponse = await retryWithBackoff(async () => {
+                const res = await fetch(marketUrl, {
+                  headers: {
+                    'X-Api-Key': RENTCAST_API_KEY,
+                    'Accept': 'application/json',
+                  },
+                });
+                if (!res.ok && (res.status === 429 || res.status >= 500)) {
+                  const error: any = new Error(`RentCast Market API error: ${res.status}`);
+                  error.status = res.status;
+                  throw error;
+                }
+                return res;
               });
 
               if (marketResponse.ok) {
@@ -98,7 +220,16 @@ serve(async (req) => {
         
         console.log('Calling Census API for ZIP:', zip);
 
-        const censusResponse = await fetch(censusUrl);
+        // Fetch with retry logic
+        const censusResponse = await retryWithBackoff(async () => {
+          const res = await fetch(censusUrl);
+          if (!res.ok && (res.status === 429 || res.status >= 500)) {
+            const error: any = new Error(`Census API error: ${res.status}`);
+            error.status = res.status;
+            throw error;
+          }
+          return res;
+        });
 
         if (censusResponse.ok) {
           const censusData = await censusResponse.json();
@@ -136,7 +267,13 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ insights }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': rateLimit.remaining.toString()
+        } 
+      }
     );
   } catch (error) {
     console.error('Error enriching property:', error);
