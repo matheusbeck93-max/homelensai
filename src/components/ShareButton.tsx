@@ -11,9 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 interface ShareButtonProps {
   property: {
     address: string;
-    city: string;
-    state: string;
-    price: number;
+    city?: string | null;
+    state?: string | null;
+    price: number | null;
     id: string;
   };
 }
@@ -22,7 +22,9 @@ export function ShareButton({ property }: ShareButtonProps) {
   const { toast } = useToast();
   
   const propertyUrl = `${window.location.origin}/property/${property.id}`;
-  const shareText = `Check out this property: ${property.address}, ${property.city}, ${property.state} - $${property.price.toLocaleString()}`;
+  const location = [property.city, property.state].filter(Boolean).join(', ') || 'Location not specified';
+  const priceText = property.price ? `$${property.price.toLocaleString()}` : 'Price N/A';
+  const shareText = `Check out this property: ${property.address}${location ? `, ${location}` : ''} - ${priceText}`;
 
   const handleShare = (platform: string) => {
     let shareUrl = "";
