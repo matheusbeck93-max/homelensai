@@ -1,9 +1,10 @@
 import * as Sentry from "@sentry/react";
 
 export function initSentry() {
-  // Only initialize in production
-  if (import.meta.env.PROD) {
-    Sentry.init({
+  // Only initialize in production AND if DSN is configured
+  if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
+    try {
+      Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
       integrations: [
         Sentry.browserTracingIntegration(),
@@ -28,11 +29,16 @@ export function initSentry() {
         return event;
       },
     });
+    } catch (error) {
+      console.error('Failed to initialize Sentry:', error);
+    }
   }
 }
 
 // Custom error tracking helpers
 export function trackRateLimitError(endpoint: string, retryAfter: number) {
+  if (!import.meta.env.PROD) return;
+  
   Sentry.captureException(new Error(`Rate limit exceeded on ${endpoint}`), {
     tags: {
       error_type: 'rate_limit',
@@ -52,6 +58,8 @@ export function trackApiError(
   errorMessage: string,
   context?: Record<string, any>
 ) {
+  if (!import.meta.env.PROD) return;
+  
   Sentry.captureException(new Error(`API Error: ${endpoint} - ${errorMessage}`), {
     tags: {
       error_type: 'api_failure',
@@ -71,6 +79,8 @@ export function trackValidationError(
   endpoint: string,
   validationErrors: any[]
 ) {
+  if (!import.meta.env.PROD) return;
+  
   Sentry.captureException(new Error(`Validation Error: ${endpoint}`), {
     tags: {
       error_type: 'validation',
@@ -85,6 +95,8 @@ export function trackValidationError(
 }
 
 export function setUserContext(userId: string, email?: string) {
+  if (!import.meta.env.PROD) return;
+  
   Sentry.setUser({
     id: userId,
     email,
@@ -92,5 +104,7 @@ export function setUserContext(userId: string, email?: string) {
 }
 
 export function clearUserContext() {
+  if (!import.meta.env.PROD) return;
+  
   Sentry.setUser(null);
 }
