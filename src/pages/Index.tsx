@@ -14,6 +14,8 @@ import { Search, Calculator, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { FeaturedHomesGrid } from "@/components/FeaturedHomesGrid";
+import { useFeaturedHomes } from "@/hooks/useFeaturedHomes";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -25,6 +27,16 @@ export default function Index() {
   const [heroInput, setHeroInput] = useState("");
   
   const hasStartedConversation = messages.length > 0;
+
+  // Featured homes hook
+  const { 
+    locationLabel: featuredLocation, 
+    listings: featuredListings, 
+    isLoading: featuredLoading, 
+    error: featuredError,
+    hasMore: featuredHasMore,
+    loadMore: loadMoreFeatured
+  } = useFeaturedHomes();
 
   // React Query for property search
   const { data: searchData, isLoading: searchLoading } = useQuery({
@@ -289,25 +301,17 @@ export default function Index() {
         </section>
       )}
 
-      {/* Featured Homes - Only show before conversation */}
-      {!hasStartedConversation && (
-        <section className="py-12 px-4 bg-muted/30">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-semibold mb-2">Featured Homes</h2>
-              <p className="text-muted-foreground">
-                Handpicked properties in popular markets
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {/* Featured homes will be populated via search-listings or static data */}
-              <div className="text-center col-span-full text-muted-foreground py-8">
-                Start a search to see featured properties
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Featured Homes - Always visible */}
+      <FeaturedHomesGrid
+        title={featuredLocation ? `Featured Homes near ${featuredLocation}` : "Featured Homes"}
+        subtitle="Handpicked properties in popular markets"
+        listings={featuredListings}
+        isLoading={featuredLoading}
+        error={featuredError}
+        hasMore={featuredHasMore}
+        onLoadMore={loadMoreFeatured}
+        onAnalyze={handlePropertyAnalyze}
+      />
 
       {/* Conversation Panel - Only show after conversation starts */}
       {hasStartedConversation && (
