@@ -13,6 +13,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PriceFairnessMeter } from "@/components/PriceFairnessMeter";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { calculatePriceFairness } from "@/lib/pricingUtils";
+import { supabase } from "@/integrations/supabase/client";
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -108,92 +109,115 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
   // Initialize map when switching to map view
   React.useEffect(() => {
     if (viewMode === 'map' && mapContainer.current && !map.current) {
-      // Use hardcoded Mapbox public token
-      const token = 'pk.eyJ1IjoicGJlY2sxMyIsImEiOiJjbWliMjQzZHgxNHVwMmxvYXJyOWZxa3RsIn0.Vk9tWn1vghY9Vw6RRKLpaA';
-
-      mapboxgl.accessToken = token;
-
-      // Find properties with coordinates
-      const propertiesWithCoords = properties.filter(p => p.lat && p.lng);
-      
-      if (propertiesWithCoords.length === 0) {
-        return;
-      }
-
-      // Calculate center from properties
-      const avgLat = propertiesWithCoords.reduce((sum, p) => sum + (p.lat || 0), 0) / propertiesWithCoords.length;
-      const avgLng = propertiesWithCoords.reduce((sum, p) => sum + (p.lng || 0), 0) / propertiesWithCoords.length;
-
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [avgLng, avgLat],
-        zoom: 11,
-      });
-
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-      // Add markers for each property
-      propertiesWithCoords.forEach((property) => {
-        if (!property.lat || !property.lng || !map.current) return;
-
-        const el = document.createElement('div');
-        el.className = 'property-marker';
-        el.style.backgroundImage = 'url(https://docs.mapbox.com/mapbox-gl-js/assets/custom_marker.png)';
-        el.style.width = '25px';
-        el.style.height = '41px';
-        el.style.backgroundSize = 'cover';
-        el.style.cursor = 'pointer';
-
-        // Create popup container
-        const popupDiv = document.createElement('div');
-        popupDiv.style.padding = '8px';
-        popupDiv.style.minWidth = '200px';
-        popupDiv.innerHTML = `
-          <p style="font-weight: bold; margin-bottom: 4px;">${formatCurrency(property.price || 0)}</p>
-          <p style="font-size: 12px; margin-bottom: 4px;">${property.address}</p>
-          <p style="font-size: 11px; color: #666; margin-bottom: 8px;">${property.beds || 0} bed • ${property.baths || 0} bath • ${property.sqft?.toLocaleString() || 0} sqft</p>
-          <button 
-            id="analyze-btn-${property.id}"
-            style="
-              width: 100%;
-              padding: 6px 12px;
-              background: hsl(var(--primary));
-              color: white;
-              border: none;
-              border-radius: 6px;
-              font-size: 12px;
-              font-weight: 500;
-              cursor: pointer;
-              transition: opacity 0.2s;
-            "
-            onmouseover="this.style.opacity='0.9'"
-            onmouseout="this.style.opacity='1'"
-          >
-            Analyze Property
-          </button>
-        `;
-
-        // Add click handler to the analyze button
-        const popup = new mapboxgl.Popup({ offset: 25 })
-          .setDOMContent(popupDiv);
-
-        // Wait for popup to open, then attach event listener
-        popup.on('open', () => {
-          const analyzeBtn = document.getElementById(`analyze-btn-${property.id}`);
-          if (analyzeBtn && onAnalyze) {
-            analyzeBtn.addEventListener('click', () => {
-              onAnalyze(property);
-              popup.remove(); // Close the popup after clicking
+      // Fetch Mapbox token securely from edge function
+      const initializeMap = async () => {
+        try {
+          const { data: tokenData, error: tokenError } = await supabase.functions.invoke('get-mapbox-token');
+          
+          if (tokenError || !tokenData?.token) {
+            console.error('Failed to fetch Mapbox token:', tokenError);
+            toast({
+              title: "Map unavailable",
+              description: "Could not load map. Please try again later.",
+              variant: "destructive",
             });
+            return;
           }
-        });
 
-        new mapboxgl.Marker(el)
-          .setLngLat([property.lng, property.lat])
-          .setPopup(popup)
-          .addTo(map.current);
-      });
+          mapboxgl.accessToken = tokenData.token;
+
+          // Find properties with coordinates
+          const propertiesWithCoords = properties.filter(p => p.lat && p.lng);
+          
+          if (propertiesWithCoords.length === 0) {
+            return;
+          }
+
+          // Calculate center from properties
+          const avgLat = propertiesWithCoords.reduce((sum, p) => sum + (p.lat || 0), 0) / propertiesWithCoords.length;
+          const avgLng = propertiesWithCoords.reduce((sum, p) => sum + (p.lng || 0), 0) / propertiesWithCoords.length;
+
+          map.current = new mapboxgl.Map({
+            container: mapContainer.current!,
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [avgLng, avgLat],
+            zoom: 11,
+          });
+
+          map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+          // Add markers for each property
+          propertiesWithCoords.forEach((property) => {
+            if (!property.lat || !property.lng || !map.current) return;
+
+            const el = document.createElement('div');
+            el.className = 'property-marker';
+            el.style.backgroundImage = 'url(https://docs.mapbox.com/mapbox-gl-js/assets/custom_marker.png)';
+            el.style.width = '25px';
+            el.style.height = '41px';
+            el.style.backgroundSize = 'cover';
+            el.style.cursor = 'pointer';
+
+            // Create popup container
+            const popupDiv = document.createElement('div');
+            popupDiv.style.padding = '8px';
+            popupDiv.style.minWidth = '200px';
+            popupDiv.innerHTML = `
+              <p style="font-weight: bold; margin-bottom: 4px;">${formatCurrency(property.price || 0)}</p>
+              <p style="font-size: 12px; margin-bottom: 4px;">${property.address}</p>
+              <p style="font-size: 11px; color: #666; margin-bottom: 8px;">${property.beds || 0} bed • ${property.baths || 0} bath • ${property.sqft?.toLocaleString() || 0} sqft</p>
+              <button 
+                id="analyze-btn-${property.id}"
+                style="
+                  width: 100%;
+                  padding: 6px 12px;
+                  background: hsl(var(--primary));
+                  color: white;
+                  border: none;
+                  border-radius: 6px;
+                  font-size: 12px;
+                  font-weight: 500;
+                  cursor: pointer;
+                  transition: opacity 0.2s;
+                "
+                onmouseover="this.style.opacity='0.9'"
+                onmouseout="this.style.opacity='1'"
+              >
+                Analyze Property
+              </button>
+            `;
+
+            // Add click handler to the analyze button
+            const popup = new mapboxgl.Popup({ offset: 25 })
+              .setDOMContent(popupDiv);
+
+            // Wait for popup to open, then attach event listener
+            popup.on('open', () => {
+              const analyzeBtn = document.getElementById(`analyze-btn-${property.id}`);
+              if (analyzeBtn && onAnalyze) {
+                analyzeBtn.addEventListener('click', () => {
+                  onAnalyze(property);
+                  popup.remove(); // Close the popup after clicking
+                });
+              }
+            });
+
+            new mapboxgl.Marker(el)
+              .setLngLat([property.lng, property.lat])
+              .setPopup(popup)
+              .addTo(map.current!);
+          });
+        } catch (error) {
+          console.error('Error initializing map:', error);
+          toast({
+            title: "Map error",
+            description: "Failed to initialize map. Please try again.",
+            variant: "destructive",
+          });
+        }
+      };
+      
+      initializeMap();
     }
 
     return () => {
@@ -202,7 +226,7 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
         map.current = null;
       }
     };
-  }, [viewMode, properties]);
+  }, [viewMode, properties, onAnalyze, toast]);
 
   const propertiesWithCoords = properties.filter(p => p.lat && p.lng);
 

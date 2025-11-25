@@ -35,6 +35,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { MarketSnapshotCard, MarketSnapshot } from "@/components/MarketSnapshotCard";
+import { useQuery } from "@tanstack/react-query";
 const MarkdownLink = ({
   href,
   children
@@ -67,9 +68,114 @@ export default function Index() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string>("");
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
+  const [searchParams, setSearchParams] = useState<any>(null); // For React Query caching
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const animatedPlaceholder = useTypingPlaceholder();
+  
+  // React Query for property search with caching (5 min stale time)
+  const { data: cachedSearchData, isLoading: isSearchQueryLoading, error: searchQueryError } = useQuery({
+    queryKey: ['property-search', searchParams],
+    queryFn: async () => {
+      if (!searchParams) return null;
+      
+      const { data, error } = await supabase.functions.invoke('search-listings', {
+        body: searchParams
+      });
+      
+      if (error) {
+        // Handle specific error types
+        if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
+          throw new Error('RATE_LIMIT_EXCEEDED');
+        }
+        if (error.message?.includes('Invalid input') || error.message?.includes('400')) {
+          throw new Error('VALIDATION_ERROR');
+        }
+        throw error;
+      }
+      
+      return data;
+    },
+    enabled: !!searchParams,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 10000),
+  });
+  
+  // Effect to process cached search data
+  useEffect(() => {
+    if (cachedSearchData && searchParams) {
+      const processSearchResults = async () => {
+        if (cachedSearchData.error) {
+          setSearchError(cachedSearchData.error + (cachedSearchData.details ? `: ${cachedSearchData.details}` : ''));
+          setSearchProperties([]);
+          setMarketSnapshot(null);
+        } else if (cachedSearchData.listings && cachedSearchData.listings.length > 0) {
+          // Enrich properties with RentCast & Census data
+          const enrichedListings = await enrichProperties(cachedSearchData.listings);
+          setSearchProperties(enrichedListings);
+          setSearchError(null);
+          
+          // Fetch market snapshot for the search location
+          const spec = searchParams;
+          await fetchMarketSnapshot(spec.zip, spec.city, spec.state);
+        } else {
+          // Handle 0 results with relaxation suggestions
+          const spec = searchParams;
+          const relaxedSuggestions = [];
+          if (spec.maxPrice) {
+            const newMax = Math.round(spec.maxPrice * 1.15);
+            relaxedSuggestions.push(`Try up to $${newMax.toLocaleString()}`);
+          }
+          if (spec.minBeds && spec.minBeds > 2) {
+            relaxedSuggestions.push(`Include ${spec.minBeds - 1}+ bedroom properties`);
+          }
+          
+          const suggestionText = relaxedSuggestions.length > 0 
+            ? ` Would you like me to: ${relaxedSuggestions.join(' or ')}?`
+            : " Try adjusting your search criteria.";
+          
+          setSearchError("No properties found matching your exact criteria." + suggestionText);
+          setSearchProperties([]);
+          setMarketSnapshot(null);
+        }
+        setSearchLoading(false);
+      };
+      
+      processSearchResults();
+    }
+  }, [cachedSearchData, searchParams]);
+  
+  // Effect to handle React Query errors
+  useEffect(() => {
+    if (searchQueryError) {
+      let errorMessage = "Failed to search properties. Please try again.";
+      
+      if ((searchQueryError as Error)?.message === 'RATE_LIMIT_EXCEEDED') {
+        errorMessage = "You've made too many searches. Please wait 60 seconds and try again.";
+        toast({
+          title: "Rate Limit Reached",
+          description: "Please wait a minute before searching again.",
+          variant: "destructive",
+        });
+      } else if ((searchQueryError as Error)?.message === 'VALIDATION_ERROR') {
+        errorMessage = "Invalid search parameters. Please check your search criteria and try again.";
+        toast({
+          title: "Invalid Search",
+          description: "Please adjust your search criteria and try again.",
+          variant: "destructive",
+        });
+      } else if ((searchQueryError as Error)?.message) {
+        errorMessage = (searchQueryError as Error).message;
+      }
+      
+      setSearchError(errorMessage);
+      setSearchProperties([]);
+      setMarketSnapshot(null);
+      setSearchLoading(false);
+    }
+  }, [searchQueryError, toast]);
   
   // Enrich properties with RentCast and Census data
   const enrichProperties = async (listings: HomeLensListing[]): Promise<HomeLensListing[]> => {
@@ -351,59 +457,34 @@ export default function Index() {
       const location = spec.zip || `${spec.city}, ${spec.state}`;
       setSearchLocation(location);
       
-      // Step 5: Call search-listings with validated params
-      const { data, error } = await supabase.functions.invoke('search-listings', {
-        body: {
-          location,
-          minPrice: spec.minPrice,
-          maxPrice: spec.maxPrice,
-          minBeds: spec.minBeds,
-          maxBeds: spec.maxBeds,
-          minBaths: spec.minBaths,
-          propertyType: spec.propertyType || 'any'
-        }
+      // Step 5: Trigger React Query search with caching
+      setSearchParams({
+        location,
+        minPrice: spec.minPrice,
+        maxPrice: spec.maxPrice,
+        minBeds: spec.minBeds,
+        maxBeds: spec.maxBeds,
+        minBaths: spec.minBaths,
+        propertyType: spec.propertyType || 'any',
+        // Include for market snapshot
+        zip: spec.zip,
+        city: spec.city,
+        state: spec.state,
       });
       
-      if (error) throw error;
-      
-      if (data?.error) {
-        setSearchError(data.error + (data.details ? `: ${data.details}` : ''));
-        setSearchProperties([]);
-        setMarketSnapshot(null);
-      } else if (data?.listings && data.listings.length > 0) {
-        // Enrich properties with RentCast & Census data
-        const enrichedListings = await enrichProperties(data.listings);
-        setSearchProperties(enrichedListings);
-        setSearchError(null);
-        
-        // Fetch market snapshot for the search location
-        await fetchMarketSnapshot(spec.zip, spec.city, spec.state);
-      } else {
-        // Handle 0 results with relaxation suggestions
-        const relaxedSuggestions = [];
-        if (spec.maxPrice) {
-          const newMax = Math.round(spec.maxPrice * 1.15);
-          relaxedSuggestions.push(`Try up to $${newMax.toLocaleString()}`);
-        }
-        if (spec.minBeds && spec.minBeds > 2) {
-          relaxedSuggestions.push(`Include ${spec.minBeds - 1}+ bedroom properties`);
-        }
-        
-        const suggestionText = relaxedSuggestions.length > 0 
-          ? ` Would you like me to: ${relaxedSuggestions.join(' or ')}?`
-          : " Try adjusting your search criteria.";
-        
-        setSearchError("No properties found matching your exact criteria." + suggestionText);
-        setSearchProperties([]);
-        setMarketSnapshot(null);
-      }
     } catch (error: any) {
-      console.error('Search error:', error);
-      const errorMessage = error?.message || "Failed to search properties. Please try again.";
+      console.error('Search spec error:', error);
+      
+      // Handle errors from ai-build-search-spec
+      let errorMessage = "Failed to process search. Please try again.";
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       setSearchError(errorMessage);
       setSearchProperties([]);
       setMarketSnapshot(null);
-    } finally {
       setSearchLoading(false);
     }
   };
