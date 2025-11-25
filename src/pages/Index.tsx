@@ -18,7 +18,7 @@ import { PropertyResultsCarousel } from "@/components/ui-blocks/PropertyResultsC
 import { Navigation } from "@/components/Navigation";
 import { UIBlock, HomeLensListing } from "@/types/ui-blocks";
 import ReactMarkdown from "react-markdown";
-import { isPropertySearchQuery, parsePropertySearchQuery } from "@/utils/propertySearchHelpers";
+import { isPropertySearchQuery, parsePropertySearchQuery, parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -477,6 +477,9 @@ export default function Index() {
         setSearchLocation(parsedParams.location);
         setLastSearchSpec(parsedParams);
         
+        // Parse location into components for market snapshot
+        const locationComponents = parseLocationComponents(parsedParams.location);
+        
         setSearchParams({
           location: parsedParams.location,
           minPrice: parsedParams.minPrice,
@@ -485,6 +488,8 @@ export default function Index() {
           maxBeds: parsedParams.maxBeds,
           minBaths: parsedParams.minBaths,
           propertyType: parsedParams.propertyType || 'any',
+          // Add parsed location components for market snapshot
+          ...locationComponents,
         });
         
         return; // Success - React Query will handle the search
@@ -590,6 +595,12 @@ export default function Index() {
   };
   
   const fetchMarketSnapshot = async (zip?: string, city?: string, state?: string) => {
+    // Only fetch if we have either zip OR (city AND state)
+    if (!zip && !(city && state)) {
+      console.log('Skipping market snapshot - insufficient location data');
+      return;
+    }
+    
     try {
       const { data, error } = await supabase.functions.invoke('market-snapshot', {
         body: {

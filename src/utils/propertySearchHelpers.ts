@@ -1,4 +1,44 @@
 /**
+ * Parses a location string into zip, city, and state components
+ * @param location - Location string like "Miami, FL" or "33183" or "Arlington, Virginia"
+ * @returns Object with zip, city, and state fields
+ */
+export const parseLocationComponents = (location: string): {
+  zip?: string;
+  city?: string;
+  state?: string;
+} => {
+  if (!location) return {};
+  
+  const trimmed = location.trim();
+  
+  // Check if it's a ZIP code (5 digits)
+  if (/^\d{5}$/.test(trimmed)) {
+    return { zip: trimmed };
+  }
+  
+  // Check for "City, State" or "City, ST" pattern
+  const cityStateMatch = trimmed.match(/^([^,]+),\s*([A-Za-z]{2,})$/);
+  if (cityStateMatch) {
+    const city = cityStateMatch[1].trim();
+    const state = cityStateMatch[2].trim();
+    return { city, state };
+  }
+  
+  // If no clear pattern, try to extract city (everything before comma) and state (after comma)
+  const parts = trimmed.split(',').map(p => p.trim());
+  if (parts.length >= 2) {
+    return {
+      city: parts[0],
+      state: parts[1]
+    };
+  }
+  
+  // Single word - likely just a city name without state
+  return { city: trimmed };
+};
+
+/**
  * Determines if a user input looks like a property search query
  * @param input - The user's text input
  * @returns true if it appears to be a property search
