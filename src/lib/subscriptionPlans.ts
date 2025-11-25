@@ -6,7 +6,8 @@ export interface SubscriptionPlan {
   tier: SubscriptionTier;
   price: string;
   priceMonthly: number;
-  stripePriceId?: string; // TODO: Replace with actual Stripe price IDs
+  stripePriceId?: string;
+  stripeProductId?: string;
   features: string[];
   limitations?: string[];
 }
@@ -39,7 +40,8 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
     tier: 'pro',
     price: '$4.99/mo',
     priceMonthly: 4.99,
-    stripePriceId: 'price_pro_monthly', // TODO: Replace with actual Stripe price ID
+    stripePriceId: 'price_1SXAGhDNPbNbmEcl7swPot9W',
+    stripeProductId: 'prod_TU8XHaYsigHmU3',
     features: [
       'Everything in Free, plus:',
       'Unlimited AI property analyses',
@@ -47,9 +49,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Property Comparison Mode (unlimited)',
       'Export PDF property reports',
       'Neighborhood Personality AI',
-      'Smart Alerts for favorites',
       'Investor view & calculators',
-      'Personalized weekly picks',
       'Map-based investment zones'
     ]
   },
@@ -59,11 +59,13 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
     tier: 'premium',
     price: '$9.99/mo',
     priceMonthly: 9.99,
-    stripePriceId: 'price_premium_monthly', // TODO: Replace with actual Stripe price ID
+    stripePriceId: 'price_1SXAIIDNPbNbmEcljT5VEjT8',
+    stripeProductId: 'prod_TU8ZtwtkutHhh5',
     features: [
       'Everything in Pro, plus:',
       'Portfolio builder (multi-property tracking)',
       'Deep investment projections (10-20 year)',
+      'Smart Alerts & Weekly Picks',
       'Monthly Investment Snapshot reports',
       'Unlimited PDF exports',
       'Daily Deal Digest',
@@ -83,8 +85,6 @@ export const FEATURE_GATES = {
   PROPERTY_COMPARISON: ['pro', 'premium'],
   EXPORT_PDF: ['pro', 'premium'],
   NEIGHBORHOOD_PERSONALITY: ['pro', 'premium'],
-  SMART_ALERTS: ['pro', 'premium'],
-  PERSONALIZED_PICKS: ['pro', 'premium'],
   
   // Investor Features
   INVESTOR_VIEW: ['pro', 'premium'],
@@ -92,6 +92,8 @@ export const FEATURE_GATES = {
   // Premium Only
   PORTFOLIO_BUILDER: ['premium'],
   DEEP_PROJECTIONS: ['premium'],
+  SMART_ALERTS: ['premium'],
+  PERSONALIZED_PICKS: ['premium'],
   DEAL_DIGEST: ['premium']
 } as const;
 

@@ -40,7 +40,7 @@ export function AlertsPanel() {
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
-  const hasAccess = tier === "pro" || tier === "premium";
+  const hasAccess = tier === "premium";
 
   useEffect(() => {
     if (userId && hasAccess) {
@@ -164,15 +164,15 @@ export function AlertsPanel() {
           <div className="flex items-start gap-4">
             <Bell className="w-8 h-8 text-primary" />
             <div className="flex-1">
-              <h3 className="text-lg font-semibold mb-2">Smart Alerts (Pro feature)</h3>
+              <h3 className="text-lg font-semibold mb-2">Smart Alerts (Premium feature)</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Get notified when your favorite homes change price or when new properties match
                 your searches.
               </p>
               <p className="text-sm text-muted-foreground mb-4">
-                Available with HomeLens Pro & Premium.
+                Available with HomeLens Premium.
               </p>
-              <Button onClick={() => setUpgradeModalOpen(true)}>Upgrade to Pro</Button>
+              <Button onClick={() => setUpgradeModalOpen(true)}>Upgrade to Premium</Button>
             </div>
           </div>
         </Card>
