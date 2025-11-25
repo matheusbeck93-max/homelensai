@@ -16,6 +16,7 @@ const chatRequestSchema = z.object({
   hasImage: z.boolean().optional(),
   userProfile: z.any().optional(),
   propertyData: z.any().optional(),
+  conversationMode: z.boolean().optional(), // New flag for unified conversation mode
 });
 
 Deno.serve(async (req) => {
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    const { messages, hasImage, userProfile: clientProfile, propertyData } = validationResult.data;
+    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode } = validationResult.data;
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const authHeader = req.headers.get('Authorization');
     
@@ -49,12 +50,30 @@ Deno.serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    // Detect property URLs in the last user message
+    // In conversation mode, check if this is a property search request
     const lastUserMessage = messages[messages.length - 1]?.content || '';
+    
+    // Detect property URLs
     const urlRegex = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|homes)\.com\/[^\s]+)/gi;
     const detectedUrls = lastUserMessage.match(urlRegex) || [];
     
     console.log(`Detected ${detectedUrls.length} property URLs:`, detectedUrls);
+    
+    // In conversation mode, detect property search queries
+    if (conversationMode) {
+      const searchKeywords = /\b(find|search|show|looking for|get me|want)\b.*\b(home|house|property|properties|listing|condo|townhome|apartment)/i;
+      if (searchKeywords.test(lastUserMessage) && detectedUrls.length === 0) {
+        console.log('Property search query detected in conversation mode');
+        return new Response(
+          JSON.stringify({ 
+            type: 'property_search_needed',
+            message: 'I\'ll help you search for properties. Please use the search bar to enter your criteria (location, price range, bedrooms, etc.).',
+            needsSearch: true
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
     
     // Check if we're waiting for purpose clarification
     const previousMessage = messages.length > 1 ? messages[messages.length - 2]?.content || '' : '';
