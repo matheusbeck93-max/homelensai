@@ -46,18 +46,39 @@ export default function Pricing() {
         description: "Please sign in to upgrade your plan",
         variant: "destructive"
       });
+      setLoading(null);
       navigate('/auth');
       return;
     }
 
-    // TODO: Integrate with actual billing provider (Stripe)
-    // For now, show a placeholder message
-    toast({
-      title: "Upgrade coming soon",
-      description: `${tier === 'pro' ? 'Pro' : 'Premium'} plan upgrade will be available soon. Billing integration in progress.`,
-    });
+    try {
+      const priceId = tier === 'pro' 
+        ? 'price_1SXAGhDNPbNbmEcl7swPot9W' 
+        : 'price_1SXAIIDNPbNbmEcljT5VEjT8';
 
-    setLoading(null);
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { priceId }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Open Stripe checkout in new tab
+        window.open(data.url, '_blank');
+        toast({
+          title: "Redirecting to checkout",
+          description: "Complete your payment in the new tab"
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Checkout failed",
+        description: error.message || "Failed to start checkout process",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(null);
+    }
   };
 
   const plans = [

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, GraduationCap, Coffee, ShoppingBag, Trees, Bus, Shield, Maximize2 } from "lucide-react";
 import { NeighborhoodInsights } from "@/types/neighborhood";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PropertyMapProps {
   address: string;
@@ -31,9 +32,16 @@ export function PropertyMap({ address, city, state, zip, insights }: PropertyMap
   // Geocode the address to get coordinates
   const geocodeAddress = async (fullAddress: string): Promise<[number, number] | null> => {
     try {
-      const token = 'pk.eyJ1IjoicGJlY2sxMyIsImEiOiJjbWliMjQzZHgxNHVwMmxvYXJyOWZxa3RsIn0.Vk9tWn1vghY9Vw6RRKLpaA';
+      // Get Mapbox token from edge function for security
+      const { data: tokenData, error: tokenError } = await supabase.functions.invoke('get-mapbox-token');
+      
+      if (tokenError || !tokenData?.token) {
+        console.error("Failed to get Mapbox token:", tokenError);
+        return null;
+      }
+
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${token}`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(fullAddress)}.json?access_token=${tokenData.token}`
       );
       const data = await response.json();
       if (data.features && data.features.length > 0) {
@@ -49,8 +57,15 @@ export function PropertyMap({ address, city, state, zip, insights }: PropertyMap
     if (!mapContainer.current) return;
 
     const initializeMap = async () => {
-      const token = 'pk.eyJ1IjoicGJlY2sxMyIsImEiOiJjbWliMjQzZHgxNHVwMmxvYXJyOWZxa3RsIn0.Vk9tWn1vghY9Vw6RRKLpaA';
-      mapboxgl.accessToken = token;
+      // Get Mapbox token from edge function
+      const { data: tokenData, error: tokenError } = await supabase.functions.invoke('get-mapbox-token');
+      
+      if (tokenError || !tokenData?.token) {
+        console.error("Failed to get Mapbox token:", tokenError);
+        return;
+      }
+
+      mapboxgl.accessToken = tokenData.token;
 
       const fullAddress = `${address}, ${city}, ${state} ${zip}`;
       const coordinates = await geocodeAddress(fullAddress);

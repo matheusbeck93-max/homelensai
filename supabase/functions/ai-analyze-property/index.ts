@@ -11,11 +11,73 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { source, listing, userContext } = await req.json();
+    const { source, listing, userContext, userId, userTier } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
+    }
+
+    // Enforce daily limits for free tier users
+    if (userId && userTier === 'free') {
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.2");
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+
+      // Get user's current analysis count
+      const { data: profile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('daily_analysis_count, daily_analysis_last_reset')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        throw new Error('Failed to check analysis limit');
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const lastReset = profile.daily_analysis_last_reset;
+      let currentCount = profile.daily_analysis_count || 0;
+
+      // Reset counter if it's a new day
+      if (lastReset !== today) {
+        currentCount = 0;
+        await supabaseAdmin
+          .from('profiles')
+          .update({
+            daily_analysis_count: 0,
+            daily_analysis_last_reset: today
+          })
+          .eq('id', userId);
+      }
+
+      // Check if limit exceeded (3 per day for free tier)
+      if (currentCount >= 3) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Daily analysis limit reached',
+            message: 'You have reached your daily limit of 3 AI analyses. Upgrade to Pro for unlimited analyses.',
+            limitReached: true
+          }),
+          { 
+            status: 429, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      // Increment the counter
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          daily_analysis_count: currentCount + 1
+        })
+        .eq('id', userId);
+
+      console.log(`Analysis count incremented for user ${userId}: ${currentCount + 1}/3`);
     }
 
     const systemPrompt = `You are the Property Analysis engine for HomeLens, a real estate copilot for the US market. You receive:

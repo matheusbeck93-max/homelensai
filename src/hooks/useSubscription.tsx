@@ -15,6 +15,8 @@ export function useSubscription() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         loadSubscription();
+        // Check subscription status with Stripe
+        checkStripeSubscription();
       } else {
         setTier('free');
         setUserId(null);
@@ -22,8 +24,20 @@ export function useSubscription() {
       }
     });
 
+    // Auto-refresh subscription every 60 seconds
+    const interval = setInterval(() => {
+      const checkAuth = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          checkStripeSubscription();
+        }
+      };
+      checkAuth();
+    }, 60000);
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(interval);
     };
   }, []);
 
@@ -59,6 +73,24 @@ export function useSubscription() {
       setTier('free');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkStripeSubscription = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+      
+      if (error) {
+        console.error('Error checking Stripe subscription:', error);
+        return;
+      }
+
+      if (data?.tier && data.tier !== tier) {
+        console.log('Subscription tier updated from Stripe:', data.tier);
+        setTier(data.tier as SubscriptionTier);
+      }
+    } catch (error) {
+      console.error('Error in checkStripeSubscription:', error);
     }
   };
 

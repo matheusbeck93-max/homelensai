@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles, Crown } from "lucide-react";
+import { ManageSubscriptionButton } from "@/components/subscription/ManageSubscriptionButton";
 
 export function SubscriptionPanel() {
   const navigate = useNavigate();
@@ -125,16 +126,14 @@ export function SubscriptionPanel() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted rounded-lg">
               <div>
-                <p className="font-medium">Need to update your billing?</p>
+                <p className="font-medium">Manage Your Subscription</p>
                 <p className="text-sm text-muted-foreground">
-                  Contact support to manage your subscription
+                  Update payment method, view invoices, or cancel subscription
                 </p>
               </div>
-              <Button variant="outline" onClick={() => window.location.href = "mailto:support@homelens.app"}>
-                Contact Support
-              </Button>
+              <ManageSubscriptionButton />
             </div>
           </CardContent>
         </Card>

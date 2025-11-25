@@ -132,6 +132,27 @@ export default function Index() {
         loadPastConversations(session.user.id);
       }
     });
+
+    // Check for checkout success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') {
+      toast({
+        title: "Subscription activated!",
+        description: "Welcome to HomeLens Pro/Premium. Your subscription is now active.",
+      });
+      // Clean URL
+      window.history.replaceState({}, '', '/');
+      // Refresh subscription status
+      const refreshSub = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.functions.invoke('check-subscription');
+          window.location.reload();
+        }
+      };
+      refreshSub();
+    }
+
     return () => subscription.unsubscribe();
   }, []);
   const loadPastConversations = async (userId: string) => {
@@ -466,11 +487,24 @@ export default function Index() {
         body: { 
           source: "realty_in_us",
           listing,
-          userContext
+          userContext,
+          userId: userId || null,
+          userTier: tier || 'free'
         }
       });
       
       if (error) throw error;
+      
+      // Check if limit was reached
+      if (data?.limitReached) {
+        toast({
+          title: "Daily Limit Reached",
+          description: data.message || "Upgrade to Pro for unlimited analyses",
+          variant: "destructive"
+        });
+        setMessages(prev => prev.slice(0, -1)); // Remove user message
+        return;
+      }
       
       setMessages(prev => [...prev, {
         role: "assistant",
