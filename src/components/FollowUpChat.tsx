@@ -213,16 +213,15 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
                           </Button>
                           {property.externalLink && (
                             <Button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(property.externalLink, '_blank');
-                              }}
+                              asChild
                               size="sm"
                               variant="outline"
                               className="flex-1"
                             >
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              Ver Anúncio
+                              <a href={property.externalLink} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                Ver Anúncio
+                              </a>
                             </Button>
                           )}
                         </div>
