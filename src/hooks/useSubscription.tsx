@@ -1,12 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SubscriptionTier } from "@/lib/subscriptionPlans";
 import { hasFeatureAccess, type FeatureKey } from "@/lib/subscriptionPlans";
+
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
+let lastCheckTime = 0;
+let cachedTier: SubscriptionTier | null = null;
 
 export function useSubscription() {
   const [tier, setTier] = useState<SubscriptionTier>('free');
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const checkInProgress = useRef(false);
 
   useEffect(() => {
     loadSubscription();
@@ -15,16 +21,16 @@ export function useSubscription() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         loadSubscription();
-        // Check subscription status with Stripe
-        checkStripeSubscription();
       } else {
         setTier('free');
         setUserId(null);
         setLoading(false);
+        cachedTier = null;
+        lastCheckTime = 0;
       }
     });
 
-    // Auto-refresh subscription every 60 seconds
+    // Auto-refresh subscription every 5 minutes (reduced from 60 seconds)
     const interval = setInterval(() => {
       const checkAuth = async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -33,7 +39,7 @@ export function useSubscription() {
         }
       };
       checkAuth();
-    }, 60000);
+    }, 5 * 60 * 1000);
 
     return () => {
       subscription.unsubscribe();
@@ -77,6 +83,22 @@ export function useSubscription() {
   };
 
   const checkStripeSubscription = async () => {
+    // Prevent concurrent checks
+    if (checkInProgress.current) {
+      console.log('Subscription check already in progress, skipping...');
+      return;
+    }
+
+    // Use cached result if available and fresh
+    const now = Date.now();
+    if (cachedTier && (now - lastCheckTime) < CACHE_DURATION) {
+      console.log('Using cached subscription tier:', cachedTier);
+      setTier(cachedTier);
+      return;
+    }
+
+    checkInProgress.current = true;
+    
     try {
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
@@ -85,12 +107,17 @@ export function useSubscription() {
         return;
       }
 
-      if (data?.tier && data.tier !== tier) {
-        console.log('Subscription tier updated from Stripe:', data.tier);
-        setTier(data.tier as SubscriptionTier);
+      if (data?.tier) {
+        const newTier = data.tier as SubscriptionTier;
+        console.log('Subscription tier updated from Stripe:', newTier);
+        setTier(newTier);
+        cachedTier = newTier;
+        lastCheckTime = now;
       }
     } catch (error) {
       console.error('Error in checkStripeSubscription:', error);
+    } finally {
+      checkInProgress.current = false;
     }
   };
 
