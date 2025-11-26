@@ -102,10 +102,10 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
     }));
   };
 
-  // Sanitiza o texto do backend sem remover conteúdo legítimo
+  // Clean backend text without removing legitimate content
   const cleanAssistantText = (str: string): string => {
     if (!str) return "";
-    // Remove blocos JSON inteiros
+    // Remove entire JSON blocks
     return str.replace(/```json[\s\S]*?```/g, "")
               .replace(/(\{[\s\S]*?\}|\[[\s\S]*?\])/g, "")
               .trim();
@@ -125,7 +125,7 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
       if (isPropertySearch(userInput)) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: `Buscando imóveis para: "${userInput}"...`, type: "text" },
+          { role: "assistant", content: `Searching for properties: "${userInput}"...`, type: "text" },
         ]);
 
         let backendLinks: PropertyLink[] | null = null;
@@ -146,7 +146,7 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
         if (backendLinks && backendLinks.length > 0) {
           setMessages((prev) => [
             ...prev,
-            { role: "assistant", content: "Encontrei estas opções:", type: "links", links: backendLinks.slice(0, 5) },
+            { role: "assistant", content: "Here are the property listings:", type: "links", links: backendLinks.slice(0, 5) },
           ]);
           setLoading(false);
           return;
@@ -155,7 +155,7 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
         const fallbackLinks = buildSiteSearchUrls(userInput);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: "Não consegui links diretos, mas aqui estão pesquisas úteis:", type: "links", links: fallbackLinks },
+          { role: "assistant", content: "I couldn't find direct links, but here are filtered searches:", type: "links", links: fallbackLinks },
         ]);
 
       } else {
@@ -177,10 +177,10 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
           const valid = data.links.filter(
             (l: any) => l && l.url && typeof l.url === "string" && l.url.startsWith("http")
           );
-          if (valid.length > 0) {
+        if (valid.length > 0) {
             setMessages((prev) => [
               ...prev,
-              { role: "assistant", content: "Aqui estão algumas opções:", type: "links", links: valid.slice(0, 5) },
+              { role: "assistant", content: "Here are some options:", type: "links", links: valid.slice(0, 5) },
             ]);
             setLoading(false);
             return;
@@ -193,13 +193,13 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
           {
             role: "assistant",
             content:
-              cleaned || "Desculpe, não entendi completamente sua solicitação. Pode reformular?",
+              cleaned || "Sorry, I couldn't fully understand your request. Can you rephrase?",
             type: "text",
           },
         ]);
       }
     } catch (error: any) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -288,14 +288,14 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
 
                         <div className="flex gap-2">
                           <Button onClick={() => handlePropertySelect(property)} size="sm" className="flex-1">
-                            Analisar
+                            Analyze
                           </Button>
 
                           {property.externalLink && (
                             <Button asChild size="sm" variant="outline" className="flex-1">
                               <a href={property.externalLink} target="_blank">
                                 <ExternalLink className="h-3 w-3 mr-1" />
-                                Ver Anúncio
+                                View Listing
                               </a>
                             </Button>
                           )}
