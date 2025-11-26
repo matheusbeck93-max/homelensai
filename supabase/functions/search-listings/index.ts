@@ -181,6 +181,28 @@ interface HomeLensListing {
   zip?: string | null;
   lat?: number | null;
   lng?: number | null;
+  insights?: {
+    rentcast?: {
+      rent_estimate?: number | null;
+      rent_low?: number | null;
+      rent_high?: number | null;
+      value_estimate?: number | null;
+      confidence?: string | null;
+      zip_market_summary?: {
+        median_rent?: number | null;
+        median_home_value?: number | null;
+        rent_to_price_ratio?: number | null;
+        trend_label?: string | null;
+      } | null;
+    };
+    census?: {
+      median_household_income?: number | null;
+      owner_occupied_rate?: number | null;
+      renter_occupied_rate?: number | null;
+      median_age?: number | null;
+      average_household_size?: number | null;
+    };
+  };
 }
 
 serve(async (req) => {
@@ -337,8 +359,128 @@ serve(async (req) => {
         zip: address.postal_code || null,
         lat: coordinate.lat ?? null,
         lng: coordinate.lon ?? null,
+        insights: null, // Will be enriched below
       };
     });
+
+    // Enrich properties with RentCast and Census data (for first 20 properties to avoid API limits)
+    const RENTCAST_API_KEY = Deno.env.get('RENTCAST_API_KEY');
+    const CENSUS_API_KEY = Deno.env.get('CENSUS_API_KEY');
+    
+    if ((RENTCAST_API_KEY || CENSUS_API_KEY) && listings.length > 0) {
+      console.log(`Enriching first ${Math.min(listings.length, 20)} properties with API data...`);
+      
+      const enrichmentPromises = listings.slice(0, 20).map(async (listing) => {
+        if (!listing.zip) return listing;
+        
+        try {
+          const insights: any = {};
+          
+          // RentCast API call
+          if (RENTCAST_API_KEY) {
+            try {
+              const rentcastParams = new URLSearchParams({
+                address: listing.address || '',
+                city: listing.city || '',
+                state: listing.state || '',
+                zipCode: listing.zip || '',
+              });
+              
+              const rentcastUrl = `https://api.rentcast.io/v1/avm/rent?${rentcastParams}`;
+              const rentcastResponse = await fetch(rentcastUrl, {
+                headers: {
+                  'X-Api-Key': RENTCAST_API_KEY,
+                  'Accept': 'application/json',
+                },
+              });
+              
+              if (rentcastResponse.ok) {
+                const rentData = await rentcastResponse.json();
+                insights.rentcast = {
+                  rent_estimate: rentData.rent || null,
+                  rent_low: rentData.rentRangeLow || null,
+                  rent_high: rentData.rentRangeHigh || null,
+                  value_estimate: rentData.price || null,
+                  confidence: rentData.confidence || null,
+                };
+                
+                // Get market summary
+                const marketUrl = `https://api.rentcast.io/v1/markets?zipCode=${listing.zip}`;
+                const marketResponse = await fetch(marketUrl, {
+                  headers: {
+                    'X-Api-Key': RENTCAST_API_KEY,
+                    'Accept': 'application/json',
+                  },
+                });
+                
+                if (marketResponse.ok) {
+                  const marketData = await marketResponse.json();
+                  insights.rentcast.zip_market_summary = {
+                    median_rent: marketData.medianRent || null,
+                    median_home_value: marketData.medianListingPrice || null,
+                    rent_to_price_ratio: marketData.rentToPrice || null,
+                    trend_label: marketData.priceChange > 5 ? 'rising' : 
+                                 marketData.priceChange < -5 ? 'softening' : 'stable',
+                  };
+                }
+              }
+            } catch (e) {
+              console.log(`RentCast enrichment failed for ${listing.id}:`, (e as Error).message);
+            }
+          }
+          
+          // Census API call
+          if (CENSUS_API_KEY) {
+            try {
+              const censusUrl = `https://api.census.gov/data/2022/acs/acs5?get=B19013_001E,B25003_002E,B25003_003E,B01002_001E,B25010_001E&for=zip%20code%20tabulation%20area:${listing.zip}&key=${CENSUS_API_KEY}`;
+              const censusResponse = await fetch(censusUrl);
+              
+              if (censusResponse.ok) {
+                const censusData = await censusResponse.json();
+                if (censusData && censusData.length > 1) {
+                  const data = censusData[1];
+                  const medianIncome = parseFloat(data[0]) || null;
+                  const ownerOccupied = parseFloat(data[1]) || null;
+                  const renterOccupied = parseFloat(data[2]) || null;
+                  const medianAge = parseFloat(data[3]) || null;
+                  const avgHouseholdSize = parseFloat(data[4]) || null;
+                  const totalOccupied = (ownerOccupied || 0) + (renterOccupied || 0);
+                  
+                  insights.census = {
+                    median_household_income: medianIncome,
+                    owner_occupied_rate: totalOccupied > 0 && ownerOccupied !== null ? ownerOccupied / totalOccupied : null,
+                    renter_occupied_rate: totalOccupied > 0 && renterOccupied !== null ? renterOccupied / totalOccupied : null,
+                    median_age: medianAge,
+                    average_household_size: avgHouseholdSize,
+                  };
+                }
+              }
+            } catch (e) {
+              console.log(`Census enrichment failed for ${listing.id}:`, (e as Error).message);
+            }
+          }
+          
+          const enrichedListing: HomeLensListing = { 
+            ...listing, 
+            insights: Object.keys(insights).length > 0 ? insights : undefined 
+          };
+          return enrichedListing;
+        } catch (error) {
+          console.log(`Failed to enrich property ${listing.id}:`, (error as Error).message);
+          return listing;
+        }
+      });
+      
+      const enrichedListings = await Promise.all(enrichmentPromises);
+      
+      // Replace first 20 with enriched versions
+      listings = [
+        ...enrichedListings,
+        ...listings.slice(20)
+      ];
+      
+      console.log(`Enrichment complete. ${enrichedListings.filter(l => l.insights).length} properties enriched.`);
+    }
 
     if (stateCode) {
       const beforeFilter = listings.length;

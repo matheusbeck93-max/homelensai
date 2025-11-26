@@ -866,15 +866,42 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
     }
     
     const assistantMessage = data.choices[0].message;
-    
-    // Since we removed the search_listings tool, we just return the assistant's response
-    const assistantResponse = assistantMessage.content;
+    let assistantResponse = assistantMessage.content;
     console.log('OpenAI response received, length:', assistantResponse?.length || 0);
 
-    return new Response(
-      JSON.stringify({ response: assistantResponse }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Parse and validate the AI's JSON response to ensure clean message format
+    try {
+      const parsed = JSON.parse(assistantResponse);
+      
+      // Validate that message doesn't contain raw JSON or searchParams
+      if (parsed.message) {
+        // Clean up any accidentally embedded JSON in the message
+        const cleanMessage = parsed.message
+          .replace(/\{[^}]*"location"[^}]*\}/g, '') // Remove any location objects
+          .replace(/\{[^}]*"searchParams"[^}]*\}/g, '') // Remove searchParams objects
+          .replace(/\[?\{[^}]*"price"[^}]*\}[,\]]*/g, '') // Remove price filter objects
+          .trim();
+        
+        parsed.message = cleanMessage;
+      }
+      
+      // Return the validated response
+      return new Response(
+        JSON.stringify({ response: JSON.stringify(parsed) }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (parseError) {
+      // If AI didn't return valid JSON, wrap it in a proper structure
+      console.log('AI response was not valid JSON, wrapping it:', assistantResponse.substring(0, 200));
+      return new Response(
+        JSON.stringify({ 
+          response: JSON.stringify({
+            message: assistantResponse
+          })
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
   } catch (error) {
     console.error('Error in ai-chat:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
