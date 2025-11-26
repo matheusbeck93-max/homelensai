@@ -149,22 +149,40 @@ export default function Index() {
 
       // Parse AI response
       let assistantMessage: ConversationMessage;
-      
-      // Try to parse response as JSON first
+
+      // Normalize and try to extract embedded JSON from response
+      let rawResponse: any = data?.response ?? data;
       let jsonData: any = null;
-      try {
-        jsonData = typeof data.response === 'string' ? JSON.parse(data.response) : data;
-      } catch {
-        // Not JSON, will handle as plain text below
+
+      if (typeof rawResponse === 'string') {
+        // First try to parse the whole string as JSON
+        try {
+          jsonData = JSON.parse(rawResponse);
+        } catch {
+          // If that fails, try to parse any JSON object embedded after text
+          const firstBrace = rawResponse.indexOf('{');
+          if (firstBrace !== -1) {
+            const possibleJson = rawResponse.slice(firstBrace);
+            try {
+              jsonData = JSON.parse(possibleJson);
+              // Trim the JSON tail from the human-facing text
+              rawResponse = rawResponse.slice(0, firstBrace).trim();
+            } catch {
+              // Ignore if still not valid JSON
+            }
+          }
+        }
+      } else if (rawResponse && typeof rawResponse === 'object') {
+        jsonData = rawResponse;
       }
-      
+
       // Check if AI wants to trigger a property search
       if (jsonData && jsonData.searchParams) {
         // AI provided search parameters - add text response first
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData.message || 'Let me find those properties for you...',
+          content: jsonData.message || (typeof rawResponse === 'string' ? rawResponse : 'Let me find those properties for you...'),
           createdAt: new Date().toISOString()
         };
         setMessages(prev => [...prev, assistantMessage]);
@@ -184,7 +202,7 @@ export default function Index() {
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData.message || '',
+          content: jsonData.message || (typeof rawResponse === 'string' ? rawResponse : ''),
           uiBlock: jsonData.uiBlock as UIBlock,
           createdAt: new Date().toISOString()
         };
@@ -193,16 +211,20 @@ export default function Index() {
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData.message || '',
+          content: jsonData.message || (typeof rawResponse === 'string' ? rawResponse : ''),
           uiBlock: jsonData as UIBlock,
           createdAt: new Date().toISOString()
         };
       } else {
-        // Plain text response
+        // Plain text response (ensure no JSON tail leaks into UI)
+        const textContent = typeof rawResponse === 'string'
+          ? rawResponse
+          : (jsonData?.message || 'I apologize, I couldn\'t process that request.');
+
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData ? (jsonData.message || data.response || 'I apologize, I couldn\'t process that request.') : (data.response || 'I apologize, I couldn\'t process that request.'),
+          content: textContent,
           createdAt: new Date().toISOString()
         };
       }
