@@ -63,10 +63,11 @@ export function Navigation() {
         <button
           type="button"
           onClick={handleGoHome}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+          className="flex items-center gap-2 hover:opacity-80 hover:scale-105 transition-all duration-200 cursor-pointer group"
+          aria-label="Return to homepage"
         >
-          <Home className="h-6 w-6 text-primary" />
-          <span className="font-bold text-xl">HomeLens</span>
+          <Home className="h-6 w-6 text-primary group-hover:text-primary/80" />
+          <span className="font-bold text-xl group-hover:text-primary">HomeLens</span>
         </button>
 
         {/* Desktop Navigation */}
