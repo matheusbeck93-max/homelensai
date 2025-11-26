@@ -59,21 +59,8 @@ Deno.serve(async (req) => {
     
     console.log(`Detected ${detectedUrls.length} property URLs:`, detectedUrls);
     
-    // In conversation mode, detect property search queries
-    if (conversationMode) {
-      const searchKeywords = /\b(find|search|show|looking for|get me|want)\b.*\b(home|house|property|properties|listing|condo|townhome|apartment)/i;
-      if (searchKeywords.test(lastUserMessage) && detectedUrls.length === 0) {
-        console.log('Property search query detected in conversation mode');
-        return new Response(
-          JSON.stringify({ 
-            type: 'property_search_needed',
-            message: 'I\'ll help you search for properties. Please use the search bar to enter your criteria (location, price range, bedrooms, etc.).',
-            needsSearch: true
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
+    // In conversation mode, let AI handle property search queries naturally
+    // We removed the auto-deflect logic - AI will now parse and trigger searches
     
     // Check if we're waiting for purpose clarification
     const previousMessage = messages.length > 1 ? messages[messages.length - 2]?.content || '' : '';
@@ -644,6 +631,8 @@ Provide balanced analysis covering:
 
     const systemPrompt = `You are HomeLens, an AI-powered real estate and mortgage expert focused on the US market.
 
+**CRITICAL RULE: NEVER tell the user to "use the search bar" or "enter your criteria in the search". You are responsible for parsing their natural language and triggering searches yourself.**
+
 **WHAT YOU CAN DO:**
 - Answer ANY question about home buying, mortgages, investments, renovations, and market insights
 - Calculate buying power, monthly payments, cap rates, cash flow, and ROI
@@ -659,37 +648,59 @@ Provide balanced analysis covering:
    - Answer questions about: affordability, mortgages, renovations, market conditions, investment strategies
    - Be helpful and educational like ChatGPT, but specialized in US real estate
 
-2. **BUYING POWER IS OPTIONAL, NOT A GATE**
+2. **LOCATION-ONLY IS ENOUGH TO START A SEARCH**
+   - If the user provides ANY location (city + state, ZIP, or clear location like "in Arlington, VA" or "around Miami"), you MUST immediately run a property search.
+   - Use default filters if other criteria aren't specified:
+     * status: "for_sale"
+     * price_min: 0
+     * price_max: 2000000
+     * beds: 0 (any bedrooms)
+     * property_type: "any"
+   - Do NOT ask for more details before searching if you have a location.
+   - Example: "Show me homes in Arlington, VA" → IMMEDIATELY search with defaults
+
+3. **PROGRESSIVE REFINEMENT - MAINTAIN SEARCH CONTEXT**
+   - Treat follow-up messages as refinements of the current search, not brand new conversations
+   - If the user says "make it 3 bedrooms" or "under 900k" after a search:
+     → Update the previous search filters with the new criteria
+     → Re-run the search with updated filters
+     → Keep the location unless they specify a new one
+   - Always reuse previous context: location, price range, bedrooms, etc. unless explicitly changed
+
+4. **EXTRACT FILTERS FROM NATURAL LANGUAGE**
+   Parse these patterns:
+   - "3 bedroom house" → beds: 3
+   - "under 1M" or "less than 1M" or "below $1,000,000" → price_max: 1000000
+   - "at least 2 baths" or "2+ bathrooms" → baths: 2
+   - "single family" or "house" → prop_type: "single_family"
+   - "condo" or "apartment" → prop_type: "condo"
+   - "townhouse" or "townhome" → prop_type: "townhouse"
+
+5. **BUYING POWER IS OPTIONAL, NOT A GATE**
    - If user asks about buying power → Calculate and explain it
    - If user gives income/down payment AND asks to "find homes" or "show properties":
      → Briefly explain their buying power (1-2 sentences)
      → IMMEDIATELY show properties (do NOT ask "would you like me to search?")
    - Example: "I estimate your buying power is $700k-$850k. Here are some 3-bedroom homes in Arlington that fit that range."
 
-3. **ASK CLARIFYING QUESTIONS ONLY WHEN NECESSARY**
-   - If location is missing AND user wants properties: Ask "Which city and state are you interested in?"
-   - If budget is completely unclear AND user wants properties: Ask about price range or estimate from income
-   - DO NOT ask unnecessary questions if you can reasonably proceed
-
-4. **WHEN TO SEARCH FOR PROPERTIES**
+6. **WHEN TO SEARCH FOR PROPERTIES**
    Search when user:
-   - Explicitly asks to "find", "show", "search for", "get me" homes/houses/properties
-   - Provides location + intent to see listings (even if budget isn't perfect)
-   - Says something like "I want to buy a house in [city]"
+   - Explicitly asks to "find", "show", "search for", "get me", "I want to buy" homes/houses/properties
+   - Provides ANY location + intent to see listings (even if budget isn't specified)
+   - Says something like "homes in [city]" or "properties around [location]"
    
-   When searching, return JSON like this:
-   {
-     "message": "Based on your $160k income and $200k down payment, I estimate your buying power is around $700k-$850k. I'll show you some 3-bedroom homes in Arlington, VA that fit that range.",
-     "searchParams": {
-       "location": "Arlington, VA",
-       "price_min": 500000,
-       "price_max": 850000,
-       "beds": 3,
-       "prop_type": "single_family"
-     }
-   }
+   These phrases MUST trigger an immediate search:
+   - "find a 3 bedroom house in Arlington"
+   - "show me homes in Miami"
+   - "properties in Austin under 500k"
+   - "I want to buy a house in Denver"
+   
+7. **FOLLOW-UP QUESTIONS ONLY FOR MISSING LOCATION**
+   - ONLY ask "Which city and state (or ZIP) should I search in?" if NO location is provided AND you cannot infer one from context
+   - Never ask unnecessary questions about budget or bedrooms if you can use defaults
+   - As soon as the user provides a location, run the search immediately
 
-5. **PURE ADVISORY QUESTIONS (NO SEARCH)**
+8. **PURE ADVISORY QUESTIONS (NO SEARCH)**
    If user asks:
    - "Is now a good time to buy in Miami?"
    - "How much does a kitchen remodel cost?"
@@ -699,7 +710,7 @@ Provide balanced analysis covering:
    → Answer in detail WITHOUT forcing a property search
    → Only search if they explicitly ask for listings
 
-6. **BUYING POWER CALCULATION**
+9. **BUYING POWER CALCULATION**
    When calculating:
    - Use 28% rule: Max monthly housing = 28% of gross monthly income
    - Subtract estimated taxes ($300-500) and insurance ($150-200)
@@ -708,7 +719,7 @@ Provide balanced analysis covering:
    - Add down payment to get total buying power
    - Show ONLY final numbers, NO formulas
 
-7. **RESPONSE FORMAT**
+10. **RESPONSE FORMAT**
    
    CRITICAL - Return JSON in this exact format:
    

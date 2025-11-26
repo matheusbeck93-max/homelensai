@@ -27,13 +27,6 @@ export default function Index() {
   const [heroInput, setHeroInput] = useState("");
   
   const hasStartedConversation = messages.length > 0;
-  
-  // Track if we have active search results to hide Featured Homes
-  const hasActiveSearchResults = messages.some(msg => 
-    msg.role === 'assistant' && 
-    msg.uiBlock && 
-    (msg.uiBlock.type === 'ui_block/property_results_carousel' || msg.uiBlock.type === 'ui_block/property_results_grid')
-  );
 
   // Featured homes hook
   const { 
@@ -340,8 +333,8 @@ export default function Index() {
         </div>
       )}
 
-      {/* Featured Homes - Only show if no active search results */}
-      {!hasActiveSearchResults && (
+      {/* Featured Homes - Only show before conversation starts */}
+      {!hasStartedConversation && (
         <FeaturedHomesGrid
           title={featuredLocation ? `Featured Homes near ${featuredLocation}` : "Featured Homes"}
           subtitle="Handpicked properties in popular markets"
