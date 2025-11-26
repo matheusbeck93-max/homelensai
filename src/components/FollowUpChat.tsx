@@ -177,25 +177,35 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
 
         if (error) throw error;
 
-        // Remove any JSON (objects or arrays) from the assistant response
-        let responseContent = data.response || '';
-        if (typeof responseContent === 'string') {
-          // remove JSON objects/arrays even if they are inside text
-          const cleaned = responseContent.replace(/(\{[\s\S]*?\}|\[[\s\S]*?\])/g, "").trim();
+        // Check if backend returned links
+        if (data?.links && Array.isArray(data.links) && data.links.length > 0) {
+          setMessages((prev) => [...prev, {
+            role: "assistant",
+            content: "Encontrei as seguintes opções de imóveis:",
+            type: "links",
+            links: data.links.slice(0, 5)
+          }]);
+        } else {
+          // Remove any JSON (objects or arrays) from the assistant response
+          let responseContent = data.response || '';
+          if (typeof responseContent === 'string') {
+            // remove JSON objects/arrays even if they are inside text
+            const cleaned = responseContent.replace(/(\{[\s\S]*?\}|\[[\s\S]*?\])/g, "").trim();
 
-          responseContent =
-            cleaned.length > 0
-              ? cleaned
-              : "Desculpe, não consegui processar sua solicitação adequadamente. Por favor, reformule sua pergunta.";
+            responseContent =
+              cleaned.length > 0
+                ? cleaned
+                : "Desculpe, não consegui processar sua solicitação adequadamente. Por favor, reformule sua pergunta.";
+          }
+
+          const assistantMessage: Message = {
+            role: "assistant",
+            content: responseContent,
+            type: "text"
+          };
+          
+          setMessages((prev) => [...prev, assistantMessage]);
         }
-
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: responseContent,
-          type: "text"
-        };
-        
-        setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (error: any) {
       toast({

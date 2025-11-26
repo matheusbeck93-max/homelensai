@@ -30,7 +30,7 @@ function extractSearchParams(query: string) {
   const priceMatch = query.match(/\$?\s?(\d+(?:[,.]\d{3})*)\s?(M|k)?/i);
   let maxPrice = undefined;
   if (priceMatch) {
-    const num = parseInt(price[1].replace(/[,.]/g, ''));
+    const num = parseInt(priceMatch[1].replace(/[,.]/g, ''));
     if (priceMatch[2]?.toLowerCase() === 'm') maxPrice = num * 1000000;
     else if (priceMatch[2]?.toLowerCase() === 'k') maxPrice = num * 1000;
     else maxPrice = num;
@@ -190,8 +190,9 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
