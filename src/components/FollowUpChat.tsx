@@ -8,9 +8,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
+interface PropertyLink {
+  source: string;
+  url: string;
+  title: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
+  type?: "text" | "links";
+  links?: PropertyLink[];
 }
 
 interface Property {
@@ -70,40 +78,116 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
     }
   }, [messages]);
 
+  // Detect if query is a property search
+  const isPropertySearch = (text: string): boolean => {
+    const keywords = /(find|search|looking for|looking to buy|for sale|house|apartment|bedroom|beds|bath|realtor|zillow|redfin|home|property|condo|townhouse)/i;
+    const pricePattern = /\$?\s?\d{1,3}(?:[,.]\d{3})*(?:\s?M|\s?k)?/i;
+    const locationPattern = /(in|near|around|at)\s+[A-Z][a-z]+/i;
+    
+    return keywords.test(text) || (pricePattern.test(text) && locationPattern.test(text));
+  };
+
+  // Build Google site search URLs as fallback
+  const buildSiteSearchUrls = (queryText: string): PropertyLink[] => {
+    const sites = [
+      { domain: 'zillow.com', name: 'Zillow' },
+      { domain: 'realtor.com', name: 'Realtor.com' },
+      { domain: 'redfin.com', name: 'Redfin' }
+    ];
+    
+    const cleanQuery = queryText.replace(/find|search|looking for|looking to buy/gi, '').trim();
+    const encodedQuery = encodeURIComponent(cleanQuery);
+    
+    return sites.map(site => ({
+      source: site.name,
+      url: `https://www.google.com/search?q=site:${site.domain}+${encodedQuery}`,
+      title: `${site.name} - ${cleanQuery}`
+    }));
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
-    const userMessage: Message = { role: "user", content: input };
+    
+    const userMessage: Message = { role: "user", content: input, type: "text" };
     setMessages((prev) => [...prev, userMessage]);
+    
+    const userInput = input;
     setInput("");
     setLoading(true);
 
     try {
-      let contextPrompt = input;
-      
-      if (selectedProperty) {
-        contextPrompt = `Property Context: ${selectedProperty.address}, ${selectedProperty.city}, ${selectedProperty.state} - $${selectedProperty.price.toLocaleString()}, ${selectedProperty.beds} beds, ${selectedProperty.baths} baths, ${selectedProperty.sqft} sqft\n\nUser question: ${input}`;
-      } else if (context) {
-        contextPrompt = `Context: ${context}\n\nUser question: ${input}`;
+      // Check if this is a property search query
+      if (isPropertySearch(userInput)) {
+        // Add searching status message
+        setMessages((prev) => [...prev, { 
+          role: "assistant", 
+          content: `Buscando imóveis para: "${userInput}"...`,
+          type: "text"
+        }]);
+
+        // Try to get links from backend first
+        try {
+          const { data, error } = await supabase.functions.invoke("property-assistant", {
+            body: { 
+              query: userInput,
+              marketSnapshot: marketSnapshot || undefined
+            },
+          });
+
+          if (!error && data?.links && data.links.length > 0) {
+            // Backend returned links - use them
+            setMessages((prev) => [...prev, {
+              role: "assistant",
+              content: "Encontrei as seguintes opções de imóveis:",
+              type: "links",
+              links: data.links.slice(0, 5)
+            }]);
+            setLoading(false);
+            return;
+          }
+        } catch (backendError) {
+          console.log('Backend did not return links, using fallback');
+        }
+
+        // Fallback: Generate Google site search URLs
+        const fallbackLinks = buildSiteSearchUrls(userInput);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: "Encontrei as seguintes opções de busca:",
+          type: "links",
+          links: fallbackLinks
+        }]);
+        
+      } else {
+        // Regular assistant query (not a property search)
+        let contextPrompt = userInput;
+        
+        if (selectedProperty) {
+          contextPrompt = `Property Context: ${selectedProperty.address}, ${selectedProperty.city}, ${selectedProperty.state} - $${selectedProperty.price?.toLocaleString()}, ${selectedProperty.beds} beds, ${selectedProperty.baths} baths, ${selectedProperty.sqft} sqft\n\nUser question: ${userInput}`;
+        } else if (context) {
+          contextPrompt = `Context: ${context}\n\nUser question: ${userInput}`;
+        }
+
+        const { data, error } = await supabase.functions.invoke("property-assistant", {
+          body: { 
+            query: contextPrompt,
+            marketSnapshot: marketSnapshot || undefined
+          },
+        });
+
+        if (error) throw error;
+
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: data.response,
+          type: "text"
+        };
+        
+        setMessages((prev) => [...prev, assistantMessage]);
       }
-
-      const { data, error } = await supabase.functions.invoke("property-assistant", {
-        body: { 
-          query: contextPrompt,
-          marketSnapshot: marketSnapshot || undefined
-        },
-      });
-
-      if (error) throw error;
-
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.response,
-      };
-      
-      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Erro",
         description: error.message,
         variant: "destructive",
       });
@@ -265,7 +349,34 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
                         : "bg-muted"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.type === "links" && message.links ? (
+                      <div className="space-y-3">
+                        <p className="font-medium mb-2">{message.content}</p>
+                        <div className="space-y-2">
+                          {message.links.map((link, linkIndex) => (
+                            <a
+                              key={linkIndex}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-2 rounded-lg bg-background hover:bg-accent transition-colors"
+                            >
+                              <ExternalLink className="h-4 w-4 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-foreground text-xs">
+                                  {link.source}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {link.title}
+                                </p>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    )}
                   </div>
                   {message.role === "user" && (
                     <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
