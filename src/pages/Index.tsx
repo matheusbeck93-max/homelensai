@@ -302,49 +302,49 @@ export default function Index() {
 
       {/* Hero Section */}
       {!hasStartedConversation ? (
-        <section className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
+        <section className="relative min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center overflow-hidden">
           <HouseHeroAnimation />
-          <div className="relative z-10 text-center px-4 py-20 max-w-5xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-foreground">
+          <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 py-12 sm:py-16 md:py-20 max-w-5xl mx-auto">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
               Find Your Dream Home
             </h1>
-            <p className="text-lg sm:text-xl mb-8 text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-2xl mx-auto px-4">
               AI-powered real estate search and analysis. Ask me anything about properties, mortgages, or investments.
             </p>
 
             {/* Hero Search Input */}
-            <form onSubmit={handleHeroSubmit} className="max-w-3xl mx-auto">
-              <div className="flex gap-2">
+            <form onSubmit={handleHeroSubmit} className="max-w-3xl mx-auto px-4">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={heroInput}
                   onChange={(e) => setHeroInput(e.target.value)}
                   placeholder="Try: Find 3-bedroom fixers under $650k in Arlington with ROI over 15%"
                   disabled={conversationLoading || searchLoading}
-                  className="h-14 text-base"
+                  className="h-12 sm:h-14 text-sm sm:text-base"
                 />
                 <Button 
                   type="submit"
                   disabled={conversationLoading || searchLoading || !heroInput.trim()}
                   size="lg"
-                  className="h-14 px-8"
+                  className="h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto"
                 >
-                  <Search className="h-5 w-5 mr-2" />
+                  <Search className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   Search
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                 Powered by AI – Search using natural language
               </p>
             </form>
           </div>
         </section>
       ) : (
-        <section className="relative py-8 border-b">
-          <div className="max-w-5xl mx-auto px-4">
-            <h1 className="text-3xl font-bold text-foreground mb-2">
+        <section className="relative py-6 sm:py-8 border-b">
+          <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
               Find Your Dream Home
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               AI-powered real estate search and analysis
             </p>
           </div>
@@ -353,22 +353,22 @@ export default function Index() {
 
       {/* Quick Action Cards - Only show before conversation */}
       {!hasStartedConversation && (
-        <section className="py-12 px-4">
+        <section className="py-8 sm:py-12 px-3 sm:px-4 md:px-6">
           <div className="max-w-5xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-8 text-center">How can I help you today?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6 sm:mb-8 text-center">How can I help you today?</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
               {quickActions.map((action, idx) => (
                 <Card
                   key={idx}
                   onClick={() => handleSendMessage(action.prompt)}
-                  className="p-6 hover:bg-muted cursor-pointer transition-colors group"
+                  className="p-4 sm:p-6 hover:bg-muted cursor-pointer transition-colors group"
                 >
-                  <action.icon className="h-10 w-10 mb-4 text-primary group-hover:scale-110 transition-transform" />
-                  <h3 className="font-semibold mb-2">{action.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
+                  <action.icon className="h-8 w-8 sm:h-10 sm:w-10 mb-3 sm:mb-4 text-primary group-hover:scale-110 transition-transform" />
+                  <h3 className="font-semibold mb-2 text-sm sm:text-base">{action.title}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
                     {action.description}
                   </p>
-                  <p className="text-sm text-primary italic">
+                  <p className="text-xs sm:text-sm text-primary italic line-clamp-2">
                     "{action.prompt}"
                   </p>
                 </Card>
@@ -380,7 +380,7 @@ export default function Index() {
 
       {/* Conversation Panel - Show after conversation starts */}
       {hasStartedConversation && (
-        <div className="pb-32">
+        <div className="pb-24 sm:pb-32">
           <ConversationPanel
             messages={messages}
             loading={conversationLoading}
