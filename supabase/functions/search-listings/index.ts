@@ -49,23 +49,30 @@ function checkRateLimit(userId: string): { allowed: boolean; remaining: number }
 }
 
 // Retry utility with exponential backoff
+// Note: We do NOT retry on 429 errors as these are rate limits from external API
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  maxRetries = 3,
+  maxRetries = 2,
   baseDelay = 1000
 ): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error: any) {
-      const isRetryable = error.status === 429 || error.status >= 500 || error.name === 'TypeError';
+      // Only retry on server errors (500+) or network errors
+      // Do NOT retry on 429 (rate limit) as it makes the problem worse
+      const isRetryable = (error.status >= 500 && error.status < 600) || error.name === 'TypeError';
       
       if (attempt === maxRetries || !isRetryable) {
+        // If it's a rate limit error, provide a helpful message
+        if (error.status === 429) {
+          error.message = 'API rate limit exceeded. Please try again in a few minutes.';
+        }
         throw error;
       }
       
-      const delay = Math.min(baseDelay * Math.pow(2, attempt), 10000);
-      console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+      const delay = Math.min(baseDelay * Math.pow(2, attempt), 5000);
+      console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms (status: ${error.status})`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
