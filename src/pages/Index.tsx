@@ -79,27 +79,40 @@ export default function Index() {
           properties: listings,
           meta: {
             locationLabel: searchParams.location,
-            totalResults: listings.length
+            totalResults: listings.length,
+            ...searchParams // Include all search params in meta
           }
         };
 
-        const assistantMessage: ConversationMessage = {
-          id: uuidv4(),
-          role: 'assistant',
-          content: '', // Message already added by AI in handleSendMessage
-          uiBlock,
-          createdAt: new Date().toISOString()
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
+        // Update the last assistant message to include the UI block
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.uiBlock) {
+            // Add UI block to the existing assistant message
+            return prev.map((msg, idx) => 
+              idx === prev.length - 1 
+                ? { ...msg, uiBlock }
+                : msg
+            );
+          }
+          // Fallback: create new message with UI block if last message isn't assistant
+          return [...prev, {
+            id: uuidv4(),
+            role: 'assistant',
+            content: '',
+            uiBlock,
+            createdAt: new Date().toISOString()
+          }];
+        });
       } else {
-        const assistantMessage: ConversationMessage = {
+        // No results found
+        const noResultsMessage: ConversationMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: 'No properties found matching your criteria. Try adjusting your search filters.',
+          content: 'No properties found matching your criteria. Try adjusting your search filters or expanding your budget/location.',
           createdAt: new Date().toISOString()
         };
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages(prev => [...prev, noResultsMessage]);
       }
     }
   }, [searchData, searchParams]);
