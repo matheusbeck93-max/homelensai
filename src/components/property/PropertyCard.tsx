@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MapPin, Bed, Bath, Ruler, TrendingUp, ExternalLink, Heart, Share2, Bell, Lock } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useComparison } from "@/contexts/ComparisonContext";
 import { getFairnessLabel, getFairnessColor, type FairnessLevel } from "@/lib/pricingUtils";
 
 interface PropertyCardInsights {
@@ -45,9 +47,12 @@ export function PropertyCard({
 }: PropertyCardProps) {
   const { toast } = useToast();
   const { tier, userId } = useSubscription();
+  const { addToComparison, removeFromComparison, isSelected, canAddMore } = useComparison();
   const [isFavorite, setIsFavorite] = useState(propIsFavorite ?? false);
   const [isWatched, setIsWatched] = useState(propIsWatched ?? false);
   const [loading, setLoading] = useState(false);
+  
+  const isComparisonSelected = isSelected(property.id);
 
   useEffect(() => {
     if (propIsFavorite !== undefined) {
@@ -158,6 +163,17 @@ export function PropertyCard({
     }
   };
 
+  const handleComparisonToggle = (checked: boolean) => {
+    if (checked) {
+      if (!canAddMore) {
+        return; // toast handled by context
+      }
+      addToComparison(property);
+    } else {
+      removeFromComparison(property.id);
+    }
+  };
+
   const formatPrice = (price: number | null) => {
     if (!price) return 'Price not available';
     return new Intl.NumberFormat('en-US', {
@@ -226,8 +242,8 @@ export function PropertyCard({
           onClick={() => onViewDetails ? onViewDetails(property) : window.open(property.listingUrl || '#', '_blank')}
         />
         
-        {/* Top-left badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1">
+        {/* Bottom-left badges */}
+        <div className="absolute bottom-2 left-2 flex flex-col gap-1">
           {property.status && (
             <Badge className="bg-primary text-primary-foreground">
               {property.status}
@@ -255,6 +271,25 @@ export function PropertyCard({
               )}
             </Badge>
           )}
+        </div>
+
+        {/* Comparison checkbox - Top left corner */}
+        <div className="absolute top-2 left-2 z-10">
+          <div 
+            className="flex items-center gap-2 bg-background/90 backdrop-blur-sm rounded-md px-2 py-1.5 shadow-sm border border-border/50 cursor-pointer hover:bg-background transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleComparisonToggle(!isComparisonSelected);
+            }}
+          >
+            <Checkbox
+              checked={isComparisonSelected}
+              onCheckedChange={handleComparisonToggle}
+              disabled={!canAddMore && !isComparisonSelected}
+              className="h-4 w-4"
+            />
+            <span className="text-xs font-medium">Compare</span>
+          </div>
         </div>
 
         {/* Top-right actions */}
