@@ -970,15 +970,15 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
           const bedsText = beds ? `${beds}+ bedroom ` : '';
           const priceText = maxPrice ? `under $${(maxPrice / 1000).toFixed(0)}k` : '';
           
-          const header = `Aqui estão os resultados para ${bedsText}imóveis ${priceText ? priceText + ' ' : ''}em ${locationText}:`;
+          const header = `Here are property listings for ${bedsText}homes ${priceText ? priceText + ' ' : ''}in ${locationText}:`;
           
           // Format links as clickable markdown
           const linksMarkdown = links
-            .map((l) => `- **[${l.source}](${l.url})** - Clique para ver as listagens`)
+            .map((l) => `- **[${l.source}](${l.url})** - Click to view listings`)
             .join('\n');
           
           // Add natural follow-up question
-          const followUp = '\n\n💬 **E agora?**\nGostaria que eu:\n• Analise algum imóvel específico que você encontrou?\n• Faça uma nova busca com critérios diferentes?\n• Te ajude com cálculos de financiamento?';
+          const followUp = '\n\n💬 **What would you like to do next?**\n• Analyze a specific property you found?\n• Search with different criteria?\n• Get help with financing calculations?';
 
           parsed.message = `${header}\n\n${linksMarkdown}${followUp}`;
           parsed.links = links;
