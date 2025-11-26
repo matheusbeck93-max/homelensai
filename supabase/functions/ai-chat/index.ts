@@ -879,31 +879,40 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
         let cleanMessage = parsed.message;
         const originalMessage = cleanMessage;
         
-        // Remove any JSON object that appears after natural text (the AI sometimes appends the whole JSON)
-        const jsonStartIndex = cleanMessage.indexOf('{ "message"');
-        if (jsonStartIndex !== -1) {
-          cleanMessage = cleanMessage.substring(0, jsonStartIndex).trim();
-          console.log('Removed JSON tail starting at position', jsonStartIndex);
-        }
-        
-        // Also check for searchParams appearing directly
-        const searchParamsIndex = cleanMessage.indexOf('"searchParams"');
-        if (searchParamsIndex !== -1) {
-          // Find the opening brace before searchParams
-          const braceIndex = cleanMessage.lastIndexOf('{', searchParamsIndex);
-          if (braceIndex !== -1) {
-            cleanMessage = cleanMessage.substring(0, braceIndex).trim();
-            console.log('Removed searchParams JSON starting at position', braceIndex);
+        // AGGRESSIVE JSON REMOVAL: Find any opening brace and remove everything after it
+        const firstBrace = cleanMessage.indexOf('{');
+        if (firstBrace !== -1) {
+          // Check if there's actual text before the brace
+          const textBeforeBrace = cleanMessage.substring(0, firstBrace).trim();
+          if (textBeforeBrace.length > 10) { // Only keep text if it's substantial
+            cleanMessage = textBeforeBrace;
+            console.log('Removed JSON starting at position', firstBrace);
           }
         }
         
-        // Clean up any remaining JSON-like patterns
+        // Also look for common JSON patterns and remove them
         cleanMessage = cleanMessage
-          .replace(/\{[^}]*"location"[^}]*\}/g, '') // Remove location objects
-          .replace(/\{[^}]*"searchParams"[^}]*\}/g, '') // Remove searchParams objects
-          .replace(/\{[^}]*"price_min"[^}]*\}/g, '') // Remove filter objects
-          .replace(/\{[^}]*"beds_min"[^}]*\}/g, '') // Remove filter objects
-          .replace(/\s*\.\.\.\s*$/, '') // Remove trailing ellipsis after cleanup
+          .replace(/\{[^{}]*"message"[^{}]*:.*?\}$/s, '') // Remove trailing JSON objects with "message"
+          .replace(/\{[^{}]*"searchParams"[^{}]*:.*?\}$/s, '') // Remove trailing JSON objects with "searchParams"
+          .replace(/\{[^{}]*"location"[^{}]*:.*?\}/g, '') // Remove location objects
+          .replace(/\{[^{}]*"price_min"[^{}]*:.*?\}/g, '') // Remove filter objects
+          .replace(/\{[^{}]*"beds_min"[^{}]*:.*?\}/g, '') // Remove filter objects
+          .replace(/\{[^{}]*"prop_type"[^{}]*:.*?\}/g, '') // Remove prop_type objects
+          .replace(/\s*\.\.\.\s*$/g, '') // Remove trailing ellipsis
+          .replace(/\s+$/g, '') // Remove trailing whitespace
+          .trim();
+        
+        // Remove any line that looks like JSON (starts with '{' or contains '": ')
+        cleanMessage = cleanMessage
+          .split('\n')
+          .filter((line: string) => {
+            const trimmed = line.trim();
+            return !trimmed.startsWith('{') && 
+                   !trimmed.includes('": ') && 
+                   !trimmed.includes('"searchParams"') &&
+                   !trimmed.includes('"location"');
+          })
+          .join('\n')
           .trim();
         
         if (cleanMessage !== originalMessage) {
@@ -915,9 +924,10 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
       
       console.log('Final cleaned response:', JSON.stringify(parsed, null, 2));
       
-      // Return the validated response
+      // Return the parsed object directly (not double-stringified)
+      // Frontend expects { response: { message: "...", searchParams: {...} } }
       return new Response(
-        JSON.stringify({ response: JSON.stringify(parsed) }),
+        JSON.stringify({ response: parsed }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (parseError) {
