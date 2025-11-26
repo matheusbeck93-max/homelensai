@@ -16,7 +16,7 @@ interface SearchResult {
 
 /**
  * Custom hook for property search with React Query caching
- * Implements 5-minute stale time as per P1 requirements
+ * Implements 10-minute stale time to reduce API calls and avoid rate limits
  */
 export function usePropertySearch(params: SearchParams | null) {
   return useQuery({
@@ -37,10 +37,10 @@ export function usePropertySearch(params: SearchParams | null) {
       return data?.listings || [];
     },
     enabled: !!params,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 10000),
+    staleTime: 10 * 60 * 1000, // 10 minutes - increased to reduce API calls
+    gcTime: 20 * 60 * 1000, // 20 minutes (formerly cacheTime)
+    retry: 1, // Only retry once to avoid compounding rate limit issues
+    retryDelay: 2000, // Fixed 2 second delay
   });
 }
 
@@ -71,9 +71,9 @@ export function usePropertyEnrichment(
       return data?.insights || null;
     },
     enabled: !!(address && zip),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 10000),
+    staleTime: 10 * 60 * 1000, // 10 minutes - increased to reduce API calls
+    gcTime: 20 * 60 * 1000, // 20 minutes
+    retry: 1, // Only retry once to avoid compounding rate limit issues
+    retryDelay: 2000, // Fixed 2 second delay
   });
 }
