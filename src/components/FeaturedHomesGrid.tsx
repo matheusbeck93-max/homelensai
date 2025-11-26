@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { HomeLensListing } from '@/types/ui-blocks';
-import { FeaturedPropertyCard } from './FeaturedPropertyCard';
+import { PropertyCard } from "@/components/property/PropertyCard";
+import { HomeLensListing } from "@/types/ui-blocks";
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { PropertyGridMap } from './PropertyGridMap';
@@ -86,11 +86,11 @@ export function FeaturedHomesGrid({
         <>
           <div className="grid gap-5 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {listings.map((property) => (
-              <FeaturedPropertyCard
-                key={property.id}
-                property={property}
-                onAnalyze={onAnalyze}
-              />
+          <PropertyCard
+            key={property.id}
+            property={property}
+            onAnalyze={onAnalyze}
+          />
             ))}
           </div>
           {hasMore && onLoadMore && (
