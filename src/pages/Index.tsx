@@ -27,6 +27,13 @@ export default function Index() {
   const [heroInput, setHeroInput] = useState("");
   
   const hasStartedConversation = messages.length > 0;
+  
+  // Track if we have active search results to hide Featured Homes
+  const hasActiveSearchResults = messages.some(msg => 
+    msg.role === 'assistant' && 
+    msg.uiBlock && 
+    (msg.uiBlock.type === 'ui_block/property_results_carousel' || msg.uiBlock.type === 'ui_block/property_results_grid')
+  );
 
   // Featured homes hook
   const { 
@@ -74,15 +81,19 @@ export default function Index() {
       
       if (listings.length > 0) {
         const uiBlock: UIBlock = {
-          type: 'ui_block/property_results_carousel',
+          type: 'ui_block/property_results_grid',
           title: `Found ${listings.length} homes${searchParams.location ? ` in ${searchParams.location}` : ''}`,
-          properties: listings
+          properties: listings,
+          meta: {
+            locationLabel: searchParams.location,
+            totalResults: listings.length
+          }
         };
 
         const assistantMessage: ConversationMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: `I found ${listings.length} properties matching your search criteria.`,
+          content: '', // Message already added by AI in handleSendMessage
           uiBlock,
           createdAt: new Date().toISOString()
         };
@@ -132,53 +143,60 @@ export default function Index() {
 
       // Parse AI response
       let assistantMessage: ConversationMessage;
+      
+      // Try to parse response as JSON first
+      let jsonData: any = null;
       try {
-        const jsonData = typeof data.response === 'string' ? JSON.parse(data.response) : data;
-        
-        // Check if AI wants to trigger a property search
-        if (jsonData.searchParams) {
-          // AI provided search parameters - add text response first
-          assistantMessage = {
-            id: uuidv4(),
-            role: 'assistant',
-            content: jsonData.message || 'Let me find those properties for you...',
-            createdAt: new Date().toISOString()
-          };
-          setMessages(prev => [...prev, assistantMessage]);
-          
-          // Parse location and trigger search
-          const locationComponents = parseLocationComponents(jsonData.searchParams.location);
-          setSearchParams({
-            ...jsonData.searchParams,
-            ...locationComponents
-          });
-          setConversationLoading(false);
-          return;
-        }
-        
-        // Check for UI blocks
-        if (jsonData.type && jsonData.type.startsWith('ui_block/')) {
-          assistantMessage = {
-            id: uuidv4(),
-            role: 'assistant',
-            content: jsonData.message || '',
-            uiBlock: jsonData as UIBlock,
-            createdAt: new Date().toISOString()
-          };
-        } else {
-          assistantMessage = {
-            id: uuidv4(),
-            role: 'assistant',
-            content: data.response || jsonData.message || 'I apologize, I couldn\'t process that request.',
-            createdAt: new Date().toISOString()
-          };
-        }
+        jsonData = typeof data.response === 'string' ? JSON.parse(data.response) : data;
       } catch {
-        // Not JSON, treat as plain text
+        // Not JSON, will handle as plain text below
+      }
+      
+      // Check if AI wants to trigger a property search
+      if (jsonData && jsonData.searchParams) {
+        // AI provided search parameters - add text response first
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: data.response || data.message || 'I apologize, I couldn\'t process that request.',
+          content: jsonData.message || 'Let me find those properties for you...',
+          createdAt: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        
+        // Parse location and trigger search
+        const locationComponents = parseLocationComponents(jsonData.searchParams.location);
+        setSearchParams({
+          ...jsonData.searchParams,
+          ...locationComponents
+        });
+        setConversationLoading(false);
+        return;
+      }
+      
+      // Check for UI blocks
+      if (jsonData && jsonData.uiBlock) {
+        assistantMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: jsonData.message || '',
+          uiBlock: jsonData.uiBlock as UIBlock,
+          createdAt: new Date().toISOString()
+        };
+      } else if (jsonData && jsonData.type && jsonData.type.startsWith('ui_block/')) {
+        // Legacy format where entire response is a UI block
+        assistantMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: jsonData.message || '',
+          uiBlock: jsonData as UIBlock,
+          createdAt: new Date().toISOString()
+        };
+      } else {
+        // Plain text response
+        assistantMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: jsonData ? (jsonData.message || data.response || 'I apologize, I couldn\'t process that request.') : (data.response || 'I apologize, I couldn\'t process that request.'),
           createdAt: new Date().toISOString()
         };
       }
@@ -322,17 +340,19 @@ export default function Index() {
         </div>
       )}
 
-      {/* Featured Homes - Always visible, but moves below conversation */}
-      <FeaturedHomesGrid
-        title={featuredLocation ? `Featured Homes near ${featuredLocation}` : "Featured Homes"}
-        subtitle="Handpicked properties in popular markets"
-        listings={featuredListings}
-        isLoading={featuredLoading}
-        error={featuredError}
-        hasMore={featuredHasMore}
-        onLoadMore={loadMoreFeatured}
-        onAnalyze={handlePropertyAnalyze}
-      />
+      {/* Featured Homes - Only show if no active search results */}
+      {!hasActiveSearchResults && (
+        <FeaturedHomesGrid
+          title={featuredLocation ? `Featured Homes near ${featuredLocation}` : "Featured Homes"}
+          subtitle="Handpicked properties in popular markets"
+          listings={featuredListings}
+          isLoading={featuredLoading}
+          error={featuredError}
+          hasMore={featuredHasMore}
+          onLoadMore={loadMoreFeatured}
+          onAnalyze={handlePropertyAnalyze}
+        />
+      )}
 
       {/* Sticky Chat Input - Only show after conversation starts */}
       {hasStartedConversation && (
