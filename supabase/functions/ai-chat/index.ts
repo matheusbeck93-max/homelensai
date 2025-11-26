@@ -888,59 +888,143 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 
     // Parse and validate the AI's JSON response to ensure clean message format
     try {
-      const parsed = JSON.parse(assistantResponse);
+      let parsed: any;
+
+      // First try to parse the whole response as JSON
+      try {
+        parsed = JSON.parse(assistantResponse);
+      } catch (innerError) {
+        // If that fails, try to extract the JSON block from mixed text + JSON
+        const firstBrace = assistantResponse.indexOf('{');
+        const lastBrace = assistantResponse.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          const possibleJson = assistantResponse.slice(firstBrace, lastBrace + 1);
+          parsed = JSON.parse(possibleJson);
+        } else {
+          throw innerError;
+        }
+      }
+
       console.log('Parsed JSON response:', JSON.stringify(parsed, null, 2));
-      
+
+      // If the model provided structured searchParams, build real listing links
+      if (parsed && parsed.searchParams && parsed.searchParams.location) {
+        const sp = parsed.searchParams;
+        const location = String(sp.location || '').trim();
+        const beds = typeof sp.beds_min === 'number' ? sp.beds_min : undefined;
+        const maxPrice = typeof sp.price_max === 'number' ? sp.price_max : undefined;
+
+        const links: { source: string; url: string; title: string }[] = [];
+
+        // Zillow
+        if (location) {
+          const zillowLocation = location.replace(/\s+/g, '-').replace(',', '');
+          const zillowStateObj: any = {
+            pagination: {},
+            mapBounds: {},
+            filterState: {}
+          };
+          if (beds) zillowStateObj.filterState.beds = { min: beds };
+          if (maxPrice) zillowStateObj.filterState.price = { max: maxPrice };
+
+          const zillowUrl = `https://www.zillow.com/homes/${zillowLocation}_rb/?searchQueryState=${encodeURIComponent(
+            JSON.stringify(zillowStateObj)
+          )}`;
+
+          links.push({
+            source: 'Zillow',
+            url: zillowUrl,
+            title: 'Zillow filtered search'
+          });
+
+          // Realtor.com
+          const realtorLocation = location.replace(/\s+/g, '_').replace(',', '');
+          let realtorUrl = `https://www.realtor.com/realestateandhomes-search/${realtorLocation}`;
+          const realtorParams: string[] = [];
+          if (beds) realtorParams.push(`beds-${beds}`);
+          if (maxPrice) realtorParams.push(`price-na-${maxPrice}`);
+          if (realtorParams.length) realtorUrl += '/' + realtorParams.join('/');
+          links.push({
+            source: 'Realtor.com',
+            url: realtorUrl,
+            title: 'Realtor.com filtered search'
+          });
+
+          // Redfin (generic city/area filter)
+          const redfinLocation = location.replace(/\s+/g, '-').replace(',', '');
+          let redfinUrl = `https://www.redfin.com/${redfinLocation}/filter/`;
+          const redfinParams: string[] = [];
+          if (beds) redfinParams.push(`min-beds=${beds}`);
+          if (maxPrice) redfinParams.push(`max-price=${maxPrice}`);
+          if (redfinParams.length) redfinUrl += redfinParams.join(',');
+          links.push({
+            source: 'Redfin',
+            url: redfinUrl,
+            title: 'Redfin filtered search'
+          });
+        }
+
+        // Build a clean, user-friendly message with the links
+        if (links.length > 0) {
+          const header = 'Here are some property listing sites based on your search:';
+          const body = links
+            .map((l) => `🏡 ${l.source}:\n${l.url}`)
+            .join('\n\n');
+
+          parsed.message = `${header}\n\n${body}`;
+          parsed.links = links;
+        }
+      }
+
       // Validate that message doesn't contain raw JSON or searchParams
       if (parsed.message) {
         let cleanMessage = parsed.message;
         const originalMessage = cleanMessage;
-        
+
         // AGGRESSIVE JSON REMOVAL: Find any opening brace and remove everything after it
-        const firstBrace = cleanMessage.indexOf('{');
-        if (firstBrace !== -1) {
-          // Check if there's actual text before the brace
-          const textBeforeBrace = cleanMessage.substring(0, firstBrace).trim();
-          if (textBeforeBrace.length > 10) { // Only keep text if it's substantial
+        const firstBraceInMessage = cleanMessage.indexOf('{');
+        if (firstBraceInMessage !== -1) {
+          const textBeforeBrace = cleanMessage.substring(0, firstBraceInMessage).trim();
+          if (textBeforeBrace.length > 10) {
             cleanMessage = textBeforeBrace;
-            console.log('Removed JSON starting at position', firstBrace);
+            console.log('Removed JSON starting at position', firstBraceInMessage);
           }
         }
-        
+
         // Also look for common JSON patterns and remove them
         cleanMessage = cleanMessage
-          .replace(/\{[^{}]*"message"[^{}]*:.*?\}$/s, '') // Remove trailing JSON objects with "message"
-          .replace(/\{[^{}]*"searchParams"[^{}]*:.*?\}$/s, '') // Remove trailing JSON objects with "searchParams"
-          .replace(/\{[^{}]*"location"[^{}]*:.*?\}/g, '') // Remove location objects
-          .replace(/\{[^{}]*"price_min"[^{}]*:.*?\}/g, '') // Remove filter objects
-          .replace(/\{[^{}]*"beds_min"[^{}]*:.*?\}/g, '') // Remove filter objects
-          .replace(/\{[^{}]*"prop_type"[^{}]*:.*?\}/g, '') // Remove prop_type objects
-          .replace(/\s*\.\.\.\s*$/g, '') // Remove trailing ellipsis
-          .replace(/\s+$/g, '') // Remove trailing whitespace
+          .replace(/\{[^{}]*"message"[^{}]*:.*?\}$/s, '')
+          .replace(/\{[^{}]*"searchParams"[^{}]*:.*?\}$/s, '')
+          .replace(/\{[^{}]*"location"[^{}]*:.*?\}/g, '')
+          .replace(/\{[^{}]*"price_min"[^{}]*:.*?\}/g, '')
+          .replace(/\{[^{}]*"beds_min"[^{}]*:.*?\}/g, '')
+          .replace(/\{[^{}]*"prop_type"[^{}]*:.*?\}/g, '')
+          .replace(/\s*\.\.\.\s*$/g, '')
+          .replace(/\s+$/g, '')
           .trim();
-        
+
         // Remove any line that looks like JSON (starts with '{' or contains '": ')
         cleanMessage = cleanMessage
           .split('\n')
           .filter((line: string) => {
             const trimmed = line.trim();
-            return !trimmed.startsWith('{') && 
-                   !trimmed.includes('": ') && 
+            return !trimmed.startsWith('{') &&
+                   !trimmed.includes('": ') &&
                    !trimmed.includes('"searchParams"') &&
                    !trimmed.includes('"location"');
           })
           .join('\n')
           .trim();
-        
+
         if (cleanMessage !== originalMessage) {
           console.log('Message cleaned. Original length:', originalMessage.length, 'New length:', cleanMessage.length);
         }
-        
+
         parsed.message = cleanMessage;
       }
-      
+
       console.log('Final cleaned response:', JSON.stringify(parsed, null, 2));
-      
+
       // Return the parsed object directly (not double-stringified)
       // Frontend expects { response: { message: "...", searchParams: {...} } }
       return new Response(
