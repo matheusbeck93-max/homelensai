@@ -129,12 +129,21 @@ export default function Index() {
       // Extract clean message for display
       const displayMessage = jsonData.message || '';
 
-      // Check if AI has property links - display them without calling search-listings
+      // Check if AI has property links - display them as clickable markdown links
       if (jsonData && jsonData.links && Array.isArray(jsonData.links) && jsonData.links.length > 0) {
+        const linksMarkdown = jsonData.links
+          .map((link: any) => {
+            const title = link.title || link.source || link.url;
+            const url = link.url || "";
+            return url ? `- [${title}](${url})` : "";
+          })
+          .filter((line: string) => line.length > 0)
+          .join("\n");
+
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: displayMessage || 'Here are some property listings:',
+          content: `${displayMessage || 'Here are some property listings:'}\n\n${linksMarkdown}`.trim(),
           createdAt: new Date().toISOString()
         };
         setMessages(prev => [...prev, assistantMessage]);
