@@ -252,9 +252,9 @@ export default function Index() {
 
       {/* Hero Section */}
       {!hasStartedConversation ? (
-        <section className="relative min-h-[50vh] sm:min-h-[60vh] flex items-center justify-center overflow-hidden">
+        <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
           <HouseHeroAnimation />
-          <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 py-12 sm:py-16 md:py-20 max-w-5xl mx-auto">
+          <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20 max-w-5xl mx-auto">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
               Find Your Dream Home
             </h1>
@@ -313,7 +313,7 @@ export default function Index() {
                   onClick={() => handleSendMessage(action.prompt)}
                   className="p-4 sm:p-6 hover:bg-muted cursor-pointer transition-colors group"
                 >
-                  <action.icon className="h-8 w-8 sm:h-10 sm:w-10 mb-3 sm:mb-4 text-primary group-hover:scale-110 transition-transform" />
+                  <action.icon className="h-8 w-8 sm:h-10 sm:w-10 mb-3 sm:mb-4 text-primary pointer-events-none" />
                   <h3 className="font-semibold mb-2 text-sm sm:text-base">{action.title}</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
                     {action.description}
