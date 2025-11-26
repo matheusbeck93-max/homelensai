@@ -28,27 +28,27 @@ export function StickyChat({ onSend, loading, placeholder = "Ask about propertie
 
   return (
     <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe">
-      <div className="w-full max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
-        <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-3">
+        <form onSubmit={handleSubmit} className="flex gap-1.5 sm:gap-2">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder={placeholder}
             disabled={loading}
-            className="min-h-[50px] sm:min-h-[60px] max-h-[100px] sm:max-h-[120px] resize-none text-sm sm:text-base"
+            className="min-h-[44px] sm:min-h-[52px] md:min-h-[60px] max-h-[80px] sm:max-h-[100px] md:max-h-[120px] resize-none text-xs sm:text-sm md:text-base"
             rows={2}
           />
           <Button 
             type="submit"
             disabled={loading || !input.trim()}
             size="icon"
-            className="h-[50px] w-[50px] sm:h-[60px] sm:w-[60px] flex-shrink-0"
+            className="h-[44px] w-[44px] sm:h-[52px] sm:w-[52px] md:h-[60px] md:w-[60px] flex-shrink-0"
           >
             {loading ? (
-              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 animate-pulse" />
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 animate-pulse" />
             ) : (
-              <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
             )}
           </Button>
         </form>
