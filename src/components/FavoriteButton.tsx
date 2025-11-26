@@ -38,8 +38,8 @@ export function FavoriteButton({ propertyId, userId, variant = "default", positi
   const toggleFavorite = async () => {
     if (!userId) {
       toast({
-        title: "Login necessário",
-        description: "Você precisa estar logado para favoritar imóveis",
+        title: "Login required",
+        description: "You need to be logged in to favorite properties",
         variant: "destructive",
       });
       return;
@@ -59,7 +59,7 @@ export function FavoriteButton({ propertyId, userId, variant = "default", positi
 
         setIsFavorite(false);
         toast({
-          title: "Removido dos favoritos",
+          title: "Removed from favorites",
         });
       } else {
         const { error } = await supabase
@@ -70,12 +70,12 @@ export function FavoriteButton({ propertyId, userId, variant = "default", positi
 
         setIsFavorite(true);
         toast({
-          title: "Adicionado aos favoritos",
+          title: "Added to favorites",
         });
       }
     } catch (error: any) {
       toast({
-        title: "Erro",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -112,7 +112,7 @@ export function FavoriteButton({ propertyId, userId, variant = "default", positi
       <Heart
         className={`h-5 w-5 ${isFavorite ? "fill-white" : ""}`}
       />
-      {isFavorite ? "Favoritado" : "Favoritar"}
+      {isFavorite ? "Favorited" : "Favorite"}
     </Button>
   );
 }

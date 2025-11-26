@@ -89,7 +89,7 @@ export function ConversationPanel({ messages, loading, onPropertyAnalyze }: Conv
             <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-primary-foreground animate-pulse" />
           </div>
           <div className="bg-muted rounded-xl sm:rounded-2xl px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3">
-            <p className="text-xs sm:text-sm text-muted-foreground">Pensando...</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Thinking...</p>
           </div>
         </div>
       )}
