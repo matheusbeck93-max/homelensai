@@ -178,44 +178,28 @@ export default function Index() {
       // Parse AI response
       let assistantMessage: ConversationMessage;
 
-      // Normalize and try to extract embedded JSON from response
+      // Backend returns { response: { message: "...", searchParams?: {...} } }
       let rawResponse: any = data?.response ?? data;
       let jsonData: any = null;
 
-      if (typeof rawResponse === 'string') {
-        // First try to parse the whole string as JSON
+      // If response is already an object with message field, use it directly
+      if (rawResponse && typeof rawResponse === 'object' && rawResponse.message) {
+        jsonData = rawResponse;
+      } else if (typeof rawResponse === 'string') {
+        // Try to parse if it's a JSON string (legacy format)
         try {
           jsonData = JSON.parse(rawResponse);
         } catch {
-          // If that fails, try to parse any JSON object embedded after text
-          const firstBrace = rawResponse.indexOf('{');
-          if (firstBrace !== -1) {
-            const possibleJson = rawResponse.slice(firstBrace);
-            try {
-              jsonData = JSON.parse(possibleJson);
-              // Trim the JSON tail from the human-facing text
-              rawResponse = rawResponse.slice(0, firstBrace).trim();
-            } catch {
-              // Ignore if still not valid JSON
-            }
-          }
+          // Not JSON, treat rawResponse as plain text message
+          jsonData = { message: rawResponse };
         }
-      } else if (rawResponse && typeof rawResponse === 'object') {
-        jsonData = rawResponse;
+      } else {
+        // Fallback for unexpected formats
+        jsonData = { message: String(rawResponse || 'No response received') };
       }
 
-      // If we parsed a JSON object that only contains a human-readable message,
-      // use that message as the display text instead of the raw JSON string.
-      if (
-        jsonData &&
-        typeof jsonData === 'object' &&
-        typeof jsonData.message === 'string' &&
-        !jsonData.searchParams &&
-        !jsonData.uiBlock &&
-        !(jsonData.type && typeof jsonData.type === 'string' && jsonData.type.startsWith('ui_block/'))
-      ) {
-        rawResponse = jsonData.message;
-      }
+      // Extract clean message for display
+      const displayMessage = jsonData.message || '';
 
       // Check if AI wants to trigger a property search
       if (jsonData && jsonData.searchParams) {
@@ -223,7 +207,7 @@ export default function Index() {
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData.message || (typeof rawResponse === 'string' ? rawResponse : 'Let me find those properties for you...'),
+          content: displayMessage || 'Let me find those properties for you...',
           createdAt: new Date().toISOString()
         };
         setMessages(prev => [...prev, assistantMessage]);
@@ -243,7 +227,7 @@ export default function Index() {
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData.message || (typeof rawResponse === 'string' ? rawResponse : ''),
+          content: displayMessage,
           uiBlock: jsonData.uiBlock as UIBlock,
           createdAt: new Date().toISOString()
         };
@@ -252,20 +236,16 @@ export default function Index() {
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData.message || (typeof rawResponse === 'string' ? rawResponse : ''),
+          content: displayMessage,
           uiBlock: jsonData as UIBlock,
           createdAt: new Date().toISOString()
         };
       } else {
-        // Plain text response (ensure no JSON tail leaks into UI)
-        const textContent = typeof rawResponse === 'string'
-          ? rawResponse
-          : (jsonData?.message || 'I apologize, I couldn\'t process that request.');
-
+        // Plain text response (clean message from backend)
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: textContent,
+          content: displayMessage || 'I apologize, I couldn\'t process that request.',
           createdAt: new Date().toISOString()
         };
       }
