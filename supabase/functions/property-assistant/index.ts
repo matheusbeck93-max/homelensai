@@ -14,12 +14,26 @@ const assistantRequestSchema = z.object({
   marketSnapshot: z.any().optional(),
 });
 
-// Detect if query is a property search
+// Detect if query is a property search - enhanced detection
 function isPropertySearch(text: string): boolean {
-  const keywords = /(find|search|looking for|looking to buy|for sale|house|apartment|bedroom|beds|bath|realtor|zillow|redfin|home|property|condo|townhouse)/i;
-  const pricePattern = /\$?\s?\d{1,3}(?:[,.]\d{3})*(?:\s?M|\s?k)?/i;
-  const locationPattern = /(in|near|around|at)\s+([A-Za-z]+(?:[\s,A-Za-z]+)?)/i;
-  return keywords.test(text) || (pricePattern.test(text) && locationPattern.test(text));
+  const lowerText = text.toLowerCase();
+  
+  // Strong property search indicators
+  const strongKeywords = /(find|search|show|list|looking for|want to|need|get|buy)\s+(a|an|me|some)?\s*(house|home|property|apartment|condo|townhouse|properties|homes|houses)/i;
+  const bedroomPattern = /\d+\s*(bed|bedroom|br)/i;
+  const locationPattern = /(in|near|around|at)\s+[A-Z][a-z]+/i;
+  const pricePattern = /(\$|under|up to|below|max|budget)\s*\d+/i;
+  
+  // If it has strong property keywords + location, it's definitely a property search
+  if (strongKeywords.test(text) && locationPattern.test(text)) return true;
+  
+  // If it has bedrooms + location, it's definitely a property search
+  if (bedroomPattern.test(text) && locationPattern.test(text)) return true;
+  
+  // If it has price + location, likely a property search
+  if (pricePattern.test(text) && locationPattern.test(text)) return true;
+  
+  return false;
 }
 
 // Extract search parameters from query
