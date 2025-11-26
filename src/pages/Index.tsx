@@ -38,7 +38,7 @@ export default function Index() {
     loadMore: loadMoreFeatured
   } = useFeaturedHomes();
 
-  // React Query for property search
+  // React Query for property search with proper deduplication
   const { data: searchData, isLoading: searchLoading, error: searchError } = useQuery({
     queryKey: ['property-search', searchParams],
     queryFn: async () => {
@@ -50,9 +50,13 @@ export default function Index() {
       return data;
     },
     enabled: !!searchParams,
-    staleTime: 10 * 60 * 1000, // Increased to 10 minutes to reduce API calls
+    staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
-    retry: 1, // Reduced retries to avoid compounding rate limits
+    retry: 1,
+    // CRITICAL: Prevent duplicate in-flight requests
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Handle search errors with toast notifications
