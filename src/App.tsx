@@ -7,6 +7,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { ComparisonProvider } from "@/contexts/ComparisonContext";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
+import { BackToTop } from "@/components/BackToTop";
 import Index from "./pages/Index";
 import PropertyDetail from "./pages/PropertyDetail";
 import Auth from "./pages/Auth";
@@ -51,6 +52,7 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <ComparisonFloatingBar />
+              <BackToTop />
               <MobileBottomNav />
             </BrowserRouter>
           </TooltipProvider>
