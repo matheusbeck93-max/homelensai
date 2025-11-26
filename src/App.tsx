@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { ComparisonProvider } from "@/contexts/ComparisonContext";
+import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
 import Index from "./pages/Index";
 import PropertyDetail from "./pages/PropertyDetail";
 import Auth from "./pages/Auth";
@@ -49,6 +50,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <ComparisonFloatingBar />
               <MobileBottomNav />
             </BrowserRouter>
           </TooltipProvider>
