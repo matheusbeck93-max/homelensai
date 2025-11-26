@@ -37,10 +37,14 @@ export function usePropertySearch(params: SearchParams | null) {
       return data?.listings || [];
     },
     enabled: !!params,
-    staleTime: 10 * 60 * 1000, // 10 minutes - increased to reduce API calls
-    gcTime: 20 * 60 * 1000, // 20 minutes (formerly cacheTime)
-    retry: 1, // Only retry once to avoid compounding rate limit issues
-    retryDelay: 2000, // Fixed 2 second delay
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    retry: 1,
+    retryDelay: 2000,
+    // Prevent duplicate concurrent requests
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 

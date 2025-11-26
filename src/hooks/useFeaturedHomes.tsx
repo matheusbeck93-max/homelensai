@@ -24,6 +24,12 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
   const { toast } = useToast();
 
   const fetchListings = async (location: string, pageNum: number = 1, append: boolean = false) => {
+    // Prevent duplicate concurrent calls
+    if (isLoading && !append) {
+      console.log('Search already in progress, skipping duplicate call');
+      return;
+    }
+    
     try {
       setIsLoading(true);
       setError(null);
