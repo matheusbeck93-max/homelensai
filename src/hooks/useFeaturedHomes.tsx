@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { HomeLensListing } from '@/types/ui-blocks';
+import { useToast } from '@/hooks/use-toast';
 
 type FeaturedHomesState = {
   locationLabel: string;
@@ -20,6 +21,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const { toast } = useToast();
 
   const fetchListings = async (location: string, pageNum: number = 1, append: boolean = false) => {
     try {
@@ -50,10 +52,20 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
       setLocationLabel(location);
     } catch (err: any) {
       console.error('Error fetching featured homes:', err);
-      setError(err.message || 'Failed to load featured homes');
+      const errorMessage = err.message || 'Failed to load featured homes';
+      setError(errorMessage);
+      
+      // Show toast for rate limit errors
+      if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+        toast({
+          title: "Rate limit reached",
+          description: "The property search API has reached its limit. Please try again in a few minutes.",
+          variant: "destructive",
+        });
+      }
       
       // Try fallback location if this was the first attempt
-      if (!append && pageNum === 1) {
+      if (!append && pageNum === 1 && !errorMessage.includes('rate limit')) {
         const fallbackLocation = DEFAULT_LOCATIONS.find(loc => loc !== location) || DEFAULT_LOCATIONS[0];
         if (fallbackLocation !== location) {
           await fetchListings(fallbackLocation, 1, false);

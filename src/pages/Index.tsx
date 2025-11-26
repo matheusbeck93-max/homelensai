@@ -39,7 +39,7 @@ export default function Index() {
   } = useFeaturedHomes();
 
   // React Query for property search
-  const { data: searchData, isLoading: searchLoading } = useQuery({
+  const { data: searchData, isLoading: searchLoading, error: searchError } = useQuery({
     queryKey: ['property-search', searchParams],
     queryFn: async () => {
       if (!searchParams) return null;
@@ -50,10 +50,34 @@ export default function Index() {
       return data;
     },
     enabled: !!searchParams,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    retry: 2,
+    staleTime: 10 * 60 * 1000, // Increased to 10 minutes to reduce API calls
+    gcTime: 20 * 60 * 1000,
+    retry: 1, // Reduced retries to avoid compounding rate limits
   });
+
+  // Handle search errors with toast notifications
+  useEffect(() => {
+    if (searchError) {
+      console.error('Property search error:', searchError);
+      
+      const errorMessage = (searchError as any)?.message || '';
+      
+      // Check if it's a rate limit error
+      if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+        toast({
+          title: "Search limit reached",
+          description: "The property search API has reached its rate limit. Please try again in a few minutes.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Search failed",
+          description: errorMessage || "Unable to search properties. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [searchError, toast]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -70,7 +94,7 @@ export default function Index() {
   // Process search results into conversation
   useEffect(() => {
     if (searchData && searchParams) {
-      const listings = searchData.listings || [];
+      const listings = (searchData as any)?.listings || [];
       
       if (listings.length > 0) {
         const uiBlock: UIBlock = {
