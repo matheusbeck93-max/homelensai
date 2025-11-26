@@ -177,11 +177,16 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
 
         if (error) throw error;
 
-        // Check if response is JSON/technical text
+        // Remove any JSON (objects or arrays) from the assistant response
         let responseContent = data.response || '';
-        if (typeof responseContent === 'string' && (responseContent.trim().startsWith('{') || responseContent.trim().startsWith('['))) {
-          // Detected JSON - provide friendly message
-          responseContent = "Desculpe, não consegui processar sua solicitação adequadamente. Por favor, reformule sua pergunta.";
+        if (typeof responseContent === 'string') {
+          // remove JSON objects/arrays even if they are inside text
+          const cleaned = responseContent.replace(/(\{[\s\S]*?\}|\[[\s\S]*?\])/g, "").trim();
+
+          responseContent =
+            cleaned.length > 0
+              ? cleaned
+              : "Desculpe, não consegui processar sua solicitação adequadamente. Por favor, reformule sua pergunta.";
         }
 
         const assistantMessage: Message = {
