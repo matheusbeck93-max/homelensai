@@ -115,20 +115,7 @@ export default function Index() {
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // Check if it's a property search query
-    if (isPropertySearchQuery(messageText)) {
-      const parsedParams = parsePropertySearchQuery(messageText);
-      if (parsedParams && parsedParams.location) {
-        const locationComponents = parseLocationComponents(parsedParams.location);
-        setSearchParams({
-          ...parsedParams,
-          ...locationComponents
-        });
-        return;
-      }
-    }
-
-    // Otherwise, send to AI chat
+    // Send ALL messages to AI chat - let AI decide intent
     setConversationLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-chat', {
@@ -143,10 +130,33 @@ export default function Index() {
 
       if (error) throw error;
 
-      // Try to parse as JSON for UI blocks
+      // Parse AI response
       let assistantMessage: ConversationMessage;
       try {
         const jsonData = typeof data.response === 'string' ? JSON.parse(data.response) : data;
+        
+        // Check if AI wants to trigger a property search
+        if (jsonData.searchParams) {
+          // AI provided search parameters - add text response first
+          assistantMessage = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: jsonData.message || 'Let me find those properties for you...',
+            createdAt: new Date().toISOString()
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+          
+          // Parse location and trigger search
+          const locationComponents = parseLocationComponents(jsonData.searchParams.location);
+          setSearchParams({
+            ...jsonData.searchParams,
+            ...locationComponents
+          });
+          setConversationLoading(false);
+          return;
+        }
+        
+        // Check for UI blocks
         if (jsonData.type && jsonData.type.startsWith('ui_block/')) {
           assistantMessage = {
             id: uuidv4(),
@@ -301,7 +311,18 @@ export default function Index() {
         </section>
       )}
 
-      {/* Featured Homes - Always visible */}
+      {/* Conversation Panel - Show after conversation starts */}
+      {hasStartedConversation && (
+        <div className="pb-32">
+          <ConversationPanel
+            messages={messages}
+            loading={conversationLoading}
+            onPropertyAnalyze={handlePropertyAnalyze}
+          />
+        </div>
+      )}
+
+      {/* Featured Homes - Always visible, but moves below conversation */}
       <FeaturedHomesGrid
         title={featuredLocation ? `Featured Homes near ${featuredLocation}` : "Featured Homes"}
         subtitle="Handpicked properties in popular markets"
@@ -312,17 +333,6 @@ export default function Index() {
         onLoadMore={loadMoreFeatured}
         onAnalyze={handlePropertyAnalyze}
       />
-
-      {/* Conversation Panel - Only show after conversation starts */}
-      {hasStartedConversation && (
-        <div className="pb-32">
-          <ConversationPanel
-            messages={messages}
-            loading={conversationLoading}
-            onPropertyAnalyze={handlePropertyAnalyze}
-          />
-        </div>
-      )}
 
       {/* Sticky Chat Input - Only show after conversation starts */}
       {hasStartedConversation && (
