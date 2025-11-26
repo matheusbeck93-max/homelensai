@@ -31,6 +31,15 @@ export function usePropertySearch(params: SearchParams | null) {
       });
 
       if (error) {
+        const message = (error as any).message || '';
+        const status = (error as any).status;
+
+        // Treat rate limit errors as a soft failure to avoid crashing the app
+        if (status === 429 || message.toLowerCase().includes('rate limit')) {
+          console.warn('Property search rate limited, returning empty results');
+          return [];
+        }
+
         throw error;
       }
 
