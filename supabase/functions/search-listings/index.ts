@@ -521,6 +521,28 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in search-listings function:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStatus = (error as any)?.status;
+    
+    // Handle rate limit errors specifically
+    if (errorStatus === 429) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Rate limit exceeded',
+          message: 'The property search API has reached its rate limit. Please try again in a few minutes.',
+          retryAfter: 180 // 3 minutes
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': '180'
+          } 
+        }
+      );
+    }
+    
+    // Handle other errors
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
