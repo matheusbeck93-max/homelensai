@@ -201,9 +201,23 @@ export default function Index() {
       // Extract clean message for display
       const displayMessage = jsonData.message || '';
 
-      // Check if AI wants to trigger a property search
-      if (jsonData && jsonData.searchParams) {
-        // AI provided search parameters - add text response first
+      // Check if AI has property links - display them without calling search-listings
+      if (jsonData && jsonData.links && Array.isArray(jsonData.links) && jsonData.links.length > 0) {
+        assistantMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: displayMessage || 'Here are some property listings:',
+          createdAt: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        setConversationLoading(false);
+        return;
+      }
+      
+      // DEPRECATED: Don't trigger search-listings from chat to avoid rate limits
+      // If AI really needs property data (not just links), it should be handled differently
+      if (jsonData && jsonData.searchParams && false) {
+        // This code path is disabled to prevent rate limit errors
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
@@ -212,7 +226,6 @@ export default function Index() {
         };
         setMessages(prev => [...prev, assistantMessage]);
         
-        // Parse location and trigger search
         const locationComponents = parseLocationComponents(jsonData.searchParams.location);
         setSearchParams({
           ...jsonData.searchParams,

@@ -973,6 +973,10 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 
           parsed.message = `${header}\n\n${body}`;
           parsed.links = links;
+          
+          // CRITICAL: Remove searchParams to prevent frontend from calling search-listings
+          // which would hit the rate-limited external API
+          delete parsed.searchParams;
         }
       }
 
