@@ -14,6 +14,87 @@ const assistantRequestSchema = z.object({
   marketSnapshot: z.any().optional(),
 });
 
+// Detect if query is a property search
+function isPropertySearch(text: string): boolean {
+  const keywords = /(find|search|looking for|looking to buy|for sale|house|apartment|bedroom|beds|bath|realtor|zillow|redfin|home|property|condo|townhouse)/i;
+  const pricePattern = /\$?\s?\d{1,3}(?:[,.]\d{3})*(?:\s?M|\s?k)?/i;
+  const locationPattern = /(in|near|around|at)\s+[A-Z][a-z]+/i;
+  return keywords.test(text) || (pricePattern.test(text) && locationPattern.test(text));
+}
+
+// Extract search parameters from query
+function extractSearchParams(query: string) {
+  const bedsMatch = query.match(/(\d+)\s*(bed|bedroom)/i);
+  const beds = bedsMatch ? parseInt(bedsMatch[1]) : undefined;
+  
+  const priceMatch = query.match(/\$?\s?(\d+(?:[,.]\d{3})*)\s?(M|k)?/i);
+  let maxPrice = undefined;
+  if (priceMatch) {
+    const num = parseInt(priceMatch[1].replace(/[,.]/g, ''));
+    if (priceMatch[2]?.toLowerCase() === 'm') maxPrice = num * 1000000;
+    else if (priceMatch[2]?.toLowerCase() === 'k') maxPrice = num * 1000;
+    else maxPrice = num;
+  }
+  
+  const locationMatch = query.match(/(?:in|near|around|at)\s+([A-Za-z\s]+?)(?:\s|,|$)/i);
+  const location = locationMatch ? locationMatch[1].trim() : '';
+  
+  return { beds, maxPrice, location };
+}
+
+// Build real property search URLs
+function buildPropertyLinks(query: string) {
+  const { beds, maxPrice, location } = extractSearchParams(query);
+  const links = [];
+  
+  // Zillow
+  const zillowLocation = location.replace(/\s+/g, '-').replace(',', '');
+  let zillowUrl = `https://www.zillow.com/homes/${zillowLocation}_rb/`;
+  if (beds || maxPrice) {
+    const params: string[] = [];
+    if (beds) params.push(`${beds}_beds`);
+    if (maxPrice) params.push(`0-${maxPrice}_price`);
+    zillowUrl += `?searchQueryState={"pagination":{},"mapBounds":{},"filterState":{${params.map(p => {
+      if (p.includes('beds')) return `"beds":{"min":${beds}}`;
+      if (p.includes('price')) return `"price":{"max":${maxPrice}}`;
+      return '';
+    }).filter(Boolean).join(',')}}}`;
+  }
+  links.push({
+    source: 'Zillow',
+    url: zillowUrl,
+    title: `${beds ? beds + ' bedroom' : ''} ${location ? 'house in ' + location : 'properties'}${maxPrice ? ' up to $' + (maxPrice/1000000 >= 1 ? (maxPrice/1000000)+'M' : (maxPrice/1000)+'k') : ''}`
+  });
+  
+  // Realtor.com
+  const realtorLocation = location.replace(/\s+/g, '_').replace(',', '');
+  let realtorUrl = `https://www.realtor.com/realestateandhomes-search/${realtorLocation}`;
+  const realtorParams: string[] = [];
+  if (beds) realtorParams.push(`beds-${beds}`);
+  if (maxPrice) realtorParams.push(`price-na-${maxPrice}`);
+  if (realtorParams.length) realtorUrl += '/' + realtorParams.join('/');
+  links.push({
+    source: 'Realtor.com',
+    url: realtorUrl,
+    title: `${beds ? beds + ' bedroom' : ''} ${location ? 'house in ' + location : 'properties'}${maxPrice ? ' up to $' + (maxPrice/1000000 >= 1 ? (maxPrice/1000000)+'M' : (maxPrice/1000)+'k') : ''}`
+  });
+  
+  // Redfin
+  const redfinLocation = location.replace(/\s+/g, '-').replace(',', '');
+  let redfinUrl = `https://www.redfin.com/${redfinLocation}/filter/`;
+  const redfinParams: string[] = [];
+  if (beds) redfinParams.push(`min-beds=${beds}`);
+  if (maxPrice) redfinParams.push(`max-price=${maxPrice}`);
+  if (redfinParams.length) redfinUrl += redfinParams.join(',');
+  links.push({
+    source: 'Redfin',
+    url: redfinUrl,
+    title: `${beds ? beds + ' bedroom' : ''} ${location ? 'house in ' + location : 'properties'}${maxPrice ? ' up to $' + (maxPrice/1000000 >= 1 ? (maxPrice/1000000)+'M' : (maxPrice/1000)+'k') : ''}`
+  });
+  
+  return links;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -38,6 +119,17 @@ Deno.serve(async (req) => {
     }
     
     const { query, categories, properties, marketSnapshot } = validationResult.data;
+    
+    // Check if this is a property search query
+    if (isPropertySearch(query)) {
+      const links = buildPropertyLinks(query);
+      console.log('Property search detected, returning links:', links);
+      return new Response(
+        JSON.stringify({ links }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     
     if (!OPENAI_API_KEY) {
