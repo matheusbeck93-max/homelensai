@@ -1,11 +1,15 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { X, TrendingUp, DollarSign, Home, Bed, Bath, Square, MapPin, Calendar, Lock } from "lucide-react";
+import { X, TrendingUp, DollarSign, Home, Bed, Bath, Square, MapPin, Calendar, Lock, Sparkles, Loader2 } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
 import { formatCurrency } from "@/lib/calculations";
 import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 
 interface DetailedComparisonViewProps {
   properties: HomeLensListing[];
@@ -16,6 +20,9 @@ interface DetailedComparisonViewProps {
 export function DetailedComparisonView({ properties, onClose, onRemove }: DetailedComparisonViewProps) {
   const { tier } = useSubscription();
   const isPro = tier === 'pro' || tier === 'premium';
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [buyerType, setBuyerType] = useState<string>('primary_residence');
 
   const calculateMonthlyPayment = (price: number) => {
     const downPayment = price * 0.20;
@@ -56,6 +63,33 @@ export function DetailedComparisonView({ properties, onClose, onRemove }: Detail
 
     return null;
   };
+
+  const loadAIAnalysis = async () => {
+    if (properties.length < 2) return;
+    
+    setLoadingAnalysis(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('compare-properties-ai', {
+        body: { properties }
+      });
+
+      if (error) throw error;
+
+      if (data?.analysis) {
+        setAiAnalysis(data.analysis);
+        setBuyerType(data.buyerType || 'primary_residence');
+      }
+    } catch (error) {
+      console.error('Error loading AI analysis:', error);
+      toast.error('Failed to load AI analysis. Please try again.');
+    } finally {
+      setLoadingAnalysis(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAIAnalysis();
+  }, [properties]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto">
@@ -375,6 +409,62 @@ export function DetailedComparisonView({ properties, onClose, onRemove }: Detail
                         </td>
                       );
                     })}
+                  </tr>
+
+                  {/* Separator */}
+                  <tr>
+                    <td colSpan={properties.length + 1} className="py-4">
+                      <Separator />
+                    </td>
+                  </tr>
+
+                  {/* Separator */}
+                  <tr>
+                    <td colSpan={properties.length + 1} className="py-4">
+                      <Separator />
+                    </td>
+                  </tr>
+
+                  {/* AI Analysis Section */}
+                  <tr className="bg-gradient-to-r from-primary/10 to-primary/5">
+                    <td colSpan={properties.length + 1} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-primary" />
+                          <h3 className="font-semibold">AI Recommendation</h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {buyerType === 'investor' ? 'Investment Focus' : 'Primary Residence'}
+                          </Badge>
+                        </div>
+                        {!loadingAnalysis && aiAnalysis && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={loadAIAnalysis}
+                          >
+                            Refresh Analysis
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan={properties.length + 1} className="p-6 bg-muted/30">
+                      {loadingAnalysis ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                          <span className="text-sm text-muted-foreground">Analyzing properties...</span>
+                        </div>
+                      ) : aiAnalysis ? (
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          <ReactMarkdown>{aiAnalysis}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-sm text-muted-foreground">
+                          No AI analysis available. Please try refreshing.
+                        </div>
+                      )}
+                    </td>
                   </tr>
 
                   {/* Separator */}
