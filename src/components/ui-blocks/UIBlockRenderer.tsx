@@ -13,6 +13,7 @@ interface UIBlockRendererProps {
 export const UIBlockRenderer: React.FC<UIBlockRendererProps> = ({ block, onPropertyAnalyze }) => {
   switch (block.type) {
     case "ui_block/property_results_carousel":
+    case "ui_block/property_results_grid":
       return (
         <PropertyResultsCarousel
           title={block.title}

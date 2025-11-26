@@ -39,9 +39,13 @@ export interface HomeLensListing {
 }
 
 export type PropertyResultsCarouselBlock = {
-  type: "ui_block/property_results_carousel";
+  type: "ui_block/property_results_carousel" | "ui_block/property_results_grid";
   title: string;
   properties: HomeLensListing[];
+  meta?: {
+    locationLabel?: string;
+    totalResults?: number;
+  };
 };
 
 export type MortgageCalculatorBlock = {
