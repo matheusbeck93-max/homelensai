@@ -134,7 +134,7 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
             },
           });
 
-          if (!error && data?.links && data.links.length > 0) {
+          if (!error && data?.links && Array.isArray(data.links) && data.links.length > 0) {
             // Backend returned links - use them
             setMessages((prev) => [...prev, {
               role: "assistant",
@@ -153,7 +153,7 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
         const fallbackLinks = buildSiteSearchUrls(userInput);
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: "Encontrei as seguintes opções de busca:",
+          content: "Não consegui encontrar links diretos, mas aqui estão pesquisas filtradas:",
           type: "links",
           links: fallbackLinks
         }]);
@@ -177,9 +177,16 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
 
         if (error) throw error;
 
+        // Check if response is JSON/technical text
+        let responseContent = data.response || '';
+        if (typeof responseContent === 'string' && (responseContent.trim().startsWith('{') || responseContent.trim().startsWith('['))) {
+          // Detected JSON - provide friendly message
+          responseContent = "Desculpe, não consegui processar sua solicitação adequadamente. Por favor, reformule sua pergunta.";
+        }
+
         const assistantMessage: Message = {
           role: "assistant",
-          content: data.response,
+          content: responseContent,
           type: "text"
         };
         
