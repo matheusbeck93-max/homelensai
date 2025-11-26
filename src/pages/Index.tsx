@@ -38,50 +38,23 @@ export default function Index() {
     loadMore: loadMoreFeatured
   } = useFeaturedHomes();
 
-  // React Query for property search with proper deduplication
+  // DISABLED: React Query for property search - causes rate limit errors
+  // AI now generates property links directly without calling search-listings API
   const { data: searchData, isLoading: searchLoading, error: searchError } = useQuery({
     queryKey: ['property-search', searchParams],
     queryFn: async () => {
-      if (!searchParams) return null;
-      const { data, error } = await supabase.functions.invoke('search-listings', {
-        body: searchParams
-      });
-      if (error) throw error;
-      return data;
+      return null; // Disabled to prevent rate limit errors
     },
-    enabled: !!searchParams,
+    enabled: false, // CRITICAL: Completely disable this query
     staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
-    retry: 1,
-    // CRITICAL: Prevent duplicate in-flight requests
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    retry: 0,
   });
 
-  // Handle search errors with toast notifications
-  useEffect(() => {
-    if (searchError) {
-      console.error('Property search error:', searchError);
-      
-      const errorMessage = (searchError as any)?.message || '';
-      
-      // Check if it's a rate limit error
-      if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
-        toast({
-          title: "Search limit reached",
-          description: "The property search API has reached its rate limit. Please try again in a few minutes.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Search failed",
-          description: errorMessage || "Unable to search properties. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
-  }, [searchError, toast]);
+  // DISABLED: Search error handling - no longer needed since search-listings is disabled
+  // useEffect(() => {
+  //   if (searchError) { ... }
+  // }, [searchError, toast]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -95,55 +68,10 @@ export default function Index() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Process search results into conversation
-  useEffect(() => {
-    if (searchData && searchParams) {
-      const listings = (searchData as any)?.listings || [];
-      
-      if (listings.length > 0) {
-        const uiBlock: UIBlock = {
-          type: 'ui_block/property_results_grid',
-          title: `Found ${listings.length} homes${searchParams.location ? ` in ${searchParams.location}` : ''}`,
-          properties: listings,
-          meta: {
-            locationLabel: searchParams.location,
-            totalResults: listings.length,
-            ...searchParams // Include all search params in meta
-          }
-        };
-
-        // Update the last assistant message to include the UI block
-        setMessages(prev => {
-          const lastMsg = prev[prev.length - 1];
-          if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.uiBlock) {
-            // Add UI block to the existing assistant message
-            return prev.map((msg, idx) => 
-              idx === prev.length - 1 
-                ? { ...msg, uiBlock }
-                : msg
-            );
-          }
-          // Fallback: create new message with UI block if last message isn't assistant
-          return [...prev, {
-            id: uuidv4(),
-            role: 'assistant',
-            content: '',
-            uiBlock,
-            createdAt: new Date().toISOString()
-          }];
-        });
-      } else {
-        // No results found
-        const noResultsMessage: ConversationMessage = {
-          id: uuidv4(),
-          role: 'assistant',
-          content: 'No properties found matching your criteria. Try adjusting your search filters or expanding your budget/location.',
-          createdAt: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, noResultsMessage]);
-      }
-    }
-  }, [searchData, searchParams]);
+  // DISABLED: Process search results - no longer needed since AI provides links directly
+  // useEffect(() => {
+  //   if (searchData && searchParams) { ... }
+  // }, [searchData, searchParams]);
 
   const handleSendMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
