@@ -867,23 +867,53 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
     
     const assistantMessage = data.choices[0].message;
     let assistantResponse = assistantMessage.content;
-    console.log('OpenAI response received, length:', assistantResponse?.length || 0);
+    console.log('OpenAI raw response:', assistantResponse);
 
     // Parse and validate the AI's JSON response to ensure clean message format
     try {
       const parsed = JSON.parse(assistantResponse);
+      console.log('Parsed JSON response:', JSON.stringify(parsed, null, 2));
       
       // Validate that message doesn't contain raw JSON or searchParams
       if (parsed.message) {
-        // Clean up any accidentally embedded JSON in the message
-        const cleanMessage = parsed.message
-          .replace(/\{[^}]*"location"[^}]*\}/g, '') // Remove any location objects
+        let cleanMessage = parsed.message;
+        const originalMessage = cleanMessage;
+        
+        // Remove any JSON object that appears after natural text (the AI sometimes appends the whole JSON)
+        const jsonStartIndex = cleanMessage.indexOf('{ "message"');
+        if (jsonStartIndex !== -1) {
+          cleanMessage = cleanMessage.substring(0, jsonStartIndex).trim();
+          console.log('Removed JSON tail starting at position', jsonStartIndex);
+        }
+        
+        // Also check for searchParams appearing directly
+        const searchParamsIndex = cleanMessage.indexOf('"searchParams"');
+        if (searchParamsIndex !== -1) {
+          // Find the opening brace before searchParams
+          const braceIndex = cleanMessage.lastIndexOf('{', searchParamsIndex);
+          if (braceIndex !== -1) {
+            cleanMessage = cleanMessage.substring(0, braceIndex).trim();
+            console.log('Removed searchParams JSON starting at position', braceIndex);
+          }
+        }
+        
+        // Clean up any remaining JSON-like patterns
+        cleanMessage = cleanMessage
+          .replace(/\{[^}]*"location"[^}]*\}/g, '') // Remove location objects
           .replace(/\{[^}]*"searchParams"[^}]*\}/g, '') // Remove searchParams objects
-          .replace(/\[?\{[^}]*"price"[^}]*\}[,\]]*/g, '') // Remove price filter objects
+          .replace(/\{[^}]*"price_min"[^}]*\}/g, '') // Remove filter objects
+          .replace(/\{[^}]*"beds_min"[^}]*\}/g, '') // Remove filter objects
+          .replace(/\s*\.\.\.\s*$/, '') // Remove trailing ellipsis after cleanup
           .trim();
+        
+        if (cleanMessage !== originalMessage) {
+          console.log('Message cleaned. Original length:', originalMessage.length, 'New length:', cleanMessage.length);
+        }
         
         parsed.message = cleanMessage;
       }
+      
+      console.log('Final cleaned response:', JSON.stringify(parsed, null, 2));
       
       // Return the validated response
       return new Response(
@@ -892,11 +922,11 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
       );
     } catch (parseError) {
       // If AI didn't return valid JSON, wrap it in a proper structure
-      console.log('AI response was not valid JSON, wrapping it:', assistantResponse.substring(0, 200));
+      console.log('AI response was not valid JSON, wrapping it:', assistantResponse?.substring(0, 200));
       return new Response(
         JSON.stringify({ 
           response: JSON.stringify({
-            message: assistantResponse
+            message: assistantResponse || 'I apologize, I couldn\'t process that request.'
           })
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
