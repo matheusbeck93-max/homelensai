@@ -58,7 +58,15 @@ export function ConversationPanel({ messages, loading, onPropertyAnalyze }: Conv
                 {/* Text Content */}
                 {message.content && (
                   <div className="rounded-xl sm:rounded-2xl bg-muted px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 prose prose-sm max-w-none overflow-x-auto text-xs sm:text-sm break-words">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <ReactMarkdown
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium" />
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
                 )}
                 

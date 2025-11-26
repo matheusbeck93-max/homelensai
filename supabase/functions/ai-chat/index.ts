@@ -964,14 +964,23 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
           });
         }
 
-        // Build a clean, user-friendly message with the links
+        // Build a clean, user-friendly message with the links in markdown format
         if (links.length > 0) {
-          const header = 'Here are some property listing sites based on your search:';
-          const body = links
-            .map((l) => `🏡 ${l.source}:\n${l.url}`)
-            .join('\n\n');
+          const locationText = location || 'your area';
+          const bedsText = beds ? `${beds}+ bedroom ` : '';
+          const priceText = maxPrice ? `under $${(maxPrice / 1000).toFixed(0)}k` : '';
+          
+          const header = `Aqui estão os resultados para ${bedsText}imóveis ${priceText ? priceText + ' ' : ''}em ${locationText}:`;
+          
+          // Format links as clickable markdown
+          const linksMarkdown = links
+            .map((l) => `- **[${l.source}](${l.url})** - Clique para ver as listagens`)
+            .join('\n');
+          
+          // Add natural follow-up question
+          const followUp = '\n\n💬 **E agora?**\nGostaria que eu:\n• Analise algum imóvel específico que você encontrou?\n• Faça uma nova busca com critérios diferentes?\n• Te ajude com cálculos de financiamento?';
 
-          parsed.message = `${header}\n\n${body}`;
+          parsed.message = `${header}\n\n${linksMarkdown}${followUp}`;
           parsed.links = links;
           
           // CRITICAL: Remove searchParams to prevent frontend from calling search-listings
