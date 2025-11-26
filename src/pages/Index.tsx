@@ -204,6 +204,19 @@ export default function Index() {
         jsonData = rawResponse;
       }
 
+      // If we parsed a JSON object that only contains a human-readable message,
+      // use that message as the display text instead of the raw JSON string.
+      if (
+        jsonData &&
+        typeof jsonData === 'object' &&
+        typeof jsonData.message === 'string' &&
+        !jsonData.searchParams &&
+        !jsonData.uiBlock &&
+        !(jsonData.type && typeof jsonData.type === 'string' && jsonData.type.startsWith('ui_block/'))
+      ) {
+        rawResponse = jsonData.message;
+      }
+
       // Check if AI wants to trigger a property search
       if (jsonData && jsonData.searchParams) {
         // AI provided search parameters - add text response first
