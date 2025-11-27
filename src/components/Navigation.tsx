@@ -106,8 +106,6 @@ export function Navigation() {
             
             <ThemeToggle />
             
-            <ThemeToggle />
-            
             {user && !subscriptionLoading && tier === 'free' && (
               <Button
                 variant="outline"
