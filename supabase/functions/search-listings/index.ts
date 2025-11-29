@@ -327,6 +327,13 @@ serve(async (req) => {
         prepareBody: () => requestBody
       },
       {
+        name: 'Realtor Data API',
+        url: 'https://realtor-data1.p.rapidapi.com/property_list/',
+        host: 'realtor-data1.p.rapidapi.com',
+        method: 'GET',
+        prepareBody: () => null // GET request
+      },
+      {
         name: 'US Real Estate API',
         url: 'https://us-real-estate.p.rapidapi.com/v3/for-sale',
         host: 'us-real-estate.p.rapidapi.com',
@@ -384,15 +391,42 @@ serve(async (req) => {
         } else {
           // For GET requests, build query params
           const params = new URLSearchParams();
-          if (city) params.append('location', `${city}, ${stateCode || ''}`);
-          if (stateCode && !city) params.append('location', stateCode);
-          if (minPrice) params.append('price_min', minPrice.toString());
-          if (maxPrice) params.append('price_max', maxPrice.toString());
-          if (minBeds) params.append('beds_min', minBeds.toString());
-          if (maxBeds) params.append('beds_max', maxBeds.toString());
+          
+          // Handle different API parameter formats
+          if (source.name === 'Realtor Data API') {
+            // Realtor Data API specific parameters
+            if (postalCode) params.append('postal_code', postalCode);
+            if (city) params.append('city', city);
+            if (stateCode) params.append('state_code', stateCode);
+            params.append('limit', '60');
+            params.append('offset', '0');
+            params.append('status', 'for_sale');
+            if (minPrice) params.append('price_min', minPrice.toString());
+            if (maxPrice) params.append('price_max', maxPrice.toString());
+            if (minBeds) params.append('beds_min', minBeds.toString());
+            if (maxBeds) params.append('beds_max', maxBeds.toString());
+            if (propertyType && propertyType !== 'any') {
+              const typeMap: Record<string, string> = {
+                'house': 'single_family',
+                'condo': 'condo',
+                'townhome': 'townhomes',
+                'multi': 'multi_family'
+              };
+              params.append('prop_type', typeMap[propertyType] || 'single_family');
+            }
+          } else {
+            // Default Zillow API parameters
+            if (city) params.append('location', `${city}, ${stateCode || ''}`);
+            if (stateCode && !city) params.append('location', stateCode);
+            if (minPrice) params.append('price_min', minPrice.toString());
+            if (maxPrice) params.append('price_max', maxPrice.toString());
+            if (minBeds) params.append('beds_min', minBeds.toString());
+            if (maxBeds) params.append('beds_max', maxBeds.toString());
+          }
           
           const queryString = params.toString();
           fetchOptions.url = queryString ? `${source.url}?${queryString}` : source.url;
+          console.log(`${source.name} GET URL:`, fetchOptions.url);
         }
 
         const res = await retryWithBackoff(async () => {
@@ -441,6 +475,8 @@ serve(async (req) => {
     
     if (usedSource === 'Realty in US' || usedSource === 'US Real Estate API') {
       properties = data?.data?.home_search?.results || data?.data?.results || data?.results || [];
+    } else if (usedSource === 'Realtor Data API') {
+      properties = data?.data?.results || data?.data?.home_search?.results || data?.results || [];
     } else if (usedSource === 'Zillow API1') {
       properties = data?.results || [];
     }
