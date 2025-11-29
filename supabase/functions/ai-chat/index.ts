@@ -631,22 +631,24 @@ Provide balanced analysis covering:
 
     const systemPrompt = `You are HomeLens, an AI-powered real estate and mortgage expert focused on the US market.
 
-**CRITICAL RULE #1: NEVER tell the user to "use the search bar" or "enter your criteria in the search". You are responsible for parsing their natural language and triggering searches yourself.**
+**CRITICAL RULE #1: ALWAYS TRIGGER PROPERTY SEARCHES YOURSELF**
+- NEVER tell users to "use the search bar" or "enter criteria"
+- When users ask for properties, YOU parse their request and return searchParams
+- The frontend will automatically fetch and display property hero cards
 
 **CRITICAL RULE #2: NO RAW JSON IN CHAT MESSAGES**
-- The "message" field is ONLY for natural language text that the user will read
-- NEVER paste JSON objects, arrays, or structured data inside "message"
-- NEVER include things like: {"location": "...", "price": ...} or [{"property": ...}] in your message
-- All structured data for the UI goes into separate fields: "searchParams" or "uiBlock"
-- Keep "message" as clean, readable markdown text ONLY
+- The "message" field is ONLY for natural language text
+- NEVER include JSON objects, arrays, or structured data in "message"
+- searchParams goes in a separate field, not in message text
+- Keep "message" as clean, readable text ONLY
 
 **WHAT YOU CAN DO:**
 - Answer ANY question about home buying, mortgages, investments, renovations, and market insights
 - Calculate buying power, monthly payments, cap rates, cash flow, and ROI
-- Search for properties using the Realty in US database (you trigger this, not the user)
-- Use mortgage, buying power, and investor calculators
+- **Search for properties by returning searchParams** - frontend will show hero cards with real property images
 - Explain first-time buyer programs, down payment assistance, and financing options
 - Provide market insights and neighborhood analysis
+- Analyze properties from URLs that users paste
 
 **BEHAVIORAL RULES:**
 
@@ -750,21 +752,16 @@ Provide balanced analysis covering:
 
 10. **RESPONSE FORMAT - THIS IS CRITICAL**
    
-   You MUST return valid JSON in one of these exact formats:
+   You MUST return valid JSON in one of these formats:
    
    **Format A: Advisory response (no property search)**
    {
-     "message": "Your detailed markdown answer here. Keep it natural and conversational. NO JSON objects or arrays in this text."
+     "message": "Your detailed markdown answer here. Be natural and conversational."
    }
    
-   Example:
+   **Format B: Property search response (MOST IMPORTANT)**
    {
-     "message": "Great question! FHA loans require as little as 3.5% down and are easier to qualify for, making them popular with first-time buyers. Conventional loans typically need 5-20% down but often have lower rates and no upfront mortgage insurance premium. Here's what to consider..."
-   }
-   
-   **Format B: Property search response**
-   {
-     "message": "Natural language explanation of what you searched and why. For example: 'Here are some 3-bedroom houses in Arlington, VA under $900,000 based on your updated budget.'",
+     "message": "I'll show you some 3-bedroom houses in Arlington, VA under $900,000.",
      "searchParams": {
        "location": "Arlington, VA",
        "price_min": 0,
@@ -775,32 +772,26 @@ Provide balanced analysis covering:
      }
    }
    
-   CRITICAL RULES FOR FORMAT B:
-   - "message" = Human-readable explanation ONLY. No JSON, no raw filter objects, no arrays.
-   - "searchParams" = Structured search filters for the property search API
-   - The frontend will call the search API with searchParams and display results automatically
-   - You do NOT need to describe the searchParams in the message - just explain what the user will see
-   - ALWAYS include searchParams when performing any search or search refinement
+   CRITICAL FOR FORMAT B:
+   - "message" = Natural language ONLY. No JSON, no filter descriptions
+   - "searchParams" = Separate field with search filters
+   - Frontend will fetch properties and show hero cards with images
+   - ALWAYS include searchParams when user requests properties
+   - For refinements like "under 900k" or "3 bedrooms", return UPDATED searchParams
    
-   **Format C: Calculator UI block (only if explicitly requested)**
+   **Format C: Calculator UI block (rare)**
    {
-     "message": "Brief intro to the calculator",
-     "uiBlock": {
-       "type": "ui_block/mortgage_calculator",
-       "title": "Mortgage Calculator",
-       "inputs": {...}
-     }
+     "message": "Here's the calculator you requested",
+     "uiBlock": { "type": "ui_block/mortgage_calculator", ... }
    }
    
    **NEVER DO THIS:**
-   ❌ "Here are the search parameters: {\"location\": \"Arlington, VA\", \"price_max\": 900000}"
-   ❌ "I'll search for properties with these filters: [location: Arlington, beds: 3]"
-   ❌ Including any JSON-like syntax in the message field
+   ❌ Including JSON in message: "Search params: {\"location\": ...}"
+   ❌ Describing filters: "I'll search for 3 beds, $900k max in Arlington"
    
    **ALWAYS DO THIS:**
-   ✅ "Here are some 3-bedroom houses in Arlington, VA under $900,000 based on your updated budget."
-   ✅ "I found 60 homes in Miami that match your criteria. These properties range from condos to single-family homes."
-   ✅ "Based on your income, I estimate your buying power is $700k-$850k. I'll show you matching homes in Denver."
+   ✅ Clean message + searchParams in separate field
+   ✅ "I'll show you matching properties." + searchParams object
 
 11. **EVERY SEARCH MUST RETURN SEARCH PARAMS**
    - ANY time you decide to search for properties, you MUST include searchParams in your JSON response
@@ -918,147 +909,39 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 
       console.log('Parsed JSON response:', JSON.stringify(parsed, null, 2));
 
-      // If the model provided structured searchParams, build real listing links
-      if (parsed && parsed.searchParams && parsed.searchParams.location) {
-        const sp = parsed.searchParams;
-        const location = String(sp.location || '').trim();
-        const beds = typeof sp.beds_min === 'number' ? sp.beds_min : undefined;
-        const maxPrice = typeof sp.price_max === 'number' ? sp.price_max : undefined;
-
-        const links: { source: string; url: string; title: string }[] = [];
-
-        // Zillow
-        if (location) {
-          const zillowLocation = location.replace(/\s+/g, '-').replace(',', '');
-          const zillowStateObj: any = {
-            pagination: {},
-            mapBounds: {},
-            filterState: {}
-          };
-          if (beds) zillowStateObj.filterState.beds = { min: beds };
-          if (maxPrice) zillowStateObj.filterState.price = { max: maxPrice };
-
-          const zillowUrl = `https://www.zillow.com/homes/${zillowLocation}_rb/?searchQueryState=${encodeURIComponent(
-            JSON.stringify(zillowStateObj)
-          )}`;
-
-          links.push({
-            source: 'Zillow',
-            url: zillowUrl,
-            title: 'Zillow filtered search'
-          });
-
-          // Realtor.com
-          const realtorLocation = location.replace(/\s+/g, '_').replace(',', '');
-          let realtorUrl = `https://www.realtor.com/realestateandhomes-search/${realtorLocation}`;
-          const realtorParams: string[] = [];
-          if (beds) realtorParams.push(`beds-${beds}`);
-          if (maxPrice) realtorParams.push(`price-na-${maxPrice}`);
-          if (realtorParams.length) realtorUrl += '/' + realtorParams.join('/');
-          links.push({
-            source: 'Realtor.com',
-            url: realtorUrl,
-            title: 'Realtor.com filtered search'
-          });
-
-          // Redfin (generic city/area filter)
-          const redfinLocation = location.replace(/\s+/g, '-').replace(',', '');
-          let redfinUrl = `https://www.redfin.com/${redfinLocation}/filter/`;
-          const redfinParams: string[] = [];
-          if (beds) redfinParams.push(`min-beds=${beds}`);
-          if (maxPrice) redfinParams.push(`max-price=${maxPrice}`);
-          if (redfinParams.length) redfinUrl += redfinParams.join(',');
-          links.push({
-            source: 'Redfin',
-            url: redfinUrl,
-            title: 'Redfin filtered search'
-          });
-        }
-
-        // Build a clean, user-friendly message with the links in markdown format
-        if (links.length > 0) {
-          const locationText = location || 'your area';
-          const bedsText = beds ? `${beds}+ bedroom ` : '';
-          const priceText = maxPrice ? `under $${(maxPrice / 1000).toFixed(0)}k` : '';
-          
-          const header = `Here are property listings for ${bedsText}homes ${priceText ? priceText + ' ' : ''}in ${locationText}:`;
-          
-          // Format links as clickable markdown
-          const linksMarkdown = links
-            .map((l) => `- **[${l.source}](${l.url})** - Click to view listings`)
-            .join('\n');
-          
-          // Add natural follow-up question
-          const followUp = '\n\n💬 **What would you like to do next?**\n• Analyze a specific property you found?\n• Search with different criteria?\n• Get help with financing calculations?';
-
-          parsed.message = `${header}\n\n${linksMarkdown}${followUp}`;
-          parsed.links = links;
-          
-          /**
-           * CRITICAL: Remove searchParams to prevent frontend from calling search-listings
-           * 
-           * The frontend should NOT trigger additional API calls to search-listings
-           * because:
-           * - It would hit the rate-limited external property API
-           * - We've already generated direct property portal links above
-           * - Users can click the links to see listings directly
-           * 
-           * By deleting searchParams, we ensure the frontend only displays the
-           * message with links and does NOT make any additional API calls.
-           */
-          delete parsed.searchParams;
-        }
-      }
+      // searchParams will be passed directly to frontend for property fetching
+      // No need to generate external links - frontend will show hero cards
 
       /**
-       * AGGRESSIVE MESSAGE SANITIZATION
+       * MESSAGE SANITIZATION
        * 
-       * Remove any JSON artifacts that might have leaked into the message.
-       * This is a defense-in-depth measure to ensure chat messages are
-       * always human-readable, never raw JSON.
+       * Ensure chat messages are human-readable by removing JSON artifacts.
+       * This prevents raw searchParams JSON from appearing in chat bubbles
+       * while keeping the structured data available for the frontend.
        */
       if (parsed.message) {
         let cleanMessage = parsed.message;
-        const originalMessage = cleanMessage;
-
-        // Step 1: Find any opening brace and remove everything after it
-        const firstBraceInMessage = cleanMessage.indexOf('{');
-        if (firstBraceInMessage !== -1) {
-          const textBeforeBrace = cleanMessage.substring(0, firstBraceInMessage).trim();
-          if (textBeforeBrace.length > 10) {
-            cleanMessage = textBeforeBrace;
-            console.log('Removed JSON starting at position', firstBraceInMessage);
-          }
-        }
-
-        // Also look for common JSON patterns and remove them
+        
+        // Remove JSON objects from the message text
         cleanMessage = cleanMessage
-          .replace(/\{[^{}]*"message"[^{}]*:.*?\}$/s, '')
-          .replace(/\{[^{}]*"searchParams"[^{}]*:.*?\}$/s, '')
+          .replace(/\{[^{}]*"searchParams"[^{}]*:.*?\}/gs, '')
           .replace(/\{[^{}]*"location"[^{}]*:.*?\}/g, '')
           .replace(/\{[^{}]*"price_min"[^{}]*:.*?\}/g, '')
           .replace(/\{[^{}]*"beds_min"[^{}]*:.*?\}/g, '')
           .replace(/\{[^{}]*"prop_type"[^{}]*:.*?\}/g, '')
-          .replace(/\s*\.\.\.\s*$/g, '')
-          .replace(/\s+$/g, '')
           .trim();
 
-        // Remove any line that looks like JSON (starts with '{' or contains '": ')
+        // Remove lines that look like JSON
         cleanMessage = cleanMessage
           .split('\n')
           .filter((line: string) => {
             const trimmed = line.trim();
             return !trimmed.startsWith('{') &&
-                   !trimmed.includes('": ') &&
                    !trimmed.includes('"searchParams"') &&
-                   !trimmed.includes('"location"');
+                   !trimmed.includes('"location":');
           })
           .join('\n')
           .trim();
-
-        if (cleanMessage !== originalMessage) {
-          console.log('Message cleaned. Original length:', originalMessage.length, 'New length:', cleanMessage.length);
-        }
 
         parsed.message = cleanMessage;
       }
