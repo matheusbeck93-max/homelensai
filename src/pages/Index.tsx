@@ -38,23 +38,52 @@ export default function Index() {
     loadMore: loadMoreFeatured
   } = useFeaturedHomes();
 
-  // DISABLED: React Query for property search - causes rate limit errors
-  // AI now generates property links directly without calling search-listings API
+  // Property search using React Query - properly rate-limited via cache
   const { data: searchData, isLoading: searchLoading, error: searchError } = useQuery({
     queryKey: ['property-search', searchParams],
     queryFn: async () => {
-      return null; // Disabled to prevent rate limit errors
+      if (!searchParams?.location) return null;
+      
+      console.log('[Index] Fetching properties with searchParams:', searchParams);
+      
+      const { data, error } = await supabase.functions.invoke('search-listings', {
+        body: {
+          location: searchParams.location,
+          price_min: searchParams.price_min || 0,
+          price_max: searchParams.price_max || 2000000,
+          beds_min: searchParams.beds_min || 0,
+          baths_min: searchParams.baths_min || 0,
+          prop_type: searchParams.prop_type || 'any',
+          offset: 0,
+          limit: 20
+        }
+      });
+
+      if (error) {
+        console.error('[Index] Search error:', error);
+        throw error;
+      }
+
+      console.log('[Index] Search results:', data?.listings?.length || 0, 'properties');
+      return data;
     },
-    enabled: false, // CRITICAL: Completely disable this query
-    staleTime: 10 * 60 * 1000,
+    enabled: !!searchParams?.location,
+    staleTime: 15 * 60 * 1000, // 15 minutes cache
     gcTime: 20 * 60 * 1000,
-    retry: 0,
+    retry: 1,
   });
 
-  // DISABLED: Search error handling - no longer needed since search-listings is disabled
-  // useEffect(() => {
-  //   if (searchError) { ... }
-  // }, [searchError, toast]);
+  // Handle search errors
+  useEffect(() => {
+    if (searchError) {
+      console.error('[Index] Search query error:', searchError);
+      toast({
+        title: "Search Error",
+        description: "Failed to load properties. Using cached results if available.",
+        variant: "destructive"
+      });
+    }
+  }, [searchError, toast]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -68,10 +97,8 @@ export default function Index() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // DISABLED: Process search results - no longer needed since AI provides links directly
-  // useEffect(() => {
-  //   if (searchData && searchParams) { ... }
-  // }, [searchData, searchParams]);
+  // Extract search results as hero card listings
+  const searchListings = searchData?.listings || [];
 
   const handleSendMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
@@ -128,33 +155,11 @@ export default function Index() {
 
       // Extract clean message for display
       const displayMessage = jsonData.message || '';
-
-      // Check if AI has property links - display them as clickable markdown links
-      if (jsonData && jsonData.links && Array.isArray(jsonData.links) && jsonData.links.length > 0) {
-        const linksMarkdown = jsonData.links
-          .map((link: any) => {
-            const title = link.title || link.source || link.url;
-            const url = link.url || "";
-            return url ? `- [${title}](${url})` : "";
-          })
-          .filter((line: string) => line.length > 0)
-          .join("\n");
-
-        assistantMessage = {
-          id: uuidv4(),
-          role: 'assistant',
-          content: `${displayMessage || 'Here are some property listings:'}\n\n${linksMarkdown}`.trim(),
-          createdAt: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        setConversationLoading(false);
-        return;
-      }
       
-      // DEPRECATED: Don't trigger search-listings from chat to avoid rate limits
-      // If AI really needs property data (not just links), it should be handled differently
-      if (jsonData && jsonData.searchParams && false) {
-        // This code path is disabled to prevent rate limit errors
+      // Check if AI wants to trigger a property search
+      if (jsonData && jsonData.searchParams && jsonData.searchParams.location) {
+        console.log('[Index] AI provided searchParams, triggering property search:', jsonData.searchParams);
+        
         assistantMessage = {
           id: uuidv4(),
           role: 'assistant',
@@ -163,9 +168,15 @@ export default function Index() {
         };
         setMessages(prev => [...prev, assistantMessage]);
         
+        // Parse location components and trigger search
         const locationComponents = parseLocationComponents(jsonData.searchParams.location);
         setSearchParams({
-          ...jsonData.searchParams,
+          location: jsonData.searchParams.location,
+          price_min: jsonData.searchParams.price_min || 0,
+          price_max: jsonData.searchParams.price_max || 2000000,
+          beds_min: jsonData.searchParams.beds_min || 0,
+          baths_min: jsonData.searchParams.baths_min || 0,
+          prop_type: jsonData.searchParams.prop_type || 'any',
           ...locationComponents
         });
         setConversationLoading(false);
@@ -335,6 +346,28 @@ export default function Index() {
             loading={conversationLoading}
             onPropertyAnalyze={handlePropertyAnalyze}
           />
+          
+          {/* Property Search Results - Show hero cards when search params are active */}
+          {searchParams?.location && searchListings.length > 0 && (
+            <FeaturedHomesGrid
+              title={`Search Results for ${searchParams.location}`}
+              subtitle={`Found ${searchListings.length} properties matching your criteria`}
+              listings={searchListings}
+              isLoading={searchLoading}
+              error={searchError ? "Failed to load properties" : null}
+              hasMore={false}
+              onAnalyze={handlePropertyAnalyze}
+            />
+          )}
+          
+          {/* Loading state for property search */}
+          {searchLoading && searchParams?.location && (
+            <div className="max-w-7xl mx-auto px-4 py-8">
+              <div className="text-center">
+                <p className="text-muted-foreground">Searching for properties...</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
