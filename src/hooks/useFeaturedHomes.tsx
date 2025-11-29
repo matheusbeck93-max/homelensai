@@ -131,25 +131,30 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
     } catch (err: any) {
       console.error('[useFeaturedHomes] Error fetching featured homes:', err);
       const errorMessage = err.message || 'Failed to load featured homes';
-      setError(errorMessage);
       
-      // Show toast for rate limit errors
+      // Check for rate limit errors
       if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
-        toast({
-          title: "Rate limit reached",
-          description: "The property search API has reached its limit. Showing cached results.",
-          variant: "destructive",
-        });
-        
         // Fall back to cached data
         const cached = getCachedData<HomeLensListing[]>(cacheKey, { ttlMs: CACHE_TTL_MS });
-        if (cached) {
+        if (cached && cached.data.length > 0) {
+          // Use cached data without showing error
           setListings(cached.data);
           setLocationLabel(location);
           setHasMore(false);
           setError(null);
+          
+          toast({
+            title: "Showing cached results",
+            description: "Live property data temporarily unavailable. Showing recent results.",
+          });
+        } else {
+          // No cache available, set error
+          setError('Unable to load properties at this time. Please try again later.');
         }
       } else {
+        // Non-rate-limit error
+        setError(errorMessage);
+        
         // Try fallback location if this was the first attempt
         if (!append && pageNum === 1) {
           const fallbackLocation = DEFAULT_LOCATIONS.find(loc => loc !== location) || DEFAULT_LOCATIONS[0];
