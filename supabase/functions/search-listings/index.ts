@@ -447,17 +447,19 @@ serve(async (req) => {
         break; // Success! Exit the loop
         
       } catch (error: any) {
-        console.error(`❌ ${source.name} failed:`, error.message);
+        console.error(`❌ ${source.name} failed:`, error.message, `(status: ${error.status})`);
         lastError = error;
         
-        // If it's not a rate limit error, stop trying (other errors are likely to affect all APIs)
-        if (error.status !== 429) {
-          console.log(`Non-rate-limit error encountered, stopping fallback attempts`);
-          break;
+        // Continue to next API on rate limit (429) or forbidden (403 - no subscription)
+        if (error.status === 429 || error.status === 403) {
+          const reason = error.status === 429 ? 'Rate limit' : 'No subscription/access';
+          console.log(`${reason} on ${source.name}, trying next source...`);
+          continue; // Try next API
         }
         
-        // Continue to next API source
-        console.log(`Rate limit hit on ${source.name}, trying next source...`);
+        // For other errors (500, 404, etc), stop trying
+        console.log(`Non-recoverable error (${error.status}) encountered, stopping fallback attempts`);
+        break;
       }
     }
 
