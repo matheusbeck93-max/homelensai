@@ -26,18 +26,21 @@ const MAX_REQUESTS_PER_WINDOW = 2;
 export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHomesState {
   const [locationLabel, setLocationLabel] = useState<string>('');
   const [listings, setListings] = useState<HomeLensListing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const { toast } = useToast();
 
   const fetchListings = async (location: string, pageNum: number = 1, append: boolean = false) => {
     // Prevent duplicate concurrent calls
-    if (isLoading && !append) {
+    if (isFetching && !append) {
       console.log('[useFeaturedHomes] Search already in progress, skipping duplicate call');
       return;
     }
+    
+    setIsFetching(true);
 
     const cacheKey = `${CACHE_KEY_PREFIX}${location}`;
 
@@ -158,6 +161,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
       }
     } finally {
       setIsLoading(false);
+      setIsFetching(false);
     }
   };
 
