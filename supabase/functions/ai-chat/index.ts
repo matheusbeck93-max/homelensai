@@ -886,7 +886,18 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
     let assistantResponse = assistantMessage.content;
     console.log('OpenAI raw response:', assistantResponse);
 
-    // Parse and validate the AI's JSON response to ensure clean message format
+    /**
+     * RESPONSE SANITIZATION & LINK GENERATION
+     * 
+     * This section ensures that:
+     * 1. AI responses are parsed from JSON to extract structured data
+     * 2. Search parameters are converted to real property listing URLs (Zillow, Realtor, Redfin)
+     * 3. Raw JSON and searchParams are NEVER sent to the chat UI
+     * 4. Only human-readable messages with clickable links reach the user
+     * 
+     * Critical: The frontend should only receive { message: "...", links: [...] }
+     * and should render message as text, not JSON blobs
+     */
     try {
       let parsed: any;
 
@@ -983,18 +994,34 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
           parsed.message = `${header}\n\n${linksMarkdown}${followUp}`;
           parsed.links = links;
           
-          // CRITICAL: Remove searchParams to prevent frontend from calling search-listings
-          // which would hit the rate-limited external API
+          /**
+           * CRITICAL: Remove searchParams to prevent frontend from calling search-listings
+           * 
+           * The frontend should NOT trigger additional API calls to search-listings
+           * because:
+           * - It would hit the rate-limited external property API
+           * - We've already generated direct property portal links above
+           * - Users can click the links to see listings directly
+           * 
+           * By deleting searchParams, we ensure the frontend only displays the
+           * message with links and does NOT make any additional API calls.
+           */
           delete parsed.searchParams;
         }
       }
 
-      // Validate that message doesn't contain raw JSON or searchParams
+      /**
+       * AGGRESSIVE MESSAGE SANITIZATION
+       * 
+       * Remove any JSON artifacts that might have leaked into the message.
+       * This is a defense-in-depth measure to ensure chat messages are
+       * always human-readable, never raw JSON.
+       */
       if (parsed.message) {
         let cleanMessage = parsed.message;
         const originalMessage = cleanMessage;
 
-        // AGGRESSIVE JSON REMOVAL: Find any opening brace and remove everything after it
+        // Step 1: Find any opening brace and remove everything after it
         const firstBraceInMessage = cleanMessage.indexOf('{');
         if (firstBraceInMessage !== -1) {
           const textBeforeBrace = cleanMessage.substring(0, firstBraceInMessage).trim();
