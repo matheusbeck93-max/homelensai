@@ -315,34 +315,137 @@ serve(async (req) => {
       requestBody.prop_type = [typeMap[propertyType] || 'single_family'];
     }
 
-    console.log('Calling Realty in US API with body:', JSON.stringify(requestBody, null, 2));
+    console.log('Attempting to fetch property listings...');
 
-    // Make API call with retry logic
-    const response = await retryWithBackoff(async () => {
-      const res = await fetch('https://realty-in-us.p.rapidapi.com/properties/v3/list', {
+    // Define API sources with priority
+    const apiSources = [
+      {
+        name: 'Realty in US',
+        url: 'https://realty-in-us.p.rapidapi.com/properties/v3/list',
+        host: 'realty-in-us.p.rapidapi.com',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-RapidAPI-Key': rapidApiKey,
-          'X-RapidAPI-Host': 'realty-in-us.p.rapidapi.com'
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!res.ok) {
-        const error: any = new Error(`API request failed: ${res.status}`);
-        error.status = res.status;
-        throw error;
+        prepareBody: () => requestBody
+      },
+      {
+        name: 'US Real Estate API',
+        url: 'https://us-real-estate.p.rapidapi.com/v3/for-sale',
+        host: 'us-real-estate.p.rapidapi.com',
+        method: 'POST',
+        prepareBody: () => ({
+          limit: 60,
+          offset: 0,
+          status: ["for_sale"],
+          sort: { direction: "desc", field: "list_date" },
+          ...(postalCode ? { postal_code: postalCode } : {}),
+          ...(city ? { city } : {}),
+          ...(stateCode ? { state_code: stateCode } : {}),
+          price_min: minPrice ?? 0,
+          price_max: maxPrice ?? 2000000,
+          ...(minBeds ? { beds_min: minBeds } : {}),
+          ...(maxBeds ? { beds_max: maxBeds } : {}),
+          ...(propertyType && propertyType !== 'any' ? { 
+            prop_type: [propertyType === 'house' ? 'single_family' : propertyType] 
+          } : {})
+        })
+      },
+      {
+        name: 'Zillow API1',
+        url: 'https://zillow-com1.p.rapidapi.com/propertyExtendedSearch',
+        host: 'zillow-com1.p.rapidapi.com',
+        method: 'GET',
+        prepareBody: () => null // GET request
       }
+    ];
 
-      return res;
-    });
+    let response: Response | null = null;
+    let usedSource: string = '';
+    let lastError: any = null;
+
+    // Try each API source in order
+    for (const source of apiSources) {
+      try {
+        console.log(`Trying ${source.name}...`);
+        
+        const fetchOptions: any = {
+          method: source.method,
+          headers: {
+            'X-RapidAPI-Key': rapidApiKey,
+            'X-RapidAPI-Host': source.host,
+          }
+        };
+
+        if (source.method === 'POST') {
+          fetchOptions.headers['Content-Type'] = 'application/json';
+          const body = source.prepareBody();
+          if (body) {
+            fetchOptions.body = JSON.stringify(body);
+            console.log(`${source.name} request body:`, JSON.stringify(body, null, 2));
+          }
+        } else {
+          // For GET requests, build query params
+          const params = new URLSearchParams();
+          if (city) params.append('location', `${city}, ${stateCode || ''}`);
+          if (stateCode && !city) params.append('location', stateCode);
+          if (minPrice) params.append('price_min', minPrice.toString());
+          if (maxPrice) params.append('price_max', maxPrice.toString());
+          if (minBeds) params.append('beds_min', minBeds.toString());
+          if (maxBeds) params.append('beds_max', maxBeds.toString());
+          
+          const queryString = params.toString();
+          fetchOptions.url = queryString ? `${source.url}?${queryString}` : source.url;
+        }
+
+        const res = await retryWithBackoff(async () => {
+          const apiResponse = await fetch(fetchOptions.url || source.url, fetchOptions);
+          
+          if (!apiResponse.ok) {
+            const error: any = new Error(`${source.name} API request failed: ${apiResponse.status}`);
+            error.status = apiResponse.status;
+            throw error;
+          }
+          
+          return apiResponse;
+        });
+
+        response = res;
+        usedSource = source.name;
+        console.log(`✅ Successfully fetched data from ${source.name}`);
+        break; // Success! Exit the loop
+        
+      } catch (error: any) {
+        console.error(`❌ ${source.name} failed:`, error.message);
+        lastError = error;
+        
+        // If it's not a rate limit error, stop trying (other errors are likely to affect all APIs)
+        if (error.status !== 429) {
+          console.log(`Non-rate-limit error encountered, stopping fallback attempts`);
+          break;
+        }
+        
+        // Continue to next API source
+        console.log(`Rate limit hit on ${source.name}, trying next source...`);
+      }
+    }
+
+    // If all sources failed, throw the last error
+    if (!response) {
+      console.error('All API sources exhausted');
+      throw lastError || new Error('All property API sources are currently unavailable');
+    }
 
     const data = await response.json();
-    console.log('Realtor API response received, data keys:', Object.keys(data));
+    console.log(`${usedSource} response received, data keys:`, Object.keys(data));
 
-    const properties = data?.data?.home_search?.results || data?.data?.results || data?.results || [];
-    console.log('Properties count before filtering:', properties.length);
+    // Parse properties based on API source
+    let properties: any[] = [];
+    
+    if (usedSource === 'Realty in US' || usedSource === 'US Real Estate API') {
+      properties = data?.data?.home_search?.results || data?.data?.results || data?.results || [];
+    } else if (usedSource === 'Zillow API1') {
+      properties = data?.results || [];
+    }
+    
+    console.log(`${usedSource} returned ${properties.length} properties`);
 
     let listings: HomeLensListing[] = properties.map((prop: any) => {
       const location = prop.location || {};
@@ -360,13 +463,12 @@ serve(async (req) => {
         photoUrl: prop.primary_photo?.href || prop.thumbnail || prop.photos?.[0]?.href || null,
         listingUrl: prop.href || prop.rdc_web_url || null,
         status: prop.status || 'for_sale',
-        source: 'realtor',
+        source: usedSource.toLowerCase().replace(/\s+/g, '_'),
         city: address.city || null,
         state: address.state_code || null,
         zip: address.postal_code || null,
         lat: coordinate.lat ?? null,
         lng: coordinate.lon ?? null,
-        insights: null, // Will be enriched below
       };
     });
 
@@ -507,13 +609,21 @@ serve(async (req) => {
     console.log('Returning filtered normalized listings:', listings.length);
 
     return new Response(
-      JSON.stringify({ listings }),
+      JSON.stringify({ 
+        listings,
+        metadata: {
+          source: usedSource,
+          count: listings.length,
+          location: rawLocation
+        }
+      }),
       { 
         status: 200, 
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json',
-          'X-RateLimit-Remaining': rateLimit.remaining.toString()
+          'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+          'X-API-Source': usedSource
         } 
       }
     );
@@ -528,7 +638,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Rate limit exceeded',
-          message: 'The property search API has reached its rate limit. Please try again in a few minutes.',
+          message: 'All property search APIs have reached their rate limits. Please try again in a few minutes.',
           retryAfter: 180 // 3 minutes
         }),
         { 
