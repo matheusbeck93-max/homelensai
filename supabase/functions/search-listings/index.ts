@@ -9,47 +9,48 @@ const corsHeaders = {
 
 // Input validation schema - allow empty location for default handling
 const searchParamsSchema = z.object({
+  query: z.string().optional(),
   location: z.string().max(200).optional().transform(val => val?.trim() || ''),
   price_min: z.number().min(0).optional(),
   price_max: z.number().max(100000000).optional(),
   beds_min: z.number().min(0).max(20).optional(),
-  beds_max: z.number().min(0).max(20).optional(),
   baths_min: z.number().min(0).max(20).optional(),
-  baths_max: z.number().min(0).max(20).optional(),
   prop_type: z.enum(['house', 'condo', 'townhome', 'multi', 'any']).optional(),
+  page: z.number().min(1).optional(),
   force_fresh: z.boolean().optional(),
 });
 
 interface SearchParams {
+  query?: string;
   location?: string;
   price_min?: number;
   price_max?: number;
   beds_min?: number;
-  beds_max?: number;
   baths_min?: number;
-  baths_max?: number;
   prop_type?: 'house' | 'condo' | 'townhome' | 'multi' | 'any';
+  page?: number;
   force_fresh?: boolean;
 }
 
-interface HomeLensListing {
+// Normalized Property interface matching frontend
+interface Property {
   id: string;
-  source: string;
-  price: number | null;
+  source: "zillow";
   address: string;
-  street: string;
   city: string;
   state: string;
-  zipcode: string;
-  beds: number | null;
-  baths: number | null;
-  sqft: number | null;
-  latitude: number | null;
-  longitude: number | null;
-  image_url: string | null;
-  status: string | null;
-  dom: number | null;
-  raw: any;
+  zip: string;
+  latitude?: number;
+  longitude?: number;
+  price: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  sqft?: number;
+  status?: string;
+  imageUrl?: string;
+  zestimate?: number;
+  rentZestimate?: number;
+  raw?: any;
 }
 
 // Normalize query string for cache lookup
@@ -93,7 +94,7 @@ async function checkCache(
   supabase: any,
   normalizedQuery: string,
   forceFresh: boolean
-): Promise<{ listings: HomeLensListing[], source: string, stale: boolean } | null> {
+): Promise<{ listings: Property[], source: string, stale: boolean } | null> {
   if (forceFresh) {
     console.log('force_fresh=true, skipping cache');
     return null;
@@ -145,7 +146,7 @@ async function saveToCache(
   normalizedQuery: string,
   params: SearchParams,
   source: string,
-  results: HomeLensListing[]
+  results: Property[]
 ) {
   try {
     const { error } = await supabase
@@ -172,44 +173,33 @@ async function saveToCache(
 }
 
 // Zillow56 API - PRIMARY PROVIDER
-async function fetchFromZillow(params: SearchParams): Promise<HomeLensListing[]> {
+async function fetchFromZillow(params: SearchParams): Promise<{ listings: Property[], pagination: any }> {
   const ZILLOW_API_KEY = Deno.env.get('ZILLOW_API_KEY');
   
   if (!ZILLOW_API_KEY) {
-    throw new Error('ZILLOW_API_KEY not configured');
+    const error: any = new Error('ZILLOW_API_KEY not configured');
+    error.status = 401;
+    throw error;
   }
 
-  console.log('🏠 Fetching from Zillow56 API...');
+  console.log('[search-listings] 🏠 Fetching from Zillow56 API...');
 
   const searchParams = new URLSearchParams();
-  // Location is guaranteed to exist due to default handling above
   searchParams.append('location', params.location!);
   searchParams.append('output', 'json');
   searchParams.append('status', 'forSale');
-  searchParams.append('sortSelection', 'priorityscore');
-  searchParams.append('listing_type', 'by_agent');
-  searchParams.append('doz', 'any');
 
   if (params.price_min) searchParams.append('price_min', params.price_min.toString());
   if (params.price_max) searchParams.append('price_max', params.price_max.toString());
-  if (params.beds_min) searchParams.append('beds_min', params.beds_min.toString());
-  if (params.beds_max) searchParams.append('beds_max', params.beds_max.toString());
-  if (params.baths_min) searchParams.append('baths_min', params.baths_min.toString());
-  if (params.baths_max) searchParams.append('baths_max', params.baths_max.toString());
+  if (params.beds_min) searchParams.append('beds', params.beds_min.toString());
+  if (params.baths_min) searchParams.append('baths', params.baths_min.toString());
 
-  // Map prop_type to Zillow's home_type
+  // Map prop_type (if not 'any')
   if (params.prop_type && params.prop_type !== 'any') {
-    const typeMap: Record<string, string> = {
-      'house': 'house',
-      'condo': 'condo',
-      'townhome': 'townhome',
-      'multi': 'multi'
-    };
-    searchParams.append('home_type', typeMap[params.prop_type] || 'any');
+    searchParams.append('home_type', params.prop_type);
   }
 
   const url = `https://zillow56.p.rapidapi.com/search?${searchParams.toString()}`;
-  console.log('Zillow URL:', url);
 
   const response = await retryWithBackoff(async () => {
     const res = await fetch(url, {
@@ -224,54 +214,53 @@ async function fetchFromZillow(params: SearchParams): Promise<HomeLensListing[]>
       const error: any = new Error(`Zillow API failed: ${res.status}`);
       error.status = res.status;
       const errorText = await res.text();
-      console.error('Zillow error response:', errorText);
+      console.error('[search-listings] Zillow error response:', errorText);
       throw error;
     }
 
     return res;
   });
 
-  const data = await response.json();
-  console.log('Zillow response keys:', Object.keys(data));
+  const zillowJson = await response.json();
+  const zResults = zillowJson.results ?? [];
 
-  // Parse Zillow response structure
-  const results = data.results || [];
-  console.log(`Zillow returned ${results.length} properties`);
+  console.log(`[search-listings] zillow status=ok count=${zResults.length}`);
 
-  // Normalize to HomeLens format
-  const listings: HomeLensListing[] = results.map((item: any) => {
-    const address = item.address || {};
-    const fullAddress = `${address.streetAddress || ''}, ${address.city || ''}, ${address.state || ''} ${address.zipcode || ''}`.trim();
+  // Map to normalized Property format
+  const listings: Property[] = zResults.map((item: any) => ({
+    id: String(item.zpid),
+    source: "zillow" as const,
+    address: item.streetAddress ?? "",
+    city: item.city ?? "",
+    state: item.state ?? "",
+    zip: item.zipcode ?? "",
+    latitude: item.latitude,
+    longitude: item.longitude,
+    price: item.price ?? item.priceForHDP ?? 0,
+    bedrooms: item.bedrooms,
+    bathrooms: item.bathrooms,
+    sqft: item.livingArea,
+    status: item.homeStatus ?? item.homeStatusForHDP ?? "UNKNOWN",
+    imageUrl: item.imgSrc,
+    zestimate: item.zestimate,
+    rentZestimate: item.rentZestimate,
+    raw: item
+  }));
 
-    return {
-      id: item.zpid || `zillow-${Math.random().toString(36).substr(2, 9)}`,
-      source: 'zillow',
-      price: item.price || null,
-      address: fullAddress || 'Address unavailable',
-      street: address.streetAddress || '',
-      city: address.city || '',
-      state: address.state || '',
-      zipcode: address.zipcode || '',
-      beds: item.bedrooms || null,
-      baths: item.bathrooms || null,
-      sqft: item.livingArea || null,
-      latitude: item.latitude || null,
-      longitude: item.longitude || null,
-      image_url: item.imgSrc || null,
-      status: item.statusText || item.homeStatus || null,
-      dom: item.daysOnZillow || null,
-      raw: item
-    };
-  });
+  const pagination = {
+    totalResults: zillowJson.totalResultCount ?? listings.length,
+    resultsPerPage: zillowJson.resultsPerPage ?? listings.length,
+    totalPages: zillowJson.totalPages ?? 1
+  };
 
-  return listings;
+  return { listings, pagination };
 }
 
 // Fallback: Return stale cache if available
 async function getStaleCache(
   supabase: any,
   normalizedQuery: string
-): Promise<{ listings: HomeLensListing[], source: string, stale: boolean } | null> {
+): Promise<{ listings: Property[], source: string, stale: boolean } | null> {
   try {
     const { data, error } = await supabase
       .from('search_cache')
@@ -358,56 +347,82 @@ serve(async (req) => {
 
     // 2. Try Zillow (PRIMARY)
     try {
-      const zillowListings = await fetchFromZillow(params);
+      const { listings, pagination } = await fetchFromZillow(params);
       
-      if (zillowListings.length > 0) {
-        console.log(`✅ Zillow success: ${zillowListings.length} listings`);
-        
+      if (listings.length > 0) {
         // Save to cache
-        await saveToCache(supabase, normalizedQuery, params, 'zillow', zillowListings);
+        await saveToCache(supabase, normalizedQuery, params, 'zillow', listings);
         
         return new Response(
           JSON.stringify({ 
-            listings: zillowListings,
             source: 'zillow',
-            stale: false,
-            normalized_query: normalizedQuery
+            status: 'ok',
+            listings,
+            pagination
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else {
-        console.log('⚠️ Zillow returned 0 results');
+        console.log('[search-listings] ⚠️ Zillow returned 0 results');
       }
     } catch (zillowError: any) {
-      console.error('❌ Zillow failed:', zillowError.message, `(status: ${zillowError.status})`);
+      const status = zillowError.status;
       
-      // If rate limited or failed, try stale cache
-      if (zillowError.status === 429 || zillowError.status === 403 || zillowError.status >= 500) {
+      // Handle auth/subscription errors (403, 401)
+      if (status === 403 || status === 401) {
+        console.log(`[search-listings] zillow status=unavailable reason=auth_or_subscription`);
+        return new Response(
+          JSON.stringify({
+            source: 'zillow',
+            status: 'unavailable',
+            reason: 'auth_or_subscription',
+            listings: []
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Handle rate limit / server errors (429, 5xx)
+      if (status === 429 || status >= 500) {
+        console.log(`[search-listings] zillow status=unavailable reason=temporary_error`);
+        
+        // Try stale cache as fallback
         const staleCacheResult = await getStaleCache(supabase, normalizedQuery);
         if (staleCacheResult) {
           return new Response(
-            JSON.stringify({ 
+            JSON.stringify({
+              source: 'stale cache',
+              status: 'ok',
               listings: staleCacheResult.listings,
-              source: staleCacheResult.source,
-              stale: true,
-              message: 'Using cached results due to API rate limit',
-              normalized_query: normalizedQuery
+              message: 'Using cached results due to temporary API error'
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+
+        return new Response(
+          JSON.stringify({
+            source: 'zillow',
+            status: 'unavailable',
+            reason: 'temporary_error',
+            listings: []
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
+
+      // Network or other errors
+      console.error('[search-listings] Zillow error:', zillowError.message);
     }
 
-    // 3. No results from Zillow and no cache - return empty gracefully
-    console.log('❌ No results available from any source');
+    // 3. No results available
+    console.log('[search-listings] ❌ No results available from any source');
     return new Response(
       JSON.stringify({ 
-        listings: [],
         source: 'none',
-        stale: false,
-        message: "We couldn't find properties matching your search right now. Try adjusting your filters or check back in a few minutes.",
-        normalized_query: normalizedQuery
+        status: 'unavailable',
+        listings: [],
+        message: "No listings available right now. Please try again later."
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
