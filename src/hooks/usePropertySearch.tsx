@@ -1,22 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Property, PropertySearchResponse } from "@/types/property";
 import { HomeLensListing } from "@/types/ui-blocks";
 
 interface SearchParams {
-  location: string;
-  minPrice?: number;
-  maxPrice?: number;
-  beds?: number;
-  propertyType?: string;
-}
-
-interface SearchResult {
-  listings: HomeLensListing[];
+  query?: string;
+  location?: string;
+  price_min?: number;
+  price_max?: number;
+  beds_min?: number;
+  baths_min?: number;
+  prop_type?: string;
+  page?: number;
 }
 
 /**
  * Custom hook for property search with React Query caching
- * Implements 10-minute stale time to reduce API calls and avoid rate limits
+ * Calls search-listings edge function and normalizes response
  */
 export function usePropertySearch(params: SearchParams | null) {
   return useQuery({
@@ -26,31 +26,41 @@ export function usePropertySearch(params: SearchParams | null) {
         throw new Error('Search parameters are required');
       }
 
-      const { data, error } = await supabase.functions.invoke<SearchResult>('search-listings', {
+      const { data, error } = await supabase.functions.invoke<PropertySearchResponse>('search-listings', {
         body: params,
       });
 
       if (error) {
-        const message = (error as any).message || '';
-        const status = (error as any).status;
-
-        // Treat rate limit errors as a soft failure to avoid crashing the app
-        if (status === 429 || message.toLowerCase().includes('rate limit')) {
-          console.warn('Property search rate limited, returning empty results');
-          return [];
-        }
-
-        throw error;
+        console.warn('Property search error:', error);
+        return { listings: [], source: 'none', status: 'unavailable' };
       }
 
-      return data?.listings || [];
+      // Map Property[] to HomeLensListing[] for backward compatibility
+      const listings: HomeLensListing[] = (data?.listings || []).map((prop: Property) => ({
+        id: prop.id,
+        address: `${prop.address}, ${prop.city}, ${prop.state} ${prop.zip}`,
+        price: prop.price,
+        beds: prop.bedrooms ?? null,
+        baths: prop.bathrooms ?? null,
+        sqft: prop.sqft ?? null,
+        photoUrl: prop.imageUrl ?? null,
+        listingUrl: null,
+        status: prop.status ?? null,
+        source: prop.source,
+        city: prop.city,
+        state: prop.state,
+        zip: prop.zip,
+        lat: prop.latitude ?? null,
+        lng: prop.longitude ?? null,
+      }));
+
+      return listings;
     },
     enabled: !!params,
     staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     retry: 1,
     retryDelay: 2000,
-    // Prevent duplicate concurrent requests
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
