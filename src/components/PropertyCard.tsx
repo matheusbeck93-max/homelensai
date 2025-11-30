@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Bed, Bath, Ruler, TrendingUp, Scale } from "lucide-react";
+import { MapPin, Bed, Bath, Ruler, TrendingUp, Scale, BarChart } from "lucide-react";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShareButton } from "@/components/ShareButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -157,10 +157,10 @@ export function PropertyCard({ property }: PropertyCardProps) {
       <CardFooter className="flex flex-col gap-2 sm:flex-row">
         <Button 
           className="w-full" 
-          variant="outline"
           onClick={() => navigate(`/property/${property.id}`)}
         >
-          View Details
+          <BarChart className="h-4 w-4 mr-2" />
+          Analyze
         </Button>
         <Button
           className="w-full sm:w-auto"
@@ -168,6 +168,7 @@ export function PropertyCard({ property }: PropertyCardProps) {
           size="icon"
           onClick={handleAddToCompare}
           disabled={isInComparison(property.id)}
+          title="Add to comparison"
         >
           <Scale className="h-4 w-4" />
         </Button>

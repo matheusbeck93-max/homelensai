@@ -232,6 +232,30 @@ export type Database = {
         }
         Relationships: []
       }
+      market_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          location_key: string
+          snapshot: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location_key: string
+          snapshot?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location_key?: string
+          snapshot?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -685,6 +709,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      search_cache: {
+        Row: {
+          created_at: string
+          id: string
+          normalized_query: string
+          params: Json
+          results: Json
+          source: string
+          ttl_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          normalized_query: string
+          params?: Json
+          results?: Json
+          source: string
+          ttl_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          normalized_query?: string
+          params?: Json
+          results?: Json
+          source?: string
+          ttl_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       sent_alerts: {
         Row: {
