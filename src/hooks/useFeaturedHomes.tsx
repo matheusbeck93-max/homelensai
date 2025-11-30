@@ -127,7 +127,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
         baths: prop.bathrooms ?? null,
         sqft: prop.sqft ?? null,
         photoUrl: prop.imageUrl ?? null,
-        listingUrl: null,
+        listingUrl: prop.externalUrl ?? null,
         status: prop.status ?? null,
         source: prop.source,
         city: prop.city,
