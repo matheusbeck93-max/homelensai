@@ -7,9 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Input validation schema
+// Input validation schema - allow empty location for default handling
 const searchParamsSchema = z.object({
-  location: z.string().min(2).max(200).optional(),
+  location: z.string().max(200).optional().transform(val => val?.trim() || ''),
   price_min: z.number().min(0).optional(),
   price_max: z.number().max(100000000).optional(),
   beds_min: z.number().min(0).max(20).optional(),
@@ -182,7 +182,8 @@ async function fetchFromZillow(params: SearchParams): Promise<HomeLensListing[]>
   console.log('🏠 Fetching from Zillow56 API...');
 
   const searchParams = new URLSearchParams();
-  searchParams.append('location', params.location || 'Miami, FL');
+  // Location is guaranteed to exist due to default handling above
+  searchParams.append('location', params.location!);
   searchParams.append('output', 'json');
   searchParams.append('status', 'forSale');
   searchParams.append('sortSelection', 'priorityscore');
@@ -320,7 +321,15 @@ serve(async (req) => {
       );
     }
     
-    const params = validationResult.data as SearchParams;
+    let params = validationResult.data as SearchParams;
+    
+    // Apply default location if empty or missing
+    const DEFAULT_LOCATION = "Miami, FL";
+    if (!params.location || params.location.length < 2) {
+      console.log('No valid location provided, using default:', DEFAULT_LOCATION);
+      params.location = DEFAULT_LOCATION;
+    }
+    
     console.log('Search request:', params);
 
     // Initialize Supabase client for cache access
