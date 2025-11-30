@@ -891,6 +891,7 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
      */
     try {
       let parsed: any;
+      let messageBeforeJson = '';
 
       // First try to parse the whole response as JSON
       try {
@@ -900,8 +901,18 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
         const firstBrace = assistantResponse.indexOf('{');
         const lastBrace = assistantResponse.lastIndexOf('}');
         if (firstBrace !== -1 && lastBrace > firstBrace) {
+          // Keep the text BEFORE the JSON as the message
+          messageBeforeJson = assistantResponse.slice(0, firstBrace).trim();
           const possibleJson = assistantResponse.slice(firstBrace, lastBrace + 1);
           parsed = JSON.parse(possibleJson);
+          
+          // If we have text before the JSON and parsed doesn't have a message, add it
+          if (messageBeforeJson && !parsed.message) {
+            parsed.message = messageBeforeJson;
+          } else if (messageBeforeJson && parsed.message) {
+            // Prepend the text before JSON to the existing message
+            parsed.message = messageBeforeJson + '\n\n' + parsed.message;
+          }
         } else {
           throw innerError;
         }
@@ -944,6 +955,11 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
           .trim();
 
         parsed.message = cleanMessage;
+      }
+      
+      // If still no message after all processing, provide a default
+      if (!parsed.message && parsed.searchParams) {
+        parsed.message = "Let me find those properties for you...";
       }
 
       console.log('Final cleaned response:', JSON.stringify(parsed, null, 2));
