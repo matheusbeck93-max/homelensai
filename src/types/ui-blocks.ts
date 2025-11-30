@@ -14,6 +14,16 @@ export interface HomeLensListing {
   zip?: string | null;
   lat?: number | null;
   lng?: number | null;
+  
+  // Valuations
+  zestimate?: number | null;
+  rentZestimate?: number | null;
+  pricePerSqft?: number | null;
+  
+  // Price fairness
+  fairPriceScore?: number | null;
+  fairPriceLevel?: 'very_underpriced' | 'underpriced' | 'fair' | 'overpriced' | 'very_overpriced' | null;
+  
   insights?: {
     rentcast?: {
       rent_estimate?: number | null;

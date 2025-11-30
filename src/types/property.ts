@@ -16,11 +16,22 @@ export interface Property {
   bedrooms?: number;
   bathrooms?: number;
   sqft?: number;
+  lotSize?: number;
+  propertyType?: string;
   status?: string;
   imageUrl?: string;
 
+  // Valuations
   zestimate?: number;
   rentZestimate?: number;
+  taxAssessedValue?: number;
+
+  // Derived metrics
+  pricePerSqft?: number;
+  
+  // Price fairness (0-100 scale)
+  fairPriceScore?: number;
+  fairPriceLevel?: 'very_underpriced' | 'underpriced' | 'fair' | 'overpriced' | 'very_overpriced';
 
   raw?: any;  // Keep original object for deep dives
 }

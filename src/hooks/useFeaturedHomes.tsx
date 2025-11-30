@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { HomeLensListing } from '@/types/ui-blocks';
+import { Property } from '@/types/property';
 import { useToast } from '@/hooks/use-toast';
 import { getCachedData, setCachedData, isCacheValid } from '@/lib/useApiCache';
 import { checkRateLimit } from '@/lib/useRateLimit';
@@ -116,7 +117,30 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
 
       if (fetchError) throw fetchError;
 
-      const newListings = data?.listings || [];
+      // Convert Property[] to HomeLensListing[]
+      const properties: Property[] = data?.listings || [];
+      const newListings: HomeLensListing[] = properties.map((prop: Property) => ({
+        id: prop.id,
+        address: `${prop.address}, ${prop.city}, ${prop.state} ${prop.zip}`,
+        price: prop.price,
+        beds: prop.bedrooms ?? null,
+        baths: prop.bathrooms ?? null,
+        sqft: prop.sqft ?? null,
+        photoUrl: prop.imageUrl ?? null,
+        listingUrl: null,
+        status: prop.status ?? null,
+        source: prop.source,
+        city: prop.city,
+        state: prop.state,
+        zip: prop.zip,
+        lat: prop.latitude ?? null,
+        lng: prop.longitude ?? null,
+        zestimate: prop.zestimate ?? null,
+        rentZestimate: prop.rentZestimate ?? null,
+        pricePerSqft: prop.pricePerSqft ?? null,
+        fairPriceScore: prop.fairPriceScore ?? null,
+        fairPriceLevel: prop.fairPriceLevel ?? null,
+      }));
       
       if (append) {
         setListings(prev => [...prev, ...newListings]);

@@ -52,6 +52,11 @@ export function usePropertySearch(params: SearchParams | null) {
         zip: prop.zip,
         lat: prop.latitude ?? null,
         lng: prop.longitude ?? null,
+        zestimate: prop.zestimate ?? null,
+        rentZestimate: prop.rentZestimate ?? null,
+        pricePerSqft: prop.pricePerSqft ?? null,
+        fairPriceScore: prop.fairPriceScore ?? null,
+        fairPriceLevel: prop.fairPriceLevel ?? null,
       }));
 
       return listings;
