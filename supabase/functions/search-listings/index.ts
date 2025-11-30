@@ -174,10 +174,10 @@ async function saveToCache(
 
 // Zillow56 API - PRIMARY PROVIDER
 async function fetchFromZillow(params: SearchParams): Promise<{ listings: Property[], pagination: any }> {
-  const apiKey = Deno.env.get('ZILLOW_RAPIDAPI_KEY');
+  const apiKey = Deno.env.get('ZILLOW_API_KEY');
   
   if (!apiKey) {
-    const error: any = new Error('ZILLOW_RAPIDAPI_KEY not configured');
+    const error: any = new Error('ZILLOW_API_KEY not configured');
     error.status = 401;
     throw error;
   }
@@ -228,6 +228,24 @@ async function fetchFromZillow(params: SearchParams): Promise<{ listings: Proper
   const zResults = zillowJson.results ?? [];
 
   console.log(`[search-listings] zillow status=ok count=${zResults.length}`);
+  
+  // Log first property for debugging
+  if (zResults.length > 0) {
+    console.log('[search-listings] Sample property:', JSON.stringify({
+      zpid: zResults[0].zpid,
+      streetAddress: zResults[0].streetAddress,
+      city: zResults[0].city,
+      state: zResults[0].state,
+      zipcode: zResults[0].zipcode,
+      price: zResults[0].price,
+      bedrooms: zResults[0].bedrooms,
+      bathrooms: zResults[0].bathrooms,
+      livingArea: zResults[0].livingArea,
+      imgSrc: zResults[0].imgSrc,
+      latitude: zResults[0].latitude,
+      longitude: zResults[0].longitude
+    }, null, 2));
+  }
 
   // Map to normalized Property format
   const listings: Property[] = zResults.map((item: any) => ({
