@@ -210,6 +210,17 @@ export function PropertyCard({
   };
 
   const getPriceFairnessBadge = () => {
+    // Use property's built-in fairness data from Zillow as primary source
+    if (property.fairPriceLevel && property.zestimate) {
+      const label = getFairnessLabel(property.fairPriceLevel as FairnessLevel);
+      const colors = getFairnessColor(property.fairPriceLevel as FairnessLevel);
+      const percentDiff = property.price && property.zestimate 
+        ? ((property.price - property.zestimate) / property.zestimate) * 100 
+        : null;
+      return { label, colors, score: percentDiff };
+    }
+
+    // Fallback to insights if available
     if (!insights?.priceFairness) return null;
 
     const fairnessMap: Record<string, FairnessLevel> = {

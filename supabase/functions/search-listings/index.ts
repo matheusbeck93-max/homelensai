@@ -243,30 +243,76 @@ async function fetchFromZillow(params: SearchParams): Promise<{ listings: Proper
       livingArea: zResults[0].livingArea,
       imgSrc: zResults[0].imgSrc,
       latitude: zResults[0].latitude,
-      longitude: zResults[0].longitude
+      longitude: zResults[0].longitude,
+      zestimate: zResults[0].zestimate,
+      rentZestimate: zResults[0].rentZestimate
     }, null, 2));
   }
 
+  // Helper function to calculate price fairness
+  function calculatePriceFairness(price: number, zestimate: number | undefined): { score: number; level: string } {
+    if (!zestimate || zestimate <= 0) {
+      return { score: 50, level: 'fair' };
+    }
+
+    const percentDiff = ((price - zestimate) / zestimate) * 100;
+    
+    let score: number;
+    let level: string;
+
+    if (percentDiff < -15) {
+      score = 90;
+      level = 'very_underpriced';
+    } else if (percentDiff < -5) {
+      score = 75;
+      level = 'underpriced';
+    } else if (percentDiff <= 10) {
+      score = 50;
+      level = 'fair';
+    } else if (percentDiff <= 25) {
+      score = 25;
+      level = 'overpriced';
+    } else {
+      score = 10;
+      level = 'very_overpriced';
+    }
+
+    return { score, level };
+  }
+
   // Map to normalized Property format
-  const listings: Property[] = zResults.map((item: any) => ({
-    id: String(item.zpid),
-    source: "zillow" as const,
-    address: item.streetAddress ?? "",
-    city: item.city ?? "",
-    state: item.state ?? "",
-    zip: item.zipcode ?? "",
-    latitude: item.latitude,
-    longitude: item.longitude,
-    price: item.price ?? item.priceForHDP ?? 0,
-    bedrooms: item.bedrooms,
-    bathrooms: item.bathrooms,
-    sqft: item.livingArea,
-    status: item.homeStatus ?? item.homeStatusForHDP ?? "UNKNOWN",
-    imageUrl: item.imgSrc,
-    zestimate: item.zestimate,
-    rentZestimate: item.rentZestimate,
-    raw: item
-  }));
+  const listings: Property[] = zResults.map((item: any) => {
+    const price = item.price ?? item.priceForHDP ?? 0;
+    const sqft = item.livingArea;
+    const zestimate = item.zestimate;
+    const fairness = calculatePriceFairness(price, zestimate);
+
+    return {
+      id: String(item.zpid),
+      source: "zillow" as const,
+      address: item.streetAddress ?? "",
+      city: item.city ?? "",
+      state: item.state ?? "",
+      zip: item.zipcode ?? "",
+      latitude: item.latitude,
+      longitude: item.longitude,
+      price: price,
+      bedrooms: item.bedrooms,
+      bathrooms: item.bathrooms,
+      sqft: sqft,
+      lotSize: item.lotAreaValue,
+      propertyType: item.homeType,
+      status: item.homeStatus ?? item.homeStatusForHDP ?? "FOR_SALE",
+      imageUrl: item.imgSrc,
+      zestimate: zestimate,
+      rentZestimate: item.rentZestimate,
+      taxAssessedValue: item.taxAssessedValue,
+      pricePerSqft: sqft && price ? Math.round(price / sqft) : undefined,
+      fairPriceScore: fairness.score,
+      fairPriceLevel: fairness.level as any,
+      raw: item
+    };
+  });
 
   const pagination = {
     totalResults: zillowJson.totalResultCount ?? listings.length,
