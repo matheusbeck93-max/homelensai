@@ -322,7 +322,8 @@ export default function Index() {
               {quickActions.map((action, idx) => (
                 <Card
                   key={idx}
-                  className="p-4 sm:p-6"
+                  className="p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all hover:scale-105 hover:border-primary/50"
+                  onClick={() => handleSendMessage(action.prompt)}
                 >
                   <action.icon className="h-8 w-8 sm:h-10 sm:w-10 mb-3 sm:mb-4 text-primary" />
                   <h3 className="font-semibold mb-2 text-sm sm:text-base">{action.title}</h3>
