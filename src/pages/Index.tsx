@@ -53,9 +53,8 @@ export default function Index() {
           price_max: searchParams.price_max || 2000000,
           beds_min: searchParams.beds_min || 0,
           baths_min: searchParams.baths_min || 0,
-          prop_type: searchParams.prop_type || 'any',
-          offset: 0,
-          limit: 20
+          baths_max: searchParams.baths_max,
+          prop_type: searchParams.prop_type || 'any'
         }
       });
 
@@ -64,7 +63,7 @@ export default function Index() {
         throw error;
       }
 
-      console.log('[Index] Search results:', data?.listings?.length || 0, 'properties');
+      console.log('[Index] Search results:', data?.listings?.length || 0, 'properties from', data?.source);
       return data;
     },
     enabled: !!searchParams?.location,
@@ -73,17 +72,19 @@ export default function Index() {
     retry: 1,
   });
 
-  // Handle search errors
+  // Handle search errors with graceful messaging
   useEffect(() => {
     if (searchError) {
       console.error('[Index] Search query error:', searchError);
-      toast({
-        title: "Search Error",
-        description: "Failed to load properties. Using cached results if available.",
-        variant: "destructive"
-      });
+      // Show toast only if we don't have cached data
+      if (!searchData?.listings || searchData.listings.length === 0) {
+        toast({
+          title: "Search Issue",
+          description: searchData?.message || "Using cached results where available. Some providers may be rate limited.",
+        });
+      }
     }
-  }, [searchError, toast]);
+  }, [searchError, searchData, toast]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -348,25 +349,43 @@ export default function Index() {
           />
           
           {/* Property Search Results - Show hero cards when search params are active */}
-          {searchParams?.location && searchListings.length > 0 && (
-            <FeaturedHomesGrid
-              title={`Search Results for ${searchParams.location}`}
-              subtitle={`Found ${searchListings.length} properties matching your criteria`}
-              listings={searchListings}
-              isLoading={searchLoading}
-              error={searchError ? "Failed to load properties" : null}
-              hasMore={false}
-              onAnalyze={handlePropertyAnalyze}
-            />
-          )}
-          
-          {/* Loading state for property search */}
-          {searchLoading && searchParams?.location && (
-            <div className="max-w-7xl mx-auto px-4 py-8">
-              <div className="text-center">
-                <p className="text-muted-foreground">Searching for properties...</p>
-              </div>
-            </div>
+          {searchParams?.location && (
+            <>
+              {searchListings.length > 0 && (
+                <FeaturedHomesGrid
+                  title={`Search Results for ${searchParams.location}`}
+                  subtitle={searchData?.stale 
+                    ? `Showing ${searchListings.length} cached properties (API temporarily unavailable)` 
+                    : `Found ${searchListings.length} properties from ${searchData?.source || 'Zillow'}`
+                  }
+                  listings={searchListings}
+                  isLoading={searchLoading}
+                  error={searchError && searchListings.length === 0 ? "Failed to load properties" : null}
+                  hasMore={false}
+                  onAnalyze={handlePropertyAnalyze}
+                />
+              )}
+              
+              {/* Loading state for property search */}
+              {searchLoading && searchListings.length === 0 && (
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                  <div className="text-center">
+                    <p className="text-muted-foreground">Searching for properties...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!searchLoading && searchListings.length === 0 && (
+                <div className="max-w-7xl mx-auto px-4 py-8">
+                  <div className="text-center">
+                    <p className="text-muted-foreground">
+                      {searchData?.message || "No properties found matching your criteria. Try adjusting your filters."}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
