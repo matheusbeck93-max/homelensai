@@ -174,14 +174,17 @@ async function saveToCache(
 
 // Zillow56 API - PRIMARY PROVIDER
 async function fetchFromZillow(params: SearchParams): Promise<{ listings: Property[], pagination: any }> {
-  const ZILLOW_API_KEY = Deno.env.get('ZILLOW_API_KEY');
+  const apiKey = Deno.env.get('ZILLOW_RAPIDAPI_KEY');
   
-  if (!ZILLOW_API_KEY) {
-    const error: any = new Error('ZILLOW_API_KEY not configured');
+  if (!apiKey) {
+    const error: any = new Error('ZILLOW_RAPIDAPI_KEY not configured');
     error.status = 401;
     throw error;
   }
 
+  const host = 'zillow56.p.rapidapi.com';
+  const keyTail = apiKey.slice(-4);
+  console.log(`[search-listings] Preparing Zillow request host=${host} apiKeyTail=${keyTail}`);
   console.log('[search-listings] 🏠 Fetching from Zillow56 API...');
 
   const searchParams = new URLSearchParams();
@@ -199,14 +202,14 @@ async function fetchFromZillow(params: SearchParams): Promise<{ listings: Proper
     searchParams.append('home_type', params.prop_type);
   }
 
-  const url = `https://zillow56.p.rapidapi.com/search?${searchParams.toString()}`;
+  const url = `https://${host}/search?${searchParams.toString()}`;
 
   const response = await retryWithBackoff(async () => {
     const res = await fetch(url, {
       method: 'GET',
       headers: {
-        'X-RapidAPI-Host': 'zillow56.p.rapidapi.com',
-        'X-RapidAPI-Key': ZILLOW_API_KEY
+        'X-RapidAPI-Host': host,
+        'X-RapidAPI-Key': apiKey,
       }
     });
 
