@@ -36,6 +36,8 @@ interface SearchParams {
 interface Property {
   id: string;
   source: "zillow";
+  zpid?: string;
+  externalUrl?: string;
   address: string;
   city: string;
   state: string;
@@ -286,10 +288,20 @@ async function fetchFromZillow(params: SearchParams): Promise<{ listings: Proper
     const sqft = item.livingArea;
     const zestimate = item.zestimate;
     const fairness = calculatePriceFairness(price, zestimate);
+    const zpid = item.zpid ? String(item.zpid) : undefined;
+
+    // Build external URL - prefer API-provided URLs, fallback to constructing from zpid
+    const zillowUrlFromApi = item.detailUrl || item.hdpUrl || item.url || item.detailUrlPath || null;
+    const fallbackUrl = zpid ? `https://www.zillow.com/homedetails/${zpid}_zpid/` : null;
+    const externalUrl = zillowUrlFromApi
+      ? (zillowUrlFromApi.startsWith("http") ? zillowUrlFromApi : `https://www.zillow.com${zillowUrlFromApi}`)
+      : fallbackUrl;
 
     return {
-      id: String(item.zpid),
+      id: zpid ?? String(item.zpid),
       source: "zillow" as const,
+      zpid: zpid,
+      externalUrl: externalUrl ?? undefined,
       address: item.streetAddress ?? "",
       city: item.city ?? "",
       state: item.state ?? "",

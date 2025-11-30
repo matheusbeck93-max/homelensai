@@ -242,16 +242,34 @@ export function PropertyCard({
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
-      <div className="relative h-56 overflow-hidden cursor-pointer group">
-        <img
-          src={imageUrl}
-          alt={property.address}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = '/placeholder.svg';
-          }}
-          onClick={() => onViewDetails ? onViewDetails(property) : window.open(property.listingUrl || '#', '_blank')}
-        />
+      <div className="relative h-56 overflow-hidden group">
+        {property.listingUrl ? (
+          <a
+            href={property.listingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full h-full cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={imageUrl}
+              alt={property.address}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/placeholder.svg';
+              }}
+            />
+          </a>
+        ) : (
+          <img
+            src={imageUrl}
+            alt={property.address}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/placeholder.svg';
+            }}
+          />
+        )}
         
         {/* Bottom-left badges */}
         <div className="absolute bottom-2 left-2 flex flex-col gap-1">

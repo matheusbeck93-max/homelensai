@@ -5,6 +5,9 @@
 export interface Property {
   id: string;
   source: "zillow";
+  zpid?: string;
+  externalUrl?: string;
+  
   address: string;
   city: string;
   state: string;
