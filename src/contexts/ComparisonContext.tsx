@@ -23,15 +23,28 @@ export function ComparisonProvider({ children }: { children: React.ReactNode }) 
   // Determine max based on subscription
   const maxProperties = tier === "free" ? 2 : 5;
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount with validation
   useEffect(() => {
     const stored = localStorage.getItem('homelens_comparison');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setSelectedProperties(parsed);
+        // Validate that parsed data is an array with valid objects
+        if (Array.isArray(parsed)) {
+          const validProperties = parsed.filter((item: any) => 
+            item && 
+            typeof item === 'object' && 
+            typeof item.id === 'string' &&
+            item.id.length > 0
+          );
+          setSelectedProperties(validProperties);
+        } else {
+          console.warn('Invalid comparison data in localStorage, clearing');
+          localStorage.removeItem('homelens_comparison');
+        }
       } catch (e) {
         console.error('Error loading comparison state:', e);
+        localStorage.removeItem('homelens_comparison');
       }
     }
   }, []);

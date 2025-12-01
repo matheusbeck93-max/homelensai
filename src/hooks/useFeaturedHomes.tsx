@@ -117,30 +117,32 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
 
       if (fetchError) throw fetchError;
 
-      // Convert Property[] to HomeLensListing[]
+      // Convert Property[] to HomeLensListing[] with validation
       const properties: Property[] = data?.listings || [];
-      const newListings: HomeLensListing[] = properties.map((prop: Property) => ({
-        id: prop.id,
-        address: `${prop.address}, ${prop.city}, ${prop.state} ${prop.zip}`,
-        price: prop.price,
-        beds: prop.bedrooms ?? null,
-        baths: prop.bathrooms ?? null,
-        sqft: prop.sqft ?? null,
-        photoUrl: prop.imageUrl ?? null,
-        listingUrl: prop.externalUrl ?? null,
-        status: prop.status ?? null,
-        source: prop.source,
-        city: prop.city,
-        state: prop.state,
-        zip: prop.zip,
-        lat: prop.latitude ?? null,
-        lng: prop.longitude ?? null,
-        zestimate: prop.zestimate ?? null,
-        rentZestimate: prop.rentZestimate ?? null,
-        pricePerSqft: prop.pricePerSqft ?? null,
-        fairPriceScore: prop.fairPriceScore ?? null,
-        fairPriceLevel: prop.fairPriceLevel ?? null,
-      }));
+      const newListings: HomeLensListing[] = properties
+        .filter((prop: Property) => prop && prop.id) // Filter out invalid entries
+        .map((prop: Property) => ({
+          id: prop.id || '',
+          address: [prop.address, prop.city, prop.state, prop.zip].filter(Boolean).join(', ') || 'Address unavailable',
+          price: prop.price ?? null,
+          beds: prop.bedrooms ?? null,
+          baths: prop.bathrooms ?? null,
+          sqft: prop.sqft ?? null,
+          photoUrl: prop.imageUrl ?? null,
+          listingUrl: prop.externalUrl ?? null,
+          status: prop.status ?? null,
+          source: prop.source || 'unknown',
+          city: prop.city ?? null,
+          state: prop.state ?? null,
+          zip: prop.zip ?? null,
+          lat: prop.latitude ?? null,
+          lng: prop.longitude ?? null,
+          zestimate: prop.zestimate ?? null,
+          rentZestimate: prop.rentZestimate ?? null,
+          pricePerSqft: prop.pricePerSqft ?? null,
+          fairPriceScore: prop.fairPriceScore ?? null,
+          fairPriceLevel: prop.fairPriceLevel ?? null,
+        }));
       
       if (append) {
         setListings(prev => [...prev, ...newListings]);

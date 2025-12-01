@@ -125,9 +125,9 @@ export function PropertyComparison({ properties, onRemove, onClear }: PropertyCo
                 {properties.map((property) => (
                   <td key={property.id} className="py-3 px-2">
                     <div className="text-sm font-semibold">
-                      {property.sqft.toLocaleString()} sqft
+                      {property.sqft ? property.sqft.toLocaleString() : '—'} sqft
                     </div>
-                    {property.sqft > avgSqft && (
+                    {property.sqft && avgSqft && property.sqft > avgSqft && (
                       <Badge variant="outline" className="text-xs mt-1">
                         Larger
                       </Badge>
@@ -204,7 +204,7 @@ export function PropertyComparison({ properties, onRemove, onClear }: PropertyCo
             </div>
             <div>
               <span className="text-muted-foreground">Avg Sqft:</span>
-              <div className="font-semibold">{Math.round(avgSqft).toLocaleString()}</div>
+              <div className="font-semibold">{avgSqft ? Math.round(avgSqft).toLocaleString() : '—'}</div>
             </div>
             <div>
               <span className="text-muted-foreground">Avg Price/Sqft:</span>

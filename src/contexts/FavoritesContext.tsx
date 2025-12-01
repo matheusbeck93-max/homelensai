@@ -27,16 +27,29 @@ const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefi
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
 
-  // Load favorites from localStorage on mount
+  // Load favorites from localStorage on mount with validation
   useEffect(() => {
     try {
       const stored = localStorage.getItem("homelens_favorites");
       if (stored) {
         const parsed = JSON.parse(stored);
-        setFavorites(parsed);
+        // Validate that parsed data is an array with valid objects
+        if (Array.isArray(parsed)) {
+          const validFavorites = parsed.filter((item: any) =>
+            item &&
+            typeof item === 'object' &&
+            typeof item.id === 'string' &&
+            item.id.length > 0
+          );
+          setFavorites(validFavorites);
+        } else {
+          console.warn('Invalid favorites data in localStorage, clearing');
+          localStorage.removeItem("homelens_favorites");
+        }
       }
     } catch (error) {
       console.error("Failed to load favorites:", error);
+      localStorage.removeItem("homelens_favorites");
     }
   }, []);
 

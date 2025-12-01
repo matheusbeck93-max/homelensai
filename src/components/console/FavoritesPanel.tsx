@@ -180,12 +180,12 @@ export function FavoritesPanel() {
                     {property.baths}
                   </span>
                 )}
-                {property.sqft && (
+                {property.sqft ? (
                   <span className="flex items-center gap-1">
                     <Maximize className="h-4 w-4" />
-                    {property.sqft.toLocaleString()} sqft
+                    {typeof property.sqft === 'number' ? property.sqft.toLocaleString() : property.sqft} sqft
                   </span>
-                )}
+                ) : null}
               </div>
               <Button 
                 className="w-full"

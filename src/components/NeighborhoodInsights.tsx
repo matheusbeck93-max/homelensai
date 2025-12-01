@@ -318,7 +318,7 @@ export function NeighborhoodInsights({ insights }: NeighborhoodInsightsProps) {
                     <div>
                       <p className="text-sm text-muted-foreground">Population</p>
                       <p className="text-2xl font-bold">
-                        {insights.demographics.population.toLocaleString()}
+                        {insights.demographics?.population ? insights.demographics.population.toLocaleString() : '—'}
                       </p>
                     </div>
                   </div>
