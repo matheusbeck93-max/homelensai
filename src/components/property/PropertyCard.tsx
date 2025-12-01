@@ -183,7 +183,10 @@ export function PropertyCard({
     }).format(price);
   };
 
-  const formatNumber = (num: number) => {
+  const formatNumber = (num: number | null | undefined) => {
+    if (num === null || num === undefined || isNaN(num)) {
+      return '—';
+    }
     return new Intl.NumberFormat('en-US').format(num);
   };
 

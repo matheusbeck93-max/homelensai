@@ -226,7 +226,11 @@ export default function Index() {
   };
 
   const handlePropertyAnalyze = (property: any) => {
-    const message = `Analyze this property: ${property.address}, ${property.city}, ${property.state}. Price: $${property.price?.toLocaleString()}, ${property.beds} beds, ${property.baths} baths, ${property.sqft} sqft.`;
+    const priceStr = property.price ? `$${property.price.toLocaleString()}` : 'Price N/A';
+    const bedsStr = property.beds ?? 'N/A';
+    const bathsStr = property.baths ?? 'N/A';
+    const sqftStr = property.sqft ?? 'N/A';
+    const message = `Analyze this property: ${property.address || 'Unknown'}, ${property.city || ''}, ${property.state || ''}. Price: ${priceStr}, ${bedsStr} beds, ${bathsStr} baths, ${sqftStr} sqft.`;
     handleSendMessage(message);
   };
 
