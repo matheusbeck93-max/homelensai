@@ -51,9 +51,14 @@ export function Navigation() {
   const portfolioNavItem = { label: 'Portfolio', path: '/portfolio', icon: Briefcase, requiresPremium: true };
  
   const handleGoHome = () => {
-    console.log('Navigating to homepage');
-    navigate('/', { replace: true });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    console.log('Navigating to homepage from:', location.pathname);
+    if (location.pathname === '/') {
+      // Already on homepage - force full page reload to reset conversation state
+      window.location.href = '/';
+    } else {
+      navigate('/');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (

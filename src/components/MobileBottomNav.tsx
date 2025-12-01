@@ -42,8 +42,13 @@ export function MobileBottomNav() {
               onClick={() => {
                 console.log(`MobileBottomNav: ${item.label} clicked, navigating to ${item.path}`);
                 if (item.path === "/") {
-                  navigate("/", { replace: true });
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  if (location.pathname === "/") {
+                    // Already on homepage - force full page reload to reset conversation state
+                    window.location.href = "/";
+                  } else {
+                    navigate("/");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
                 } else {
                   navigate(item.path);
                 }
