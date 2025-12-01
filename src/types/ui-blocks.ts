@@ -6,6 +6,7 @@ export interface HomeLensListing {
   baths: number | null;
   sqft: number | null;
   photoUrl: string | null;
+  photos?: string[] | null;
   listingUrl: string | null;
   status: string | null;
   source: string;
