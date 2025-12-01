@@ -322,15 +322,14 @@ export default function Index() {
               {quickActions.map((action, idx) => (
                 <Card
                   key={idx}
-                  className="p-4 sm:p-6 cursor-pointer hover:shadow-lg transition-all hover:scale-105 hover:border-primary/50"
-                  onClick={() => handleSendMessage(action.prompt)}
+                  className="p-4 sm:p-6"
                 >
                   <action.icon className="h-8 w-8 sm:h-10 sm:w-10 mb-3 sm:mb-4 text-primary" />
                   <h3 className="font-semibold mb-2 text-sm sm:text-base">{action.title}</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
                     {action.description}
                   </p>
-                  <p className="text-xs sm:text-sm text-primary italic line-clamp-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground/70 italic line-clamp-2">
                     "{action.prompt}"
                   </p>
                 </Card>
