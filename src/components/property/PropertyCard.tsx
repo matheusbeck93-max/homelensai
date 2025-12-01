@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Bed, Bath, Ruler, TrendingUp, ExternalLink, Heart, Share2, Bell, Lock } from "lucide-react";
+import { MapPin, Bed, Bath, Ruler, TrendingUp, ExternalLink, Heart, Share2, Bell, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -243,6 +243,24 @@ export function PropertyCard({
   const rentYieldBadge = getRentYieldBadge();
   const priceFairnessBadge = getPriceFairnessBadge();
 
+  // Handle multiple images
+  const images = property.photos && property.photos.length > 0 
+    ? property.photos 
+    : [property.photoUrl || '/placeholder.svg'];
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+  
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
       <div className="relative h-56 overflow-hidden group">
@@ -255,8 +273,8 @@ export function PropertyCard({
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={imageUrl}
-              alt={property.address}
+              src={images[currentImageIndex]}
+              alt={`${property.address} - Image ${currentImageIndex + 1}`}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = '/placeholder.svg';
@@ -265,13 +283,39 @@ export function PropertyCard({
           </a>
         ) : (
           <img
-            src={imageUrl}
-            alt={property.address}
+            src={images[currentImageIndex]}
+            alt={`${property.address} - Image ${currentImageIndex + 1}`}
             className="w-full h-full object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).src = '/placeholder.svg';
             }}
           />
+        )}
+        
+        {/* Image navigation arrows - only show if multiple images */}
+        {images.length > 1 && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePrevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm hover:bg-background h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm hover:bg-background h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+            {/* Image counter */}
+            <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md text-xs">
+              {currentImageIndex + 1} / {images.length}
+            </div>
+          </>
         )}
         
         {/* Bottom-left badges */}

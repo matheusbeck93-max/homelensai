@@ -23,6 +23,7 @@ export interface Property {
   propertyType?: string;
   status?: string;
   imageUrl?: string;
+  photos?: string[];
 
   // Valuations
   zestimate?: number;

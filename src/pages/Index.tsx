@@ -161,13 +161,16 @@ export default function Index() {
       if (jsonData && jsonData.searchParams && jsonData.searchParams.location) {
         console.log('[Index] AI provided searchParams, triggering property search:', jsonData.searchParams);
         
-        assistantMessage = {
-          id: uuidv4(),
-          role: 'assistant',
-          content: displayMessage || 'Let me find those properties for you...',
-          createdAt: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
+        // Only add message if it's not empty/duplicate
+        if (displayMessage && displayMessage.trim()) {
+          assistantMessage = {
+            id: uuidv4(),
+            role: 'assistant',
+            content: displayMessage,
+            createdAt: new Date().toISOString()
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        }
         
         // Parse location components and trigger search
         const locationComponents = parseLocationComponents(jsonData.searchParams.location);

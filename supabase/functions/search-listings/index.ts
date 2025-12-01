@@ -50,6 +50,7 @@ interface Property {
   sqft?: number;
   status?: string;
   imageUrl?: string;
+  photos?: string[];
   zestimate?: number;
   rentZestimate?: number;
   raw?: any;
@@ -297,6 +298,18 @@ async function fetchFromZillow(params: SearchParams): Promise<{ listings: Proper
       ? (zillowUrlFromApi.startsWith("http") ? zillowUrlFromApi : `https://www.zillow.com${zillowUrlFromApi}`)
       : fallbackUrl;
 
+    // Extract multiple images if available
+    const photos: string[] = [];
+    if (item.imgSrc) photos.push(item.imgSrc);
+    if (item.carouselPhotos && Array.isArray(item.carouselPhotos)) {
+      item.carouselPhotos.forEach((photo: any) => {
+        const url = photo.url || photo.mixedSources?.jpeg?.[0]?.url;
+        if (url && !photos.includes(url)) {
+          photos.push(url);
+        }
+      });
+    }
+
     return {
       id: zpid ?? String(item.zpid),
       source: "zillow" as const,
@@ -316,6 +329,7 @@ async function fetchFromZillow(params: SearchParams): Promise<{ listings: Proper
       propertyType: item.homeType,
       status: item.homeStatus ?? item.homeStatusForHDP ?? "FOR_SALE",
       imageUrl: item.imgSrc,
+      photos: photos.length > 0 ? photos : undefined,
       zestimate: zestimate,
       rentZestimate: item.rentZestimate,
       taxAssessedValue: item.taxAssessedValue,
