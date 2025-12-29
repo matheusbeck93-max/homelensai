@@ -33,6 +33,7 @@ export default function PropertyDetail() {
   const [neighborhoodInsights, setNeighborhoodInsights] = useState<NeighborhoodInsightsType | null>(null);
   const [neighborhoodPersonality, setNeighborhoodPersonality] = useState<string>("");
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [insightsSource, setInsightsSource] = useState<'perplexity' | 'fallback'>('fallback');
   const [showMap, setShowMap] = useState(false);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -46,7 +47,7 @@ export default function PropertyDetail() {
     });
   }, [id]);
 
-  const fetchNeighborhoodInsights = async () => {
+  const fetchNeighborhoodInsights = async (forceRefresh = false) => {
     if (!property) return;
 
     setLoadingInsights(true);
@@ -64,6 +65,13 @@ export default function PropertyDetail() {
 
       if (data?.insights) {
         setNeighborhoodInsights(data.insights);
+        setInsightsSource(data.source || 'fallback');
+        if (forceRefresh) {
+          toast({
+            title: "Neighborhood data refreshed",
+            description: data.source === 'perplexity' ? "AI-powered insights updated" : "Data updated",
+          });
+        }
       }
     } catch (error: any) {
       console.error('Error fetching neighborhood insights:', error);
@@ -386,7 +394,12 @@ export default function PropertyDetail() {
               </CardContent>
             </Card>
           ) : neighborhoodInsights ? (
-            <NeighborhoodInsights insights={neighborhoodInsights} />
+            <NeighborhoodInsights 
+              insights={neighborhoodInsights} 
+              isLoading={loadingInsights}
+              onRefresh={() => fetchNeighborhoodInsights(true)}
+              source={insightsSource}
+            />
           ) : null}
         </div>
       </div>

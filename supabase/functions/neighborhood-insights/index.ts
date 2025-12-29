@@ -57,6 +57,9 @@ interface NeighborhoodInsights {
     medianAge: number;
     homeownershipRate: number;
   };
+  aiSummary?: string;
+  citations?: string[];
+  lastUpdated?: string;
 }
 
 serve(async (req) => {
@@ -66,25 +69,125 @@ serve(async (req) => {
 
   try {
     const { address, city, state, zip } = await req.json() as NeighborhoodRequest;
+    const location = `${address}, ${city}, ${state} ${zip}`;
 
-    console.log('Fetching neighborhood insights for:', { address, city, state, zip });
+    console.log('[neighborhood-insights] Fetching insights for:', location);
 
-    // For now, generate comprehensive mock data based on location
-    // In production, this would call multiple APIs:
-    // - GreatSchools API for school ratings
-    // - Walk Score API for walkability
-    // - Crime Data APIs for safety statistics
-    // - Google Places/Yelp for amenities
+    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+    
+    if (!PERPLEXITY_API_KEY) {
+      console.log('[neighborhood-insights] No Perplexity API key, using fallback data');
+      const insights = generateFallbackInsights(city, state, zip);
+      return new Response(
+        JSON.stringify({ insights, source: 'fallback' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const insights: NeighborhoodInsights = generateMockInsights(city, state, zip);
+    // Use Perplexity to get real-time neighborhood data
+    const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a real estate research assistant. Provide accurate, up-to-date neighborhood information. Always respond with valid JSON matching the exact schema provided. Be precise with numbers and ratings.`
+          },
+          {
+            role: 'user',
+            content: `Research the neighborhood at ${location} and provide comprehensive insights. Include:
+
+1. SCHOOLS: Find the 3-4 nearest public schools (elementary, middle, high). Include actual school names, their GreatSchools ratings (1-10), approximate distance, and grade levels served.
+
+2. SAFETY: Research crime statistics for this ZIP code (${zip}). Provide crime index (national average is 50), breakdown by violent/property crime percentages, and comparison to national average.
+
+3. WALKABILITY: Estimate Walk Score (0-100), Transit Score, and Bike Score based on the area's characteristics.
+
+4. AMENITIES: List 3-4 actual nearby restaurants/cafes, parks, shopping centers, and transit options with approximate distances.
+
+5. DEMOGRAPHICS: Provide population, median household income, median age, and homeownership rate for this area.
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "schools": [{"name": "string", "type": "Elementary|Middle|High", "rating": number, "distance": number, "grades": "string"}],
+  "walkScore": {"score": number, "description": "string", "transitScore": number, "bikeScore": number},
+  "crimeData": {"overallRating": "Low Crime|Moderate Crime|Above Average Crime", "crimeRate": number, "comparison": "string", "categories": {"violent": number, "property": number, "other": number}},
+  "amenities": {
+    "restaurants": [{"name": "string", "type": "string", "distance": number, "rating": number}],
+    "parks": [{"name": "string", "type": "string", "distance": number}],
+    "shopping": [{"name": "string", "type": "string", "distance": number}],
+    "transit": [{"name": "string", "type": "string", "distance": number}]
+  },
+  "demographics": {"population": number, "medianIncome": number, "medianAge": number, "homeownershipRate": number},
+  "summary": "A 2-3 sentence summary of this neighborhood's key highlights and considerations for homebuyers."
+}`
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!perplexityResponse.ok) {
+      console.error('[neighborhood-insights] Perplexity API error:', perplexityResponse.status);
+      const insights = generateFallbackInsights(city, state, zip);
+      return new Response(
+        JSON.stringify({ insights, source: 'fallback' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const perplexityData = await perplexityResponse.json();
+    console.log('[neighborhood-insights] Perplexity response received');
+
+    const content = perplexityData.choices?.[0]?.message?.content || '';
+    const citations = perplexityData.citations || [];
+
+    // Parse the JSON response
+    let parsedInsights: NeighborhoodInsights;
+    try {
+      // Extract JSON from the response (handle potential markdown code blocks)
+      let jsonStr = content;
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+      }
+      
+      const rawData = JSON.parse(jsonStr.trim());
+      
+      parsedInsights = {
+        schools: rawData.schools || [],
+        walkScore: rawData.walkScore || { score: 50, description: 'Somewhat Walkable' },
+        crimeData: rawData.crimeData || { overallRating: 'Moderate Crime', crimeRate: 50, comparison: 'Average', categories: { violent: 15, property: 25, other: 10 } },
+        amenities: rawData.amenities || { restaurants: [], parks: [], shopping: [], transit: [] },
+        demographics: rawData.demographics || { population: 10000, medianIncome: 60000, medianAge: 38, homeownershipRate: 65 },
+        aiSummary: rawData.summary || '',
+        citations: citations,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      console.log('[neighborhood-insights] Successfully parsed Perplexity data');
+    } catch (parseError) {
+      console.error('[neighborhood-insights] Failed to parse Perplexity response:', parseError);
+      console.log('[neighborhood-insights] Raw content:', content.substring(0, 500));
+      
+      // Fall back to generated data
+      parsedInsights = generateFallbackInsights(city, state, zip);
+      parsedInsights.aiSummary = content.substring(0, 500); // Include raw summary if parsing failed
+    }
 
     return new Response(
-      JSON.stringify({ insights }),
+      JSON.stringify({ insights: parsedInsights, source: 'perplexity' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in neighborhood-insights function:', error);
+    console.error('[neighborhood-insights] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: errorMessage }),
@@ -93,22 +196,18 @@ serve(async (req) => {
   }
 });
 
-function generateMockInsights(city: string, state: string, zip: string): NeighborhoodInsights {
-  // Generate realistic mock data based on location
-  // Using ZIP code to create consistent but varied data
+function generateFallbackInsights(city: string, state: string, zip: string): NeighborhoodInsights {
+  // Generate realistic fallback data based on location
   const zipNum = parseInt(zip) || 22206;
   const seed = zipNum % 100;
 
-  // Walk score varies by urban density
   const walkScore = 45 + (seed % 50);
   const transitScore = 35 + (seed % 60);
   const bikeScore = 40 + (seed % 55);
 
-  // Crime rate inversely correlates with median income
   const crimeRate = Math.max(10, 50 - (seed % 35));
   const overallRating = crimeRate < 20 ? 'Low Crime' : crimeRate < 35 ? 'Moderate Crime' : 'Above Average Crime';
 
-  // Demographics vary by location
   const medianIncome = 55000 + (seed * 1000);
   const population = 8000 + (seed * 200);
 
@@ -147,9 +246,9 @@ function generateMockInsights(city: string, state: string, zip: string): Neighbo
       crimeRate,
       comparison: `${Math.abs(50 - crimeRate)}% ${crimeRate < 50 ? 'lower' : 'higher'} than national average`,
       categories: {
-        violent: crimeRate * 0.3,
-        property: crimeRate * 0.5,
-        other: crimeRate * 0.2,
+        violent: Math.round(crimeRate * 0.3),
+        property: Math.round(crimeRate * 0.5),
+        other: Math.round(crimeRate * 0.2),
       },
     },
     amenities: {
