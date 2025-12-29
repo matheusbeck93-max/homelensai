@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { 
   GraduationCap, 
   Shield, 
@@ -15,15 +16,23 @@ import {
   Bus,
   ShoppingBag,
   Coffee,
-  Trees
+  Trees,
+  RefreshCw,
+  Sparkles,
+  ExternalLink,
+  Clock
 } from "lucide-react";
 import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
+import { formatDistanceToNow } from "date-fns";
 
 interface NeighborhoodInsightsProps {
   insights: NeighborhoodInsightsType;
+  isLoading?: boolean;
+  onRefresh?: () => void;
+  source?: 'perplexity' | 'fallback';
 }
 
-export function NeighborhoodInsights({ insights }: NeighborhoodInsightsProps) {
+export function NeighborhoodInsights({ insights, isLoading, onRefresh, source }: NeighborhoodInsightsProps) {
   const getScoreColor = (score: number) => {
     if (score >= 70) return "text-green-600 dark:text-green-400";
     if (score >= 50) return "text-yellow-600 dark:text-yellow-400";
@@ -47,15 +56,56 @@ export function NeighborhoodInsights({ insights }: NeighborhoodInsightsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MapPin className="h-5 w-5" />
-          Neighborhood Insights
-        </CardTitle>
-        <CardDescription>
-          Comprehensive data about this area including schools, safety, walkability, and amenities
-        </CardDescription>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Neighborhood Insights
+              {source === 'perplexity' && (
+                <Badge variant="secondary" className="ml-2 gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  AI-Powered
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="flex items-center gap-2 mt-1">
+              Comprehensive data about this area including schools, safety, walkability, and amenities
+              {insights.lastUpdated && (
+                <span className="flex items-center gap-1 text-xs">
+                  <Clock className="h-3 w-3" />
+                  {formatDistanceToNow(new Date(insights.lastUpdated), { addSuffix: true })}
+                </span>
+              )}
+            </CardDescription>
+          </div>
+          {onRefresh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="shrink-0"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
+        {/* AI Summary */}
+        {insights.aiSummary && (
+          <div className="mb-6 p-4 rounded-lg bg-primary/5 border border-primary/10">
+            <div className="flex items-start gap-2">
+              <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-sm mb-1">AI Summary</h4>
+                <p className="text-sm text-muted-foreground">{insights.aiSummary}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Tabs defaultValue="schools" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="schools">Schools</TabsTrigger>
@@ -375,6 +425,29 @@ export function NeighborhoodInsights({ insights }: NeighborhoodInsightsProps) {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Citations */}
+        {insights.citations && insights.citations.length > 0 && (
+          <div className="mt-6 pt-4 border-t">
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Sources
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {insights.citations.slice(0, 5).map((citation, idx) => (
+                <a
+                  key={idx}
+                  href={citation}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline truncate max-w-[200px]"
+                >
+                  {new URL(citation).hostname}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

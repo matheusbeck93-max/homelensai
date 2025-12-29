@@ -43,4 +43,7 @@ export interface NeighborhoodInsights {
     medianAge: number;
     homeownershipRate: number;
   };
+  aiSummary?: string;
+  citations?: string[];
+  lastUpdated?: string;
 }
