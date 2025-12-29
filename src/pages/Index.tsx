@@ -8,7 +8,7 @@ import { StickyChat } from "@/components/StickyChat";
 import { HouseHeroAnimation } from "@/components/HouseHeroAnimation";
 import { HomeLensListing, UIBlock } from "@/types/ui-blocks";
 import { isPropertySearchQuery, parsePropertySearchQuery, parseLocationComponents } from "@/utils/propertySearchHelpers";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
 import { Search, Calculator, TrendingUp, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,12 @@ import { Card } from "@/components/ui/card";
 import { FeaturedHomesGrid } from "@/components/FeaturedHomesGrid";
 import { useFeaturedHomes } from "@/hooks/useFeaturedHomes";
 import { PropertyFilters, PropertyFiltersState } from "@/components/PropertyFilters";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<any>(null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [conversationLoading, setConversationLoading] = useState(false);
@@ -47,6 +50,24 @@ export default function Index() {
     hasMore: featuredHasMore,
     loadMore: loadMoreFeatured
   } = useFeaturedHomes();
+
+  // Pull to refresh functionality
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['featured-homes'] });
+    if (searchParams?.location) {
+      await queryClient.invalidateQueries({ queryKey: ['property-search'] });
+    }
+    toast({
+      title: "Refreshed",
+      description: "Property listings updated",
+    });
+  }, [queryClient, searchParams, toast]);
+
+  const { pullDistance, isRefreshing, containerProps } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+    disabled: hasStartedConversation,
+  });
 
   // Merge AI search params with user filter overrides for the query
   const effectiveSearchParams = useMemo(() => {
@@ -298,7 +319,14 @@ export default function Index() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div 
+      className="min-h-screen flex flex-col bg-background touch-manipulation"
+      {...containerProps}
+    >
+      <PullToRefreshIndicator 
+        pullDistance={pullDistance} 
+        isRefreshing={isRefreshing} 
+      />
       <Navigation />
 
       {/* Hero Section */}
