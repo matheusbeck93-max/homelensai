@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -10,13 +10,13 @@ import { HomeLensListing, UIBlock } from "@/types/ui-blocks";
 import { isPropertySearchQuery, parsePropertySearchQuery, parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { Search, Calculator, TrendingUp } from "lucide-react";
+import { Search, Calculator, TrendingUp, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FeaturedHomesGrid } from "@/components/FeaturedHomesGrid";
 import { useFeaturedHomes } from "@/hooks/useFeaturedHomes";
-
+import { PropertyFilters, PropertyFiltersState } from "@/components/PropertyFilters";
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -25,6 +25,16 @@ export default function Index() {
   const [conversationLoading, setConversationLoading] = useState(false);
   const [searchParams, setSearchParams] = useState<any>(null);
   const [heroInput, setHeroInput] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Filter state with defaults
+  const [filters, setFilters] = useState<PropertyFiltersState>({
+    priceMin: 0,
+    priceMax: 2000000,
+    bedsMin: null,
+    bathsMin: null,
+    propertyTypes: [],
+  });
   
   const hasStartedConversation = messages.length > 0;
 
@@ -38,24 +48,31 @@ export default function Index() {
     loadMore: loadMoreFeatured
   } = useFeaturedHomes();
 
+  // Merge AI search params with user filter overrides for the query
+  const effectiveSearchParams = useMemo(() => {
+    if (!searchParams?.location) return null;
+    return {
+      location: searchParams.location,
+      price_min: filters.priceMin,
+      price_max: filters.priceMax,
+      beds_min: filters.bedsMin ?? searchParams.beds_min ?? 0,
+      baths_min: filters.bathsMin ?? searchParams.baths_min ?? 0,
+      prop_type: filters.propertyTypes.length > 0 
+        ? filters.propertyTypes.join(',') 
+        : searchParams.prop_type || 'any',
+    };
+  }, [searchParams, filters]);
+
   // Property search using React Query - properly rate-limited via cache
   const { data: searchData, isLoading: searchLoading, error: searchError } = useQuery({
-    queryKey: ['property-search', searchParams],
+    queryKey: ['property-search', effectiveSearchParams],
     queryFn: async () => {
-      if (!searchParams?.location) return null;
+      if (!effectiveSearchParams?.location) return null;
       
-      console.log('[Index] Fetching properties with searchParams:', searchParams);
+      console.log('[Index] Fetching properties with params:', effectiveSearchParams);
       
       const { data, error } = await supabase.functions.invoke('search-listings', {
-        body: {
-          location: searchParams.location,
-          price_min: searchParams.price_min || 0,
-          price_max: searchParams.price_max || 2000000,
-          beds_min: searchParams.beds_min || 0,
-          baths_min: searchParams.baths_min || 0,
-          baths_max: searchParams.baths_max,
-          prop_type: searchParams.prop_type || 'any'
-        }
+        body: effectiveSearchParams
       });
 
       if (error) {
@@ -66,7 +83,7 @@ export default function Index() {
       console.log('[Index] Search results:', data?.listings?.length || 0, 'properties from', data?.source);
       return data;
     },
-    enabled: !!searchParams?.location,
+    enabled: !!effectiveSearchParams?.location,
     staleTime: 15 * 60 * 1000, // 15 minutes cache
     gcTime: 20 * 60 * 1000,
     retry: 1,
@@ -85,6 +102,21 @@ export default function Index() {
       }
     }
   }, [searchError, searchData, toast]);
+
+  // Reset filters when new search starts from AI
+  const handleFiltersChange = useCallback((newFilters: PropertyFiltersState) => {
+    setFilters(newFilters);
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilters({
+      priceMin: 0,
+      priceMax: 2000000,
+      bedsMin: null,
+      bathsMin: null,
+      propertyTypes: [],
+    });
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -358,6 +390,35 @@ export default function Index() {
           {/* Property Search Results - Show hero cards when search params are active */}
           {searchParams?.location && (
             <>
+              {/* Filter Toggle Button */}
+              <div className="max-w-7xl mx-auto px-4 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
+                  {showFilters ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+
+              {/* Filter Panel */}
+              {showFilters && (
+                <div className="max-w-7xl mx-auto px-4 mb-6">
+                  <PropertyFilters
+                    filters={filters}
+                    onFiltersChange={handleFiltersChange}
+                    onClear={clearFilters}
+                  />
+                </div>
+              )}
+
               {searchListings.length > 0 && (
                 <FeaturedHomesGrid
                   title={`Search Results for ${searchParams.location}`}
