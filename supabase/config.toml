@@ -81,4 +81,6 @@ verify_jwt = false
 [functions.ai-suggest-location]
 verify_jwt = false
 
+[functions.market-trends]
+verify_jwt = false
 
