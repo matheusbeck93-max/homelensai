@@ -19,6 +19,7 @@ import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighb
 import { AddToPortfolioDialog } from "@/components/portfolio/AddToPortfolioDialog";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { PropertyInsights } from "@/components/PropertyInsights";
+import { MarketTrendsChart } from "@/components/MarketTrendsChart";
 
 export default function PropertyDetail() {
   const { id } = useParams();
@@ -365,6 +366,11 @@ export default function PropertyDetail() {
             />
           </div>
         )}
+
+        {/* Market Trends Chart */}
+        <div className="mt-8">
+          <MarketTrendsChart location={`${property.city}, ${property.state} ${property.zip}`} />
+        </div>
 
         {/* Neighborhood Personality AI */}
         <div className="mt-8">
