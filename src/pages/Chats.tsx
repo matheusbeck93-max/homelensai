@@ -227,19 +227,24 @@ export default function Chats() {
         "md:ml-64"
       )}>
         {/* Comparison Panel */}
-        {showComparison && comparisonProperties.length > 0 && (
+        {showComparison && (
           <div className="sticky top-16 z-20 mx-4 mt-4">
             <ChatComparisonPanel
               properties={comparisonProperties}
               onRemove={removeFromComparison}
               onClear={clearComparison}
               onClose={() => setShowComparison(false)}
+              onAddProperty={(property) => {
+                if (!comparisonProperties.some(p => p.url === property.url)) {
+                  setComparisonProperties(prev => [...prev, property]);
+                }
+              }}
             />
           </div>
         )}
 
-        {/* Comparison Badge */}
-        {comparisonProperties.length > 0 && !showComparison && (
+        {/* Comparison Badge - show even with 0 properties after user clicked Add */}
+        {!showComparison && (
           <div className="sticky top-16 z-20 mx-4 mt-4">
             <Button
               variant="outline"
@@ -248,7 +253,9 @@ export default function Chats() {
               className="gap-2"
             >
               <Scale className="h-4 w-4" />
-              Compare ({comparisonProperties.length})
+              {comparisonProperties.length > 0 
+                ? `Compare (${comparisonProperties.length})` 
+                : "Compare Properties"}
             </Button>
           </div>
         )}
