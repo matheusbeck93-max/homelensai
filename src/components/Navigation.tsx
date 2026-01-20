@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles, Briefcase, LayoutDashboard } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles, Briefcase, LayoutDashboard, MessageSquare } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +43,7 @@ export function Navigation() {
  
   const navItems = [
     { label: 'My HomeLens', path: '/console', icon: LayoutDashboard },
+    { label: 'Chats', path: '/chats', icon: MessageSquare },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
     { label: 'Favorites', path: '/favorites', icon: Heart },
