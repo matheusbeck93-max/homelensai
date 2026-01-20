@@ -293,7 +293,8 @@ export default function Index() {
   const handleHeroSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (heroInput.trim()) {
-      handleSendMessage(heroInput);
+      // Navigate to /chats with the initial message
+      navigate('/chats', { state: { initialMessage: heroInput.trim() } });
     }
   };
 

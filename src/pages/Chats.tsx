@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
@@ -69,7 +69,9 @@ function extractUrl(text: string): string | null {
 export default function Chats() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const initialMessageProcessed = useRef(false);
   
   // Saved chats hook
   const {
@@ -98,6 +100,18 @@ export default function Chats() {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, loading]);
+
+  // Handle initial message from homepage navigation
+  useEffect(() => {
+    const state = location.state as { initialMessage?: string } | null;
+    if (state?.initialMessage && !initialMessageProcessed.current && !loadingHistory) {
+      initialMessageProcessed.current = true;
+      // Clear state to prevent re-processing on refresh
+      window.history.replaceState({}, document.title);
+      // Send the initial message
+      handleSendMessage(state.initialMessage);
+    }
+  }, [location.state, loadingHistory]);
 
   const handleSendMessage = useCallback(async (messageText: string) => {
     if (!messageText.trim() || loading) return;

@@ -3,11 +3,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { X, Scale, ExternalLink, Trash2, Plus, Loader2, Send } from "lucide-react";
+import { X, Scale, ExternalLink, Trash2, Plus, Loader2, Send, Sparkles } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
+import ReactMarkdown from "react-markdown";
 
 export interface AnalyzedProperty {
   id: string;
@@ -67,6 +68,27 @@ function parseAnalyzedProperty(content: string, url: string): AnalyzedProperty |
   return property;
 }
 
+// Convert parsed property to format expected by compare-properties-ai
+function propertyToCompareFormat(prop: AnalyzedProperty) {
+  const parseNumber = (str?: string) => {
+    if (!str) return undefined;
+    const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+    return isNaN(num) ? undefined : num;
+  };
+
+  return {
+    address: prop.address || 'Unknown',
+    city: '',
+    state: '',
+    price: parseNumber(prop.price),
+    beds: parseNumber(prop.bedrooms),
+    baths: parseNumber(prop.bathrooms),
+    sqft: parseNumber(prop.size),
+    propertyType: prop.propertyType,
+    yearBuilt: parseNumber(prop.yearBuilt),
+  };
+}
+
 export function ChatComparisonPanel({ 
   properties, 
   onRemove, 
@@ -76,6 +98,8 @@ export function ChatComparisonPanel({
 }: ChatComparisonPanelProps) {
   const [newUrl, setNewUrl] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<{ analysis: string; buyerType: string } | null>(null);
+  const [loadingAiAnalysis, setLoadingAiAnalysis] = useState(false);
 
   const handleAddLink = async () => {
     if (!newUrl.trim()) return;
@@ -108,6 +132,7 @@ export function ChatComparisonPanel({
       if (parsed && onAddProperty) {
         onAddProperty(parsed);
         setNewUrl("");
+        setAiAnalysis(null); // Reset AI analysis when adding new property
         toast.success("Property added to comparison");
       } else {
         toast.error("Could not analyze this property. Please try a different listing.");
@@ -117,6 +142,36 @@ export function ChatComparisonPanel({
       toast.error(error.message || "Failed to analyze property");
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleGetAiRecommendation = async () => {
+    if (properties.length < 2) {
+      toast.error("Add at least 2 properties to compare");
+      return;
+    }
+
+    setLoadingAiAnalysis(true);
+    try {
+      const formattedProperties = properties.map(propertyToCompareFormat);
+      
+      const { data, error } = await supabase.functions.invoke('compare-properties-ai', {
+        body: { properties: formattedProperties }
+      });
+
+      if (error) throw error;
+
+      if (data?.analysis) {
+        setAiAnalysis({ analysis: data.analysis, buyerType: data.buyerType });
+        toast.success("AI analysis complete!");
+      } else {
+        toast.error("Could not generate analysis");
+      }
+    } catch (error: any) {
+      console.error('AI comparison error:', error);
+      toast.error(error.message || "Failed to generate AI recommendation");
+    } finally {
+      setLoadingAiAnalysis(false);
     }
   };
 
@@ -247,6 +302,62 @@ export function ChatComparisonPanel({
                 </tr>
               </tbody>
             </table>
+
+            {/* AI Recommendation Button */}
+            {properties.length >= 2 && (
+              <div className="mt-4 pt-4 border-t">
+                <Button
+                  onClick={handleGetAiRecommendation}
+                  disabled={loadingAiAnalysis}
+                  className="w-full gap-2"
+                  variant={aiAnalysis ? "outline" : "default"}
+                >
+                  {loadingAiAnalysis ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      {aiAnalysis ? "Refresh AI Recommendation" : "Get AI Recommendation"}
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Based on your profile (investor or buyer)
+                </p>
+              </div>
+            )}
+
+            {/* AI Analysis Results */}
+            {aiAnalysis && (
+              <div className="mt-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h4 className="font-semibold">AI Recommendation</h4>
+                  <Badge variant="secondary" className="text-xs">
+                    {aiAnalysis.buyerType === 'investor' ? 'Investor Focus' : 'Home Buyer Focus'}
+                  </Badge>
+                </div>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>,
+                      li: ({ children }) => <li className="text-sm">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                      h1: ({ children }) => <h4 className="font-bold text-base mt-3 mb-2">{children}</h4>,
+                      h2: ({ children }) => <h4 className="font-bold text-base mt-3 mb-2">{children}</h4>,
+                      h3: ({ children }) => <h4 className="font-semibold text-sm mt-2 mb-1">{children}</h4>,
+                    }}
+                  >
+                    {aiAnalysis.analysis}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
       )}
