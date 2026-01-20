@@ -343,23 +343,28 @@ export default function Chats() {
                         </Button>
                       )}
                       
-                      {/* Property Links */}
+                      {/* Property Links - Card Style Only */}
                       {message.links && message.links.length > 0 && (
-                        <div className="mt-4 space-y-2">
+                        <div className="mt-4 grid gap-3">
                           {message.links.map((link, idx) => (
-                            <a
+                            <Card
                               key={idx}
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 p-2 rounded-md bg-background hover:bg-accent transition-colors text-sm"
+                              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}
                             >
-                              <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              <div className="min-w-0">
-                                <p className="font-medium truncate">{link.title}</p>
-                                <p className="text-xs text-muted-foreground">{link.source}</p>
+                              <div className="flex items-center gap-3 p-4">
+                                <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                                  <ExternalLink className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-sm">{link.title}</p>
+                                  <p className="text-xs text-muted-foreground">{link.source}</p>
+                                </div>
+                                <Badge variant="secondary" className="flex-shrink-0">
+                                  View
+                                </Badge>
                               </div>
-                            </a>
+                            </Card>
                           ))}
                         </div>
                       )}

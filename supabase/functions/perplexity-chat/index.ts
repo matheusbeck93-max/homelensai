@@ -100,38 +100,47 @@ RULES:
 
 End with: "Want me to find more listings or analyze another link?"`;
     } else if (isSearch) {
-      // Search Mode - Only Zillow, Redfin, Realtor with pre-filtered URLs
+      // Search Mode - Only Zillow, Redfin, Realtor with pre-filtered URLs (1 per site)
       systemPrompt = `You are a U.S. real estate expert helping users find property listings.
 
 The user wants to search for properties. Your task:
 1. Understand their search criteria (location, price, bedrooms, bathrooms, property type, etc.)
-2. Generate DIRECT SEARCH URLs with filters already applied for Zillow, Redfin, and Realtor.com
-3. Return clickable links that will show the user filtered results immediately
+2. Generate EXACTLY 3 working search URLs with filters pre-applied - one for each site: Zillow, Redfin, Realtor.com
 
-IMPORTANT: Generate URLs with search parameters/filters embedded. Examples:
-- Zillow: https://www.zillow.com/miami-fl/?searchQueryState=... (with price, beds, baths filters)
-- Redfin: https://www.redfin.com/city/11458/FL/Miami/filter/property-type=house,min-price=200000,max-price=500000,min-beds=3
-- Realtor: https://www.realtor.com/realestateandhomes-search/Miami_FL/beds-3/price-200000-500000
+IMPORTANT URL FORMATS (use these exact patterns):
 
-Format your response EXACTLY like this:
+Zillow format:
+https://www.zillow.com/[city]-[state abbreviation]/[beds]-beds/[price-range]-price/
 
-Here are search results with your filters applied:
+Example: https://www.zillow.com/phoenix-az/3-beds/200000-500000_price/
 
-• Zillow — [Location] homes [filters summary]
-  Link: [full URL with filters]
+Redfin format:
+https://www.redfin.com/city/[city-id]/[state]/[City]/filter/min-price=[min],max-price=[max],min-beds=[beds]
 
-• Redfin — [Location] homes [filters summary]
-  Link: [full URL with filters]
+Example: https://www.redfin.com/city/14240/AZ/Phoenix/filter/min-price=200000,max-price=500000,min-beds=3
 
-• Realtor.com — [Location] homes [filters summary]
-  Link: [full URL with filters]
+Realtor format:
+https://www.realtor.com/realestateandhomes-search/[City]_[State]/beds-[min]/price-[min]-[max]
+
+Example: https://www.realtor.com/realestateandhomes-search/Phoenix_AZ/beds-3/price-200000-500000
+
+DO NOT include "Link:" text in your response. Just provide the URLs directly.
+
+Format your response like this:
+
+Here are your search results:
+
+[Brief description of search criteria applied]
+
+The links will be displayed below.
 
 RULES:
-- ONLY include Zillow, Redfin, and Realtor.com links
-- URLs MUST have search filters pre-applied (price range, beds, baths, property type)
-- Make sure URLs are complete and will work when clicked
-- Include a brief summary of applied filters next to each link
-- No property summaries or extracted data
+- Generate EXACTLY 3 URLs: one Zillow, one Redfin, one Realtor.com
+- URLs MUST have the user's filters pre-applied
+- Use the exact URL formats shown above
+- Do NOT include any text like "Link:" before URLs
+- Do NOT include individual listing links, only search result page URLs
+- No property summaries or listing details
 - No images
 
 End with: "Want me to find more listings or analyze another link?"`;
@@ -192,60 +201,53 @@ RULES:
     // Only extract links for search mode - NOT for general questions or URL analysis
     const extractedLinks: { title: string; url: string; source: string }[] = [];
     
-    // Only Zillow, Redfin, Realtor
-    const realEstateDomains = [
-      'zillow.com', 'realtor.com', 'redfin.com'
-    ];
+    // Only Zillow, Redfin, Realtor - limit 1 per site
+    const realEstateDomains = ['zillow.com', 'realtor.com', 'redfin.com'];
+    const addedDomains = new Set<string>();
 
     if (isSearch) {
       // Extract links from the response for easy rendering
-      const linkPattern = /(?:Link:\s*)?(https?:\/\/[^\s\)]+)/gi;
+      const linkPattern = /(https?:\/\/[^\s\)\]"'<>]+)/gi;
       
       let match;
       while ((match = linkPattern.exec(content)) !== null) {
-        const url = match[1];
+        const url = match[1].replace(/[.,;:!?]+$/, ''); // Clean trailing punctuation
         try {
           const hostname = new URL(url).hostname.replace('www.', '').toLowerCase();
-          // Only include real estate sites
-          const isRealEstateSite = realEstateDomains.some(domain => hostname.includes(domain.replace('www.', '')));
-          if (isRealEstateSite) {
-            const sourceName = hostname.charAt(0).toUpperCase() + hostname.slice(1).split('.')[0];
-            extractedLinks.push({
-              title: `Property listing`,
-              url: url,
-              source: sourceName
-            });
+          
+          // Find matching domain
+          const matchedDomain = realEstateDomains.find(domain => hostname.includes(domain.replace('www.', '')));
+          
+          // Only include if real estate site AND we haven't added this domain yet
+          if (matchedDomain && !addedDomains.has(matchedDomain)) {
+            addedDomains.add(matchedDomain);
+            
+            // Generate proper title based on domain
+            let sourceName = '';
+            let title = '';
+            if (hostname.includes('zillow')) {
+              sourceName = 'Zillow';
+              title = 'Search on Zillow';
+            } else if (hostname.includes('redfin')) {
+              sourceName = 'Redfin';
+              title = 'Search on Redfin';
+            } else if (hostname.includes('realtor')) {
+              sourceName = 'Realtor.com';
+              title = 'Search on Realtor.com';
+            }
+            
+            extractedLinks.push({ title, url, source: sourceName });
           }
         } catch {
           // Invalid URL, skip
         }
       }
-
-      // Also include citations if they're from real estate sites
-      citations.forEach((citation: string, index: number) => {
-        if (!extractedLinks.some(l => l.url === citation)) {
-          try {
-            const hostname = new URL(citation).hostname.replace('www.', '').toLowerCase();
-            const isRealEstateSite = realEstateDomains.some(domain => hostname.includes(domain.replace('www.', '')));
-            if (isRealEstateSite) {
-              const sourceName = hostname.charAt(0).toUpperCase() + hostname.slice(1).split('.')[0];
-              extractedLinks.push({
-                title: `Listing ${extractedLinks.length + 1}`,
-                url: citation,
-                source: sourceName
-              });
-            }
-          } catch {
-            // Invalid URL, skip
-          }
-        }
-      });
     }
 
     return new Response(
       JSON.stringify({
         message: content,
-        links: extractedLinks.slice(0, 10), // Limit to 10 links, only for search mode
+        links: extractedLinks.slice(0, 3), // Max 3 links (1 per site)
         mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
