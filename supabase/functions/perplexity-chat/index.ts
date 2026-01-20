@@ -185,47 +185,66 @@ End with: "Want me to find more listings or analyze another link?"`;
 
     console.log(`[perplexity-chat] Response received, citations: ${citations.length}`);
 
-    // Extract links from the response for easy rendering
-    const linkPattern = /(?:Link:\s*)?(https?:\/\/[^\s\)]+)/gi;
+    // Only extract links for search mode - NOT for general questions or URL analysis
     const extractedLinks: { title: string; url: string; source: string }[] = [];
     
-    let match;
-    while ((match = linkPattern.exec(content)) !== null) {
-      const url = match[1];
-      try {
-        const hostname = new URL(url).hostname.replace('www.', '');
-        const sourceName = hostname.charAt(0).toUpperCase() + hostname.slice(1).split('.')[0];
-        extractedLinks.push({
-          title: `Property listing`,
-          url: url,
-          source: sourceName
-        });
-      } catch {
-        // Invalid URL, skip
-      }
-    }
+    // Real estate site domains that we want to show links for
+    const realEstateDomains = [
+      'zillow.com', 'realtor.com', 'redfin.com', 'trulia.com', 'homes.com',
+      'century21.com', 'coldwellbanker.com', 'compass.com', 'sothebysrealty.com',
+      'berkshirehathawayhs.com', 'kw.com', 'remax.com', 'bhhs.com', 'movoto.com',
+      'homesnap.com', 'opendoor.com', 'offerpad.com', 'loopnet.com'
+    ];
 
-    // Also include citations as links if available
-    citations.forEach((citation: string, index: number) => {
-      if (!extractedLinks.some(l => l.url === citation)) {
+    if (isSearch) {
+      // Extract links from the response for easy rendering
+      const linkPattern = /(?:Link:\s*)?(https?:\/\/[^\s\)]+)/gi;
+      
+      let match;
+      while ((match = linkPattern.exec(content)) !== null) {
+        const url = match[1];
         try {
-          const hostname = new URL(citation).hostname.replace('www.', '');
-          const sourceName = hostname.charAt(0).toUpperCase() + hostname.slice(1).split('.')[0];
-          extractedLinks.push({
-            title: `Source ${index + 1}`,
-            url: citation,
-            source: sourceName
-          });
+          const hostname = new URL(url).hostname.replace('www.', '').toLowerCase();
+          // Only include real estate sites
+          const isRealEstateSite = realEstateDomains.some(domain => hostname.includes(domain.replace('www.', '')));
+          if (isRealEstateSite) {
+            const sourceName = hostname.charAt(0).toUpperCase() + hostname.slice(1).split('.')[0];
+            extractedLinks.push({
+              title: `Property listing`,
+              url: url,
+              source: sourceName
+            });
+          }
         } catch {
           // Invalid URL, skip
         }
       }
-    });
+
+      // Also include citations if they're from real estate sites
+      citations.forEach((citation: string, index: number) => {
+        if (!extractedLinks.some(l => l.url === citation)) {
+          try {
+            const hostname = new URL(citation).hostname.replace('www.', '').toLowerCase();
+            const isRealEstateSite = realEstateDomains.some(domain => hostname.includes(domain.replace('www.', '')));
+            if (isRealEstateSite) {
+              const sourceName = hostname.charAt(0).toUpperCase() + hostname.slice(1).split('.')[0];
+              extractedLinks.push({
+                title: `Listing ${extractedLinks.length + 1}`,
+                url: citation,
+                source: sourceName
+              });
+            }
+          } catch {
+            // Invalid URL, skip
+          }
+        }
+      });
+    }
 
     return new Response(
       JSON.stringify({
         message: content,
-        links: extractedLinks.slice(0, 10), // Limit to 10 links
+        links: extractedLinks.slice(0, 10), // Limit to 10 links, only for search mode
         mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
