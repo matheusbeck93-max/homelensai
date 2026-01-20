@@ -1,18 +1,47 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+// NOTE: Avoid remote imports here to reduce cold-start failures/timeouts that can
+// surface as browser-side "Failed to fetch" (especially on CORS preflights).
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-const requestSchema = z.object({
-  query: z.string().min(1),
-  conversationHistory: z.array(z.object({
-    role: z.string(),
-    content: z.string(),
-  })).optional(),
-});
+type ConversationHistoryItem = {
+  role: string;
+  content: string;
+};
+
+function validateRequestBody(body: unknown): {
+  ok: true;
+  data: { query: string; conversationHistory: ConversationHistoryItem[] };
+} | {
+  ok: false;
+  error: string;
+  details?: unknown;
+} {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid request body' };
+  }
+
+  const b = body as Record<string, unknown>;
+  const query = typeof b.query === 'string' ? b.query.trim() : '';
+  if (!query) {
+    return { ok: false, error: 'Invalid request', details: [{ path: ['query'], message: 'Required' }] };
+  }
+
+  const conversationHistoryRaw = Array.isArray(b.conversationHistory) ? b.conversationHistory : [];
+  const conversationHistory: ConversationHistoryItem[] = [];
+  for (const item of conversationHistoryRaw) {
+    if (!item || typeof item !== 'object') continue;
+    const it = item as Record<string, unknown>;
+    if (typeof it.role === 'string' && typeof it.content === 'string') {
+      conversationHistory.push({ role: it.role, content: it.content });
+    }
+  }
+
+  return { ok: true, data: { query, conversationHistory } };
+}
 
 // Detect if the query is a property search or URL analysis
 function isPropertyUrl(text: string): boolean {
@@ -40,17 +69,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const validation = requestSchema.safeParse(body);
-    
-    if (!validation.success) {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch (jsonError) {
       return new Response(
-        JSON.stringify({ error: 'Invalid request', details: validation.error.errors }),
+        JSON.stringify({ error: 'Invalid JSON body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { query, conversationHistory = [] } = validation.data;
+    const validation = validateRequestBody(body);
+    if (!validation.ok) {
+      return new Response(
+        JSON.stringify({ error: validation.error, details: validation.details }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { query, conversationHistory } = validation.data;
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 
     if (!PERPLEXITY_API_KEY) {
