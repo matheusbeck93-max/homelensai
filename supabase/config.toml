@@ -84,3 +84,6 @@ verify_jwt = false
 [functions.market-trends]
 verify_jwt = false
 
+[functions.perplexity-chat]
+verify_jwt = false
+

@@ -26,6 +26,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Console = lazy(() => import("./pages/Console"));
 const Compare = lazy(() => import("./pages/Compare"));
+const Chats = lazy(() => import("./pages/Chats"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -53,7 +54,8 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/property/:id" element={<PropertyDetail />} />
-                  <Route path="/chat" element={<Navigate to="/" replace />} />
+                  <Route path="/chats" element={<Chats />} />
+                  <Route path="/chat" element={<Navigate to="/chats" replace />} />
                   <Route path="/console" element={<Console />} />
                   <Route path="/saved-searches" element={<SavedSearches />} />
                   <Route path="/calculators" element={<Calculators />} />
