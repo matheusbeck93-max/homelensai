@@ -216,88 +216,115 @@ RULES:
 
     console.log(`[perplexity-chat] Mode: ${isUrl ? 'URL_ANALYSIS' : isSearch ? 'SEARCH' : 'GENERAL'}, Query: ${query.substring(0, 100)}...`);
 
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages,
-        max_tokens: 2000,
-        temperature: 0.2,
-        return_citations: true,
-        search_recency_filter: 'week',
-      }),
-    });
+    // Use AbortController for timeout (URL analysis takes longer)
+    const controller = new AbortController();
+    const timeoutMs = isUrl ? 55000 : 25000; // 55s for URL analysis, 25s for others
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Perplexity API error:', response.status, errorText);
-      throw new Error(`Perplexity API failed: ${response.status}`);
-    }
+    try {
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages,
+          max_tokens: 2000,
+          temperature: 0.2,
+          return_citations: true,
+          search_recency_filter: 'week',
+        }),
+        signal: controller.signal,
+      });
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    const citations = data.citations || [];
+      clearTimeout(timeoutId);
 
-    console.log(`[perplexity-chat] Response received, citations: ${citations.length}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Perplexity API error:', response.status, errorText);
+        throw new Error(`Perplexity API failed: ${response.status}`);
+      }
 
-    // Only extract links for search mode - NOT for general questions or URL analysis
-    const extractedLinks: { title: string; url: string; source: string }[] = [];
-    
-    // Only Zillow, Redfin, Realtor - limit 1 per site
-    const realEstateDomains = ['zillow.com', 'realtor.com', 'redfin.com'];
-    const addedDomains = new Set<string>();
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      const citations = data.citations || [];
 
-    if (isSearch) {
-      // Extract links from the response for easy rendering
-      const linkPattern = /(https?:\/\/[^\s\)\]"'<>]+)/gi;
+      console.log(`[perplexity-chat] Response received, citations: ${citations.length}`);
+
+      // Only extract links for search mode - NOT for general questions or URL analysis
+      const extractedLinks: { title: string; url: string; source: string }[] = [];
       
-      let match;
-      while ((match = linkPattern.exec(content)) !== null) {
-        const url = match[1].replace(/[.,;:!?]+$/, ''); // Clean trailing punctuation
-        try {
-          const hostname = new URL(url).hostname.replace('www.', '').toLowerCase();
-          
-          // Find matching domain
-          const matchedDomain = realEstateDomains.find(domain => hostname.includes(domain.replace('www.', '')));
-          
-          // Only include if real estate site AND we haven't added this domain yet
-          if (matchedDomain && !addedDomains.has(matchedDomain)) {
-            addedDomains.add(matchedDomain);
+      // Only Zillow, Redfin, Realtor - limit 1 per site
+      const realEstateDomains = ['zillow.com', 'realtor.com', 'redfin.com'];
+      const addedDomains = new Set<string>();
+
+      if (isSearch) {
+        // Extract links from the response for easy rendering
+        const linkPattern = /(https?:\/\/[^\s\)\]"'<>]+)/gi;
+        
+        let match;
+        while ((match = linkPattern.exec(content)) !== null) {
+          const url = match[1].replace(/[.,;:!?]+$/, ''); // Clean trailing punctuation
+          try {
+            const hostname = new URL(url).hostname.replace('www.', '').toLowerCase();
             
-            // Generate proper title based on domain
-            let sourceName = '';
-            let title = '';
-            if (hostname.includes('zillow')) {
-              sourceName = 'Zillow';
-              title = 'Search on Zillow';
-            } else if (hostname.includes('redfin')) {
-              sourceName = 'Redfin';
-              title = 'Search on Redfin';
-            } else if (hostname.includes('realtor')) {
-              sourceName = 'Realtor.com';
-              title = 'Search on Realtor.com';
+            // Find matching domain
+            const matchedDomain = realEstateDomains.find(domain => hostname.includes(domain.replace('www.', '')));
+            
+            // Only include if real estate site AND we haven't added this domain yet
+            if (matchedDomain && !addedDomains.has(matchedDomain)) {
+              addedDomains.add(matchedDomain);
+              
+              // Generate proper title based on domain
+              let sourceName = '';
+              let title = '';
+              if (hostname.includes('zillow')) {
+                sourceName = 'Zillow';
+                title = 'Search on Zillow';
+              } else if (hostname.includes('redfin')) {
+                sourceName = 'Redfin';
+                title = 'Search on Redfin';
+              } else if (hostname.includes('realtor')) {
+                sourceName = 'Realtor.com';
+                title = 'Search on Realtor.com';
+              }
+              
+              extractedLinks.push({ title, url, source: sourceName });
             }
-            
-            extractedLinks.push({ title, url, source: sourceName });
+          } catch {
+            // Invalid URL, skip
           }
-        } catch {
-          // Invalid URL, skip
         }
       }
-    }
 
-    return new Response(
-      JSON.stringify({
-        message: content,
-        links: extractedLinks.slice(0, 3), // Max 3 links (1 per site)
-        mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      return new Response(
+        JSON.stringify({
+          message: content,
+          links: extractedLinks.slice(0, 3), // Max 3 links (1 per site)
+          mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      // Handle timeout specifically
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.error('[perplexity-chat] Request timed out');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Request timed out',
+            message: 'The analysis is taking too long. Please try again or paste a simpler URL.'
+          }),
+          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      throw fetchError;
+    }
 
   } catch (error) {
     console.error('Error in perplexity-chat:', error);
