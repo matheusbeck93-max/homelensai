@@ -131,7 +131,7 @@ RULES:
 
 End with: "Want me to find more listings or analyze another link?"`;
     } else {
-      // General real estate question
+      // General real estate question - NO ending invitation
       systemPrompt = `You are a U.S. real estate expert. Answer questions about home buying, mortgages, investments, and market trends.
 
 RULES:
@@ -141,8 +141,7 @@ RULES:
 - No emojis
 - No marketing language
 - If the user seems to be asking about properties, ask for their search criteria (location, budget, bedrooms, etc.)
-
-End with: "Want me to find more listings or analyze another link?"`;
+- Do NOT end with "Want me to find more listings" or similar - just answer the question directly`;
     }
 
     // Build conversation messages
