@@ -100,34 +100,39 @@ RULES:
 
 End with: "Want me to find more listings or analyze another link?"`;
     } else if (isSearch) {
-      // Search Mode
+      // Search Mode - Only Zillow, Redfin, Realtor with pre-filtered URLs
       systemPrompt = `You are a U.S. real estate expert helping users find property listings.
 
 The user wants to search for properties. Your task:
-1. Understand their search criteria (location, price, bedrooms, features, etc.)
-2. Perform a real-time web search for matching listings on major platforms (Zillow, Realtor.com, Redfin, etc.)
-3. Return ONLY clickable links to relevant listings
+1. Understand their search criteria (location, price, bedrooms, bathrooms, property type, etc.)
+2. Generate DIRECT SEARCH URLs with filters already applied for Zillow, Redfin, and Realtor.com
+3. Return clickable links that will show the user filtered results immediately
+
+IMPORTANT: Generate URLs with search parameters/filters embedded. Examples:
+- Zillow: https://www.zillow.com/miami-fl/?searchQueryState=... (with price, beds, baths filters)
+- Redfin: https://www.redfin.com/city/11458/FL/Miami/filter/property-type=house,min-price=200000,max-price=500000,min-beds=3
+- Realtor: https://www.realtor.com/realestateandhomes-search/Miami_FL/beds-3/price-200000-500000
 
 Format your response EXACTLY like this:
 
-Here are relevant listings:
+Here are search results with your filters applied:
 
-• [Property title or address] — [Website name]
-  Link: [full URL]
+• Zillow — [Location] homes [filters summary]
+  Link: [full URL with filters]
 
-• [Property title or address] — [Website name]
-  Link: [full URL]
+• Redfin — [Location] homes [filters summary]
+  Link: [full URL with filters]
 
-[Continue for up to 5-8 listings]
+• Realtor.com — [Location] homes [filters summary]
+  Link: [full URL with filters]
 
 RULES:
-- Return ONLY links to actual property listings
-- No summaries of the properties
-- No extracted data (price, beds, etc.) - just the links
+- ONLY include Zillow, Redfin, and Realtor.com links
+- URLs MUST have search filters pre-applied (price range, beds, baths, property type)
+- Make sure URLs are complete and will work when clicked
+- Include a brief summary of applied filters next to each link
+- No property summaries or extracted data
 - No images
-- Include the source website name
-- Make sure URLs are complete and clickable
-- Focus on major platforms: Zillow, Realtor.com, Redfin, Trulia, Homes.com
 
 End with: "Want me to find more listings or analyze another link?"`;
     } else {
@@ -187,12 +192,9 @@ RULES:
     // Only extract links for search mode - NOT for general questions or URL analysis
     const extractedLinks: { title: string; url: string; source: string }[] = [];
     
-    // Real estate site domains that we want to show links for
+    // Only Zillow, Redfin, Realtor
     const realEstateDomains = [
-      'zillow.com', 'realtor.com', 'redfin.com', 'trulia.com', 'homes.com',
-      'century21.com', 'coldwellbanker.com', 'compass.com', 'sothebysrealty.com',
-      'berkshirehathawayhs.com', 'kw.com', 'remax.com', 'bhhs.com', 'movoto.com',
-      'homesnap.com', 'opendoor.com', 'offerpad.com', 'loopnet.com'
+      'zillow.com', 'realtor.com', 'redfin.com'
     ];
 
     if (isSearch) {
