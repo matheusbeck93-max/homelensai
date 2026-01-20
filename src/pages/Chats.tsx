@@ -1,20 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 import { StickyChat } from "@/components/StickyChat";
+import { SavedChatsSidebar } from "@/components/chat/SavedChatsSidebar";
+import { ChatComparisonPanel, AnalyzedProperty } from "@/components/chat/ChatComparisonPanel";
+import { useSavedChats, ChatMessage } from "@/hooks/useSavedChats";
 import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
-import { ExternalLink, Loader2, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ExternalLink, Loader2, MessageSquare, Scale, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-
-interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  links?: PropertyLink[];
-  createdAt: string;
-}
+import { cn } from "@/lib/utils";
 
 interface PropertyLink {
   title: string;
@@ -22,11 +21,77 @@ interface PropertyLink {
   source: string;
 }
 
+// Parse analyzed property data from assistant message
+function parseAnalyzedProperty(content: string, url: string): AnalyzedProperty | null {
+  const extractField = (pattern: RegExp): string | undefined => {
+    const match = content.match(pattern);
+    return match ? match[1].trim() : undefined;
+  };
+
+  // Only parse if it looks like an analysis response
+  if (!content.includes("Property Summary") && !content.includes("Price:")) {
+    return null;
+  }
+
+  const property: AnalyzedProperty = {
+    id: uuidv4(),
+    url,
+    rawAnalysis: content,
+    price: extractField(/Price:\s*([^\n]+)/i),
+    address: extractField(/Address:\s*([^\n]+)/i),
+    bedrooms: extractField(/Bedrooms?:\s*([^\n]+)/i),
+    bathrooms: extractField(/Bathrooms?:\s*([^\n]+)/i),
+    size: extractField(/Size:\s*([^\n]+)/i),
+    hoa: extractField(/HOA:\s*([^\n]+)/i),
+    taxes: extractField(/Taxes?:\s*([^\n]+)/i),
+    yearBuilt: extractField(/Year\s*[Bb]uilt:\s*([^\n]+)/i),
+    propertyType: extractField(/Property\s*[Tt]ype:\s*([^\n]+)/i),
+  };
+
+  // Extract key features
+  const featuresMatch = content.match(/Key\s*[Ff]eatures?:([^•\n]*(?:•[^\n]+\n?)*)/i);
+  if (featuresMatch) {
+    property.keyFeatures = featuresMatch[1]
+      .split(/[•\-\n]/)
+      .map(f => f.trim())
+      .filter(f => f.length > 0 && f.length < 50);
+  }
+
+  return property;
+}
+
+// Extract URL from user message
+function extractUrl(text: string): string | null {
+  const urlMatch = text.match(/https?:\/\/[^\s]+/i);
+  return urlMatch ? urlMatch[0] : null;
+}
+
 export default function Chats() {
   const { toast } = useToast();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Saved chats hook
+  const {
+    user,
+    conversations,
+    currentConversationId,
+    messages,
+    setMessages,
+    loading: loadingHistory,
+    loadMessages,
+    createConversation,
+    saveMessage,
+    deleteConversation,
+    startNewChat
+  } = useSavedChats();
+
+  // Local state
+  const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [comparisonProperties, setComparisonProperties] = useState<AnalyzedProperty[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+  const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -43,8 +108,26 @@ export default function Chats() {
       content: messageText,
       createdAt: new Date().toISOString()
     };
+    
     setMessages(prev => [...prev, userMessage]);
     setLoading(true);
+
+    // Track URL for comparison feature
+    const extractedUrl = extractUrl(messageText);
+    if (extractedUrl) {
+      setLastAnalyzedUrl(extractedUrl);
+    }
+
+    // Create conversation if needed (for logged in users)
+    let conversationId = currentConversationId;
+    if (user && !conversationId) {
+      conversationId = await createConversation(messageText);
+    }
+
+    // Save user message
+    if (user && conversationId) {
+      await saveMessage(userMessage, conversationId);
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke('perplexity-chat', {
@@ -68,6 +151,20 @@ export default function Chats() {
       };
       
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Save assistant message
+      if (user && conversationId) {
+        await saveMessage(assistantMessage, conversationId);
+      }
+
+      // Check if this was an analysis that can be compared
+      if (extractedUrl && data?.message) {
+        const parsed = parseAnalyzedProperty(data.message, extractedUrl);
+        if (parsed) {
+          // Store for potential comparison
+          assistantMessage.metadata = { analyzedProperty: parsed };
+        }
+      }
     } catch (error: any) {
       console.error('Chat error:', error);
       toast({
@@ -78,15 +175,86 @@ export default function Chats() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, toast]);
+  }, [messages, loading, toast, user, currentConversationId, createConversation, saveMessage, setMessages]);
+
+  const addToComparison = useCallback((content: string, url: string) => {
+    const property = parseAnalyzedProperty(content, url);
+    if (property) {
+      if (comparisonProperties.some(p => p.url === url)) {
+        toast({
+          title: "Already added",
+          description: "This property is already in comparison"
+        });
+        return;
+      }
+      setComparisonProperties(prev => [...prev, property]);
+      setShowComparison(true);
+      toast({
+        title: "Added to comparison",
+        description: `${comparisonProperties.length + 1} properties selected`
+      });
+    }
+  }, [comparisonProperties, toast]);
+
+  const removeFromComparison = useCallback((id: string) => {
+    setComparisonProperties(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  const clearComparison = useCallback(() => {
+    setComparisonProperties([]);
+    setShowComparison(false);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
 
-      <main className="flex-1 pb-32">
+      {/* Saved Chats Sidebar */}
+      <SavedChatsSidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        user={user}
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        onSelectConversation={loadMessages}
+        onNewChat={startNewChat}
+        onDeleteConversation={deleteConversation}
+        onLogin={() => navigate('/auth')}
+      />
+
+      <main className={cn(
+        "flex-1 pb-32 transition-all duration-200",
+        "md:ml-64"
+      )}>
+        {/* Comparison Panel */}
+        {showComparison && comparisonProperties.length > 0 && (
+          <div className="sticky top-16 z-20 mx-4 mt-4">
+            <ChatComparisonPanel
+              properties={comparisonProperties}
+              onRemove={removeFromComparison}
+              onClear={clearComparison}
+              onClose={() => setShowComparison(false)}
+            />
+          </div>
+        )}
+
+        {/* Comparison Badge */}
+        {comparisonProperties.length > 0 && !showComparison && (
+          <div className="sticky top-16 z-20 mx-4 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowComparison(true)}
+              className="gap-2"
+            >
+              <Scale className="h-4 w-4" />
+              Compare ({comparisonProperties.length})
+            </Button>
+          </div>
+        )}
+
         {/* Empty State */}
-        {messages.length === 0 && !loading && (
+        {messages.length === 0 && !loading && !loadingHistory && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
             <MessageSquare className="h-16 w-16 text-muted-foreground/50 mb-4" />
             <h1 className="text-2xl font-bold mb-2">Real Estate Assistant</h1>
@@ -112,70 +280,97 @@ export default function Chats() {
           </div>
         )}
 
+        {/* Loading History */}
+        {loadingHistory && (
+          <div className="flex justify-center items-center min-h-[60vh]">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
         {/* Messages */}
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+          {messages.map((message) => {
+            const messageUrl = message.role === 'user' ? extractUrl(message.content) : null;
+            const isAnalysis = message.role === 'assistant' && 
+              (message.content.includes("Property Summary") || message.content.includes("Price:"));
+            const analysisUrl = isAnalysis ? lastAnalyzedUrl : null;
+
+            return (
               <div
-                className={`max-w-[85%] rounded-lg px-4 py-3 ${
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
-                }`}
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {message.role === 'assistant' ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        a: ({ href, children }) => (
-                          <a 
-                            href={href} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline inline-flex items-center gap-1"
-                          >
-                            {children}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ),
-                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                        ul: ({ children }) => <ul className="list-none space-y-1 my-2">{children}</ul>,
-                        li: ({ children }) => <li className="flex items-start gap-2"><span>•</span><span>{children}</span></li>,
-                      }}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
-                    
-                    {/* Property Links */}
-                    {message.links && message.links.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        {message.links.map((link, idx) => (
-                          <a
-                            key={idx}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-2 rounded-md bg-background hover:bg-accent transition-colors text-sm"
-                          >
-                            <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="font-medium truncate">{link.title}</p>
-                              <p className="text-xs text-muted-foreground">{link.source}</p>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                )}
+                <div
+                  className={`max-w-[85%] rounded-lg px-4 py-3 ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  }`}
+                >
+                  {message.role === 'assistant' ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          a: ({ href, children }) => (
+                            <a 
+                              href={href} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline inline-flex items-center gap-1"
+                            >
+                              {children}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ),
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-none space-y-1 my-2">{children}</ul>,
+                          li: ({ children }) => <li className="flex items-start gap-2"><span>•</span><span>{children}</span></li>,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                      
+                      {/* Add to Comparison Button */}
+                      {isAnalysis && analysisUrl && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 gap-2"
+                          onClick={() => addToComparison(message.content, analysisUrl)}
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add to Comparison
+                        </Button>
+                      )}
+                      
+                      {/* Property Links */}
+                      {message.links && message.links.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          {message.links.map((link, idx) => (
+                            <a
+                              key={idx}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-2 rounded-md bg-background hover:bg-accent transition-colors text-sm"
+                            >
+                              <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{link.title}</p>
+                                <p className="text-xs text-muted-foreground">{link.source}</p>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {loading && (
             <div className="flex justify-start">
@@ -190,11 +385,14 @@ export default function Chats() {
         </div>
       </main>
 
-      <StickyChat
-        onSend={handleSendMessage}
-        loading={loading}
-        placeholder="Search for properties or paste a listing URL..."
-      />
+      <div className={cn("transition-all duration-200", "md:ml-64")}>
+        <StickyChat
+          onSend={handleSendMessage}
+          loading={loading}
+          placeholder="Search for properties or paste a listing URL..."
+          showVoice={true}
+        />
+      </div>
     </div>
   );
 }
