@@ -1,0 +1,242 @@
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  links?: PropertyLink[];
+  createdAt: string;
+  metadata?: Record<string, any>;
+}
+
+interface PropertyLink {
+  title: string;
+  url: string;
+  source: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function useSavedChats() {
+  const { toast } = useToast();
+  const [user, setUser] = useState<any>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Check auth state
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load conversations when user logs in
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+    } else {
+      setConversations([]);
+      setCurrentConversationId(null);
+    }
+  }, [user]);
+
+  const loadConversations = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setConversations(data?.map(c => ({
+        id: c.id,
+        title: c.title,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at
+      })) || []);
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+    }
+  }, [user]);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      
+      setMessages(data?.map(m => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        createdAt: m.created_at,
+        metadata: {}
+      })) || []);
+      
+      setCurrentConversationId(conversationId);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      toast({
+        title: "Error",
+        description: "Could not load chat history",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, toast]);
+
+  const createConversation = useCallback(async (firstMessage: string): Promise<string | null> => {
+    if (!user) return null;
+    
+    try {
+      // Generate a title from the first message
+      const title = firstMessage.length > 50 
+        ? firstMessage.substring(0, 47) + '...'
+        : firstMessage;
+      
+      const { data, error } = await supabase
+        .from('conversations')
+        .insert({
+          user_id: user.id,
+          title
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      const newConversation = {
+        id: data.id,
+        title: data.title,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+      
+      setConversations(prev => [newConversation, ...prev]);
+      setCurrentConversationId(data.id);
+      
+      return data.id;
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      return null;
+    }
+  }, [user]);
+
+  const saveMessage = useCallback(async (
+    message: ChatMessage, 
+    conversationId?: string
+  ): Promise<boolean> => {
+    if (!user) return false;
+    
+    const targetConversationId = conversationId || currentConversationId;
+    if (!targetConversationId) return false;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: targetConversationId,
+          role: message.role,
+          content: message.content
+        });
+
+      if (error) throw error;
+      
+      // Update conversation's updated_at
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', targetConversationId);
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving message:', error);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [user, currentConversationId]);
+
+  const deleteConversation = useCallback(async (conversationId: string) => {
+    if (!user) return;
+    
+    try {
+      // Messages will be deleted via cascade
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      
+      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      
+      if (currentConversationId === conversationId) {
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+      
+      toast({
+        title: "Chat deleted",
+        description: "The conversation has been removed"
+      });
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast({
+        title: "Error",
+        description: "Could not delete conversation",
+        variant: "destructive"
+      });
+    }
+  }, [user, currentConversationId, toast]);
+
+  const startNewChat = useCallback(() => {
+    setCurrentConversationId(null);
+    setMessages([]);
+  }, []);
+
+  return {
+    user,
+    conversations,
+    currentConversationId,
+    messages,
+    setMessages,
+    loading,
+    saving,
+    loadConversations,
+    loadMessages,
+    createConversation,
+    saveMessage,
+    deleteConversation,
+    startNewChat
+  };
+}

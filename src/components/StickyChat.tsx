@@ -2,14 +2,21 @@ import React, { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles } from "lucide-react";
+import { VoiceInputButton } from "@/components/chat/VoiceInputButton";
 
 interface StickyChatProps {
   onSend: (message: string) => void;
   loading?: boolean;
   placeholder?: string;
+  showVoice?: boolean;
 }
 
-export function StickyChat({ onSend, loading, placeholder = "Ask about properties, mortgages, investments, or paste a property link..." }: StickyChatProps) {
+export function StickyChat({ 
+  onSend, 
+  loading, 
+  placeholder = "Ask about properties, mortgages, investments, or paste a property link...",
+  showVoice = false
+}: StickyChatProps) {
   const [input, setInput] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -26,6 +33,10 @@ export function StickyChat({ onSend, loading, placeholder = "Ask about propertie
     }
   };
 
+  const handleVoiceTranscript = (transcript: string) => {
+    setInput(transcript);
+  };
+
   return (
     <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe">
       <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-3">
@@ -39,6 +50,12 @@ export function StickyChat({ onSend, loading, placeholder = "Ask about propertie
             className="min-h-[44px] sm:min-h-[52px] md:min-h-[60px] max-h-[80px] sm:max-h-[100px] md:max-h-[120px] resize-none text-xs sm:text-sm md:text-base"
             rows={2}
           />
+          {showVoice && (
+            <VoiceInputButton 
+              onTranscript={handleVoiceTranscript}
+              disabled={loading}
+            />
+          )}
           <Button 
             type="submit"
             disabled={loading || !input.trim()}
