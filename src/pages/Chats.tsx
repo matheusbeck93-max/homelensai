@@ -85,6 +85,7 @@ export default function Chats() {
     createConversation,
     saveMessage,
     deleteConversation,
+    renameConversation,
     startNewChat
   } = useSavedChats();
 
@@ -239,6 +240,7 @@ export default function Chats() {
         onSelectConversation={loadMessages}
         onNewChat={startNewChat}
         onDeleteConversation={deleteConversation}
+        onRenameConversation={renameConversation}
         onLogin={() => navigate('/auth')}
       />
 
