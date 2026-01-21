@@ -6,8 +6,8 @@ import { Navigation } from "@/components/Navigation";
 import { ConversationPanel, ConversationMessage } from "@/components/ConversationPanel";
 import { StickyChat } from "@/components/StickyChat";
 import { HouseHeroAnimation } from "@/components/HouseHeroAnimation";
-import { HomeLensListing, UIBlock } from "@/types/ui-blocks";
-import { isPropertySearchQuery, parsePropertySearchQuery, parseLocationComponents } from "@/utils/propertySearchHelpers";
+import { UIBlock } from "@/types/ui-blocks";
+import { parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
 import { Search, Filter, ChevronDown, ChevronUp } from "lucide-react";
@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FeaturedHomesGrid } from "@/components/FeaturedHomesGrid";
-import { useFeaturedHomes } from "@/hooks/useFeaturedHomes";
 import { PropertyFilters, PropertyFiltersState } from "@/components/PropertyFilters";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
@@ -41,19 +40,8 @@ export default function Index() {
   
   const hasStartedConversation = messages.length > 0;
 
-  // Featured homes hook
-  const { 
-    locationLabel: featuredLocation, 
-    listings: featuredListings, 
-    isLoading: featuredLoading, 
-    error: featuredError,
-    hasMore: featuredHasMore,
-    loadMore: loadMoreFeatured
-  } = useFeaturedHomes();
-
   // Pull to refresh functionality
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['featured-homes'] });
     if (searchParams?.location) {
       await queryClient.invalidateQueries({ queryKey: ['property-search'] });
     }
@@ -349,10 +337,7 @@ export default function Index() {
 
             {/* Feature Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-10 max-w-4xl mx-auto px-4">
-              <Card 
-                className="p-5 cursor-pointer hover:bg-accent transition-colors text-left"
-                onClick={() => navigate('/chats', { state: { initialMessage: 'Find me investment properties with high ROI in Austin, TX' } })}
-              >
+              <Card className="p-5 text-left">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Search className="h-5 w-5 text-primary" />
@@ -364,10 +349,7 @@ export default function Index() {
                 </p>
               </Card>
               
-              <Card 
-                className="p-5 cursor-pointer hover:bg-accent transition-colors text-left"
-                onClick={() => navigate('/chats', { state: { initialMessage: 'Analyze this property: https://www.zillow.com' } })}
-              >
+              <Card className="p-5 text-left">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Filter className="h-5 w-5 text-primary" />
@@ -379,10 +361,7 @@ export default function Index() {
                 </p>
               </Card>
               
-              <Card 
-                className="p-5 cursor-pointer hover:bg-accent transition-colors text-left"
-                onClick={() => navigate('/compare')}
-              >
+              <Card className="p-5 text-left">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <ChevronDown className="h-5 w-5 text-primary" />
@@ -490,19 +469,6 @@ export default function Index() {
         </div>
       )}
 
-      {/* Featured Homes - Only show before conversation starts */}
-      {!hasStartedConversation && (
-        <FeaturedHomesGrid
-          title={featuredLocation ? `Featured Homes near ${featuredLocation}` : "Featured Homes"}
-          subtitle="Handpicked properties in popular markets"
-          listings={featuredListings}
-          isLoading={featuredLoading}
-          error={featuredError}
-          hasMore={featuredHasMore}
-          onLoadMore={loadMoreFeatured}
-          onAnalyze={handlePropertyAnalyze}
-        />
-      )}
 
       {/* Sticky Chat Input - Only show after conversation starts */}
       {hasStartedConversation && (
