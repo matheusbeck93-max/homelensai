@@ -10,7 +10,7 @@ import { UIBlock } from "@/types/ui-blocks";
 import { parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { Search, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,8 @@ import { FeaturedHomesGrid } from "@/components/FeaturedHomesGrid";
 import { PropertyFilters, PropertyFiltersState } from "@/components/PropertyFilters";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { motion } from "framer-motion";
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -335,43 +337,79 @@ export default function Index() {
               </p>
             </form>
 
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-10 max-w-4xl mx-auto px-4">
-              <Card className="p-5 text-left">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Search className="h-5 w-5 text-primary" />
+            {/* Feature Cards with Animations */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-10 max-w-5xl mx-auto px-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
+                <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Search className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">Smart Property Search</h3>
                   </div>
-                  <h3 className="font-semibold">Smart Property Search</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Use natural language to find your perfect property across multiple platforms.
-                </p>
-              </Card>
+                  <p className="text-sm text-muted-foreground">
+                    Use natural language to find your perfect property across multiple platforms.
+                  </p>
+                </Card>
+              </motion.div>
               
-              <Card className="p-5 text-left">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Filter className="h-5 w-5 text-primary" />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Filter className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">Property Analysis</h3>
                   </div>
-                  <h3 className="font-semibold">Property Analysis</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Paste any listing URL for detailed AI-powered property analysis and insights.
-                </p>
-              </Card>
+                  <p className="text-sm text-muted-foreground">
+                    Paste any listing URL for detailed AI-powered property analysis and insights.
+                  </p>
+                </Card>
+              </motion.div>
               
-              <Card className="p-5 text-left">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <ChevronDown className="h-5 w-5 text-primary" />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+              >
+                <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Scale className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">Compare Properties</h3>
                   </div>
-                  <h3 className="font-semibold">Compare Properties</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Side-by-side comparison with AI recommendations for investors and buyers.
-                </p>
-              </Card>
+                  <p className="text-sm text-muted-foreground">
+                    Side-by-side comparison with AI recommendations for investors and buyers.
+                  </p>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 }}
+              >
+                <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Calculator className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">Financial Calculators</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Buying power calculator and investor ROI tools to plan your purchase.
+                  </p>
+                </Card>
+              </motion.div>
             </div>
           </div>
         </section>
@@ -476,6 +514,78 @@ export default function Index() {
           onSend={handleSendMessage}
           loading={conversationLoading || searchLoading}
         />
+      )}
+
+      {/* FAQ Section */}
+      {!hasStartedConversation && (
+        <section className="py-16 px-4 bg-background">
+          <div className="max-w-3xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+            >
+              <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8">
+                Frequently Asked Questions
+              </h2>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <Accordion type="single" collapsible className="w-full space-y-2">
+                <AccordionItem value="item-1" className="border rounded-lg px-4">
+                  <AccordionTrigger className="text-left">
+                    How does the AI property search work?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Our AI understands natural language queries and searches across multiple real estate platforms including Zillow, Redfin, and Realtor.com. Simply describe what you're looking for in plain English, and we'll find matching properties with pre-filtered results.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-2" className="border rounded-lg px-4">
+                  <AccordionTrigger className="text-left">
+                    Can I analyze any property listing?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Yes! Just paste any property URL from Zillow, Redfin, or Realtor.com into the chat. Our AI will extract key details including price, features, neighborhood insights, and investment potential analysis.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-3" className="border rounded-lg px-4">
+                  <AccordionTrigger className="text-left">
+                    What calculators are available?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    We offer a Buying Power Calculator to determine how much home you can afford based on your income and expenses, and an Investor ROI Calculator to analyze potential returns, cash flow, and cap rates for investment properties.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-4" className="border rounded-lg px-4">
+                  <AccordionTrigger className="text-left">
+                    How does property comparison work?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Analyze multiple properties by pasting their URLs, then add them to the comparison panel. Our AI will provide side-by-side analysis and personalized recommendations based on whether you're a home buyer or investor.
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-5" className="border rounded-lg px-4">
+                  <AccordionTrigger className="text-left">
+                    Is my chat history saved?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    Yes, if you create an account and sign in, all your conversations are automatically saved. You can access, rename, or delete previous chats from the sidebar in the chat page.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </motion.div>
+          </div>
+        </section>
       )}
 
       {/* Footer */}
