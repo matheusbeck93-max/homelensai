@@ -1,47 +1,18 @@
-// NOTE: Avoid remote imports here to reduce cold-start failures/timeouts that can
-// surface as browser-side "Failed to fetch" (especially on CORS preflights).
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-type ConversationHistoryItem = {
-  role: string;
-  content: string;
-};
-
-function validateRequestBody(body: unknown): {
-  ok: true;
-  data: { query: string; conversationHistory: ConversationHistoryItem[] };
-} | {
-  ok: false;
-  error: string;
-  details?: unknown;
-} {
-  if (!body || typeof body !== 'object') {
-    return { ok: false, error: 'Invalid request body' };
-  }
-
-  const b = body as Record<string, unknown>;
-  const query = typeof b.query === 'string' ? b.query.trim() : '';
-  if (!query) {
-    return { ok: false, error: 'Invalid request', details: [{ path: ['query'], message: 'Required' }] };
-  }
-
-  const conversationHistoryRaw = Array.isArray(b.conversationHistory) ? b.conversationHistory : [];
-  const conversationHistory: ConversationHistoryItem[] = [];
-  for (const item of conversationHistoryRaw) {
-    if (!item || typeof item !== 'object') continue;
-    const it = item as Record<string, unknown>;
-    if (typeof it.role === 'string' && typeof it.content === 'string') {
-      conversationHistory.push({ role: it.role, content: it.content });
-    }
-  }
-
-  return { ok: true, data: { query, conversationHistory } };
-}
+const requestSchema = z.object({
+  query: z.string().min(1),
+  conversationHistory: z.array(z.object({
+    role: z.string(),
+    content: z.string(),
+  })).optional(),
+});
 
 // Detect if the query is a property search or URL analysis
 function isPropertyUrl(text: string): boolean {
@@ -69,25 +40,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch (jsonError) {
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
+    
+    if (!validation.success) {
       return new Response(
-        JSON.stringify({ error: 'Invalid JSON body' }),
+        JSON.stringify({ error: 'Invalid request', details: validation.error.errors }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const validation = validateRequestBody(body);
-    if (!validation.ok) {
-      return new Response(
-        JSON.stringify({ error: validation.error, details: validation.details }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { query, conversationHistory } = validation.data;
+    const { query, conversationHistory = [] } = validation.data;
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 
     if (!PERPLEXITY_API_KEY) {
@@ -253,115 +216,88 @@ RULES:
 
     console.log(`[perplexity-chat] Mode: ${isUrl ? 'URL_ANALYSIS' : isSearch ? 'SEARCH' : 'GENERAL'}, Query: ${query.substring(0, 100)}...`);
 
-    // Use AbortController for timeout (URL analysis takes longer)
-    const controller = new AbortController();
-    const timeoutMs = isUrl ? 55000 : 25000; // 55s for URL analysis, 25s for others
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages,
+        max_tokens: 2000,
+        temperature: 0.2,
+        return_citations: true,
+        search_recency_filter: 'week',
+      }),
+    });
 
-    try {
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'sonar',
-          messages,
-          max_tokens: 2000,
-          temperature: 0.2,
-          return_citations: true,
-          search_recency_filter: 'week',
-        }),
-        signal: controller.signal,
-      });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Perplexity API error:', response.status, errorText);
+      throw new Error(`Perplexity API failed: ${response.status}`);
+    }
 
-      clearTimeout(timeoutId);
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const citations = data.citations || [];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Perplexity API error:', response.status, errorText);
-        throw new Error(`Perplexity API failed: ${response.status}`);
-      }
+    console.log(`[perplexity-chat] Response received, citations: ${citations.length}`);
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      const citations = data.citations || [];
+    // Only extract links for search mode - NOT for general questions or URL analysis
+    const extractedLinks: { title: string; url: string; source: string }[] = [];
+    
+    // Only Zillow, Redfin, Realtor - limit 1 per site
+    const realEstateDomains = ['zillow.com', 'realtor.com', 'redfin.com'];
+    const addedDomains = new Set<string>();
 
-      console.log(`[perplexity-chat] Response received, citations: ${citations.length}`);
-
-      // Only extract links for search mode - NOT for general questions or URL analysis
-      const extractedLinks: { title: string; url: string; source: string }[] = [];
+    if (isSearch) {
+      // Extract links from the response for easy rendering
+      const linkPattern = /(https?:\/\/[^\s\)\]"'<>]+)/gi;
       
-      // Only Zillow, Redfin, Realtor - limit 1 per site
-      const realEstateDomains = ['zillow.com', 'realtor.com', 'redfin.com'];
-      const addedDomains = new Set<string>();
-
-      if (isSearch) {
-        // Extract links from the response for easy rendering
-        const linkPattern = /(https?:\/\/[^\s\)\]"'<>]+)/gi;
-        
-        let match;
-        while ((match = linkPattern.exec(content)) !== null) {
-          const url = match[1].replace(/[.,;:!?]+$/, ''); // Clean trailing punctuation
-          try {
-            const hostname = new URL(url).hostname.replace('www.', '').toLowerCase();
+      let match;
+      while ((match = linkPattern.exec(content)) !== null) {
+        const url = match[1].replace(/[.,;:!?]+$/, ''); // Clean trailing punctuation
+        try {
+          const hostname = new URL(url).hostname.replace('www.', '').toLowerCase();
+          
+          // Find matching domain
+          const matchedDomain = realEstateDomains.find(domain => hostname.includes(domain.replace('www.', '')));
+          
+          // Only include if real estate site AND we haven't added this domain yet
+          if (matchedDomain && !addedDomains.has(matchedDomain)) {
+            addedDomains.add(matchedDomain);
             
-            // Find matching domain
-            const matchedDomain = realEstateDomains.find(domain => hostname.includes(domain.replace('www.', '')));
-            
-            // Only include if real estate site AND we haven't added this domain yet
-            if (matchedDomain && !addedDomains.has(matchedDomain)) {
-              addedDomains.add(matchedDomain);
-              
-              // Generate proper title based on domain
-              let sourceName = '';
-              let title = '';
-              if (hostname.includes('zillow')) {
-                sourceName = 'Zillow';
-                title = 'Search on Zillow';
-              } else if (hostname.includes('redfin')) {
-                sourceName = 'Redfin';
-                title = 'Search on Redfin';
-              } else if (hostname.includes('realtor')) {
-                sourceName = 'Realtor.com';
-                title = 'Search on Realtor.com';
-              }
-              
-              extractedLinks.push({ title, url, source: sourceName });
+            // Generate proper title based on domain
+            let sourceName = '';
+            let title = '';
+            if (hostname.includes('zillow')) {
+              sourceName = 'Zillow';
+              title = 'Search on Zillow';
+            } else if (hostname.includes('redfin')) {
+              sourceName = 'Redfin';
+              title = 'Search on Redfin';
+            } else if (hostname.includes('realtor')) {
+              sourceName = 'Realtor.com';
+              title = 'Search on Realtor.com';
             }
-          } catch {
-            // Invalid URL, skip
+            
+            extractedLinks.push({ title, url, source: sourceName });
           }
+        } catch {
+          // Invalid URL, skip
         }
       }
-
-      return new Response(
-        JSON.stringify({
-          message: content,
-          links: extractedLinks.slice(0, 3), // Max 3 links (1 per site)
-          mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      
-      // Handle timeout specifically
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        console.error('[perplexity-chat] Request timed out');
-        return new Response(
-          JSON.stringify({ 
-            error: 'Request timed out',
-            message: 'The analysis is taking too long. Please try again or paste a simpler URL.'
-          }),
-          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      throw fetchError;
     }
+
+    return new Response(
+      JSON.stringify({
+        message: content,
+        links: extractedLinks.slice(0, 3), // Max 3 links (1 per site)
+        mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Error in perplexity-chat:', error);
