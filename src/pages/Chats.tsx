@@ -132,15 +132,21 @@ export default function Chats() {
       setLastAnalyzedUrl(extractedUrl);
     }
 
-    // Create conversation if needed (for logged in users)
+    // Auto-save: Create conversation if needed (for logged in users)
     let conversationId = currentConversationId;
     if (user && !conversationId) {
       conversationId = await createConversation(messageText);
+      if (conversationId) {
+        toast({
+          title: "Chat saved",
+          description: "Your conversation is being saved automatically",
+        });
+      }
     }
 
-    // Save user message
+    // Auto-save: Save user message immediately
     if (user && conversationId) {
-      await saveMessage(userMessage, conversationId);
+      saveMessage(userMessage, conversationId);
     }
 
     try {
@@ -166,9 +172,9 @@ export default function Chats() {
       
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Save assistant message
+      // Auto-save: Save assistant message immediately
       if (user && conversationId) {
-        await saveMessage(assistantMessage, conversationId);
+        saveMessage(assistantMessage, conversationId);
       }
 
       // Check if this was an analysis that can be compared

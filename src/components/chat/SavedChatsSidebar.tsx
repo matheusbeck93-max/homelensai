@@ -1,12 +1,24 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   MessageSquare, 
   Plus, 
   Trash2, 
   LogIn, 
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Save
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -41,8 +53,43 @@ export function SavedChatsSidebar({
   onDeleteConversation,
   onLogin
 }: SavedChatsSidebarProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+
+  const handleDeleteClick = (e: React.MouseEvent, conversationId: string) => {
+    e.stopPropagation();
+    setConversationToDelete(conversationId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (conversationToDelete) {
+      onDeleteConversation(conversationToDelete);
+      setConversationToDelete(null);
+    }
+    setDeleteDialogOpen(false);
+  };
+
   return (
     <>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this conversation and all its messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Toggle Button */}
       <Button
         variant="ghost"
@@ -71,6 +118,16 @@ export function SavedChatsSidebar({
               New Chat
             </Button>
           </div>
+
+          {/* Auto-save indicator */}
+          {user && (
+            <div className="px-4 py-2 border-b bg-muted/50">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Save className="h-3 w-3" />
+                <span>Chats are saved automatically</span>
+              </div>
+            </div>
+          )}
 
           {/* Content */}
           {!user ? (
@@ -118,13 +175,10 @@ export function SavedChatsSidebar({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteConversation(conversation.id);
-                      }}
+                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
+                      onClick={(e) => handleDeleteClick(e, conversation.id)}
                     >
-                      <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 ))}

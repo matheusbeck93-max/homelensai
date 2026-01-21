@@ -346,6 +346,54 @@ export default function Index() {
                 Powered by AI – Search using natural language
               </p>
             </form>
+
+            {/* Feature Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-10 max-w-4xl mx-auto px-4">
+              <Card 
+                className="p-5 cursor-pointer hover:bg-accent transition-colors text-left"
+                onClick={() => navigate('/chats', { state: { initialMessage: 'Find me investment properties with high ROI in Austin, TX' } })}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Search className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold">Smart Property Search</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Use natural language to find your perfect property across multiple platforms.
+                </p>
+              </Card>
+              
+              <Card 
+                className="p-5 cursor-pointer hover:bg-accent transition-colors text-left"
+                onClick={() => navigate('/chats', { state: { initialMessage: 'Analyze this property: https://www.zillow.com' } })}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Filter className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold">Property Analysis</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Paste any listing URL for detailed AI-powered property analysis and insights.
+                </p>
+              </Card>
+              
+              <Card 
+                className="p-5 cursor-pointer hover:bg-accent transition-colors text-left"
+                onClick={() => navigate('/compare')}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <ChevronDown className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold">Compare Properties</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Side-by-side comparison with AI recommendations for investors and buyers.
+                </p>
+              </Card>
+            </div>
           </div>
         </section>
       ) : (
