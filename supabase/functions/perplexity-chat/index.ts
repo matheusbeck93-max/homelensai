@@ -139,7 +139,9 @@ https://www.realtor.com/realestateandhomes-search/[City]_[State]/beds-[min]/pric
 
 Example: https://www.realtor.com/realestateandhomes-search/Phoenix_AZ/beds-3/price-200000-500000
 
-Format your response with CLEAR structure (DO NOT include the URLs in the text - they will be shown as cards automatically):
+DO NOT include "Link:" text in your response. Just provide the URLs directly.
+
+Format your response with CLEAR structure:
 
 **Search Criteria Applied**
 • Location: [city, state]
@@ -157,12 +159,13 @@ The search links are ready below with your filters pre-applied.
 • Investment potential
 • Negotiation recommendations
 
-CRITICAL RULES:
+RULES:
 - Generate EXACTLY 3 URLs: one Zillow, one Redfin, one Realtor.com
 - URLs MUST have the user's filters pre-applied
-- DO NOT INCLUDE THE URLs IN YOUR TEXT RESPONSE - they will be extracted and shown as clickable cards
-- The response text should NOT contain any URLs - only the criteria summary and next steps
+- Use the exact URL formats shown above
 - Each bullet point on its OWN line
+- Do NOT include any text like "Link:" before URLs
+- Do NOT include individual listing links, only search result page URLs
 - No property summaries or listing details
 - No images`;
     } else {
@@ -287,17 +290,9 @@ RULES:
       }
     }
 
-    // Clean URLs from the message text for search mode (they'll be shown as cards)
-    let cleanedContent = content;
-    if (isSearch && extractedLinks.length > 0) {
-      // Remove URLs from the text content
-      const urlPattern = /https?:\/\/[^\s\)\]"'<>]+/gi;
-      cleanedContent = content.replace(urlPattern, '').replace(/\n{3,}/g, '\n\n').trim();
-    }
-
     return new Response(
       JSON.stringify({
-        message: cleanedContent,
+        message: content,
         links: extractedLinks.slice(0, 3), // Max 3 links (1 per site)
         mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
       }),
