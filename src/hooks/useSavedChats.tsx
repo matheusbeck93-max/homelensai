@@ -258,6 +258,36 @@ export function useSavedChats() {
     setMessages([]);
   }, []);
 
+  const clearAllConversations = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      // Delete all conversations for this user (messages cascade)
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      setConversations([]);
+      setCurrentConversationId(null);
+      setMessages([]);
+      
+      toast({
+        title: "History cleared",
+        description: "All your conversations have been deleted"
+      });
+    } catch (error) {
+      console.error('Error clearing conversations:', error);
+      toast({
+        title: "Error",
+        description: "Could not clear conversation history",
+        variant: "destructive"
+      });
+    }
+  }, [user, toast]);
+
   return {
     user,
     conversations,
@@ -272,6 +302,7 @@ export function useSavedChats() {
     saveMessage,
     deleteConversation,
     renameConversation,
-    startNewChat
+    startNewChat,
+    clearAllConversations
   };
 }

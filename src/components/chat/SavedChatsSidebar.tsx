@@ -52,6 +52,7 @@ interface SavedChatsSidebarProps {
   onNewChat: () => void;
   onDeleteConversation: (id: string) => void;
   onRenameConversation?: (id: string, newTitle: string) => Promise<boolean>;
+  onClearAllConversations?: () => void;
   onLogin: () => void;
 }
 
@@ -65,9 +66,11 @@ export function SavedChatsSidebar({
   onNewChat,
   onDeleteConversation,
   onRenameConversation,
+  onClearAllConversations,
   onLogin
 }: SavedChatsSidebarProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -84,6 +87,13 @@ export function SavedChatsSidebar({
       setConversationToDelete(null);
     }
     setDeleteDialogOpen(false);
+  };
+
+  const confirmClearAll = () => {
+    if (onClearAllConversations) {
+      onClearAllConversations();
+    }
+    setClearAllDialogOpen(false);
   };
 
   const startEditing = (e: React.MouseEvent, conversation: Conversation) => {
@@ -145,6 +155,24 @@ export function SavedChatsSidebar({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Clear All Confirmation Dialog */}
+      <AlertDialog open={clearAllDialogOpen} onOpenChange={setClearAllDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all chat history?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete all your saved conversations and messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClearAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Clear All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Toggle Button */}
       <Button
         variant="ghost"
@@ -174,13 +202,24 @@ export function SavedChatsSidebar({
             </Button>
           </div>
 
-          {/* Auto-save indicator */}
+          {/* Auto-save indicator and Clear History */}
           {user && (
-            <div className="px-4 py-2 border-b bg-muted/50">
+            <div className="px-4 py-2 border-b bg-muted/50 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Save className="h-3 w-3" />
-                <span>Chats are saved automatically</span>
+                <span>Auto-saved</span>
               </div>
+              {conversations.length > 0 && onClearAllConversations && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-destructive hover:bg-destructive/10"
+                  onClick={() => setClearAllDialogOpen(true)}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Clear All
+                </Button>
+              )}
             </div>
           )}
 

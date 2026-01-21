@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Loader2, MessageSquare, Scale, Plus } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
@@ -86,7 +86,8 @@ export default function Chats() {
     saveMessage,
     deleteConversation,
     renameConversation,
-    startNewChat
+    startNewChat,
+    clearAllConversations
   } = useSavedChats();
 
   // Local state
@@ -241,6 +242,7 @@ export default function Chats() {
         onNewChat={startNewChat}
         onDeleteConversation={deleteConversation}
         onRenameConversation={renameConversation}
+        onClearAllConversations={clearAllConversations}
         onLogin={() => navigate('/auth')}
       />
 
@@ -265,22 +267,6 @@ export default function Chats() {
           </div>
         )}
 
-        {/* Comparison Badge - show even with 0 properties after user clicked Add */}
-        {!showComparison && (
-          <div className="sticky top-16 z-20 mx-4 mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowComparison(true)}
-              className="gap-2"
-            >
-              <Scale className="h-4 w-4" />
-              {comparisonProperties.length > 0 
-                ? `Compare (${comparisonProperties.length})` 
-                : "Compare Properties"}
-            </Button>
-          </div>
-        )}
 
         {/* Empty State */}
         {messages.length === 0 && !loading && !loadingHistory && (
