@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
@@ -11,6 +12,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   MessageSquare, 
   Plus, 
@@ -18,7 +27,10 @@ import {
   LogIn, 
   ChevronLeft,
   ChevronRight,
-  Save
+  Save,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -39,6 +51,7 @@ interface SavedChatsSidebarProps {
   onSelectConversation: (id: string) => void;
   onNewChat: () => void;
   onDeleteConversation: (id: string) => void;
+  onRenameConversation?: (id: string, newTitle: string) => Promise<boolean>;
   onLogin: () => void;
 }
 
@@ -51,10 +64,13 @@ export function SavedChatsSidebar({
   onSelectConversation,
   onNewChat,
   onDeleteConversation,
+  onRenameConversation,
   onLogin
 }: SavedChatsSidebarProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
 
   const handleDeleteClick = (e: React.MouseEvent, conversationId: string) => {
     e.stopPropagation();
@@ -68,6 +84,45 @@ export function SavedChatsSidebar({
       setConversationToDelete(null);
     }
     setDeleteDialogOpen(false);
+  };
+
+  const startEditing = (e: React.MouseEvent, conversation: Conversation) => {
+    e.stopPropagation();
+    setEditingId(conversation.id);
+    setEditTitle(conversation.title);
+  };
+
+  const cancelEditing = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingId(null);
+    setEditTitle("");
+  };
+
+  const saveEditing = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (editingId && editTitle.trim() && onRenameConversation) {
+      const success = await onRenameConversation(editingId, editTitle);
+      if (success) {
+        setEditingId(null);
+        setEditTitle("");
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (editingId && editTitle.trim() && onRenameConversation) {
+        onRenameConversation(editingId, editTitle).then(success => {
+          if (success) {
+            setEditingId(null);
+            setEditTitle("");
+          }
+        });
+      }
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
   };
 
   return (
@@ -161,25 +216,73 @@ export function SavedChatsSidebar({
                       "group flex items-center gap-2 rounded-md p-2 hover:bg-accent cursor-pointer transition-colors",
                       currentConversationId === conversation.id && "bg-accent"
                     )}
-                    onClick={() => onSelectConversation(conversation.id)}
+                    onClick={() => editingId !== conversation.id && onSelectConversation(conversation.id)}
                   >
                     <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {conversation.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(conversation.updatedAt), { addSuffix: true })}
-                      </p>
+                      {editingId === conversation.id ? (
+                        <Input
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-7 text-sm"
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          <p className="text-sm font-medium truncate">
+                            {conversation.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(conversation.updatedAt), { addSuffix: true })}
+                          </p>
+                        </>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
-                      onClick={(e) => handleDeleteClick(e, conversation.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    
+                    {/* Action buttons */}
+                    {editingId === conversation.id ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:bg-primary/10"
+                          onClick={saveEditing}
+                        >
+                          <Check className="h-4 w-4 text-primary" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:bg-destructive/10"
+                          onClick={cancelEditing}
+                        >
+                          <X className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onRenameConversation && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 hover:bg-primary/10"
+                            onClick={(e) => startEditing(e, conversation)}
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:bg-destructive/10"
+                          onClick={(e) => handleDeleteClick(e, conversation.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

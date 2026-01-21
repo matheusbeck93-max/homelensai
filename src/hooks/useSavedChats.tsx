@@ -219,6 +219,40 @@ export function useSavedChats() {
     }
   }, [user, currentConversationId, toast]);
 
+  const renameConversation = useCallback(async (conversationId: string, newTitle: string) => {
+    if (!user || !newTitle.trim()) return false;
+    
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ title: newTitle.trim(), updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId 
+          ? { ...c, title: newTitle.trim(), updatedAt: new Date().toISOString() }
+          : c
+      ));
+      
+      toast({
+        title: "Chat renamed",
+        description: "The conversation title has been updated"
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error renaming conversation:', error);
+      toast({
+        title: "Error",
+        description: "Could not rename conversation",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [user, toast]);
+
   const startNewChat = useCallback(() => {
     setCurrentConversationId(null);
     setMessages([]);
@@ -237,6 +271,7 @@ export function useSavedChats() {
     createConversation,
     saveMessage,
     deleteConversation,
+    renameConversation,
     startNewChat
   };
 }
