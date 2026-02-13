@@ -285,6 +285,22 @@ export default function Chats() {
                 <p className="text-sm font-medium">Find investment properties</p>
                 <p className="text-xs text-muted-foreground">Investment properties in Austin under $400k</p>
               </Card>
+              <Card className="p-4">
+                <p className="text-sm font-medium">Analyze a listing</p>
+                <p className="text-xs text-muted-foreground">Paste a Zillow, Redfin, or Realtor.com URL for instant analysis</p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-sm font-medium">Compare neighborhoods</p>
+                <p className="text-xs text-muted-foreground">Compare schools, safety, and walkability in two areas</p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-sm font-medium">Calculate mortgage</p>
+                <p className="text-xs text-muted-foreground">Monthly payment for a $350k home with 20% down at 6.5%</p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-sm font-medium">Estimate rental income</p>
+                <p className="text-xs text-muted-foreground">Expected rent for a 2-bed condo in Denver</p>
+              </Card>
             </div>
           </div>
         )}
