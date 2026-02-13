@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FileText, Shield, Cookie, Accessibility, Scale } from "lucide-react";
+import { FileText, Shield, Cookie, Accessibility, Scale, ShieldAlert, Copyright, Ban } from "lucide-react";
 
 const footerLinks = [
   { to: "/terms", label: "Terms of Service", icon: FileText },
@@ -7,6 +7,9 @@ const footerLinks = [
   { to: "/cookies", label: "Cookie Policy", icon: Cookie },
   { to: "/accessibility", label: "Accessibility", icon: Accessibility },
   { to: "/fair-housing", label: "Fair Housing", icon: Scale },
+  { to: "/ccpa", label: "CCPA Notice", icon: ShieldAlert },
+  { to: "/dmca", label: "DMCA Policy", icon: Copyright },
+  { to: "/do-not-sell", label: "Do Not Sell", icon: Ban },
 ];
 
 export function Footer() {
