@@ -20,6 +20,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
+import { Footer } from "@/components/Footer";
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -589,13 +590,7 @@ export default function Index() {
       )}
 
       {/* Footer */}
-      {!hasStartedConversation && (
-        <footer className="bg-muted py-8 mt-auto">
-          <div className="container mx-auto px-4 text-center text-muted-foreground">
-            <p>&copy; 2025 HomeLens. All rights reserved.</p>
-          </div>
-        </footer>
-      )}
+      {!hasStartedConversation && <Footer />}
     </div>
   );
 }

@@ -28,6 +28,11 @@ const Console = lazy(() => import("./pages/Console"));
 const Compare = lazy(() => import("./pages/Compare"));
 const Chats = lazy(() => import("./pages/Chats"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+const AccessibilityPage = lazy(() => import("./pages/Accessibility"));
+const FairHousing = lazy(() => import("./pages/FairHousing"));
 
 const queryClient = new QueryClient();
 
@@ -67,6 +72,11 @@ function App() {
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route path="/accessibility" element={<AccessibilityPage />} />
+                  <Route path="/fair-housing" element={<FairHousing />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
