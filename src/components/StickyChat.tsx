@@ -38,7 +38,7 @@ export function StickyChat({
   };
 
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe">
+    <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe">
       <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-3">
         <form onSubmit={handleSubmit} className="flex gap-1.5 sm:gap-2">
           <Textarea
