@@ -45,16 +45,16 @@ function parseAnalyzedProperty(content: string, url: string): AnalyzedProperty |
     hoa: extractField(/HOA:\s*([^\n]+)/i),
     taxes: extractField(/Taxes?:\s*([^\n]+)/i),
     yearBuilt: extractField(/Year\s*[Bb]uilt:\s*([^\n]+)/i),
-    propertyType: extractField(/Property\s*[Tt]ype:\s*([^\n]+)/i),
+    propertyType: extractField(/Property\s*[Tt]ype:\s*([^\n]+)/i)
   };
 
   // Extract key features
   const featuresMatch = content.match(/Key\s*[Ff]eatures?:([^•\n]*(?:•[^\n]+\n?)*)/i);
   if (featuresMatch) {
-    property.keyFeatures = featuresMatch[1]
-      .split(/[•\-\n]/)
-      .map(f => f.trim())
-      .filter(f => f.length > 0 && f.length < 50);
+    property.keyFeatures = featuresMatch[1].
+    split(/[•\-\n]/).
+    map((f) => f.trim()).
+    filter((f) => f.length > 0 && f.length < 50);
   }
 
   return property;
@@ -72,7 +72,7 @@ export default function Chats() {
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialMessageProcessed = useRef(false);
-  
+
   // Saved chats hook
   const {
     user,
@@ -105,7 +105,7 @@ export default function Chats() {
 
   // Handle initial message from homepage navigation
   useEffect(() => {
-    const state = location.state as { initialMessage?: string } | null;
+    const state = location.state as {initialMessage?: string;} | null;
     if (state?.initialMessage && !initialMessageProcessed.current && !loadingHistory) {
       initialMessageProcessed.current = true;
       // Clear state to prevent re-processing on refresh
@@ -124,8 +124,8 @@ export default function Chats() {
       content: messageText,
       createdAt: new Date().toISOString()
     };
-    
-    setMessages(prev => [...prev, userMessage]);
+
+    setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
 
     // Track URL for comparison feature
@@ -141,7 +141,7 @@ export default function Chats() {
       if (conversationId) {
         toast({
           title: "Chat saved",
-          description: "Your conversation is being saved automatically",
+          description: "Your conversation is being saved automatically"
         });
       }
     }
@@ -155,7 +155,7 @@ export default function Chats() {
       const { data, error } = await supabase.functions.invoke('perplexity-chat', {
         body: {
           query: messageText,
-          conversationHistory: messages.map(m => ({
+          conversationHistory: messages.map((m) => ({
             role: m.role,
             content: m.content
           }))
@@ -171,8 +171,8 @@ export default function Chats() {
         links: data?.links || [],
         createdAt: new Date().toISOString()
       };
-      
-      setMessages(prev => [...prev, assistantMessage]);
+
+      setMessages((prev) => [...prev, assistantMessage]);
 
       // Auto-save: Save assistant message immediately
       if (user && conversationId) {
@@ -202,14 +202,14 @@ export default function Chats() {
   const addToComparison = useCallback((content: string, url: string) => {
     const property = parseAnalyzedProperty(content, url);
     if (property) {
-      if (comparisonProperties.some(p => p.url === url)) {
+      if (comparisonProperties.some((p) => p.url === url)) {
         toast({
           title: "Already added",
           description: "This property is already in comparison"
         });
         return;
       }
-      setComparisonProperties(prev => [...prev, property]);
+      setComparisonProperties((prev) => [...prev, property]);
       setShowComparison(true);
       toast({
         title: "Added to comparison",
@@ -219,7 +219,7 @@ export default function Chats() {
   }, [comparisonProperties, toast]);
 
   const removeFromComparison = useCallback((id: string) => {
-    setComparisonProperties(prev => prev.filter(p => p.id !== id));
+    setComparisonProperties((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   const clearComparison = useCallback(() => {
@@ -243,34 +243,34 @@ export default function Chats() {
         onDeleteConversation={deleteConversation}
         onRenameConversation={renameConversation}
         onClearAllConversations={clearAllConversations}
-        onLogin={() => navigate('/auth')}
-      />
+        onLogin={() => navigate('/auth')} />
+
 
       <main className={cn(
         "flex-1 pb-32 transition-all duration-200",
         "md:ml-64"
       )}>
         {/* Comparison Panel */}
-        {showComparison && (
-          <div className="sticky top-16 z-20 mx-4 mt-4">
+        {showComparison &&
+        <div className="sticky top-16 z-20 mx-4 mt-4">
             <ChatComparisonPanel
-              properties={comparisonProperties}
-              onRemove={removeFromComparison}
-              onClear={clearComparison}
-              onClose={() => setShowComparison(false)}
-              onAddProperty={(property) => {
-                if (!comparisonProperties.some(p => p.url === property.url)) {
-                  setComparisonProperties(prev => [...prev, property]);
-                }
-              }}
-            />
+            properties={comparisonProperties}
+            onRemove={removeFromComparison}
+            onClear={clearComparison}
+            onClose={() => setShowComparison(false)}
+            onAddProperty={(property) => {
+              if (!comparisonProperties.some((p) => p.url === property.url)) {
+                setComparisonProperties((prev) => [...prev, property]);
+              }
+            }} />
+
           </div>
-        )}
+        }
 
 
         {/* Empty State */}
-        {messages.length === 0 && !loading && !loadingHistory && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        {messages.length === 0 && !loading && !loadingHistory &&
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
             <MessageSquare className="h-16 w-16 text-muted-foreground/50 mb-4" />
             <h1 className="text-2xl font-bold mb-2">Real Estate Assistant</h1>
             <p className="text-muted-foreground text-center max-w-md mb-6">
@@ -289,10 +289,10 @@ export default function Chats() {
                 <p className="text-sm font-medium">Analyze a listing</p>
                 <p className="text-xs text-muted-foreground">Paste a Zillow, Redfin, or Realtor.com URL for instant analysis</p>
               </Card>
-              <Card className="p-4">
-                <p className="text-sm font-medium">Compare neighborhoods</p>
-                <p className="text-xs text-muted-foreground">Compare schools, safety, and walkability in two areas</p>
-              </Card>
+              
+
+
+
               <Card className="p-4">
                 <p className="text-sm font-medium">Calculate mortgage</p>
                 <p className="text-xs text-muted-foreground">Monthly payment for a $350k home with 20% down at 6.5%</p>
@@ -303,80 +303,80 @@ export default function Chats() {
               </Card>
             </div>
           </div>
-        )}
+        }
 
         {/* Loading History */}
-        {loadingHistory && (
-          <div className="flex justify-center items-center min-h-[60vh]">
+        {loadingHistory &&
+        <div className="flex justify-center items-center min-h-[60vh]">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        )}
+        }
 
         {/* Messages */}
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
           {messages.map((message) => {
             const messageUrl = message.role === 'user' ? extractUrl(message.content) : null;
-            const isAnalysis = message.role === 'assistant' && 
-              (message.content.includes("Property Summary") || message.content.includes("Price:"));
+            const isAnalysis = message.role === 'assistant' && (
+            message.content.includes("Property Summary") || message.content.includes("Price:"));
             const analysisUrl = isAnalysis ? lastAnalyzedUrl : null;
 
             return (
               <div
                 key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+
                 <div
                   className={`max-w-[85%] rounded-lg px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  {message.role === 'assistant' ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                  message.role === 'user' ?
+                  'bg-primary text-primary-foreground' :
+                  'bg-muted'}`
+                  }>
+
+                  {message.role === 'assistant' ?
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
                       <ReactMarkdown
-                        components={{
-                          a: ({ href, children }) => (
-                            <a 
-                              href={href} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline inline-flex items-center gap-1"
-                            >
+                      components={{
+                        a: ({ href, children }) =>
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline inline-flex items-center gap-1">
+
                               {children}
                               <ExternalLink className="h-3 w-3" />
-                            </a>
-                          ),
-                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                          ul: ({ children }) => <ul className="list-none space-y-1 my-2">{children}</ul>,
-                          li: ({ children }) => <li className="flex items-start gap-2"><span>•</span><span>{children}</span></li>,
-                        }}
-                      >
+                            </a>,
+
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="list-none space-y-1 my-2">{children}</ul>,
+                        li: ({ children }) => <li className="flex items-start gap-2"><span>•</span><span>{children}</span></li>
+                      }}>
+
                         {message.content}
                       </ReactMarkdown>
                       
                       {/* Add to Comparison Button */}
-                      {isAnalysis && analysisUrl && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3 gap-2"
-                          onClick={() => addToComparison(message.content, analysisUrl)}
-                        >
+                      {isAnalysis && analysisUrl &&
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 gap-2"
+                      onClick={() => addToComparison(message.content, analysisUrl)}>
+
                           <Plus className="h-3 w-3" />
                           Add to Comparison
                         </Button>
-                      )}
+                    }
                       
                       {/* Property Links - Card Style Only */}
-                      {message.links && message.links.length > 0 && (
-                        <div className="mt-4 grid gap-3">
-                          {message.links.map((link, idx) => (
-                            <Card
-                              key={idx}
-                              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                              onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}
-                            >
+                      {message.links && message.links.length > 0 &&
+                    <div className="mt-4 grid gap-3">
+                          {message.links.map((link, idx) =>
+                      <Card
+                        key={idx}
+                        className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}>
+
                               <div className="flex items-center gap-3 p-4">
                                 <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                                   <ExternalLink className="h-5 w-5 text-primary" />
@@ -390,26 +390,26 @@ export default function Chats() {
                                 </Badge>
                               </div>
                             </Card>
-                          ))}
-                        </div>
                       )}
-                    </div>
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  )}
+                        </div>
+                    }
+                    </div> :
+
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  }
                 </div>
-              </div>
-            );
+              </div>);
+
           })}
           
-          {loading && (
-            <div className="flex justify-start">
+          {loading &&
+          <div className="flex justify-start">
               <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-sm text-muted-foreground">Searching...</span>
               </div>
             </div>
-          )}
+          }
           
           <div ref={scrollRef} />
         </div>
@@ -420,9 +420,9 @@ export default function Chats() {
           onSend={handleSendMessage}
           loading={loading}
           placeholder="Search for properties or paste a listing URL..."
-          showVoice={true}
-        />
+          showVoice={true} />
+
       </div>
-    </div>
-  );
+    </div>);
+
 }
