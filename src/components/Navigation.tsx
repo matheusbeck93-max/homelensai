@@ -3,6 +3,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles, Briefcase, LayoutDashboard, MessageSquare } from "lucide-react";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,6 +111,7 @@ export function Navigation() {
               </Button>
             )}
             
+            <InstallPrompt />
             <ThemeToggle />
             
             {user && !subscriptionLoading && tier === 'free' && (
@@ -145,6 +147,7 @@ export function Navigation() {
           {/* Mobile Hamburger Menu */}
           {isMobile && (
             <div className="flex items-center gap-2">
+              <InstallPrompt />
               <ThemeToggle />
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetTrigger asChild>
