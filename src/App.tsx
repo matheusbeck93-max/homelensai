@@ -33,6 +33,9 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const AccessibilityPage = lazy(() => import("./pages/Accessibility"));
 const FairHousing = lazy(() => import("./pages/FairHousing"));
+const CCPANotice = lazy(() => import("./pages/CCPANotice"));
+const DMCAPolicy = lazy(() => import("./pages/DMCAPolicy"));
+const DoNotSell = lazy(() => import("./pages/DoNotSell"));
 
 const queryClient = new QueryClient();
 
@@ -77,6 +80,9 @@ function App() {
                   <Route path="/cookies" element={<CookiePolicy />} />
                   <Route path="/accessibility" element={<AccessibilityPage />} />
                   <Route path="/fair-housing" element={<FairHousing />} />
+                  <Route path="/ccpa" element={<CCPANotice />} />
+                  <Route path="/dmca" element={<DMCAPolicy />} />
+                  <Route path="/do-not-sell" element={<DoNotSell />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
