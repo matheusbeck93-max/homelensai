@@ -277,17 +277,11 @@ export default function Chats() {
               Search for properties or paste a listing URL for instant analysis. I'll provide factual information only.
             </p>
             <div className="grid gap-3 w-full max-w-md">
-              <Card 
-                className="p-4 cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => handleSendMessage("3-bedroom homes in Phoenix under $500k with pool")}
-              >
+              <Card className="p-4">
                 <p className="text-sm font-medium">Search for homes</p>
                 <p className="text-xs text-muted-foreground">3-bedroom homes in Phoenix under $500k with pool</p>
               </Card>
-              <Card 
-                className="p-4 cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => handleSendMessage("investment properties in Austin under $400k")}
-              >
+              <Card className="p-4">
                 <p className="text-sm font-medium">Find investment properties</p>
                 <p className="text-xs text-muted-foreground">Investment properties in Austin under $400k</p>
               </Card>
