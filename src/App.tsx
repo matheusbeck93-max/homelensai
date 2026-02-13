@@ -9,6 +9,7 @@ import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { ComparisonProvider } from "@/contexts/ComparisonContext";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
 import { BackToTop } from "@/components/BackToTop";
+import { CookieConsent } from "@/components/CookieConsent";
 
 // Eagerly loaded routes (critical path)
 import Index from "./pages/Index";
@@ -89,6 +90,7 @@ function App() {
               <ComparisonFloatingBar />
               <BackToTop />
               <MobileBottomNav />
+              <CookieConsent />
             </BrowserRouter>
           </TooltipProvider>
         </ComparisonProvider>
