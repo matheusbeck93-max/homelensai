@@ -282,7 +282,7 @@ export function SavedChatsSidebar({
                     
                     {/* Action buttons */}
                     {editingId === conversation.id ? (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -301,13 +301,14 @@ export function SavedChatsSidebar({
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 flex-shrink-0 ml-1">
                         {onRenameConversation && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="h-7 w-7 min-w-[28px] hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={(e) => startEditing(e, conversation)}
+                            title="Rename"
                           >
                             <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
@@ -315,8 +316,14 @@ export function SavedChatsSidebar({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 hover:bg-destructive/10"
-                          onClick={(e) => handleDeleteClick(e, conversation.id)}
+                          className="h-7 w-7 min-w-[28px] hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setConversationToDelete(conversation.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                          title="Delete"
                         >
                           <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         </Button>
