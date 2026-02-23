@@ -5,6 +5,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Target, MessageSquare, Sparkles, Calculator, ArrowRight, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SavedCalculatorsPanel } from "@/components/console/SavedCalculatorsPanel";
 
 const GOAL_LABELS: Record<string, string> = {
   buying: "Comprar imóvel para moradia",
@@ -21,6 +22,7 @@ export function OverviewPanel() {
   const [primaryGoal, setPrimaryGoal] = useState<string | null>(null);
   const [chatsCount, setChatsCount] = useState(0);
   const [savedCalcsCount, setSavedCalcsCount] = useState(0);
+  const [showSavedCalcs, setShowSavedCalcs] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -103,7 +105,7 @@ export function OverviewPanel() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/calculators")}>
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setShowSavedCalcs(!showSavedCalcs)}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Saved Calculators</CardTitle>
             <Calculator className="h-4 w-4 text-muted-foreground" />
@@ -114,6 +116,8 @@ export function OverviewPanel() {
           </CardContent>
         </Card>
       </div>
+
+      {showSavedCalcs && <SavedCalculatorsPanel />}
 
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardContent className="flex items-center justify-between p-6">
