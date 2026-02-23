@@ -12,7 +12,7 @@ const requestSchema = z.object({
     role: z.string(),
     content: z.string(),
   })).optional(),
-  insightOrigin: z.enum(['calculators', 'investor']).optional(),
+  insightOrigin: z.enum(['calculators', 'investor']).nullable().optional(),
   userGoal: z.string().nullable().optional(),
 });
 
