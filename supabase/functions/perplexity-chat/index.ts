@@ -13,7 +13,16 @@ const requestSchema = z.object({
     content: z.string(),
   })).optional(),
   insightOrigin: z.enum(['calculators', 'investor']).optional(),
+  userGoal: z.string().nullable().optional(),
 });
+
+const GOAL_CONTEXTS: Record<string, string> = {
+  buy_home: `The user's primary goal is to BUY A HOME TO LIVE IN. Prioritize: livability, neighborhood quality, schools, commute times, family-friendliness, resale value. Use language focused on "your future home." Recommend properties based on lifestyle fit, not ROI.`,
+  rent: `The user's primary goal is to RENT A PROPERTY. Prioritize: rental prices, lease flexibility, move-in costs, neighborhood amenities, proximity to work/transit. Focus on rental market conditions, tenant rights, and cost of living comparisons.`,
+  invest: `The user's primary goal is to INVEST IN REAL ESTATE. Prioritize: ROI, cap rate, cash flow, appreciation potential, rental yield, vacancy rates. Use investor-focused language. Include calculations like cash-on-cash return and break-even analysis when relevant.`,
+  market_trends: `The user's primary goal is to TRACK MARKET TRENDS. Prioritize: market data, price trends, inventory levels, days on market, interest rate impacts, seasonal patterns. Provide data-driven analysis with comparisons and forecasts.`,
+  tax_incentives: `The user's primary goal is to FIND TAX AND FINANCIAL INCENTIVES. Prioritize: first-time buyer programs, tax credits, down payment assistance, FHA/VA/USDA loans, state-specific grants, energy efficiency incentives. Highlight eligibility requirements and application processes.`,
+};
 
 // Detect if the query is a property search or URL analysis
 function isPropertyUrl(text: string): boolean {
@@ -51,7 +60,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { query, conversationHistory = [], insightOrigin } = validation.data;
+    const { query, conversationHistory = [], insightOrigin, userGoal } = validation.data;
+    const goalContext = userGoal && GOAL_CONTEXTS[userGoal] ? `\n\nUSER PROFILE CONTEXT:\n${GOAL_CONTEXTS[userGoal]}\nAdapt your tone, priorities, examples, and recommendations accordingly.\n` : '';
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 
     if (!PERPLEXITY_API_KEY) {
@@ -67,7 +77,7 @@ Deno.serve(async (req) => {
       const originLabel = insightOrigin === 'calculators' ? 'Financial Calculators' : 'Investor Analysis';
       
       const insightSystemPrompt = `You are a friendly and knowledgeable U.S. real estate assistant. The user just initiated this chat from the "${originLabel}" page's AI Insight feature on HomeLens.
-
+${goalContext}
 Your task:
 1. Acknowledge that you see the user started this conversation from the ${originLabel} AI Insight
 2. Read and interpret the AI insight analysis they're sharing with you
@@ -138,6 +148,7 @@ RULES:
     if (isUrl) {
       // URL Analysis Mode
       systemPrompt = `You are a friendly and knowledgeable U.S. real estate assistant. The user has shared a property listing URL with you.
+${goalContext}
 
 Your task:
 1. Visit the URL and extract ONLY publicly visible information
@@ -184,8 +195,9 @@ RULES:
 - Be warm and conversational, but still factual
 - Address the user directly using "you" and "I"`;
     } else if (isSearch) {
-      // Search Mode - Only Zillow, Redfin, Realtor with pre-filtered URLs (1 per site)
+      // Search Mode
       systemPrompt = `You are a friendly and helpful U.S. real estate assistant, here to help users find their perfect property.
+${goalContext}
 
 The user wants to search for properties. Your task:
 1. Understand their search criteria (location, price, bedrooms, bathrooms, property type, etc.)
@@ -238,6 +250,7 @@ RULES:
     } else {
       // General real estate question
       systemPrompt = `You are a friendly and approachable U.S. real estate assistant. Answer questions about home buying, mortgages, investments, and market trends in a warm, conversational way.
+${goalContext}
 
 FORMAT YOUR RESPONSES WITH CLEAR STRUCTURE:
 

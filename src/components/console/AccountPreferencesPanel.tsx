@@ -11,6 +11,7 @@ import { User, Mail, Save, Trash2, AlertTriangle, MapPin, DollarSign, UserCircle
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AlertSettings } from "@/components/subscription/AlertSettings";
 import { WeeklyPicksSettings } from "@/components/subscription/WeeklyPicksSettings";
+import { PrimaryGoalSelector } from "@/components/console/PrimaryGoalSelector";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -145,6 +146,9 @@ export function AccountPreferencesPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Primary Goal */}
+      <PrimaryGoalSelector />
+
       {/* Account Info */}
       <Card>
         <CardHeader>

@@ -368,6 +368,7 @@ export type Database = {
           min_bedrooms: number | null
           onboarding_completed: boolean | null
           preferred_cities: string[] | null
+          primary_goal: string | null
           property_types: string[] | null
           risk_level: string | null
           subscription_cancel_at: string | null
@@ -399,6 +400,7 @@ export type Database = {
           min_bedrooms?: number | null
           onboarding_completed?: boolean | null
           preferred_cities?: string[] | null
+          primary_goal?: string | null
           property_types?: string[] | null
           risk_level?: string | null
           subscription_cancel_at?: string | null
@@ -430,6 +432,7 @@ export type Database = {
           min_bedrooms?: number | null
           onboarding_completed?: boolean | null
           preferred_cities?: string[] | null
+          primary_goal?: string | null
           property_types?: string[] | null
           risk_level?: string | null
           subscription_cancel_at?: string | null
