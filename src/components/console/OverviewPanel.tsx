@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Target, MessageSquare, Sparkles, Calculator } from "lucide-react";
+import { Target, MessageSquare, Sparkles, Calculator, ArrowRight, CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const GOAL_LABELS: Record<string, string> = {
   buying: "Comprar imóvel para moradia",
@@ -113,6 +114,22 @@ export function OverviewPanel() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardContent className="flex items-center justify-between p-6">
+          <div className="flex items-center gap-3">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Change Plan</p>
+              <p className="text-sm text-muted-foreground">Upgrade or manage your subscription</p>
+            </div>
+          </div>
+          <Button onClick={() => navigate("/console?tab=subscription")} variant="outline" className="gap-2">
+            View Plans
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -9,8 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { User, Mail, Save, Trash2, AlertTriangle, MapPin, DollarSign, UserCircle } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { AlertSettings } from "@/components/subscription/AlertSettings";
-import { WeeklyPicksSettings } from "@/components/subscription/WeeklyPicksSettings";
 import { PrimaryGoalSelector } from "@/components/console/PrimaryGoalSelector";
 import {
   AlertDialog,
@@ -293,12 +291,6 @@ export function AccountPreferencesPanel() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Smart Alerts */}
-      <AlertSettings />
-
-      {/* Weekly Picks */}
-      <WeeklyPicksSettings />
 
       {/* Danger Zone */}
       <Card className="border-destructive">
