@@ -520,9 +520,9 @@ export default function Calculators() {
                         Regenerate Insights
                       </Button>
                       <Button 
-                        onClick={() => navigate('/chat', { 
+                        onClick={() => navigate('/chats', { 
                           state: { 
-                            initialMessage: aiInsights,
+                            initialMessage: `[CALCULATORS_AI_INSIGHT]\n\n${aiInsights}`,
                             newConversation: true,
                             skipAuthCheck: true
                           } 

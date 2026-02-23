@@ -208,11 +208,11 @@ export default function Investor() {
   const startChatWithInsight = () => {
     if (!insights) return;
     
-    navigate('/chat', {
+    navigate('/chats', {
       state: {
-        initialMessage: `I'd like to discuss this investment analysis:\n\n${insights}`,
+        initialMessage: `[INVESTOR_AI_INSIGHT]\n\n${insights}`,
         skipAuthCheck: true,
-        newConversation: false
+        newConversation: true
       }
     });
   };

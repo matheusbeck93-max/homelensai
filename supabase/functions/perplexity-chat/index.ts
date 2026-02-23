@@ -12,6 +12,7 @@ const requestSchema = z.object({
     role: z.string(),
     content: z.string(),
   })).optional(),
+  insightOrigin: z.enum(['calculators', 'investor']).optional(),
 });
 
 // Detect if the query is a property search or URL analysis
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { query, conversationHistory = [] } = validation.data;
+    const { query, conversationHistory = [], insightOrigin } = validation.data;
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 
     if (!PERPLEXITY_API_KEY) {
@@ -58,6 +59,74 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Perplexity API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If this message comes from an AI insight page, use a special contextual prompt
+    if (insightOrigin) {
+      const originLabel = insightOrigin === 'calculators' ? 'Financial Calculators' : 'Investor Analysis';
+      
+      const insightSystemPrompt = `You are a friendly and knowledgeable U.S. real estate assistant. The user just initiated this chat from the "${originLabel}" page's AI Insight feature on HomeLens.
+
+Your task:
+1. Acknowledge that you see the user started this conversation from the ${originLabel} AI Insight
+2. Read and interpret the AI insight analysis they're sharing with you
+3. Summarize the key takeaways from the analysis in a warm, conversational tone
+4. Ask the user what they would like to explore further based on this analysis
+
+Example areas to suggest exploring:
+- Finding properties that match their budget/criteria
+- Comparing different financing scenarios
+- Analyzing specific neighborhoods or markets
+- Getting more detailed investment projections
+- Understanding market trends in their target area
+
+RULES:
+- Be warm, friendly and conversational
+- Address the user directly using "you" and "I"
+- Use proper markdown formatting with **bold** headers and bullet points
+- Each bullet point on its OWN line
+- No emojis
+- Be factual and helpful
+- Make it clear you understood the analysis they shared`;
+
+      const messages = [
+        { role: 'system', content: insightSystemPrompt },
+        { role: 'user', content: query }
+      ];
+
+      console.log(`[perplexity-chat] Mode: INSIGHT_${insightOrigin.toUpperCase()}, Query length: ${query.length}`);
+
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages,
+          max_tokens: 2000,
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Perplexity API error:', response.status, errorText);
+        throw new Error(`Perplexity API failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+
+      return new Response(
+        JSON.stringify({
+          message: content,
+          links: [],
+          mode: 'insight_analysis'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
