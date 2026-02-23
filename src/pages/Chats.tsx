@@ -96,6 +96,23 @@ export default function Chats() {
   const [comparisonProperties, setComparisonProperties] = useState<AnalyzedProperty[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState<string | null>(null);
+  const [userPrimaryGoal, setUserPrimaryGoal] = useState<string | null>(null);
+
+  // Load user's primary goal for contextual AI
+  useEffect(() => {
+    const loadGoal = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("primary_goal")
+        .eq("id", user.id)
+        .single();
+      if (data?.primary_goal) {
+        setUserPrimaryGoal(data.primary_goal);
+      }
+    };
+    loadGoal();
+  }, [user]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -159,7 +176,8 @@ export default function Chats() {
             role: m.role,
             content: m.content
           })),
-          insightOrigin
+          insightOrigin,
+          userGoal: userPrimaryGoal
         }
       });
 
@@ -198,7 +216,7 @@ export default function Chats() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, toast, user, currentConversationId, createConversation, saveMessage, setMessages]);
+  }, [messages, loading, toast, user, currentConversationId, createConversation, saveMessage, setMessages, userPrimaryGoal]);
 
   // Handle initial message from homepage/calculators/investor navigation
   useEffect(() => {
