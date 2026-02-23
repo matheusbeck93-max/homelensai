@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Heart, Sparkles, Briefcase, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Sparkles, Briefcase, LayoutDashboard, MessageSquare } from "lucide-react";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -47,7 +47,6 @@ export function Navigation() {
     { label: 'Chats', path: '/chats', icon: MessageSquare },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
-    { label: 'Favorites', path: '/favorites', icon: Heart },
   ];
 
   const portfolioNavItem = { label: 'Portfolio', path: '/portfolio', icon: Briefcase, requiresPremium: true };
