@@ -241,16 +241,15 @@ export default function Investor() {
     <div className="min-h-screen bg-background">
       <Navigation />
       
-      <main className="container mx-auto px-4 py-8 pb-24 lg:pb-16">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">HomeLens Investor</h1>
-            <p className="text-muted-foreground text-lg">
-              Analyze investment opportunities with AI-powered insights
-            </p>
-          </div>
+      <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">HomeLens Investor</h1>
+          <p className="text-muted-foreground">
+            Analyze investment opportunities with AI-powered insights
+          </p>
+        </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid lg:grid-cols-2 gap-8 mb-8">
             {/* Investment Calculator */}
             <Card>
               <CardHeader>
@@ -529,8 +528,7 @@ export default function Investor() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

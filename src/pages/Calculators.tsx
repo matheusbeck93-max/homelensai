@@ -216,13 +216,17 @@ export default function Calculators() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24 lg:pb-8">
+    <div className="min-h-screen bg-background">
       <Navigation />
       
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <h1 className="text-xl font-bold">Financial Calculators</h1>
+      <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Financial Calculators</h1>
+            <p className="text-muted-foreground">
+              Calculate your buying power and mortgage payments
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleReset}>
               <RotateCcw className="h-4 w-4 mr-2" />
@@ -236,9 +240,7 @@ export default function Calculators() {
             )}
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8 pb-32 lg:pb-8">
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Input Section */}
           <div className="space-y-6">
@@ -538,7 +540,7 @@ export default function Calculators() {
             </Card>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
