@@ -103,18 +103,6 @@ export default function Chats() {
     }
   }, [messages, loading]);
 
-  // Handle initial message from homepage/calculators/investor navigation
-  useEffect(() => {
-    const state = location.state as {initialMessage?: string;} | null;
-    if (state?.initialMessage && !initialMessageProcessed.current && !loadingHistory) {
-      initialMessageProcessed.current = true;
-      // Clear state to prevent re-processing on refresh
-      window.history.replaceState({}, document.title);
-      // Send the initial message
-      handleSendMessage(state.initialMessage);
-    }
-  }, [location.state, loadingHistory]);
-
   const handleSendMessage = useCallback(async (messageText: string) => {
     if (!messageText.trim() || loading) return;
 
@@ -211,6 +199,16 @@ export default function Chats() {
       setLoading(false);
     }
   }, [messages, loading, toast, user, currentConversationId, createConversation, saveMessage, setMessages]);
+
+  // Handle initial message from homepage/calculators/investor navigation
+  useEffect(() => {
+    const state = location.state as {initialMessage?: string;} | null;
+    if (state?.initialMessage && !initialMessageProcessed.current && !loadingHistory) {
+      initialMessageProcessed.current = true;
+      window.history.replaceState({}, document.title);
+      handleSendMessage(state.initialMessage);
+    }
+  }, [location.state, loadingHistory, handleSendMessage]);
 
   const addToComparison = useCallback((content: string, url: string) => {
     const property = parseAnalyzedProperty(content, url);
