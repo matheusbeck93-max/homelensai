@@ -1,4 +1,4 @@
-import { Home, Calculator, TrendingUp, Heart, MessageSquare } from "lucide-react";
+import { Home, Calculator, TrendingUp, MessageSquare } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +25,6 @@ export function MobileBottomNav() {
     { icon: Home, label: "Home", path: "/" },
     { icon: MessageSquare, label: "Chats", path: "/chats" },
     { icon: Calculator, label: "Calc", path: "/calculators" },
-    { icon: Heart, label: "Favorites", path: "/favorites" },
   ];
 
   return (
