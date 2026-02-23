@@ -103,7 +103,7 @@ export default function Chats() {
     }
   }, [messages, loading]);
 
-  // Handle initial message from homepage navigation
+  // Handle initial message from homepage/calculators/investor navigation
   useEffect(() => {
     const state = location.state as {initialMessage?: string;} | null;
     if (state?.initialMessage && !initialMessageProcessed.current && !loadingHistory) {
@@ -118,10 +118,22 @@ export default function Chats() {
   const handleSendMessage = useCallback(async (messageText: string) => {
     if (!messageText.trim() || loading) return;
 
+    // Detect insight origin tags
+    let insightOrigin: string | null = null;
+    let cleanedMessage = messageText;
+    
+    if (messageText.startsWith('[CALCULATORS_AI_INSIGHT]')) {
+      insightOrigin = 'calculators';
+      cleanedMessage = messageText.replace('[CALCULATORS_AI_INSIGHT]\n\n', '');
+    } else if (messageText.startsWith('[INVESTOR_AI_INSIGHT]')) {
+      insightOrigin = 'investor';
+      cleanedMessage = messageText.replace('[INVESTOR_AI_INSIGHT]\n\n', '');
+    }
+
     const userMessage: ChatMessage = {
       id: uuidv4(),
       role: 'user',
-      content: messageText,
+      content: cleanedMessage,
       createdAt: new Date().toISOString()
     };
 
@@ -129,7 +141,7 @@ export default function Chats() {
     setLoading(true);
 
     // Track URL for comparison feature
-    const extractedUrl = extractUrl(messageText);
+    const extractedUrl = extractUrl(cleanedMessage);
     if (extractedUrl) {
       setLastAnalyzedUrl(extractedUrl);
     }
@@ -137,7 +149,7 @@ export default function Chats() {
     // Auto-save: Create conversation if needed (for logged in users)
     let conversationId = currentConversationId;
     if (user && !conversationId) {
-      conversationId = await createConversation(messageText);
+      conversationId = await createConversation(cleanedMessage);
       if (conversationId) {
         toast({
           title: "Chat saved",
@@ -154,11 +166,12 @@ export default function Chats() {
     try {
       const { data, error } = await supabase.functions.invoke('perplexity-chat', {
         body: {
-          query: messageText,
+          query: cleanedMessage,
           conversationHistory: messages.map((m) => ({
             role: m.role,
             content: m.content
-          }))
+          })),
+          insightOrigin
         }
       });
 
