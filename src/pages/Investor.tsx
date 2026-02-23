@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, Calendar, TrendingUp, DollarSign, ArrowLeft } from "lucide-react";
+import { Loader2, MessageSquare, Calendar, TrendingUp, DollarSign } from "lucide-react";
 
 export default function Investor() {
   const navigate = useNavigate();
@@ -241,19 +241,7 @@ export default function Investor() {
     <div className="min-h-screen bg-background">
       <Navigation />
       
-      {/* Back Button */}
-      <div className="container mx-auto px-4 pt-20">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/')}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </Button>
-      </div>
-      
-      <main className="container mx-auto px-4 pb-24 lg:pb-16">
+      <main className="container mx-auto px-4 py-8 pb-24 lg:pb-16">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-4">HomeLens Investor</h1>

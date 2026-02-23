@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RotateCcw, Save, ArrowLeft, DollarSign, Sparkles } from "lucide-react";
+import { RotateCcw, Save, DollarSign, Sparkles } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -216,15 +217,12 @@ export default function Calculators() {
 
   return (
     <div className="min-h-screen bg-background pb-24 lg:pb-8">
+      <Navigation />
+      
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Financial Calculators</h1>
-          </div>
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center justify-between px-4">
+          <h1 className="text-xl font-bold">Financial Calculators</h1>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleReset}>
               <RotateCcw className="h-4 w-4 mr-2" />
