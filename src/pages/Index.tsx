@@ -544,46 +544,69 @@ export default function Index() {
               <Accordion type="single" collapsible className="w-full space-y-2">
                 <AccordionItem value="item-1" className="border rounded-lg px-4">
                   <AccordionTrigger className="text-left">
-                    How does the AI property search work?
+                    What exactly is HomeLens?
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Our AI understands natural language queries and searches across multiple real estate platforms including Zillow, Redfin, and Realtor.com. Simply describe what you're looking for in plain English, and we'll find matching properties with pre-filtered results.
+                  <AccordionContent className="text-muted-foreground space-y-3">
+                    <p>HomeLens is not a property listing site. It's a decision platform designed to help you evaluate homes before making one of the biggest financial commitments of your life.</p>
+                    <p>Instead of just showing listings, HomeLens helps you understand affordability, risk, long-term cost, and whether a property truly makes financial sense for you.</p>
+                    <p>You can explore the market, analyze properties, compare options, and gain clarity — all guided by AI.</p>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-2" className="border rounded-lg px-4">
                   <AccordionTrigger className="text-left">
-                    Can I analyze any property listing?
+                    Can I paste any property listing URL?
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Yes! Just paste any property URL from Zillow, Redfin, or Realtor.com into the chat. Our AI will extract key details including price, features, neighborhood insights, and investment potential analysis.
+                  <AccordionContent className="text-muted-foreground space-y-3">
+                    <p>Yes. You can paste a listing URL from most major real estate platforms and HomeLens will generate a detailed financial and market analysis.</p>
+                    <p>We extract relevant property data and combine it with market insights, affordability models, and scenario projections — so you can see the full financial picture behind the listing.</p>
+                    <p>Pro users unlock deeper analysis, including advanced financial breakdowns and long-term projections.</p>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-3" className="border rounded-lg px-4">
                   <AccordionTrigger className="text-left">
-                    What calculators are available?
+                    Can HomeLens help me avoid overpaying?
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    We offer a Buying Power Calculator to determine how much home you can afford based on your income and expenses, and an Investor ROI Calculator to analyze potential returns, cash flow, and cap rates for investment properties.
+                  <AccordionContent className="text-muted-foreground space-y-3">
+                    <p>That's exactly what it's built for.</p>
+                    <p>HomeLens evaluates properties using financial modeling, local market data, and affordability analysis to help you understand:</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>If the price aligns with market trends</li>
+                      <li>Whether the monthly cost fits your financial profile</li>
+                      <li>The long-term financial impact of your purchase</li>
+                      <li>The potential risk of stretching your budget</li>
+                    </ul>
+                    <p>While no tool can predict the future, HomeLens gives you structured clarity instead of emotional guesswork.</p>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-4" className="border rounded-lg px-4">
                   <AccordionTrigger className="text-left">
-                    How does property comparison work?
+                    How accurate are the financial estimates?
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Analyze multiple properties by pasting their URLs, then add them to the comparison panel. Our AI will provide side-by-side analysis and personalized recommendations based on whether you're a home buyer or investor.
+                  <AccordionContent className="text-muted-foreground space-y-3">
+                    <p>Our calculations are based on standard mortgage formulas, publicly available market data, and your personalized financial inputs.</p>
+                    <p>They are designed to provide realistic projections and scenario modeling — not generic averages.</p>
+                    <p>However, estimates should always be validated with your lender or financial advisor before making a final decision. HomeLens is a decision-support tool, not financial advice.</p>
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-5" className="border rounded-lg px-4">
                   <AccordionTrigger className="text-left">
-                    Is my chat history saved?
+                    What do I get with the Pro plan?
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Yes, if you create an account and sign in, all your conversations are automatically saved. You can access, rename, or delete previous chats from the sidebar in the chat page.
+                  <AccordionContent className="text-muted-foreground space-y-3">
+                    <p>The Pro plan unlocks the full decision engine:</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>Advanced property analysis</li>
+                      <li>Detailed overpayment and risk indicators</li>
+                      <li>Long-term ownership projections</li>
+                      <li>Side-by-side comparison tools</li>
+                      <li>Saved analysis history</li>
+                      <li>Ongoing tracking of properties and scenarios</li>
+                    </ul>
+                    <p>If you're actively considering buying, Pro gives you deeper financial clarity and more confident decision-making.</p>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
