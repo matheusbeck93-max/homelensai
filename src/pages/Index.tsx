@@ -353,10 +353,10 @@ export default function Index() {
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Search className="h-5 w-5 text-primary" />
                     </div>
-                    <h3 className="font-semibold">Smart Property Search</h3>
+                    <h3 className="font-semibold">Market Intelligence Search</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Use natural language to find your perfect property across multiple platforms.
+                    Analyze opportunities across the market using natural language.
                   </p>
                 </Card>
               </motion.div>
@@ -392,7 +392,7 @@ export default function Index() {
                     <h3 className="font-semibold">Compare Properties</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Side-by-side comparison with AI recommendations for investors and buyers.
+                    Compare properties and see which one truly makes sense.
                   </p>
                 </Card>
               </motion.div>
@@ -410,7 +410,7 @@ export default function Index() {
                     <h3 className="font-semibold">Financial Calculators</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Buying power calculator and investor ROI tools to plan your purchase.
+                    Understand your buying power and long-term financial impact.
                   </p>
                 </Card>
               </motion.div>
