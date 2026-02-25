@@ -31,16 +31,16 @@ export default function Index() {
   const [searchParams, setSearchParams] = useState<any>(null);
   const [heroInput, setHeroInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Filter state with defaults
   const [filters, setFilters] = useState<PropertyFiltersState>({
     priceMin: 0,
     priceMax: 2000000,
     bedsMin: null,
     bathsMin: null,
-    propertyTypes: [],
+    propertyTypes: []
   });
-  
+
   const hasStartedConversation = messages.length > 0;
 
   // Pull to refresh functionality
@@ -50,14 +50,14 @@ export default function Index() {
     }
     toast({
       title: "Refreshed",
-      description: "Property listings updated",
+      description: "Property listings updated"
     });
   }, [queryClient, searchParams, toast]);
 
   const { pullDistance, isRefreshing, containerProps } = usePullToRefresh({
     onRefresh: handleRefresh,
     threshold: 80,
-    disabled: hasStartedConversation,
+    disabled: hasStartedConversation
   });
 
   // Merge AI search params with user filter overrides for the query
@@ -69,9 +69,9 @@ export default function Index() {
       price_max: filters.priceMax,
       beds_min: filters.bedsMin ?? searchParams.beds_min ?? 0,
       baths_min: filters.bathsMin ?? searchParams.baths_min ?? 0,
-      prop_type: filters.propertyTypes.length > 0 
-        ? filters.propertyTypes.join(',') 
-        : searchParams.prop_type || 'any',
+      prop_type: filters.propertyTypes.length > 0 ?
+      filters.propertyTypes.join(',') :
+      searchParams.prop_type || 'any'
     };
   }, [searchParams, filters]);
 
@@ -80,9 +80,9 @@ export default function Index() {
     queryKey: ['property-search', effectiveSearchParams],
     queryFn: async () => {
       if (!effectiveSearchParams?.location) return null;
-      
+
       console.log('[Index] Fetching properties with params:', effectiveSearchParams);
-      
+
       const { data, error } = await supabase.functions.invoke('search-listings', {
         body: effectiveSearchParams
       });
@@ -98,7 +98,7 @@ export default function Index() {
     enabled: !!effectiveSearchParams?.location,
     staleTime: 15 * 60 * 1000, // 15 minutes cache
     gcTime: 20 * 60 * 1000,
-    retry: 1,
+    retry: 1
   });
 
   // Handle search errors with graceful messaging
@@ -109,7 +109,7 @@ export default function Index() {
       if (!searchData?.listings || searchData.listings.length === 0) {
         toast({
           title: "Search Issue",
-          description: searchData?.message || "Using cached results where available. Some providers may be rate limited.",
+          description: searchData?.message || "Using cached results where available. Some providers may be rate limited."
         });
       }
     }
@@ -126,7 +126,7 @@ export default function Index() {
       priceMax: 2000000,
       bedsMin: null,
       bathsMin: null,
-      propertyTypes: [],
+      propertyTypes: []
     });
   }, []);
 
@@ -147,10 +147,10 @@ export default function Index() {
 
   const handleSendMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
-    
+
     // Clear hero input if used
     setHeroInput("");
-    
+
     // Add user message
     const userMessage: ConversationMessage = {
       id: uuidv4(),
@@ -158,14 +158,14 @@ export default function Index() {
       content: messageText,
       createdAt: new Date().toISOString()
     };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
 
     // Send ALL messages to AI chat - let AI decide intent
     setConversationLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('ai-chat', {
         body: {
-          messages: messages.concat(userMessage).map(m => ({
+          messages: messages.concat(userMessage).map((m) => ({
             role: m.role,
             content: m.content
           })),
@@ -200,11 +200,11 @@ export default function Index() {
 
       // Extract clean message for display
       const displayMessage = jsonData.message || '';
-      
+
       // Check if AI wants to trigger a property search
       if (jsonData && jsonData.searchParams && jsonData.searchParams.location) {
         console.log('[Index] AI provided searchParams, triggering property search:', jsonData.searchParams);
-        
+
         // Only add message if it's not empty/duplicate
         if (displayMessage && displayMessage.trim()) {
           assistantMessage = {
@@ -213,9 +213,9 @@ export default function Index() {
             content: displayMessage,
             createdAt: new Date().toISOString()
           };
-          setMessages(prev => [...prev, assistantMessage]);
+          setMessages((prev) => [...prev, assistantMessage]);
         }
-        
+
         // Parse location components and trigger search
         const locationComponents = parseLocationComponents(jsonData.searchParams.location);
         setSearchParams({
@@ -230,7 +230,7 @@ export default function Index() {
         setConversationLoading(false);
         return;
       }
-      
+
       // Check for UI blocks
       if (jsonData && jsonData.uiBlock) {
         assistantMessage = {
@@ -258,8 +258,8 @@ export default function Index() {
           createdAt: new Date().toISOString()
         };
       }
-      
-      setMessages(prev => [...prev, assistantMessage]);
+
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       console.error('AI chat error:', error);
       toast({
@@ -291,24 +291,24 @@ export default function Index() {
 
 
   return (
-    <div 
+    <div
       className="min-h-screen flex flex-col bg-background touch-manipulation"
-      {...containerProps}
-    >
-      <PullToRefreshIndicator 
-        pullDistance={pullDistance} 
-        isRefreshing={isRefreshing} 
-      />
+      {...containerProps}>
+
+      <PullToRefreshIndicator
+        pullDistance={pullDistance}
+        isRefreshing={isRefreshing} />
+
       <Navigation />
 
       {/* Hero Section */}
-      {!hasStartedConversation ? (
-        <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
+      {!hasStartedConversation ?
+      <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
           <HouseHeroAnimation />
           <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20 max-w-5xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
-              Know the Deal Before You Buy
-            </h1>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">Know Before You Go
+
+          </h1>
             <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-2xl mx-auto px-4">
               AI-powered real estate search and analysis. Ask me anything about properties, mortgages, or investments.
             </p>
@@ -317,18 +317,18 @@ export default function Index() {
             <form onSubmit={handleHeroSubmit} className="max-w-3xl mx-auto px-4">
               <div className="flex flex-col sm:flex-row gap-2">
                 <Input
-                  value={heroInput}
-                  onChange={(e) => setHeroInput(e.target.value)}
-                  placeholder="Try: Find 3-bedroom fixers under $650k in Arlington with ROI over 15%"
-                  disabled={conversationLoading || searchLoading}
-                  className="h-12 sm:h-14 text-sm sm:text-base"
-                />
-                <Button 
-                  type="submit"
-                  disabled={conversationLoading || searchLoading || !heroInput.trim()}
-                  size="lg"
-                  className="h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto"
-                >
+                value={heroInput}
+                onChange={(e) => setHeroInput(e.target.value)}
+                placeholder="Try: Find 3-bedroom fixers under $650k in Arlington with ROI over 15%"
+                disabled={conversationLoading || searchLoading}
+                className="h-12 sm:h-14 text-sm sm:text-base" />
+
+                <Button
+                type="submit"
+                disabled={conversationLoading || searchLoading || !heroInput.trim()}
+                size="lg"
+                className="h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto">
+
                   <Search className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   Search
                 </Button>
@@ -341,10 +341,10 @@ export default function Index() {
             {/* Feature Cards with Animations */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-10 max-w-5xl mx-auto px-4">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-              >
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}>
+
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -359,10 +359,10 @@ export default function Index() {
               </motion.div>
               
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-              >
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}>
+
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -377,10 +377,10 @@ export default function Index() {
               </motion.div>
               
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-              >
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 }}>
+
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -395,10 +395,10 @@ export default function Index() {
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-              >
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.4 }}>
+
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -413,131 +413,131 @@ export default function Index() {
               </motion.div>
             </div>
           </div>
-        </section>
-      ) : (
-        <section className="relative py-6 sm:py-8 border-b">
+        </section> :
+
+      <section className="relative py-6 sm:py-8 border-b">
           <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-              Know the Deal Before You Buy
+              Find Your Dream Home
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               AI-powered real estate search and analysis
             </p>
           </div>
         </section>
-      )}
+      }
 
 
       {/* Conversation Panel - Show after conversation starts */}
-      {hasStartedConversation && (
-        <div className="pb-24 sm:pb-32">
+      {hasStartedConversation &&
+      <div className="pb-24 sm:pb-32">
           <ConversationPanel
-            messages={messages}
-            loading={conversationLoading}
-            onPropertyAnalyze={handlePropertyAnalyze}
-          />
+          messages={messages}
+          loading={conversationLoading}
+          onPropertyAnalyze={handlePropertyAnalyze} />
+
           
           {/* Property Search Results - Show hero cards when search params are active */}
-          {searchParams?.location && (
-            <>
+          {searchParams?.location &&
+        <>
               {/* Filter Toggle Button */}
               <div className="max-w-7xl mx-auto px-4 mb-4">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-2"
-                >
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2">
+
                   <Filter className="h-4 w-4" />
                   Filters
-                  {showFilters ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
+                  {showFilters ?
+              <ChevronUp className="h-4 w-4" /> :
+
+              <ChevronDown className="h-4 w-4" />
+              }
                 </Button>
               </div>
 
               {/* Filter Panel */}
-              {showFilters && (
-                <div className="max-w-7xl mx-auto px-4 mb-6">
+              {showFilters &&
+          <div className="max-w-7xl mx-auto px-4 mb-6">
                   <PropertyFilters
-                    filters={filters}
-                    onFiltersChange={handleFiltersChange}
-                    onClear={clearFilters}
-                  />
-                </div>
-              )}
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onClear={clearFilters} />
 
-              {searchListings.length > 0 && (
-                <FeaturedHomesGrid
-                  title={`Search Results for ${searchParams.location}`}
-                  subtitle={searchData?.stale 
-                    ? `Showing ${searchListings.length} cached properties (API temporarily unavailable)` 
-                    : `Found ${searchListings.length} properties from ${searchData?.source || 'Zillow'}`
-                  }
-                  listings={searchListings}
-                  isLoading={searchLoading}
-                  error={searchError && searchListings.length === 0 ? "Failed to load properties" : null}
-                  hasMore={false}
-                  onAnalyze={handlePropertyAnalyze}
-                />
-              )}
+                </div>
+          }
+
+              {searchListings.length > 0 &&
+          <FeaturedHomesGrid
+            title={`Search Results for ${searchParams.location}`}
+            subtitle={searchData?.stale ?
+            `Showing ${searchListings.length} cached properties (API temporarily unavailable)` :
+            `Found ${searchListings.length} properties from ${searchData?.source || 'Zillow'}`
+            }
+            listings={searchListings}
+            isLoading={searchLoading}
+            error={searchError && searchListings.length === 0 ? "Failed to load properties" : null}
+            hasMore={false}
+            onAnalyze={handlePropertyAnalyze} />
+
+          }
               
               {/* Loading state for property search */}
-              {searchLoading && searchListings.length === 0 && (
-                <div className="max-w-7xl mx-auto px-4 py-8">
+              {searchLoading && searchListings.length === 0 &&
+          <div className="max-w-7xl mx-auto px-4 py-8">
                   <div className="text-center">
                     <p className="text-muted-foreground">Searching for properties...</p>
                   </div>
                 </div>
-              )}
+          }
 
               {/* Empty state */}
-              {!searchLoading && searchListings.length === 0 && (
-                <div className="max-w-7xl mx-auto px-4 py-8">
+              {!searchLoading && searchListings.length === 0 &&
+          <div className="max-w-7xl mx-auto px-4 py-8">
                   <div className="text-center">
                     <p className="text-muted-foreground">
                       {searchData?.message || "No properties found matching your criteria. Try adjusting your filters."}
                     </p>
                   </div>
                 </div>
-              )}
+          }
             </>
-          )}
+        }
         </div>
-      )}
+      }
 
 
       {/* Sticky Chat Input - Only show after conversation starts */}
-      {hasStartedConversation && (
-        <StickyChat
-          onSend={handleSendMessage}
-          loading={conversationLoading || searchLoading}
-        />
-      )}
+      {hasStartedConversation &&
+      <StickyChat
+        onSend={handleSendMessage}
+        loading={conversationLoading || searchLoading} />
+
+      }
 
       {/* FAQ Section */}
-      {!hasStartedConversation && (
-        <section className="py-16 px-4 bg-background">
+      {!hasStartedConversation &&
+      <section className="py-16 px-4 bg-background">
           <div className="max-w-3xl mx-auto">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-            >
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}>
+
               <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8">
                 Frequently Asked Questions
               </h2>
             </motion.div>
             
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}>
+
               <Accordion type="single" collapsible className="w-full space-y-2">
                 <AccordionItem value="item-1" className="border rounded-lg px-4">
                   <AccordionTrigger className="text-left">
@@ -587,10 +587,10 @@ export default function Index() {
             </motion.div>
           </div>
         </section>
-      )}
+      }
 
       {/* Footer */}
       {!hasStartedConversation && <Footer />}
-    </div>
-  );
+    </div>);
+
 }
