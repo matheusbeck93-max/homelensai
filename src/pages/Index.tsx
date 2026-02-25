@@ -307,7 +307,7 @@ export default function Index() {
           <HouseHeroAnimation />
           <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20 max-w-5xl mx-auto">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
-              Find Your Dream Home
+              Know the Deal Before You Buy
             </h1>
             <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-2xl mx-auto px-4">
               AI-powered real estate search and analysis. Ask me anything about properties, mortgages, or investments.
@@ -418,7 +418,7 @@ export default function Index() {
         <section className="relative py-6 sm:py-8 border-b">
           <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-              Find Your Dream Home
+              Know the Deal Before You Buy
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               AI-powered real estate search and analysis
