@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 
 const placeholders = [
-  "Ask about properties dropping a link from any real estate - calculate mortgage, analyze investment, compare and get unlimited insights...",
-  "Find 3-bedroom homes under $650k with ROI over 15%...",
-  "Compare investment properties in Arlington...",
-  "Calculate mortgage for a $500k property with 20% down...",
-  "Analyze rental income potential for multi-family homes...",
-  "What are the best neighborhoods for investment properties?",
+  "How much house can I realistically afford with $85k income?",
+  "Is it better to increase my down payment or lower my rate?",
+  "Can I afford a $450,000 home with $30k down?",
+  "Is this house too expensive for my income?",
+  "Are there any first-time homebuyer incentives available in Tampa, Florida?",
+  "Does New York offer any homebuyer assistance programs for middle-income families?",
 ];
 
 export function useTypingPlaceholder() {
