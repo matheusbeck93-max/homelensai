@@ -70,6 +70,18 @@ const faqJsonLd = {
   ]
 };
 
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "HomeLens",
+  "url": "https://homelens.ai",
+  "logo": "https://homelens.ai/favicon.png",
+  "description": "AI-powered decision platform that helps you evaluate homes, understand affordability, and make smarter real estate decisions.",
+  "sameAs": [],
+  "foundingDate": "2025",
+  "knowsAbout": ["Real Estate", "Property Analysis", "Financial Modeling", "Market Intelligence"]
+};
+
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -94,16 +106,23 @@ export default function Index() {
 
   const hasStartedConversation = messages.length > 0;
 
-  // FAQ JSON-LD structured data for SEO
+  // JSON-LD structured data for SEO
   useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify(faqJsonLd);
-    script.id = 'faq-jsonld';
-    document.head.appendChild(script);
+    const faqScript = document.createElement('script');
+    faqScript.type = 'application/ld+json';
+    faqScript.text = JSON.stringify(faqJsonLd);
+    faqScript.id = 'faq-jsonld';
+    document.head.appendChild(faqScript);
+
+    const orgScript = document.createElement('script');
+    orgScript.type = 'application/ld+json';
+    orgScript.text = JSON.stringify(organizationJsonLd);
+    orgScript.id = 'org-jsonld';
+    document.head.appendChild(orgScript);
+
     return () => {
-      const el = document.getElementById('faq-jsonld');
-      if (el) el.remove();
+      document.getElementById('faq-jsonld')?.remove();
+      document.getElementById('org-jsonld')?.remove();
     };
   }, []);
 
