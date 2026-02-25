@@ -22,6 +22,54 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What exactly is HomeLens?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "HomeLens is not a property listing site. It's a decision platform designed to help you evaluate homes before making one of the biggest financial commitments of your life. Instead of just showing listings, HomeLens helps you understand affordability, risk, long-term cost, and whether a property truly makes financial sense for you. You can explore the market, analyze properties, compare options, and gain clarity — all guided by AI."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I paste any property listing URL?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. You can paste a listing URL from most major real estate platforms and HomeLens will generate a detailed financial and market analysis. We extract relevant property data and combine it with market insights, affordability models, and scenario projections — so you can see the full financial picture behind the listing. Pro users unlock deeper analysis, including advanced financial breakdowns and long-term projections."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can HomeLens help me avoid overpaying?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "That's exactly what it's built for. HomeLens evaluates properties using financial modeling, local market data, and affordability analysis to help you understand if the price aligns with market trends, whether the monthly cost fits your financial profile, the long-term financial impact of your purchase, and the potential risk of stretching your budget. While no tool can predict the future, HomeLens gives you structured clarity instead of emotional guesswork."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How accurate are the financial estimates?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Our calculations are based on standard mortgage formulas, publicly available market data, and your personalized financial inputs. They are designed to provide realistic projections and scenario modeling — not generic averages. However, estimates should always be validated with your lender or financial advisor before making a final decision. HomeLens is a decision-support tool, not financial advice."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What do I get with the Pro plan?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The Pro plan unlocks the full decision engine: advanced property analysis, detailed overpayment and risk indicators, long-term ownership projections, side-by-side comparison tools, saved analysis history, and ongoing tracking of properties and scenarios. If you're actively considering buying, Pro gives you deeper financial clarity and more confident decision-making."
+      }
+    }
+  ]
+};
+
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -46,7 +94,19 @@ export default function Index() {
 
   const hasStartedConversation = messages.length > 0;
 
-  // Pull to refresh functionality
+  // FAQ JSON-LD structured data for SEO
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify(faqJsonLd);
+    script.id = 'faq-jsonld';
+    document.head.appendChild(script);
+    return () => {
+      const el = document.getElementById('faq-jsonld');
+      if (el) el.remove();
+    };
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     if (searchParams?.location) {
       await queryClient.invalidateQueries({ queryKey: ['property-search'] });
