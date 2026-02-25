@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
+import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -31,6 +32,8 @@ export default function Index() {
   const [searchParams, setSearchParams] = useState<any>(null);
   const [heroInput, setHeroInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [heroFocused, setHeroFocused] = useState(false);
+  const typingPlaceholder = useTypingPlaceholder();
 
   // Filter state with defaults
   const [filters, setFilters] = useState<PropertyFiltersState>({
@@ -319,7 +322,9 @@ export default function Index() {
                 <Input
                 value={heroInput}
                 onChange={(e) => setHeroInput(e.target.value)}
-                placeholder="Try: Find 3-bedroom fixers under $650k in Arlington with ROI over 15%"
+                onFocus={() => setHeroFocused(true)}
+                onBlur={() => setHeroFocused(false)}
+                placeholder={heroFocused ? "Type your question..." : typingPlaceholder}
                 disabled={conversationLoading || searchLoading}
                 className="h-12 sm:h-14 text-sm sm:text-base" />
 
