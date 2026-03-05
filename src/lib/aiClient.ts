@@ -1,7 +1,7 @@
 /**
  * AI Client Abstraction Layer
  * Centralizes all LLM API calls for easy model switching
- * Currently uses OpenAI, can be switched to Lovable AI Gateway by editing this file only
+ * Uses Lovable AI Gateway with google/gemini-2.5-flash
  */
 
 export interface AIMessage {
@@ -33,11 +33,9 @@ export interface AIResponse {
 }
 
 /**
- * Call the configured LLM model
- * @param messages - Conversation history
- * @param tools - Optional tool definitions
- * @param config - Optional configuration overrides
- * @param apiKey - API key (required for OpenAI, optional for Lovable AI Gateway)
+ * Call the configured LLM model via Lovable AI Gateway
+ * Note: This client is for edge functions only. Frontend code should
+ * call edge functions which then use LOVABLE_API_KEY on the backend.
  */
 export async function callModel(
   messages: AIMessage[],
@@ -45,16 +43,11 @@ export async function callModel(
   config: AIClientConfig = {},
   apiKey?: string
 ): Promise<AIResponse> {
-  // === CURRENT IMPLEMENTATION: OpenAI ===
-  // To switch to Lovable AI Gateway, replace this entire section
-  // with fetch to https://ai.gateway.lovable.dev/v1/chat/completions
-  // and use model: "google/gemini-2.5-flash" instead
-  
-  const OPENAI_BASE_URL = 'https://api.openai.com/v1/chat/completions';
-  const model = config.model || 'gpt-4o-mini';
+  const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+  const model = config.model || 'google/gemini-2.5-flash';
   
   if (!apiKey) {
-    throw new Error('API key is required for OpenAI');
+    throw new Error('API key is required (LOVABLE_API_KEY)');
   }
 
   const requestBody: any = {
@@ -62,22 +55,15 @@ export async function callModel(
     messages,
   };
 
-  // Add optional parameters
   if (config.maxTokens) {
     requestBody.max_tokens = config.maxTokens;
-  }
-  
-  // Note: temperature not supported on newer models (GPT-5, O3, etc.)
-  // Only add for legacy models that support it
-  if (config.temperature !== undefined && model.includes('gpt-4o')) {
-    requestBody.temperature = config.temperature;
   }
 
   if (tools && tools.length > 0) {
     requestBody.tools = tools;
   }
 
-  const response = await fetch(OPENAI_BASE_URL, {
+  const response = await fetch(GATEWAY_URL, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -116,19 +102,11 @@ export async function callModel(
 
 /**
  * Sanitize AI response to prevent JSON leakage into chat UI
- * Removes technical data structures from user-facing messages
  */
 export function sanitizeMessage(message: string): string {
-  // Remove JSON-like structures that might confuse users
-  // Keep readable text only
   let cleaned = message.trim();
-  
-  // Remove common JSON artifacts
   cleaned = cleaned.replace(/\\{[^}]*\\"searchParams\\"[^}]*\\}/g, '');
   cleaned = cleaned.replace(/\\{[^}]*\\"type\\"[^}]*\\}/g, '');
-  
-  // Clean up extra whitespace
   cleaned = cleaned.replace(/\s\s+/g, ' ').trim();
-  
   return cleaned;
 }
