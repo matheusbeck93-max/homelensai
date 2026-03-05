@@ -43,11 +43,11 @@ Deno.serve(async (req) => {
     }
     
     const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode } = validationResult.data;
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
     
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
 
     // In conversation mode, check if this is a property search request
@@ -407,28 +407,33 @@ CRITICAL:
 - Answer ONLY what the user requested
 - If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`;
 
-        console.log('Analysis prompt created, calling OpenAI API...');
+        console.log('Analysis prompt created, calling Lovable AI Gateway...');
       
-      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: 'You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.' },
             { role: 'user', content: analysisPrompt }
           ],
-          max_tokens: 1000
         }),
       });
 
       if (!aiResponse.ok) {
+        if (aiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         const errorText = await aiResponse.text();
-        console.error(`OpenAI API failed: ${aiResponse.status}`, errorText);
-        throw new Error(`OpenAI API failed: ${aiResponse.status} - ${errorText}`);
+        console.error(`AI Gateway failed: ${aiResponse.status}`, errorText);
+        throw new Error(`AI Gateway failed: ${aiResponse.status} - ${errorText}`);
       }
 
       const aiData = await aiResponse.json();
@@ -910,46 +915,55 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 - Keep "message" as natural language only - no JSON, no raw objects
 - Every refinement ("under 900k", "3 bedrooms") triggers a NEW search with updated searchParams`;
 
-    console.log('Making OpenAI API call for regular chat...');
+    console.log('Making Lovable AI Gateway call for regular chat...');
     
-    // First API call with tools enabled
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const requestBody: any = {
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        ...messages
+      ],
+    };
+
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools;
+      requestBody.tool_choice = 'auto';
+    }
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          ...messages
-        ],
-        tools: tools,
-        tool_choice: 'auto',
-        max_tokens: 2000,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API failed: ${response.status} ${errorText}`);
+      console.error('AI Gateway error:', response.status, errorText);
+      throw new Error(`AI Gateway failed: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('Unexpected OpenAI response format:', JSON.stringify(data));
-      throw new Error('Invalid response format from OpenAI');
+      console.error('Unexpected AI response format:', JSON.stringify(data));
+      throw new Error('Invalid response format from AI Gateway');
     }
     
     const assistantMessage = data.choices[0].message;
     let assistantResponse = assistantMessage.content;
-    console.log('OpenAI raw response:', assistantResponse);
+    console.log('AI Gateway raw response:', assistantResponse);
 
     /**
      * RESPONSE SANITIZATION & LINK GENERATION
