@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     console.log(`Fetching property data from: ${url}`);
     
     // Use Firecrawl to scrape the URL
-    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v2/scrape', {
+    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        formats: ['markdown', 'html']
+        formats: ['markdown', 'html'],
+        onlyMainContent: true,
+        waitFor: 5000
       })
     });
     
