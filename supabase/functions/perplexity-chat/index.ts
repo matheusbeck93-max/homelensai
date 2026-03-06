@@ -286,14 +286,36 @@ RULES:
     }
 
     // Build conversation messages
+    // Filter empty messages and ensure strict alternating user/assistant roles
+    const filteredHistory = conversationHistory
+      .filter(m => m.content && m.content.trim().length > 0)
+      .slice(-10);
+    
+    // Deduplicate consecutive same-role messages to satisfy Perplexity's alternation requirement
+    const dedupedHistory: { role: string; content: string }[] = [];
+    for (const m of filteredHistory) {
+      if (dedupedHistory.length > 0 && dedupedHistory[dedupedHistory.length - 1].role === m.role) {
+        // Merge consecutive same-role messages
+        dedupedHistory[dedupedHistory.length - 1].content += '\n\n' + m.content;
+      } else {
+        dedupedHistory.push({ role: m.role, content: m.content });
+      }
+    }
+
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...conversationHistory.slice(-10).map(m => ({
+      ...dedupedHistory.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content
       })),
       { role: 'user', content: query }
     ];
+    
+    // If last history message is also 'user', merge with current query to avoid consecutive user messages
+    if (messages.length >= 3 && messages[messages.length - 2].role === 'user') {
+      const prevUserMsg = messages.splice(messages.length - 2, 1)[0];
+      messages[messages.length - 1].content = prevUserMsg.content + '\n\n' + messages[messages.length - 1].content;
+    }
 
     console.log(`[perplexity-chat] Mode: ${isUrl ? 'URL_ANALYSIS' : isSearch ? 'SEARCH' : 'GENERAL'}, Query: ${query.substring(0, 100)}...`);
 
