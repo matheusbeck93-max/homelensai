@@ -54,9 +54,9 @@ Deno.serve(async (req) => {
     const firecrawlData = await firecrawlResponse.json();
     console.log('Firecrawl response received');
     
-    // Get the HTML content from Firecrawl
-    const html = firecrawlData.data?.html || '';
-    const markdown = firecrawlData.data?.markdown || '';
+    // Get the content from Firecrawl (v1 nests under data)
+    const html = firecrawlData.data?.html || firecrawlData.html || '';
+    const markdown = firecrawlData.data?.markdown || firecrawlData.markdown || '';
     
     if (!html && !markdown) {
       throw new Error('No content received from Firecrawl');
