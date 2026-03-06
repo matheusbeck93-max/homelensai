@@ -70,7 +70,7 @@ function extractUrl(text: string): string | null {
 
 // Detect if a message is requesting a workflow/budget/plan (Excel generation)
 function isWorkflowRequest(text: string): boolean {
-  const patterns = /(budget|orçamento|plan|plano|breakdown|estimate|estimativa|cost breakdown|renovation plan|financing plan|amortization|roi analysis|spreadsheet|planilha|create a .*(plan|budget|estimate)|give me a breakdown|what would it cost|calculate the roi|build a .*(plan|budget)|can i afford|afford a house|afford a home|buying power|quanto custa|posso comprar|affordability|how much house|how much home|what can i buy|monthly payment for|mortgage for|investment analysis|cash flow analysis|rental income for)/i;
+  const patterns = /(budget|orçamento|plan\b|plano|breakdown|estimate|estimativa|cost breakdown|renovation|financing plan|amortization|roi\b|spreadsheet|planilha|create a .*(plan|budget|estimate)|give me a breakdown|what would it cost|calculate the|build a .*(plan|budget)|can i afford|afford a (house|home|property|condo)|buying power|quanto custa|posso comprar|affordability|how much (house|home|can i|do i need)|what can i (buy|afford)|monthly payment|mortgage for|investment analysis|cash flow|rental income|what('s| is) the roi|renovation cost|rehab cost|remodel cost|flip analysis|what would .* cost|how much would .* cost|down payment|closing cost)/i;
   return patterns.test(text);
 }
 
