@@ -219,7 +219,10 @@ export default function Chats() {
       if (isWorkflowRequest(cleanedMessage)) {
         try {
           const { data: excelData, error: excelError } = await supabase.functions.invoke('ai-chat', {
-            body: { message: cleanedMessage }
+            body: {
+              messages: [{ role: 'user', content: cleanedMessage }],
+              conversationMode: true
+            }
           });
 
           if (!excelError && excelData?.uiBlock && excelData.uiBlock.type === 'workflow_excel') {
