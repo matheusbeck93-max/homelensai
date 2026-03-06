@@ -251,7 +251,8 @@ RULES:
 - No emojis
 - Be warm and conversational, but still factual
 - Address the user directly using "you" and "I"
-- NEVER invent prices, sizes, or features - only report what you find`;
+- NEVER invent prices, sizes, or features - only report what you find
+- Do NOT include citation numbers like [1], [2], [8] in your response`;
     } else if (isSearch) {
       // Search Mode
       systemPrompt = `You are a friendly and helpful U.S. real estate assistant, here to help users find their perfect property.
