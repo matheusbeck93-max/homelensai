@@ -62,10 +62,10 @@ function parseAnalyzedProperty(content: string, url: string): AnalyzedProperty |
   return property;
 }
 
-// Extract URL from user message
-function extractUrl(text: string): string | null {
-  const urlMatch = text.match(/https?:\/\/[^\s]+/i);
-  return urlMatch ? urlMatch[0] : null;
+// Detect if a message is requesting a workflow/budget/plan (Excel generation)
+function isWorkflowRequest(text: string): boolean {
+  const patterns = /(budget|orçamento|plan|plano|breakdown|estimate|estimativa|cost breakdown|renovation plan|financing plan|amortization|roi analysis|spreadsheet|planilha|create a .*(plan|budget|estimate)|give me a breakdown|what would it cost|calculate the roi|build a .*(plan|budget))/i;
+  return patterns.test(text);
 }
 
 export default function Chats() {
