@@ -225,13 +225,14 @@ export default function Chats() {
             }
           });
 
-          if (!excelError && excelData?.uiBlock && excelData.uiBlock.type === 'workflow_excel') {
+          const excelBlock = excelData?.uiBlock || excelData?.response?.uiBlock;
+          if (!excelError && excelBlock && excelBlock.type === 'workflow_excel') {
             const excelMessage: ChatMessage = {
               id: uuidv4(),
               role: 'assistant',
               content: '',
               createdAt: new Date().toISOString(),
-              metadata: { uiBlock: excelData.uiBlock }
+              metadata: { uiBlock: excelBlock }
             };
             setMessages((prev) => [...prev, excelMessage]);
 
