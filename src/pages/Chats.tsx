@@ -232,7 +232,7 @@ export default function Chats() {
               role: 'assistant',
               content: '',
               createdAt: new Date().toISOString(),
-              metadata: { uiBlock: excelData.uiBlock }
+              metadata: { uiBlock: excelBlock }
             };
             setMessages((prev) => [...prev, excelMessage]);
 
