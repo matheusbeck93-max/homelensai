@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { UIBlock } from "@/types/ui-blocks";
+import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 
 interface PropertyLink {
   title: string;
@@ -64,6 +66,12 @@ function parseAnalyzedProperty(content: string, url: string): AnalyzedProperty |
 function extractUrl(text: string): string | null {
   const urlMatch = text.match(/https?:\/\/[^\s]+/i);
   return urlMatch ? urlMatch[0] : null;
+}
+
+// Detect if a message is requesting a workflow/budget/plan (Excel generation)
+function isWorkflowRequest(text: string): boolean {
+  const patterns = /(budget|orçamento|plan|plano|breakdown|estimate|estimativa|cost breakdown|renovation plan|financing plan|amortization|roi analysis|spreadsheet|planilha|create a .*(plan|budget|estimate)|give me a breakdown|what would it cost|calculate the roi|build a .*(plan|budget))/i;
+  return patterns.test(text);
 }
 
 export default function Chats() {
@@ -204,6 +212,35 @@ export default function Chats() {
         if (parsed) {
           // Store for potential comparison
           assistantMessage.metadata = { analyzedProperty: parsed };
+        }
+      }
+
+      // Secondary call to ai-chat for Excel workflow generation
+      if (isWorkflowRequest(cleanedMessage)) {
+        try {
+          const { data: excelData, error: excelError } = await supabase.functions.invoke('ai-chat', {
+            body: {
+              messages: [{ role: 'user', content: cleanedMessage }],
+              conversationMode: true
+            }
+          });
+
+          if (!excelError && excelData?.uiBlock && excelData.uiBlock.type === 'workflow_excel') {
+            const excelMessage: ChatMessage = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: '',
+              createdAt: new Date().toISOString(),
+              metadata: { uiBlock: excelData.uiBlock }
+            };
+            setMessages((prev) => [...prev, excelMessage]);
+
+            if (user && conversationId) {
+              saveMessage(excelMessage, conversationId);
+            }
+          }
+        } catch (excelErr) {
+          console.warn('Excel workflow generation failed (non-blocking):', excelErr);
         }
       }
     } catch (error: any) {
@@ -424,8 +461,15 @@ export default function Chats() {
                     }
                     </div> :
 
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  message.content ? <p className="text-sm whitespace-pre-wrap">{message.content}</p> : null
                   }
+
+                  {/* UI Block (Excel Workflow, etc.) */}
+                  {message.metadata?.uiBlock && (
+                    <div className="mt-3">
+                      <UIBlockRenderer block={message.metadata.uiBlock as UIBlock} />
+                    </div>
+                  )}
                 </div>
               </div>);
 
