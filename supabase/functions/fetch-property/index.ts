@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     console.log(`Fetching property data from: ${url}`);
     
     // Use Firecrawl to scrape the URL
-    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v2/scrape', {
+    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         url: url,
-        formats: ['markdown', 'html']
+        formats: ['markdown', 'html'],
+        onlyMainContent: true,
+        waitFor: 5000
       })
     });
     
@@ -52,9 +54,9 @@ Deno.serve(async (req) => {
     const firecrawlData = await firecrawlResponse.json();
     console.log('Firecrawl response received');
     
-    // Get the HTML content from Firecrawl
-    const html = firecrawlData.data?.html || '';
-    const markdown = firecrawlData.data?.markdown || '';
+    // Get the content from Firecrawl (v1 nests under data)
+    const html = firecrawlData.data?.html || firecrawlData.html || '';
+    const markdown = firecrawlData.data?.markdown || firecrawlData.markdown || '';
     
     if (!html && !markdown) {
       throw new Error('No content received from Firecrawl');
