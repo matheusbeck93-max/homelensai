@@ -917,42 +917,46 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 
 ---
 WORKFLOW EXCEL GENERATION:
-When the user asks for a plan, budget, estimate, cost breakdown, renovation plan, ROI analysis, financing roadmap, or any structured multi-step analysis, you can generate a downloadable Excel workflow.
+When the user asks for a plan, budget, estimate, cost breakdown, renovation plan, ROI analysis, financing roadmap, affordability analysis, buying power, mortgage breakdown, or any structured analysis, you MUST generate a downloadable Excel workflow.
 
-To trigger Excel generation, include in your JSON response a "uiBlock" field with type "workflow_excel" alongside your normal "message" field.
+**CRITICAL: EVERY CELL MUST HAVE A VALUE.**
+- NEVER leave cost/value columns empty. Every number from the conversation MUST appear in the spreadsheet.
+- Use realistic U.S. market prices. If a value wasn't explicitly stated, estimate it.
+- Use raw numbers for monetary values (15000 not "$15,000" or "").
+- If conversation history contains a prior analysis with numbers, extract ALL those numbers into cells.
 
-The structure must follow this exact format:
+To trigger Excel generation, include a "uiBlock" field with type "workflow_excel" in your JSON response:
 {
-  "message": "Your conversational response explaining the spreadsheet",
+  "message": "Here is your detailed spreadsheet with all the numbers.",
   "uiBlock": {
     "type": "workflow_excel",
-    "title": "string — clear workflow title",
-    "description": "string — one sentence describing what the spreadsheet contains",
-    "filename": "string — filename ending in .xlsx, no spaces, use hyphens",
+    "title": "Renovation Budget - 1,200 sqft Austin TX",
+    "description": "Complete renovation cost breakdown with all estimated values",
+    "filename": "renovation-budget-austin-tx.xlsx",
     "sheets": [
       {
-        "name": "string — sheet tab name, max 31 chars",
-        "headers": ["Col1", "Col2", "Col3"],
-        "rows": [["value", 1000, "note"], ["value2", 2000, "note2"]],
-        "summaryRows": [
-          { "label": "Total", "value": 3000, "bold": true }
-        ]
+        "name": "Cost Breakdown",
+        "headers": ["Category", "Estimated Cost", "Notes"],
+        "rows": [["Kitchen Remodel", 25000, "Full gut renovation"], ["Bathroom Remodel", 15000, "Primary bath"]],
+        "summaryRows": [{ "label": "Estimated Total Renovation Cost", "value": 75000, "bold": true }]
       }
     ]
   }
 }
 
-Only offer an Excel workflow when the user explicitly asks for a plan, estimate, budget, or breakdown — do not generate it for simple chat questions.
+**MANDATORY RULES:**
+1. Every row MUST have values in ALL columns — NO empty cost/value cells
+2. Extract ALL dollar amounts, percentages, and metrics from prior messages into cells
+3. Include multiple sheets: Summary + detailed breakdowns
+4. For renovation: Category, Material Cost, Labor Cost, Total per item — all filled
+5. For financing: Payment, Principal, Interest, Balance for 12+ months
+6. For affordability: Income, Debts, Max Mortgage, Monthly Payment, Buying Power — all filled
+7. For investment: Purchase Price, Expenses, Rental Income, Cash Flow, Cap Rate, ROI
+8. Summary sheet with grand totals and key metrics
 
-Always include the Excel block as a uiBlock in your JSON response alongside your normal conversational message. The message should briefly explain what the spreadsheet contains and invite the user to download it.
+Also generate Excel for: "can I afford", "how much house", "buying power", "monthly payment for", "mortgage for".
 
-Example triggers: "create a renovation budget", "estimate the cost of...", "build a financing plan", "make a spreadsheet with...", "give me a breakdown of...", "what would it cost to...", "calculate the ROI of renovating..."
-
-For renovation/repair estimates, use realistic U.S. market prices per square foot or per unit based on the region mentioned. Break down by room/category. Include material cost, labor cost, and total per line item. Add a Summary sheet with grand total, estimated ROI impact, and recommended budget allocation.
-
-For financing/mortgage plans, include an amortization-style sheet with monthly payments, principal, interest, and balance columns for at least 12 months.
-
-For investment analysis, include cash flow projections, cap rate, cash-on-cash return, and break-even timeline.`;
+Always include uiBlock alongside your conversational message.`;
 
     console.log('Making Lovable AI Gateway call for regular chat...');
     
