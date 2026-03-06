@@ -119,8 +119,28 @@ export type BuyingPowerBlock = {
   }[];
 };
 
+export interface WorkflowSheet {
+  name: string;
+  headers: string[];
+  rows: (string | number)[][];
+  summaryRows?: {
+    label: string;
+    value: string | number;
+    bold?: boolean;
+  }[];
+}
+
+export interface WorkflowExcelBlock {
+  type: 'workflow_excel';
+  title: string;
+  description: string;
+  filename: string;
+  sheets: WorkflowSheet[];
+}
+
 export type UIBlock =
   | PropertyResultsCarouselBlock
   | MortgageCalculatorBlock
   | InvestorCalculatorBlock
-  | BuyingPowerBlock;
+  | BuyingPowerBlock
+  | WorkflowExcelBlock;

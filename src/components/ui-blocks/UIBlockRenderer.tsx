@@ -4,6 +4,7 @@ import { PropertyResultsCarousel } from "./PropertyResultsCarousel";
 import { MortgageCalculator } from "./MortgageCalculator";
 import { HomeLensInvestorCalculator } from "./HomeLensInvestorCalculator";
 import { IndividualBuyingPowerCalculator } from "./IndividualBuyingPowerCalculator";
+import { WorkflowExcelBlock } from "./WorkflowExcelBlock";
 
 interface UIBlockRendererProps {
   block: UIBlock;
@@ -46,6 +47,11 @@ export const UIBlockRenderer: React.FC<UIBlockRendererProps> = ({ block, onPrope
           inputs={block.inputs}
           scenarios={block.scenarios}
         />
+      );
+
+    case "workflow_excel":
+      return (
+        <WorkflowExcelBlock block={block} />
       );
 
     default:
