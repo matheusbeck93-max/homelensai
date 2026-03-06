@@ -913,7 +913,46 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 - Parse user intent and trigger property searches yourself - never tell them to use the search bar
 - For any search query, return searchParams so the frontend can fetch and display properties
 - Keep "message" as natural language only - no JSON, no raw objects
-- Every refinement ("under 900k", "3 bedrooms") triggers a NEW search with updated searchParams`;
+- Every refinement ("under 900k", "3 bedrooms") triggers a NEW search with updated searchParams
+
+---
+WORKFLOW EXCEL GENERATION:
+When the user asks for a plan, budget, estimate, cost breakdown, renovation plan, ROI analysis, financing roadmap, or any structured multi-step analysis, you can generate a downloadable Excel workflow.
+
+To trigger Excel generation, include in your JSON response a "uiBlock" field with type "workflow_excel" alongside your normal "message" field.
+
+The structure must follow this exact format:
+{
+  "message": "Your conversational response explaining the spreadsheet",
+  "uiBlock": {
+    "type": "workflow_excel",
+    "title": "string — clear workflow title",
+    "description": "string — one sentence describing what the spreadsheet contains",
+    "filename": "string — filename ending in .xlsx, no spaces, use hyphens",
+    "sheets": [
+      {
+        "name": "string — sheet tab name, max 31 chars",
+        "headers": ["Col1", "Col2", "Col3"],
+        "rows": [["value", 1000, "note"], ["value2", 2000, "note2"]],
+        "summaryRows": [
+          { "label": "Total", "value": 3000, "bold": true }
+        ]
+      }
+    ]
+  }
+}
+
+Only offer an Excel workflow when the user explicitly asks for a plan, estimate, budget, or breakdown — do not generate it for simple chat questions.
+
+Always include the Excel block as a uiBlock in your JSON response alongside your normal conversational message. The message should briefly explain what the spreadsheet contains and invite the user to download it.
+
+Example triggers: "create a renovation budget", "estimate the cost of...", "build a financing plan", "make a spreadsheet with...", "give me a breakdown of...", "what would it cost to...", "calculate the ROI of renovating..."
+
+For renovation/repair estimates, use realistic U.S. market prices per square foot or per unit based on the region mentioned. Break down by room/category. Include material cost, labor cost, and total per line item. Add a Summary sheet with grand total, estimated ROI impact, and recommended budget allocation.
+
+For financing/mortgage plans, include an amortization-style sheet with monthly payments, principal, interest, and balance columns for at least 12 months.
+
+For investment analysis, include cash flow projections, cap rate, cash-on-cash return, and break-even timeline.`;
 
     console.log('Making Lovable AI Gateway call for regular chat...');
     
