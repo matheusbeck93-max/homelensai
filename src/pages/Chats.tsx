@@ -214,6 +214,32 @@ export default function Chats() {
           assistantMessage.metadata = { analyzedProperty: parsed };
         }
       }
+
+      // Secondary call to ai-chat for Excel workflow generation
+      if (isWorkflowRequest(cleanedMessage)) {
+        try {
+          const { data: excelData, error: excelError } = await supabase.functions.invoke('ai-chat', {
+            body: { message: cleanedMessage }
+          });
+
+          if (!excelError && excelData?.uiBlock && excelData.uiBlock.type === 'workflow_excel') {
+            const excelMessage: ChatMessage = {
+              id: uuidv4(),
+              role: 'assistant',
+              content: '',
+              createdAt: new Date().toISOString(),
+              metadata: { uiBlock: excelData.uiBlock }
+            };
+            setMessages((prev) => [...prev, excelMessage]);
+
+            if (user && conversationId) {
+              saveMessage(excelMessage, conversationId);
+            }
+          }
+        } catch (excelErr) {
+          console.warn('Excel workflow generation failed (non-blocking):', excelErr);
+        }
+      }
     } catch (error: any) {
       console.error('Chat error:', error);
       toast({
