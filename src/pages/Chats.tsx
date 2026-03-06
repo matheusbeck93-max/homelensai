@@ -70,7 +70,7 @@ function extractUrl(text: string): string | null {
 
 // Detect if a message is requesting a workflow/budget/plan (Excel generation)
 function isWorkflowRequest(text: string): boolean {
-  const patterns = /(budget|orçamento|plan|plano|breakdown|estimate|estimativa|cost breakdown|renovation plan|financing plan|amortization|roi analysis|spreadsheet|planilha|create a .*(plan|budget|estimate)|give me a breakdown|what would it cost|calculate the roi|build a .*(plan|budget))/i;
+  const patterns = /(budget|orçamento|plan|plano|breakdown|estimate|estimativa|cost breakdown|renovation plan|financing plan|amortization|roi analysis|spreadsheet|planilha|create a .*(plan|budget|estimate)|give me a breakdown|what would it cost|calculate the roi|build a .*(plan|budget)|can i afford|afford a house|afford a home|buying power|quanto custa|posso comprar|affordability|how much house|how much home|what can i buy|monthly payment for|mortgage for|investment analysis|cash flow analysis|rental income for)/i;
   return patterns.test(text);
 }
 
@@ -216,11 +216,16 @@ export default function Chats() {
       }
 
       // Secondary call to ai-chat for Excel workflow generation
+      const perplexityResponse = data?.message || '';
       if (isWorkflowRequest(cleanedMessage)) {
         try {
           const { data: excelData, error: excelError } = await supabase.functions.invoke('ai-chat', {
             body: {
-              messages: [{ role: 'user', content: cleanedMessage }],
+              messages: [
+                { role: 'user', content: cleanedMessage },
+                { role: 'assistant', content: perplexityResponse },
+                { role: 'user', content: `Based on the analysis above, generate a detailed Excel spreadsheet that includes ALL the numbers, values, costs, and data points mentioned. Every dollar amount, percentage, and metric should appear in the spreadsheet cells with proper values filled in. Do not leave any cells empty if a value was mentioned in the analysis.` }
+              ],
               conversationMode: true
             }
           });
