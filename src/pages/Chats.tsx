@@ -429,7 +429,7 @@ export default function Chats() {
                         li: ({ children }) => <li className="flex items-start gap-2"><span>•</span><span>{children}</span></li>
                       }}>
 
-                        {message.content}
+                        {message.content.replace(/\[\d+\]/g, '')}
                       </ReactMarkdown>
                       
                       {/* Add to Comparison Button */}
