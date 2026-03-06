@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { UIBlock } from "@/types/ui-blocks";
+import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 
 interface PropertyLink {
   title: string;
