@@ -458,8 +458,15 @@ export default function Chats() {
                     }
                     </div> :
 
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  message.content ? <p className="text-sm whitespace-pre-wrap">{message.content}</p> : null
                   }
+
+                  {/* UI Block (Excel Workflow, etc.) */}
+                  {message.metadata?.uiBlock && (
+                    <div className="mt-3">
+                      <UIBlockRenderer block={message.metadata.uiBlock as UIBlock} />
+                    </div>
+                  )}
                 </div>
               </div>);
 
