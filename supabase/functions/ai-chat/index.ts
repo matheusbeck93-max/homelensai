@@ -919,10 +919,12 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 WORKFLOW EXCEL GENERATION:
 When the user asks for a plan, budget, estimate, cost breakdown, renovation plan, ROI analysis, financing roadmap, affordability analysis, buying power, mortgage breakdown, or any structured analysis, you MUST generate a downloadable Excel workflow.
 
-**CRITICAL: EVERY CELL MUST HAVE A VALUE.**
-- NEVER leave cost/value columns empty. Every number from the conversation MUST appear in the spreadsheet.
-- Use realistic U.S. market prices. If a value wasn't explicitly stated, estimate it.
+**CRITICAL: EVERY CELL MUST HAVE A NUMERIC VALUE.**
+- NEVER leave cost/value columns empty or with placeholder text like "Fill in" or "Not Specified". EVERY cost cell MUST contain a realistic estimated number.
+- If the prior analysis lacks specific numbers, YOU MUST estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. Research common costs and use those.
+- Example: If no kitchen remodel cost was mentioned for a Denver condo, estimate $15,000-$25,000 based on typical Denver market rates.
 - Use raw numbers for monetary values (15000 not "$15,000" or "").
+- Percentages should be strings like "6.50%" in the cell.
 - If conversation history contains a prior analysis with numbers, extract ALL those numbers into cells.
 
 To trigger Excel generation, include a "uiBlock" field with type "workflow_excel" in your JSON response:
