@@ -224,13 +224,18 @@ export default function Chats() {
               messages: [
                 { role: 'user', content: cleanedMessage },
                 { role: 'assistant', content: perplexityResponse },
-                { role: 'user', content: `Based on the analysis above, generate a detailed Excel spreadsheet that includes ALL the numbers, values, costs, and data points mentioned. Every dollar amount, percentage, and metric should appear in the spreadsheet cells with proper values filled in. Do not leave any cells empty if a value was mentioned in the analysis.` }
+                { role: 'user', content: `Based on the analysis above, generate a detailed Excel spreadsheet with a workflow_excel uiBlock. Include ALL numbers, values, costs, and data points mentioned. If specific numbers were not available in the analysis, YOU MUST estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. NEVER leave cost cells empty — always fill with estimated values. Every row must have numeric values in cost/value columns.` }
               ],
               conversationMode: true
             }
           });
 
-          const excelBlock = excelData?.uiBlock || excelData?.response?.uiBlock;
+          // Handle both object and string responses from ai-chat
+          let parsedResponse = excelData?.response;
+          if (typeof parsedResponse === 'string') {
+            try { parsedResponse = JSON.parse(parsedResponse); } catch { parsedResponse = null; }
+          }
+          const excelBlock = excelData?.uiBlock || parsedResponse?.uiBlock;
           if (!excelError && excelBlock && excelBlock.type === 'workflow_excel') {
             const excelMessage: ChatMessage = {
               id: uuidv4(),
