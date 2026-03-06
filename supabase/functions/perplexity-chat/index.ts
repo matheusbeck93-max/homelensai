@@ -262,22 +262,53 @@ The user wants to search for properties. Your task:
 1. Understand their search criteria (location, price, bedrooms, bathrooms, property type, etc.)
 2. Generate EXACTLY 3 working search URLs with filters pre-applied - one for each site: Zillow, Redfin, Realtor.com
 
-IMPORTANT URL FORMATS (use these exact patterns):
+IMPORTANT URL FORMATS (use these EXACT patterns - pay close attention to underscores and separators):
 
 **Zillow format:**
-https://www.zillow.com/[city]-[state abbreviation]/[beds]-beds/[price-range]-price/
+https://www.zillow.com/[city]-[state-abbreviation-lowercase]/[min-beds]-_beds/[minPrice]-[maxPrice]_price/
 
-Example: https://www.zillow.com/phoenix-az/3-beds/200000-500000_price/
+Rules for Zillow URLs:
+- City and state are lowercase, separated by hyphen: phoenix-az, arlington-va, miami-fl
+- Multi-word cities use hyphens: san-francisco-ca, new-york-ny
+- Beds filter uses NUMBER followed by HYPHEN then UNDERSCORE then "beds": 3-_beds
+- Price filter uses MIN-MAX followed by UNDERSCORE then "price": 200000-500000_price
+- If only max price, use 0 as min: 0-500000_price
+- If only min price, omit max: 200000-_price
+- Each filter is a separate path segment ending with /
+
+Examples:
+- 3+ beds under $500k in Phoenix AZ: https://www.zillow.com/phoenix-az/3-_beds/0-500000_price/
+- 2+ beds in Arlington VA: https://www.zillow.com/arlington-va/2-_beds/
+- Under $300k in Miami FL: https://www.zillow.com/miami-fl/0-300000_price/
+- 4+ beds $400k-$800k in San Francisco: https://www.zillow.com/san-francisco-ca/4-_beds/400000-800000_price/
 
 **Redfin format:**
-https://www.redfin.com/city/[city-id]/[state]/[City]/filter/min-price=[min],max-price=[max],min-beds=[beds]
+https://www.redfin.com/state/[Full-State-Name]/[City]/filter/property-type=house,min-price=[min],max-price=[max],min-beds=[beds],min-baths=[baths]
 
-Example: https://www.redfin.com/city/14240/AZ/Phoenix/filter/min-price=200000,max-price=500000,min-beds=3
+Rules for Redfin URLs:
+- State uses full name with first letter capitalized: Arizona, Virginia, Florida
+- City uses first letter capitalized: Phoenix, Arlington, Miami
+- Filters are comma-separated key=value pairs after /filter/
+- Only include filters the user specified
+- property-type values: house, condo, townhouse, multifamily
 
-**Realtor format:**
-https://www.realtor.com/realestateandhomes-search/[City]_[State]/beds-[min]/price-[min]-[max]
+Examples:
+- 3+ beds under $500k in Phoenix AZ: https://www.redfin.com/state/Arizona/Phoenix/filter/min-beds=3,max-price=500000
+- 2+ beds in Arlington VA: https://www.redfin.com/state/Virginia/Arlington/filter/min-beds=2
 
-Example: https://www.realtor.com/realestateandhomes-search/Phoenix_AZ/beds-3/price-200000-500000
+**Realtor.com format:**
+https://www.realtor.com/realestateandhomes-search/[City]_[State-Abbreviation]/beds-[min]/price-[min]-[max]/type-single-family-home
+
+Rules for Realtor URLs:
+- City and state abbreviation separated by underscore: Phoenix_AZ, Arlington_VA
+- Multi-word cities use hyphens: San-Francisco_CA
+- Beds: beds-[number]
+- Price: price-[min]-[max] or price-na-[max] for max only
+- Type: type-single-family-home, type-condo, type-townhome
+
+Examples:
+- 3+ beds under $500k in Phoenix AZ: https://www.realtor.com/realestateandhomes-search/Phoenix_AZ/beds-3/price-na-500000
+- 2+ beds $300k-$600k in Arlington VA: https://www.realtor.com/realestateandhomes-search/Arlington_VA/beds-2/price-300000-600000
 
 DO NOT include "Link:" text in your response. Just provide the URLs directly.
 
@@ -298,7 +329,7 @@ I've prepared your search links below with all your filters ready to go!
 RULES:
 - Generate EXACTLY 3 URLs: one Zillow, one Redfin, one Realtor.com
 - URLs MUST have the user's filters pre-applied
-- Use the exact URL formats shown above
+- Use the EXACT URL formats shown above - do NOT deviate
 - Each bullet point on its OWN line
 - Do NOT include any text like "Link:" before URLs
 - Do NOT include individual listing links, only search result page URLs
