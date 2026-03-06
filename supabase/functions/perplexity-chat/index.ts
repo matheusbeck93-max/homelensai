@@ -146,40 +146,97 @@ RULES:
     let systemPrompt: string;
     
     if (isUrl) {
-      // URL Analysis Mode
+      // URL Analysis Mode - scrape the URL first with Firecrawl for accurate data
+      const urlMatch = query.match(/https?:\/\/[^\s]+/i);
+      const propertyUrl = urlMatch ? urlMatch[0].replace(/[.,;:!?]+$/, '') : '';
+      let scrapedContent = '';
+      
+      if (propertyUrl) {
+        const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+        if (FIRECRAWL_API_KEY) {
+          try {
+            console.log(`[perplexity-chat] Scraping URL with Firecrawl: ${propertyUrl}`);
+            const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url: propertyUrl,
+                formats: ['markdown'],
+                onlyMainContent: true,
+                waitFor: 5000,
+              }),
+            });
+            
+            if (scrapeResponse.ok) {
+              const scrapeData = await scrapeResponse.json();
+              const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
+              if (markdown) {
+                scrapedContent = markdown.substring(0, 8000);
+                console.log(`[perplexity-chat] Firecrawl scraped ${scrapedContent.length} chars`);
+              }
+            } else {
+              console.error(`[perplexity-chat] Firecrawl error: ${scrapeResponse.status}`);
+            }
+          } catch (scrapeError) {
+            console.error('[perplexity-chat] Firecrawl scrape failed:', scrapeError);
+          }
+        }
+      }
+      
+      const scrapedDataSection = scrapedContent 
+        ? `\n\nSCRAPED PAGE CONTENT (use this as your PRIMARY data source - these are the actual values from the listing page):\n---\n${scrapedContent}\n---\n`
+        : '';
+
       systemPrompt = `You are a friendly and knowledgeable U.S. real estate assistant. The user has shared a property listing URL with you.
 ${goalContext}
+${scrapedDataSection}
 
 Your task:
-1. Visit the URL and extract ONLY publicly visible information
+1. Extract property information from the SCRAPED PAGE CONTENT provided above
 2. Return a structured property summary in a warm, helpful tone
+3. If scraped content is available, use it as your PRIMARY and AUTHORITATIVE data source
+
+CRITICAL DATA EXTRACTION RULES:
+- Look for the LISTING PRICE (the most prominent dollar amount, e.g. $XXX,XXX or $X,XXX,XXX)
+- Look for beds/baths/sqft in formats like "3 bd | 2 ba | 1,500 sqft" or "3 Beds 2 Baths 1,500 Sq Ft"
+- Look for the full street address, city, state, and ZIP
+- Look for property type (Single Family, Condo, Townhouse, etc.)
+- Look for year built, lot size, HOA fees, and annual taxes
+- For Zillow: price near "Zestimate" or main listing; look for "bd", "ba", "sqft"
+- For Redfin: price near the address; look for "Beds", "Baths", "Sq Ft"
+- For Realtor.com: look for structured data near the top
 
 Format your response with CLEAR structure using markdown:
 
 **Hey! Here's what I found about this property:**
 
 **Basic Information**
-• **Price:** [exact price or "Not listed"]
-• **Address:** [full address or "Not listed"]
-• **Property Type:** [type or "Not listed"]
+- **Price:** [exact price from scraped data or "Not listed"]
+- **Address:** [full address or "Not listed"]
+- **Property Type:** [type or "Not listed"]
 
 **Property Details**
-• **Bedrooms:** [number or "Not listed"]
-• **Bathrooms:** [number or "Not listed"]
-• **Size:** [sqft or "Not listed"]
-• **Year Built:** [year or "Not listed"]
+- **Bedrooms:** [number or "Not listed"]
+- **Bathrooms:** [number or "Not listed"]
+- **Size:** [sqft or "Not listed"]
+- **Lot Size:** [lot size or "Not listed"]
+- **Year Built:** [year or "Not listed"]
 
 **Costs**
-• **HOA:** [amount or "Not listed"]
-• **Taxes:** [amount or "Not listed"]
+- **HOA:** [amount or "Not listed"]
+- **Taxes:** [amount or "Not listed"]
+- **Zestimate/Estimate:** [if available or skip]
 
 **Key Features**
-• [Feature 1]
-• [Feature 2]
-• [Feature 3]
+- [Feature 1]
+- [Feature 2]
+- [Feature 3]
 
 **My Notes**
-[Any important observations about the property in a helpful, conversational tone]
+[Any important observations about the property]
 
 ---
 
@@ -188,12 +245,13 @@ Format your response with CLEAR structure using markdown:
 RULES:
 - Each bullet point on its OWN line
 - Use clear section headers with **bold**
-- Extract ONLY what is publicly visible on the page
+- Extract ONLY what is in the scraped content or publicly known
 - If information is not available, state "Not listed"
-- No speculation or guessing
+- No speculation or guessing on property details
 - No emojis
 - Be warm and conversational, but still factual
-- Address the user directly using "you" and "I"`;
+- Address the user directly using "you" and "I"
+- NEVER invent prices, sizes, or features - only report what you find`;
     } else if (isSearch) {
       // Search Mode
       systemPrompt = `You are a friendly and helpful U.S. real estate assistant, here to help users find their perfect property.
