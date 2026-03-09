@@ -1,12 +1,15 @@
 
 
-## Plan: Update Homepage Hero Headline
+# Fix: Update Guest Hero Headline
 
-**Change**: Replace the hero headline text "Find Your Dream Home" with "Know the Deal Before You Buy" on the homepage (`src/pages/Index.tsx`).
+**File: `src/pages/Index.tsx`** — Line 411
 
-**Scope**: Single text change in one file.
+Change the guest fallback from `'Only Good Deals'` to `'Meet Your AI Real Estate Advisor'`.
 
-### Technical Details
-- File: `src/pages/Index.tsx`
-- Find the string "Find Your Dream Home" and replace with "Know the Deal Before You Buy"
+```
+- {userName ? `Hello, ${userName.split(' ')[0]}` : 'Only Good Deals'}
++ {userName ? `Hello, ${userName.split(' ')[0]}` : 'Meet Your AI Real Estate Advisor'}
+```
+
+Single line change. Everything else stays the same.
 
