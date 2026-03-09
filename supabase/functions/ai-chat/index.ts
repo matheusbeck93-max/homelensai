@@ -503,7 +503,7 @@ CRITICAL:
     // Build personalization context from full profile
     let personalizationContext = '';
     const profileSource = fullProfile || clientProfile;
-    if (profileSource && profileSource.onboarding_completed) {
+    if (profileSource) {
       const prefs = [];
       
       if (profileSource.budget_min && profileSource.budget_max) {
