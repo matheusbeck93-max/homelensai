@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
     // Build context from user profile
     let profileContext = '';
-    if (userProfile && userProfile.onboarding_completed) {
+    if (userProfile) {
       const prefs = [];
       
       if (userProfile.budget_min && userProfile.budget_max) {

@@ -490,7 +490,7 @@ CRITICAL:
         
         if (profile) {
           fullProfile = profile;
-          if (profile.onboarding_completed && !userProfile) {
+          if (!userProfile) {
             userProfile = profile.buyer_type || 'regular-buyer';
           }
         }
@@ -503,7 +503,7 @@ CRITICAL:
     // Build personalization context from full profile
     let personalizationContext = '';
     const profileSource = fullProfile || clientProfile;
-    if (profileSource && profileSource.onboarding_completed) {
+    if (profileSource) {
       const prefs = [];
       
       if (profileSource.budget_min && profileSource.budget_max) {
@@ -973,7 +973,7 @@ ${extensionMode ? `
 - Do NOT ask follow-up questions unless truly needed
 ` : ''}
 
-${extensionMode && propertyData && fullProfile?.onboarding_completed ? `
+${extensionMode && propertyData && fullProfile ? `
 **PROPERTY MATCH SCORE**:
 You MUST start your response with a single line: "MATCH_SCORE: X/10" where X is a number from 0 to 10 (can use decimals like 7.5).
 This score represents how well this specific property matches the user's complete profile considering ALL of these factors:
