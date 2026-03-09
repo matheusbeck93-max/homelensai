@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Home, ArrowRight } from "lucide-react";
+import { Home, ArrowRight, Save } from "lucide-react";
 import { PreferencesPanel } from "@/components/console/PreferencesPanel";
 
 export default function ProfileSetup() {
@@ -11,11 +11,15 @@ export default function ProfileSetup() {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
+  const handleSaveAndContinue = async (data: any) => {
     setSaving(true);
     try {
-      // PreferencesPanel handles its own save internally
-      // We just navigate after a short delay to let save complete
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate("/auth"); return; }
+
+      const { error } = await supabase.from("profiles").update(data).eq("id", user.id);
+      if (error) throw error;
+
       toast({ title: "Welcome to HomeLens!", description: "Your preferences have been saved." });
       navigate("/");
     } catch (error: any) {
@@ -42,13 +46,18 @@ export default function ProfileSetup() {
           </p>
         </div>
 
-        {/* Preferences (reused component, hide search prefs for onboarding simplicity) */}
-        <PreferencesPanel showSearchPrefs={false} />
+        {/* Preferences (reused component, hide search prefs for onboarding) */}
+        <PreferencesPanel embedded onSave={handleSaveAndContinue} showSearchPrefs={false} />
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 mt-8">
-          <Button onClick={handleSave} disabled={saving} className="flex-1" size="lg">
-            Save & Continue
+          <Button onClick={() => {
+            // Trigger the PreferencesPanel's internal save via a DOM event
+            const saveBtn = document.querySelector('[data-profile-setup-save]') as HTMLButtonElement;
+            if (saveBtn) saveBtn.click();
+          }} disabled={saving} className="flex-1" size="lg">
+            <Save className="mr-2 h-4 w-4" />
+            {saving ? "Saving..." : "Save & Continue"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <Button variant="ghost" onClick={() => navigate("/")} className="flex-1" size="lg">
