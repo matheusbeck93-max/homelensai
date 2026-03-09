@@ -596,9 +596,13 @@ ${personalizationContext}
 **SELECTED PROPERTY ANALYSIS**:
 The user has selected this specific property to analyze:
 - Address: ${propertyData.address}, ${propertyData.city}, ${propertyData.state}
-- Price: $${propertyData.price.toLocaleString()}
+- Price: $${propertyData.price?.toLocaleString?.() || propertyData.price}
 - Bedrooms: ${propertyData.beds} | Bathrooms: ${propertyData.baths}
 - Square Feet: ${propertyData.sqft}
+${propertyData.lotSize ? `- Lot Size: ${propertyData.lotSize} sqft` : ''}
+${propertyData.yearBuilt ? `- Year Built: ${propertyData.yearBuilt}` : ''}
+${propertyData.propertyType ? `- Property Type: ${propertyData.propertyType}` : ''}
+${propertyData.externalUrl ? `- Listing URL: ${propertyData.externalUrl}` : ''}
 ${propertyData.description ? `- Description: ${propertyData.description}` : ''}
 
 Provide a detailed analysis for this property.
