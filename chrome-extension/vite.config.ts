@@ -6,6 +6,7 @@ import { resolve } from 'path';
  * Content script and background are built via esbuild in build.mjs.
  */
 export default defineConfig({
+  root: resolve(__dirname),
   build: {
     outDir: 'dist',
     emptyOutDir: false,
@@ -19,5 +20,8 @@ export default defineConfig({
         assetFileNames: '[name].[ext]',
       },
     },
+  },
+  css: {
+    postcss: {},
   },
 });
