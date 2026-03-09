@@ -18,6 +18,25 @@ interface Session {
   email: string;
 }
 
+interface PropertyContext {
+  externalUrl?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  price?: number;
+  beds?: number;
+  baths?: number;
+  sqft?: number;
+  lotSize?: number;
+  yearBuilt?: number;
+  propertyType?: string;
+  description?: string;
+  imageUrl?: string;
+  confidence?: number;
+  sourceSignals?: string[];
+}
+
 // ── Simple markdown renderer ──
 function renderMarkdown(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\n)/g);
@@ -29,6 +48,71 @@ function renderMarkdown(text: string): React.ReactNode {
       return <em key={i}>{part.slice(1, -1)}</em>;
     return <span key={i}>{part}</span>;
   });
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const match = value.replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+    if (!match) return undefined;
+    const parsed = Number(match[0]);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+function normalizeUrlForCompare(url: string): string {
+  try {
+    const parsed = new URL(url.trim());
+    parsed.hash = '';
+    return parsed.href.replace(/\/$/, '').toLowerCase();
+  } catch {
+    return url.trim().replace(/\/$/, '').toLowerCase();
+  }
+}
+
+function normalizePropertyContext(raw: any): PropertyContext | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const normalized: PropertyContext = {
+    externalUrl: typeof raw.externalUrl === 'string' ? raw.externalUrl : undefined,
+    address: typeof raw.address === 'string' ? raw.address : undefined,
+    city: typeof raw.city === 'string' ? raw.city : undefined,
+    state: typeof raw.state === 'string' ? raw.state : undefined,
+    zip: typeof raw.zip === 'string' ? raw.zip : undefined,
+    price: toNumber(raw.price),
+    beds: toNumber(raw.beds),
+    baths: toNumber(raw.baths),
+    sqft: toNumber(raw.sqft),
+    lotSize: toNumber(raw.lotSize),
+    yearBuilt: toNumber(raw.yearBuilt),
+    propertyType: typeof raw.propertyType === 'string' ? raw.propertyType : undefined,
+    description: typeof raw.description === 'string' ? raw.description : undefined,
+    imageUrl: typeof raw.imageUrl === 'string' ? raw.imageUrl : undefined,
+    confidence: toNumber(raw.confidence),
+    sourceSignals: Array.isArray(raw.sourceSignals)
+      ? raw.sourceSignals.filter((v: unknown): v is string => typeof v === 'string')
+      : undefined,
+  };
+
+  const filledFields = [
+    normalized.address,
+    normalized.price,
+    normalized.beds,
+    normalized.baths,
+    normalized.sqft,
+    normalized.city,
+    normalized.state,
+  ].filter((v) => v !== undefined && v !== null).length;
+
+  return filledFields >= 3 ? normalized : null;
+}
+
+function stripPropertyUrls(text: string): string {
+  return text
+    .replace(PROPERTY_URL_REGEX, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // ── SVG Icons ──
@@ -55,13 +139,7 @@ function detectPropertyUrl(text: string): string | null {
 }
 
 /**
- * Builds the messages array for the ai-chat edge function.
- *
- * Key insight: The ai-chat function checks `lastUserMessage` for URLs and
- * has a `messages.length <= 2` guard that triggers a "purpose" question.
- * To bypass that and get a direct analysis, we send 3+ messages where the
- * LAST user message contains both the URL and the purpose, plus an
- * instruction to keep the response concise (extension context).
+ * Fallback flow (URL parsing by backend) used when structured page data isn't available.
  */
 function buildAnalysisMessages(
   url: string,
@@ -70,7 +148,6 @@ function buildAnalysisMessages(
 ): { role: string; content: string }[] {
   const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
 
-  // If there's already enough history, just append
   if (history.length >= 2) {
     return [
       ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -81,14 +158,36 @@ function buildAnalysisMessages(
     ];
   }
 
-  // Pad with a synthetic exchange so messages.length > 2,
-  // bypassing the purpose question in ai-chat.
   return [
     { role: 'user', content: `I'd like to analyze a property for ${purposeLabel}.` },
     { role: 'assistant', content: `Sure! Share the listing URL and I'll analyze it for ${purposeLabel}.` },
     {
       role: 'user',
       content: `Analyze this property for ${purposeLabel}: ${url}\n\nIMPORTANT: Keep the response SHORT and summarized — this is a browser extension with limited space. Use bullet points, no long paragraphs.`,
+    },
+  ];
+}
+
+/**
+ * Preferred flow: sends a URL-free prompt plus structured propertyData.
+ */
+function buildPropertyDataMessages(
+  purpose: 'investment' | 'residence',
+  history: Message[],
+  userText?: string,
+): { role: string; content: string }[] {
+  const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
+  const cleanedRequest = stripPropertyUrls(userText || '');
+
+  const request = cleanedRequest
+    ? `${cleanedRequest}`
+    : `Analyze the selected property for ${purposeLabel}.`;
+
+  return [
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+    {
+      role: 'user',
+      content: `${request}\n\nUse the selected property data already provided in context. Focus on ${purposeLabel}. Keep the answer SHORT, summarized, and in bullet points.`,
     },
   ];
 }
@@ -196,29 +295,64 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const [pendingProperty, setPendingProperty] = useState<PropertyContext | null>(null);
+  const [activeProperty, setActiveProperty] = useState<PropertyContext | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [purpose, setPurpose] = useState<'investment' | 'residence'>('investment');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Check for pending listing URL
   useEffect(() => {
-    chrome.storage.local.get('homelens_pending_url', (result) => {
+    chrome.storage.local.get(['homelens_pending_url', 'homelens_pending_property'], (result) => {
       if (result.homelens_pending_url) {
         setPendingUrl(result.homelens_pending_url);
+      }
+
+      const normalized = normalizePropertyContext(result.homelens_pending_property);
+      if (normalized) {
+        setPendingProperty(normalized);
       }
     });
   }, []);
 
-  /**
-   * Core send function. Accepts a pre-built messages array to call ai-chat.
-   */
-  const callAiChat = async (apiMessages: { role: string; content: string }[]) => {
+  const getStoredPropertyForUrl = async (url: string): Promise<PropertyContext | null> => {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['homelens_pending_url', 'homelens_pending_property'], (result) => {
+        const storedUrl = typeof result.homelens_pending_url === 'string' ? result.homelens_pending_url : '';
+        const normalized = normalizePropertyContext(result.homelens_pending_property);
+
+        if (
+          normalized &&
+          storedUrl &&
+          normalizeUrlForCompare(storedUrl) === normalizeUrlForCompare(url)
+        ) {
+          resolve(normalized);
+          return;
+        }
+
+        resolve(null);
+      });
+    });
+  };
+
+  const callAiChat = async (
+    apiMessages: { role: string; content: string }[],
+    selectedProperty?: PropertyContext | null,
+  ) => {
     setLoading(true);
+
+    const requestBody: Record<string, unknown> = {
+      messages: apiMessages,
+      conversationMode: true,
+    };
+
+    if (selectedProperty) {
+      requestBody.propertyData = selectedProperty;
+    }
+
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
         method: 'POST',
@@ -227,10 +361,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          messages: apiMessages,
-          conversationMode: true,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -246,7 +377,6 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
       const data = await res.json();
 
-      // If the backend still asks about purpose (edge case), answer automatically
       if (data.needsPurpose) {
         const purposeAnswer = purpose === 'investment' ? 'Investment' : 'Primary residence';
         const retryMessages = [
@@ -254,7 +384,16 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           { role: 'assistant', content: data.response },
           { role: 'user', content: purposeAnswer },
         ];
-        // Retry with purpose answered
+
+        const retryBody: Record<string, unknown> = {
+          messages: retryMessages,
+          conversationMode: true,
+        };
+
+        if (selectedProperty) {
+          retryBody.propertyData = selectedProperty;
+        }
+
         const retryRes = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
           method: 'POST',
           headers: {
@@ -262,8 +401,9 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ messages: retryMessages, conversationMode: true }),
+          body: JSON.stringify(retryBody),
         });
+
         if (retryRes.ok) {
           const retryData = await retryRes.json();
           const content = retryData.response || retryData.message || "Sorry, I couldn't process that.";
@@ -286,9 +426,6 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     }
   };
 
-  /**
-   * Send a user-typed message. Auto-detects property URLs.
-   */
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
 
@@ -298,34 +435,56 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setInput('');
 
     const detectedUrl = detectPropertyUrl(text);
+
     if (detectedUrl) {
-      // Property URL detected — use the analysis flow
+      const structuredProperty = await getStoredPropertyForUrl(detectedUrl);
+
+      if (structuredProperty) {
+        setActiveProperty(structuredProperty);
+        const apiMessages = buildPropertyDataMessages(purpose, messages, text);
+        await callAiChat(apiMessages, structuredProperty);
+        return;
+      }
+
+      setActiveProperty(null);
       const apiMessages = buildAnalysisMessages(detectedUrl, purpose, messages);
       await callAiChat(apiMessages);
-    } else {
-      // General message
-      const apiMessages = buildChatMessages(messages, text);
-      await callAiChat(apiMessages);
+      return;
     }
+
+    const apiMessages = buildChatMessages(messages, text);
+    await callAiChat(apiMessages, activeProperty);
   };
 
   const handleAnalyzeNow = () => {
     if (!pendingUrl) return;
-    chrome.storage.local.remove('homelens_pending_url');
+
+    chrome.storage.local.remove(['homelens_pending_url', 'homelens_pending_property']);
     setBannerDismissed(true);
 
     const userMsg: Message = { role: 'user', content: `Analyze this property: ${pendingUrl}` };
     setMessages((prev) => [...prev, userMsg]);
 
+    if (pendingProperty) {
+      setActiveProperty(pendingProperty);
+      const apiMessages = buildPropertyDataMessages(purpose, [], `Analyze this property for ${purpose}.`);
+      setPendingUrl(null);
+      setPendingProperty(null);
+      callAiChat(apiMessages, pendingProperty);
+      return;
+    }
+
     const apiMessages = buildAnalysisMessages(pendingUrl, purpose, []);
     setPendingUrl(null);
+    setPendingProperty(null);
     callAiChat(apiMessages);
   };
 
   const handleDismissBanner = () => {
     setBannerDismissed(true);
-    chrome.storage.local.remove('homelens_pending_url');
+    chrome.storage.local.remove(['homelens_pending_url', 'homelens_pending_property']);
     setPendingUrl(null);
+    setPendingProperty(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -461,7 +620,7 @@ function App() {
   }, []);
 
   const handleLogout = () => {
-    chrome.storage.local.remove(['homelens_session', 'homelens_pending_url']);
+    chrome.storage.local.remove(['homelens_session', 'homelens_pending_url', 'homelens_pending_property']);
     setSession(null);
   };
 
