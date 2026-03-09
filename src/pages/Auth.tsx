@@ -50,7 +50,7 @@ export default function Auth() {
         title: "Success!",
         description: "Your account has been created. Welcome to HomeLens!",
       });
-      navigate(redirectPath);
+      navigate('/profile');
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
