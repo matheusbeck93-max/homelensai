@@ -1,18 +1,16 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Home, ArrowRight, Save } from "lucide-react";
+import { Home } from "lucide-react";
 import { PreferencesPanel } from "@/components/console/PreferencesPanel";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
 
   const handleSaveAndContinue = async (data: any) => {
-    setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
@@ -24,14 +22,12 @@ export default function ProfileSetup() {
       navigate("/");
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="container mx-auto px-4 py-8 pb-24 max-w-2xl">
         {/* Header */}
         <div className="text-center mb-10">
           <div className="flex items-center justify-center mb-4">
@@ -46,21 +42,12 @@ export default function ProfileSetup() {
           </p>
         </div>
 
-        {/* Preferences (reused component, hide search prefs for onboarding) */}
+        {/* Preferences */}
         <PreferencesPanel embedded onSave={handleSaveAndContinue} showSearchPrefs={false} />
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 mt-8">
-          <Button onClick={() => {
-            // Trigger the PreferencesPanel's internal save via a DOM event
-            const saveBtn = document.querySelector('[data-profile-setup-save]') as HTMLButtonElement;
-            if (saveBtn) saveBtn.click();
-          }} disabled={saving} className="flex-1" size="lg">
-            <Save className="mr-2 h-4 w-4" />
-            {saving ? "Saving..." : "Save & Continue"}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button variant="ghost" onClick={() => navigate("/")} className="flex-1" size="lg">
+        {/* Skip link */}
+        <div className="text-center mt-6">
+          <Button variant="ghost" onClick={() => navigate("/")}>
             Skip for now
           </Button>
         </div>

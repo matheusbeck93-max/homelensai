@@ -517,6 +517,12 @@ export function PreferencesPanel({ embedded = false, onSave, showPrimaryGoal = t
           Save All Preferences
         </Button>
       )}
+      {embedded && (
+        <Button onClick={handleSave} disabled={loading} className="w-full" data-profile-setup-save>
+          <Save className="mr-2 h-4 w-4" />
+          Save & Continue
+        </Button>
+      )}
     </div>
   );
 }
