@@ -973,7 +973,7 @@ ${extensionMode ? `
 - Do NOT ask follow-up questions unless truly needed
 ` : ''}
 
-${extensionMode && propertyData && fullProfile?.onboarding_completed ? `
+${extensionMode && propertyData && fullProfile ? `
 **PROPERTY MATCH SCORE**:
 You MUST start your response with a single line: "MATCH_SCORE: X/10" where X is a number from 0 to 10 (can use decimals like 7.5).
 This score represents how well this specific property matches the user's complete profile considering ALL of these factors:
