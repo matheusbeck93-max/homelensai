@@ -726,7 +726,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
         if (retryRes.ok) {
           const retryData = await retryRes.json();
-          const rawContent = retryData.response || retryData.message || "Sorry, I couldn't process that.";
+          const rawContent = extractMessageContent(retryData);
           const { score, cleanContent } = parseMatchScore(rawContent);
           if (score !== null) setMatchScore(score);
           setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
@@ -737,8 +737,8 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         return;
       }
 
-      const rawContent = data.response || data.message || "Sorry, I couldn't process your request.";
-      const { score, cleanContent } = parseMatchScore(typeof rawContent === 'string' ? rawContent : rawContent.message || JSON.stringify(rawContent));
+      const rawContent = extractMessageContent(data);
+      const { score, cleanContent } = parseMatchScore(rawContent);
       if (score !== null) setMatchScore(score);
       setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
       persistMessage('assistant', cleanContent);
@@ -751,6 +751,42 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       setLoading(false);
     }
   };
+
+  /**
+   * Extract readable message content from various response formats:
+   * - { response: "plain text" } (URL analysis path)
+   * - { response: { message: "text" } } (regular chat path, parsed JSON)
+   * - { response: "{\"message\": \"text\"}" } (regular chat path, stringified JSON)
+   * - { message: "text" } (fallback)
+   */
+  function extractMessageContent(data: any): string {
+    const resp = data.response;
+    
+    if (!resp) {
+      return data.message || "Sorry, I couldn't process your request.";
+    }
+
+    // If response is a string
+    if (typeof resp === 'string') {
+      // Try to parse as JSON
+      try {
+        const parsed = JSON.parse(resp);
+        if (parsed.message) return parsed.message;
+        return resp;
+      } catch {
+        // It's plain text
+        return resp;
+      }
+    }
+
+    // If response is an object
+    if (typeof resp === 'object') {
+      if (resp.message) return resp.message;
+      return JSON.stringify(resp);
+    }
+
+    return String(resp);
+  }
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
