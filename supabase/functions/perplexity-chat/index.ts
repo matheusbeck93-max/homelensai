@@ -96,6 +96,8 @@ Deno.serve(async (req) => {
             if (p.buyer_types?.length) parts.push(`Buyer personas: ${p.buyer_types.join(', ')}`);
             if (p.investment_strategies?.length) parts.push(`Investment strategies: ${p.investment_strategies.join(', ')}`);
             if (p.financing_preferences?.length) parts.push(`Financing preferences: ${p.financing_preferences.join(', ')}`);
+            if (p.min_bedrooms) parts.push(`Min bedrooms: ${p.min_bedrooms}`);
+            if (p.min_bathrooms) parts.push(`Min bathrooms: ${p.min_bathrooms}`);
             if (parts.length > 0) {
               profileContext = `\n\nFULL USER PROFILE:\n${parts.join('\n')}\nPersonalize your response based on these preferences. If user has children, emphasize school quality. If investor, focus on ROI metrics.\n`;
             }
