@@ -43,7 +43,7 @@ export default function ProfileSetup() {
         </div>
 
         {/* Preferences */}
-        <PreferencesPanel embedded onSave={handleSaveAndContinue} showSearchPrefs={false} />
+        <PreferencesPanel embedded onSave={handleSaveAndContinue} />
 
         {/* Skip link */}
         <div className="text-center mt-6">

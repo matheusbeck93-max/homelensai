@@ -576,6 +576,12 @@ CRITICAL:
       if (profileSource.financing_preferences && profileSource.financing_preferences.length > 0) {
         prefs.push(`🏦 Financing Preferences: ${profileSource.financing_preferences.join(', ')}`);
       }
+      if (profileSource.preferred_cities && profileSource.preferred_cities.length > 0) {
+        prefs.push(`📍 Preferred Cities: ${profileSource.preferred_cities.join(', ')}`);
+      }
+      if (profileSource.min_bedrooms) {
+        prefs.push(`🛏️ Min Bedrooms: ${profileSource.min_bedrooms}`);
+      }
       
       if (prefs.length > 0) {
         personalizationContext = `\n\n## 👤 USER PROFILE & PREFERENCES\n${prefs.join('\n')}
