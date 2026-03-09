@@ -115,6 +115,31 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
     closingCostsMode: initialInputs.closingCosts > 0 ? 'dollar' : 'percent',
   }));
 
+  // Down payment as dollar value — derives downPct for calculations
+  const [downPaymentDollar, setDownPaymentDollar] = useState(() => {
+    const price = Math.max(0, initialInputs.price);
+    const pct = Math.max(0, Math.min(100, initialInputs.downPct));
+    return Math.round(price * pct / 100);
+  });
+
+  const handleDownPaymentChange = useCallback((value: number) => {
+    const v = Math.max(0, value);
+    setDownPaymentDollar(v);
+    setInputs(prev => {
+      const pct = prev.price > 0 ? Math.min(100, (v / prev.price) * 100) : 0;
+      return { ...prev, downPct: pct };
+    });
+  }, []);
+
+  const handlePriceChange = useCallback((value: number) => {
+    const v = Math.max(0, value);
+    setInputs(prev => {
+      // Keep the same down payment dollar amount, recalculate percentage
+      const pct = v > 0 ? Math.min(100, (downPaymentDollar / v) * 100) : 0;
+      return { ...prev, price: v, downPct: pct };
+    });
+  }, [downPaymentDollar]);
+
   const update = useCallback(<K extends keyof InvestorInputs>(field: K, value: InvestorInputs[K]) => {
     setInputs(prev => ({ ...prev, [field]: value }));
   }, []);
@@ -136,6 +161,7 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
   const isFloodRisk = FLOOD_RISK_STATES.includes(inputs.state);
   const pmiAmount = results.monthlyPMI;
   const ltvAbove80 = inputs.downPct < 20;
+  const downPctDisplay = inputs.price > 0 ? (downPaymentDollar / inputs.price * 100).toFixed(1) : '0.0';
 
   const equityChartData = results.projections.map(p => ({
     year: `Yr ${p.year}`,
