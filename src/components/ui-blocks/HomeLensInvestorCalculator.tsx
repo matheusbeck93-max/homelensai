@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   TrendingUp, ChevronDown, ChevronRight, HelpCircle, RotateCcw, Download, AlertTriangle,
-  AlertCircle, DollarSign, BarChart3, Shield, Loader2, Info
+  AlertCircle, DollarSign, BarChart3, Shield, Loader2, Info, Sparkles
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from "recharts";
 import { formatCurrency, formatPercent } from "@/lib/calculations";
