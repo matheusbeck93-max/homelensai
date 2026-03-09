@@ -502,37 +502,67 @@ CRITICAL:
 
     // Build personalization context from full profile
     let personalizationContext = '';
-    if (clientProfile && clientProfile.onboarding_completed) {
+    const profileSource = fullProfile || clientProfile;
+    if (profileSource && profileSource.onboarding_completed) {
       const prefs = [];
       
-      if (clientProfile.budget_min && clientProfile.budget_max) {
-        prefs.push(`💰 Budget Range: $${clientProfile.budget_min.toLocaleString()} - $${clientProfile.budget_max.toLocaleString()}`);
+      if (profileSource.budget_min && profileSource.budget_max) {
+        prefs.push(`💰 Budget Range: $${profileSource.budget_min.toLocaleString()} - $${profileSource.budget_max.toLocaleString()}`);
       }
       
-      if (clientProfile.desired_monthly_payment) {
-        prefs.push(`💵 Target Monthly Payment: $${clientProfile.desired_monthly_payment.toLocaleString()}`);
+      if (profileSource.desired_monthly_payment) {
+        prefs.push(`💵 Target Monthly Payment: $${profileSource.desired_monthly_payment.toLocaleString()}`);
       }
       
-      if (clientProfile.property_types && clientProfile.property_types.length > 0) {
-        prefs.push(`🏠 Preferred Property Types: ${clientProfile.property_types.join(', ')}`);
+      if (profileSource.property_types && profileSource.property_types.length > 0) {
+        prefs.push(`🏠 Preferred Property Types: ${profileSource.property_types.join(', ')}`);
       }
       
-      if (clientProfile.location_preferences && clientProfile.location_preferences.length > 0) {
-        prefs.push(`📍 Preferred Locations: ${clientProfile.location_preferences.join(', ')}`);
+      if (profileSource.location_preferences && profileSource.location_preferences.length > 0) {
+        prefs.push(`📍 Preferred Locations: ${Array.isArray(profileSource.location_preferences) ? profileSource.location_preferences.join(', ') : JSON.stringify(profileSource.location_preferences)}`);
       }
       
-      if (clientProfile.risk_level) {
-        prefs.push(`📊 Investment Risk Tolerance: ${clientProfile.risk_level}`);
+      if (profileSource.risk_level) {
+        prefs.push(`📊 Investment Risk Tolerance: ${profileSource.risk_level}`);
       }
       
-      if (clientProfile.commute_preferences) {
-        const commutePref = clientProfile.commute_preferences as any;
+      if (profileSource.commute_preferences) {
+        const commutePref = profileSource.commute_preferences as any;
         if (commutePref.max_commute_minutes) {
           prefs.push(`🚗 Max Commute Time: ${commutePref.max_commute_minutes} minutes`);
         }
         if (commutePref.walkability_preference) {
           prefs.push(`🚶 Walkability Preference: ${commutePref.walkability_preference}`);
         }
+      }
+
+      // New profile fields
+      if (profileSource.investment_strategy) {
+        prefs.push(`📈 Investment Strategy: ${profileSource.investment_strategy}`);
+      }
+      if (profileSource.hold_period_years) {
+        prefs.push(`⏱️ Hold Period: ${profileSource.hold_period_years} years`);
+      }
+      if (profileSource.financing_preference) {
+        prefs.push(`🏦 Financing Preference: ${profileSource.financing_preference}`);
+      }
+      if (profileSource.min_bathrooms) {
+        prefs.push(`🚿 Min Bathrooms: ${profileSource.min_bathrooms}`);
+      }
+      if (profileSource.must_have_features && profileSource.must_have_features.length > 0) {
+        prefs.push(`✅ Must-Have Features: ${profileSource.must_have_features.join(', ')}`);
+      }
+      if (profileSource.has_children) {
+        prefs.push(`👨‍👩‍👧‍👦 Has Children: Yes`);
+        if (profileSource.children_ages && profileSource.children_ages.length > 0) {
+          prefs.push(`🎒 Children Ages: ${profileSource.children_ages.join(', ')}`);
+        }
+      }
+      if (profileSource.climate_preference) {
+        prefs.push(`🌤️ Climate Preference: ${profileSource.climate_preference}`);
+      }
+      if (profileSource.safety_priority) {
+        prefs.push(`🛡️ Safety Priority: ${profileSource.safety_priority}`);
       }
       
       if (prefs.length > 0) {
@@ -542,7 +572,10 @@ CRITICAL:
 - Automatically apply these preferences when the user searches for properties
 - If the user's query conflicts with their saved preferences, prioritize their explicit request
 - Remind them of their preferences when relevant ("Based on your $500K budget...")
-- Suggest properties that match their criteria without them having to repeat preferences`;
+- Suggest properties that match their criteria without them having to repeat preferences
+- If user has children, heavily weight school district quality in property evaluations
+- If safety_priority is high, prominently feature neighborhood safety data
+- If climate_preference is set, note climate alignment for suggested locations`;
       }
     }
 
