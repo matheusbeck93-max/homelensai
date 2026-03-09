@@ -110,6 +110,10 @@ export default function Console() {
             <OverviewPanel />
           </TabsContent>
 
+          <TabsContent value="preferences">
+            <PreferencesPanel />
+          </TabsContent>
+
           <TabsContent value="subscription">
             <SubscriptionPanel />
           </TabsContent>
