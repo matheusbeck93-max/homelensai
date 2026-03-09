@@ -63,6 +63,45 @@ Deno.serve(async (req) => {
 
     const { query, conversationHistory = [], insightOrigin, userGoal } = validation.data;
     const goalContext = userGoal && GOAL_CONTEXTS[userGoal] ? `\n\nUSER PROFILE CONTEXT:\n${GOAL_CONTEXTS[userGoal]}\nAdapt your tone, priorities, examples, and recommendations accordingly.\n` : '';
+
+    // Fetch full user profile for personalization
+    let profileContext = '';
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user) {
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+          if (profile && profile.onboarding_completed) {
+            const p = profile as any;
+            const parts: string[] = [];
+            if (p.budget_min && p.budget_max) parts.push(`Budget: $${p.budget_min.toLocaleString()}-$${p.budget_max.toLocaleString()}`);
+            if (p.buyer_type) parts.push(`Buyer type: ${p.buyer_type}`);
+            if (p.investment_strategy) parts.push(`Investment strategy: ${p.investment_strategy}`);
+            if (p.financing_preference) parts.push(`Financing: ${p.financing_preference}`);
+            if (p.has_children) {
+              parts.push(`Has children: yes${p.children_ages?.length ? ` (${p.children_ages.join(', ')})` : ''}`);
+            }
+            if (p.climate_preference) parts.push(`Climate preference: ${p.climate_preference}`);
+            if (p.safety_priority) parts.push(`Safety priority: ${p.safety_priority}`);
+            if (p.risk_level) parts.push(`Risk level: ${p.risk_level}`);
+            if (p.property_types?.length) parts.push(`Property types: ${p.property_types.join(', ')}`);
+            if (p.preferred_cities?.length) parts.push(`Preferred cities: ${p.preferred_cities.join(', ')}`);
+            if (p.must_have_features?.length) parts.push(`Must-have features: ${p.must_have_features.join(', ')}`);
+            if (parts.length > 0) {
+              profileContext = `\n\nFULL USER PROFILE:\n${parts.join('\n')}\nPersonalize your response based on these preferences. If user has children, emphasize school quality. If investor, focus on ROI metrics.\n`;
+            }
+          }
+        }
+      } catch (profileErr) {
+        console.error('[perplexity-chat] Error fetching profile:', profileErr);
+      }
+    }
+
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 
     if (!PERPLEXITY_API_KEY) {
