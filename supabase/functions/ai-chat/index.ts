@@ -16,7 +16,8 @@ const chatRequestSchema = z.object({
   hasImage: z.boolean().optional(),
   userProfile: z.any().optional(),
   propertyData: z.any().optional(),
-  conversationMode: z.boolean().optional(), // New flag for unified conversation mode
+  conversationMode: z.boolean().optional(),
+  extensionMode: z.boolean().optional(),
 });
 
 Deno.serve(async (req) => {
