@@ -232,6 +232,7 @@ RULES:
 
       systemPrompt = `You are a friendly and knowledgeable U.S. real estate assistant. The user has shared a property listing URL with you.
 ${goalContext}
+${profileContext}
 ${scrapedDataSection}
 
 Your task:
