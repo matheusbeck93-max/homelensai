@@ -26,6 +26,7 @@ const Favorites = lazy(() => import("./pages/Favorites"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Console = lazy(() => import("./pages/Console"));
+const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
 const Compare = lazy(() => import("./pages/Compare"));
 const Chats = lazy(() => import("./pages/Chats"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -74,6 +75,7 @@ function App() {
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/profile-setup" element={<ProfileSetup />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/terms" element={<TermsOfService />} />

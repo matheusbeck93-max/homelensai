@@ -5,10 +5,11 @@ import { Navigation } from "@/components/Navigation";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, CreditCard, Settings } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal } from "lucide-react";
 import { OverviewPanel } from "@/components/console/OverviewPanel";
 import { SubscriptionPanel } from "@/components/console/SubscriptionPanel";
 import { AccountPreferencesPanel } from "@/components/console/AccountPreferencesPanel";
+import { PreferencesPanel } from "@/components/console/PreferencesPanel";
 
 export default function Console() {
   const navigate = useNavigate();
@@ -85,10 +86,14 @@ export default function Console() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="overflow-x-auto mb-8 -mx-4 px-4">
-            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-3 gap-1">
+            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-4 gap-1">
               <TabsTrigger value="overview" className="gap-2 flex-shrink-0">
                 <LayoutDashboard className="h-4 w-4" />
                 <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger value="preferences" className="gap-2 flex-shrink-0">
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="hidden sm:inline">Preferences</span>
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2 flex-shrink-0">
                 <CreditCard className="h-4 w-4" />
@@ -103,6 +108,10 @@ export default function Console() {
 
           <TabsContent value="overview">
             <OverviewPanel />
+          </TabsContent>
+
+          <TabsContent value="preferences">
+            <PreferencesPanel />
           </TabsContent>
 
           <TabsContent value="subscription">
