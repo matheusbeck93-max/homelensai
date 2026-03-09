@@ -203,12 +203,13 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
               {/* Purchase & Financing */}
               <Section title="Purchase & Financing" icon={<DollarSign className="h-4 w-4" />} defaultOpen>
                 <div>
-                  <Label>Purchase Price</Label>
-                  <Input type="number" value={inputs.price} onChange={e => updateNum('price', +e.target.value)} className="mt-1" />
+                  <Label>Purchase Price ($)</Label>
+                  <Input type="number" value={inputs.price} onChange={e => handlePriceChange(+e.target.value)} className="mt-1" />
                 </div>
                 <div>
-                  <Label>Down Payment (%)<InfoTip text="Percentage of purchase price paid upfront." /></Label>
-                  <Input type="number" step="0.1" value={inputs.downPct} onChange={e => updateNum('downPct', +e.target.value, 100)} className="mt-1" />
+                  <Label>Down Payment ($)<InfoTip text="Dollar amount paid upfront. The percentage is calculated automatically based on purchase price." /></Label>
+                  <Input type="number" value={downPaymentDollar} onChange={e => handleDownPaymentChange(+e.target.value)} className="mt-1" />
+                  <p className="text-xs text-muted-foreground mt-1">{downPctDisplay}% of purchase price</p>
                   {ltvAbove80 && (
                     <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
