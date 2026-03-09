@@ -186,7 +186,7 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
               {title}
             </CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setInputs({ ...DEFAULT_INPUTS })}>
+              <Button variant="outline" size="sm" onClick={() => { setInputs({ ...DEFAULT_INPUTS }); setDownPaymentDollar(Math.round(DEFAULT_INPUTS.price * DEFAULT_INPUTS.downPct / 100)); }}>
                 <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
               </Button>
               <Button variant="outline" size="sm" onClick={() => exportToExcel(inputs, results, scenarios)}>
