@@ -1,0 +1,66 @@
+name: Build Chrome Extension
+
+on:
+  push:
+    paths:
+      - 'chrome-extension/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & Package Extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: chrome-extension/package-lock.json
+
+      - name: Install dependencies
+        working-directory: chrome-extension
+        run: npm ci
+
+      - name: Build extension
+        working-directory: chrome-extension
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          if [ ! -d "chrome-extension/dist" ]; then
+            echo "❌ Build failed: chrome-extension/dist/ not found"
+            exit 1
+          fi
+          echo "✅ Build output verified:"
+          ls -la chrome-extension/dist/
+
+      - name: Create ZIP package
+        run: |
+          cd chrome-extension/dist
+          zip -r ../../homelens-extension.zip .
+          echo "✅ ZIP created successfully"
+          ls -lh ../../homelens-extension.zip
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: homelens-extension
+          path: homelens-extension.zip
+          retention-days: 30
+
+      - name: Build summary
+        run: |
+          echo "## ✅ HomeLens Extension — Build concluído" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Como instalar no Chrome:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Clique em **Actions** no repositório, abra este workflow" >> $GITHUB_STEP_SUMMARY
+          echo "2. Na seção **Artifacts**, baixe **homelens-extension** e descompacte o ZIP" >> $GITHUB_STEP_SUMMARY
+          echo "3. Abra **chrome://extensions**, ative **Developer Mode**, clique **Load unpacked** e selecione a pasta descompactada" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> A extensão ficará disponível para download por 30 dias." >> $GITHUB_STEP_SUMMARY
