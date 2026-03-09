@@ -93,6 +93,8 @@ export default function Index() {
   const [heroInput, setHeroInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [heroFocused, setHeroFocused] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [primaryGoal, setPrimaryGoal] = useState<string | null>(null);
   const typingPlaceholder = useTypingPlaceholder();
 
   // Filter state with defaults
