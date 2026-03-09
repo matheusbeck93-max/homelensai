@@ -459,6 +459,33 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
 }
 
 // ══════════════════════════════════════
+// Message Bubble with Share
+// ══════════════════════════════════════
+function MessageBubble({ msg }: { msg: Message }) {
+  const [shareOpen, setShareOpen] = useState(false);
+
+  return (
+    <div className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
+      <div className={`hl-bubble hl-bubble-${msg.role}`}>
+        {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+      </div>
+      {msg.role === 'assistant' && (
+        <div style={{ position: 'relative' }}>
+          <button
+            className="hl-share-btn"
+            onClick={() => setShareOpen(!shareOpen)}
+            title="Share this analysis"
+          >
+            <ShareIcon />
+          </button>
+          {shareOpen && <ShareMenu content={msg.content} onClose={() => setShareOpen(false)} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════
 // Chat Screen
 // ══════════════════════════════════════
 function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => void }) {
