@@ -693,6 +693,43 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
                   )}
                 </TabsContent>
               </Tabs>
+
+              {/* AI Insight Section */}
+              <Separator className="my-4" />
+              <div ref={insightRef} className="space-y-3">
+                <Button
+                  onClick={handleAiInsight}
+                  disabled={aiLoading}
+                  className="w-full"
+                  variant="outline"
+                  size="lg"
+                >
+                  {aiLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating AI Insight...</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4 mr-2" /> Get AI Insight</>
+                  )}
+                </Button>
+
+                {aiError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{aiError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {aiInsight && (
+                  <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      AI Investment Analysis
+                    </div>
+                    <div className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+                      {aiInsight}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
