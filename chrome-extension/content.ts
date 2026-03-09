@@ -1,4 +1,4 @@
-import { detectPropertyListing, getPageUrl } from './utils/detectListing';
+import { detectPropertyListing, extractPropertyDataFromPage, getPageUrl } from './utils/detectListing';
 
 const BUTTON_ID = 'homelens-analyze-btn';
 let lastUrl = '';
@@ -95,12 +95,54 @@ function runDetection(): void {
   const pageUrl = getPageUrl();
 
   if (result.isListing) {
-    chrome.storage.local.set({ homelens_pending_url: pageUrl });
-    chrome.runtime.sendMessage({ type: 'LISTING_DETECTED', url: pageUrl }).catch(() => {});
+    const propertyData = extractPropertyDataFromPage();
+
+    chrome.storage.local.set({
+      homelens_pending_url: pageUrl,
+      homelens_pending_property: propertyData,
+      homelens_property_updated_at: Date.now(),
+    });
+
+    chrome.runtime.sendMessage({
+      type: 'LISTING_DETECTED',
+      url: pageUrl,
+      propertyData,
+    }).catch(() => {});
+
     createFloatingButton(pageUrl);
-    console.log(`[HomeLens] Listing detected (confidence: ${result.confidence}, signals: ${result.signals.join(', ')})`);
+
+    console.log(
+      `[HomeLens] Listing detected (confidence: ${result.confidence}, signals: ${result.signals.join(', ')}), extracted fields: ${propertyData ? Object.keys(propertyData).join(', ') : 'none'}`,
+    );
+    return;
   }
+
+  chrome.storage.local.remove(['homelens_pending_property']);
 }
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'GET_ACTIVE_PROPERTY_CONTEXT') {
+    const result = detectPropertyListing();
+    if (!result.isListing) {
+      sendResponse({ ok: false });
+      return true;
+    }
+
+    const pageUrl = getPageUrl();
+    const propertyData = extractPropertyDataFromPage();
+
+    chrome.storage.local.set({
+      homelens_pending_url: pageUrl,
+      homelens_pending_property: propertyData,
+      homelens_property_updated_at: Date.now(),
+    });
+
+    sendResponse({ ok: true, url: pageUrl, propertyData });
+    return true;
+  }
+
+  return false;
+});
 
 // Wait for dynamic content (React/Next.js sites) then run detection
 setTimeout(() => {
