@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   TrendingUp, ChevronDown, ChevronRight, HelpCircle, RotateCcw, Download, AlertTriangle,
-  AlertCircle, DollarSign, BarChart3, Shield, Loader2, Info
+  AlertCircle, DollarSign, BarChart3, Shield, Loader2, Info, Sparkles
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from "recharts";
 import { formatCurrency, formatPercent } from "@/lib/calculations";
@@ -156,6 +156,59 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
 
   const results = useMemo(() => computeResults(inputs), [inputs]);
   const scenarios = useMemo(() => computeStressScenarios(inputs), [inputs]);
+
+  // AI Insight state
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const insightRef = useRef<HTMLDivElement>(null);
+
+  const handleAiInsight = useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiInsight(null);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const investorData = {
+        homePrice: inputs.price,
+        downPayment: results.downPayment,
+        downPaymentPercent: Number((inputs.downPct).toFixed(1)),
+        loanAmount: results.loanAmount,
+        interestRate: inputs.ratePct,
+        loanTerm: inputs.years,
+        monthlyPI: results.monthlyMortgage,
+        monthlyPropertyTax: results.monthlyTax,
+        propertyTaxRate: inputs.taxPct,
+        monthlyInsurance: results.monthlyInsurance,
+        hoaMonthly: inputs.hoaMonthly,
+        monthlyPMI: results.monthlyPMI,
+        pmiRate: inputs.downPct < 20 ? 0.5 : 0,
+        totalMonthlyPayment: results.totalMonthlyExpenses + results.monthlyMortgage + results.monthlyPMI,
+        points: 0,
+        closingCosts: results.closingCosts,
+        rentMonthly: inputs.rentMonthly,
+        vacancyPct: inputs.vacancyPct,
+        monthlyCashFlow: results.monthlyCashFlow,
+        annualNOI: results.annualNOI,
+        capRate: results.capRate,
+        cashOnCash: results.cashOnCash,
+        dscr: results.dscr,
+        irr: results.irr,
+      };
+      const { data, error } = await supabase.functions.invoke('calculator-insights', {
+        body: { mortgage: investorData },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiInsight(data.insights);
+      setTimeout(() => insightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } catch (err: any) {
+      console.error('AI Insight error:', err);
+      setAiError(err?.message || 'Failed to generate insights');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [inputs, results]);
 
   const isPositiveCashFlow = results.monthlyCashFlow > 0;
   const isFloodRisk = FLOOD_RISK_STATES.includes(inputs.state);
@@ -640,6 +693,43 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
                   )}
                 </TabsContent>
               </Tabs>
+
+              {/* AI Insight Section */}
+              <Separator className="my-4" />
+              <div ref={insightRef} className="space-y-3">
+                <Button
+                  onClick={handleAiInsight}
+                  disabled={aiLoading}
+                  className="w-full"
+                  variant="outline"
+                  size="lg"
+                >
+                  {aiLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating AI Insight...</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4 mr-2" /> Get AI Insight</>
+                  )}
+                </Button>
+
+                {aiError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{aiError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {aiInsight && (
+                  <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      AI Investment Analysis
+                    </div>
+                    <div className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+                      {aiInsight}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
