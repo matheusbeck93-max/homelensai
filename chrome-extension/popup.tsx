@@ -893,28 +893,9 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           </div>
         )}
 
-        {messages.map((msg, i) => {
-          const [shareOpen, setShareOpen] = React.useState(false);
-          return (
-            <div key={i} className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
-              <div className={`hl-bubble hl-bubble-${msg.role}`}>
-                {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
-              </div>
-              {msg.role === 'assistant' && (
-                <div style={{ position: 'relative' }}>
-                  <button
-                    className="hl-share-btn"
-                    onClick={() => setShareOpen(!shareOpen)}
-                    title="Share this analysis"
-                  >
-                    <ShareIcon />
-                  </button>
-                  {shareOpen && <ShareMenu content={msg.content} onClose={() => setShareOpen(false)} />}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {messages.map((msg, i) => (
+          <MessageBubble key={i} msg={msg} />
+        ))}
 
         {loading && (
           <div className="hl-loading">
