@@ -217,14 +217,31 @@ export default function Index() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchUserProfile(session.user.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setUser(session?.user ?? null)
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) fetchUserProfile(session.user.id);
+        else { setUserName(null); setPrimaryGoal(null); }
+      }
     );
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name, primary_goal")
+      .eq("id", userId)
+      .single();
+    if (data) {
+      setUserName(data.full_name);
+      setPrimaryGoal(data.primary_goal);
+    }
+  };
 
   // Extract search results as hero card listings
   const searchListings = searchData?.listings || [];
