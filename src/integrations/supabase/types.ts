@@ -355,22 +355,31 @@ export type Database = {
           budget_max: number | null
           budget_min: number | null
           buyer_type: string | null
+          children_ages: string[] | null
+          climate_preference: string | null
           commute_preferences: Json | null
           created_at: string | null
           daily_analysis_count: number | null
           daily_analysis_last_reset: string | null
           desired_monthly_payment: number | null
           email: string | null
+          financing_preference: string | null
           full_name: string | null
+          has_children: boolean | null
+          hold_period_years: number | null
           id: string
+          investment_strategy: string | null
           location_preferences: Json | null
           max_price_range: number | null
+          min_bathrooms: number | null
           min_bedrooms: number | null
+          must_have_features: string[] | null
           onboarding_completed: boolean | null
           preferred_cities: string[] | null
           primary_goal: string | null
           property_types: string[] | null
           risk_level: string | null
+          safety_priority: string | null
           subscription_cancel_at: string | null
           subscription_renews_at: string | null
           subscription_status: string | null
@@ -387,22 +396,31 @@ export type Database = {
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
+          children_ages?: string[] | null
+          climate_preference?: string | null
           commute_preferences?: Json | null
           created_at?: string | null
           daily_analysis_count?: number | null
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
+          financing_preference?: string | null
           full_name?: string | null
+          has_children?: boolean | null
+          hold_period_years?: number | null
           id: string
+          investment_strategy?: string | null
           location_preferences?: Json | null
           max_price_range?: number | null
+          min_bathrooms?: number | null
           min_bedrooms?: number | null
+          must_have_features?: string[] | null
           onboarding_completed?: boolean | null
           preferred_cities?: string[] | null
           primary_goal?: string | null
           property_types?: string[] | null
           risk_level?: string | null
+          safety_priority?: string | null
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
@@ -419,22 +437,31 @@ export type Database = {
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
+          children_ages?: string[] | null
+          climate_preference?: string | null
           commute_preferences?: Json | null
           created_at?: string | null
           daily_analysis_count?: number | null
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
+          financing_preference?: string | null
           full_name?: string | null
+          has_children?: boolean | null
+          hold_period_years?: number | null
           id?: string
+          investment_strategy?: string | null
           location_preferences?: Json | null
           max_price_range?: number | null
+          min_bathrooms?: number | null
           min_bedrooms?: number | null
+          must_have_features?: string[] | null
           onboarding_completed?: boolean | null
           preferred_cities?: string[] | null
           primary_goal?: string | null
           property_types?: string[] | null
           risk_level?: string | null
+          safety_priority?: string | null
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
