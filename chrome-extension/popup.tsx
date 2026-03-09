@@ -16,6 +16,25 @@ interface Message {
 interface Session {
   access_token: string;
   email: string;
+  user_id?: string;
+}
+
+interface UserProfile {
+  full_name?: string;
+  buyer_type?: string;
+  budget_min?: number;
+  budget_max?: number;
+  primary_goal?: string;
+  investment_strategy?: string;
+  financing_preference?: string;
+  has_children?: boolean;
+  children_ages?: string[];
+  climate_preference?: string;
+  safety_priority?: string;
+  risk_level?: string;
+  property_types?: string[];
+  must_have_features?: string[];
+  onboarding_completed?: boolean;
 }
 
 interface PropertyContext {
@@ -37,17 +56,82 @@ interface PropertyContext {
   sourceSignals?: string[];
 }
 
-// ── Simple markdown renderer ──
+// ── Enhanced markdown renderer ──
 function renderMarkdown(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\n)/g);
-  return parts.map((part, i) => {
-    if (part === '\n') return <br key={i} />;
-    if (part.startsWith('**') && part.endsWith('**'))
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith('*') && part.endsWith('*'))
-      return <em key={i}>{part.slice(1, -1)}</em>;
-    return <span key={i}>{part}</span>;
-  });
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let currentList: React.ReactNode[] = [];
+  let listType: 'ul' | 'ol' | null = null;
+
+  const flushList = () => {
+    if (currentList.length > 0 && listType) {
+      const ListTag = listType;
+      elements.push(
+        <ListTag key={`list-${elements.length}`} style={{ margin: '4px 0', paddingLeft: '16px' }}>
+          {currentList.map((item, i) => <li key={i} style={{ marginBottom: '2px' }}>{item}</li>)}
+        </ListTag>
+      );
+      currentList = [];
+      listType = null;
+    }
+  };
+
+  const renderInline = (text: string): React.ReactNode => {
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**'))
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      if (part.startsWith('*') && part.endsWith('*'))
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Headers
+    if (trimmed.startsWith('## ')) {
+      flushList();
+      elements.push(<h3 key={`h-${i}`} style={{ fontWeight: 'bold', fontSize: '14px', marginTop: '8px', marginBottom: '4px' }}>{renderInline(trimmed.slice(3))}</h3>);
+      continue;
+    }
+    if (trimmed.startsWith('# ')) {
+      flushList();
+      elements.push(<h2 key={`h-${i}`} style={{ fontWeight: 'bold', fontSize: '16px', marginTop: '8px', marginBottom: '4px' }}>{renderInline(trimmed.slice(2))}</h2>);
+      continue;
+    }
+
+    // Bullet list
+    if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      if (listType !== 'ul') { flushList(); listType = 'ul'; }
+      currentList.push(renderInline(trimmed.slice(2)));
+      continue;
+    }
+
+    // Numbered list
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.+)/);
+    if (numMatch) {
+      if (listType !== 'ol') { flushList(); listType = 'ol'; }
+      currentList.push(renderInline(numMatch[2]));
+      continue;
+    }
+
+    // Empty line
+    if (!trimmed) {
+      flushList();
+      elements.push(<br key={`br-${i}`} />);
+      continue;
+    }
+
+    // Regular paragraph
+    flushList();
+    elements.push(<p key={`p-${i}`} style={{ margin: '2px 0' }}>{renderInline(trimmed)}</p>);
+  }
+
+  flushList();
+  return <>{elements}</>;
 }
 
 function toNumber(value: unknown): number | undefined {
@@ -115,6 +199,30 @@ function stripPropertyUrls(text: string): string {
     .trim();
 }
 
+// ── Match Score parser ──
+function parseMatchScore(content: string): { score: number | null; cleanContent: string } {
+  const match = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
+  if (match) {
+    const score = parseFloat(match[1]);
+    const cleanContent = content.slice(match[0].length).trim();
+    return { score: Number.isFinite(score) ? score : null, cleanContent };
+  }
+  return { score: null, cleanContent: content };
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 8) return '#22c55e';  // green
+  if (score >= 5) return '#eab308';  // yellow
+  return '#ef4444';  // red
+}
+
+function getScoreLabel(score: number): string {
+  if (score >= 8) return 'Excellent Match';
+  if (score >= 6) return 'Good Match';
+  if (score >= 4) return 'Fair Match';
+  return 'Poor Match';
+}
+
 // ── SVG Icons ──
 const HouseIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -130,17 +238,11 @@ const SendIcon = () => (
   </svg>
 );
 
-/**
- * Detects if text contains a property listing URL.
- */
 function detectPropertyUrl(text: string): string | null {
   const match = text.match(PROPERTY_URL_REGEX);
   return match ? match[0] : null;
 }
 
-/**
- * Fallback flow (URL parsing by backend) used when structured page data isn't available.
- */
 function buildAnalysisMessages(
   url: string,
   purpose: 'investment' | 'residence',
@@ -168,9 +270,6 @@ function buildAnalysisMessages(
   ];
 }
 
-/**
- * Preferred flow: sends a URL-free prompt plus structured propertyData.
- */
 function buildPropertyDataMessages(
   purpose: 'investment' | 'residence',
   history: Message[],
@@ -192,9 +291,6 @@ function buildPropertyDataMessages(
   ];
 }
 
-/**
- * Wraps a general (non-URL) message with a concise instruction for the extension.
- */
 function buildChatMessages(history: Message[], newText: string): { role: string; content: string }[] {
   const msgs = history.map((m) => ({ role: m.role, content: m.content }));
   msgs.push({
@@ -202,6 +298,47 @@ function buildChatMessages(history: Message[], newText: string): { role: string;
     content: `${newText}\n\n(Reply concisely — this is a browser extension popup with limited space. Use bullet points and short paragraphs.)`,
   });
   return msgs;
+}
+
+// ══════════════════════════════════════
+// Match Score Badge Component
+// ══════════════════════════════════════
+function MatchScoreBadge({ score }: { score: number }) {
+  const color = getScoreColor(score);
+  const label = getScoreLabel(score);
+  const circumference = 2 * Math.PI * 22;
+  const progress = (score / 10) * circumference;
+
+  return (
+    <div className="hl-match-score">
+      <div className="hl-match-score-circle" style={{ position: 'relative', width: '56px', height: '56px' }}>
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="22" fill="none" stroke="#e5e7eb" strokeWidth="4" />
+          <circle
+            cx="28" cy="28" r="22"
+            fill="none"
+            stroke={color}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={`${progress} ${circumference}`}
+            transform="rotate(-90 28 28)"
+            style={{ transition: 'stroke-dasharray 0.5s ease' }}
+          />
+        </svg>
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 'bold', fontSize: '14px', color,
+        }}>
+          {score}
+        </div>
+      </div>
+      <div className="hl-match-score-info">
+        <div style={{ fontWeight: 'bold', fontSize: '13px', color }}>{label}</div>
+        <div style={{ fontSize: '11px', color: '#9ca3af' }}>Match Score out of 10</div>
+      </div>
+    </div>
+  );
 }
 
 // ══════════════════════════════════════
@@ -235,7 +372,7 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
       }
 
       const data = await res.json();
-      const session: Session = { access_token: data.access_token, email };
+      const session: Session = { access_token: data.access_token, email, user_id: data.user?.id };
       chrome.storage.local.set({ homelens_session: session });
       onLogin(session);
     } catch (err: any) {
@@ -299,11 +436,122 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const [activeProperty, setActiveProperty] = useState<PropertyContext | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [purpose, setPurpose] = useState<'investment' | 'residence'>('investment');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [matchScore, setMatchScore] = useState<number | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  // Fetch user profile on mount
+  useEffect(() => {
+    fetchUserProfile();
+    loadLastConversation();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    if (!session.user_id) return;
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?id=eq.${session.user_id}&select=*`,
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          setUserProfile(data[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch user profile:', err);
+    }
+  };
+
+  const loadLastConversation = async () => {
+    if (!session.user_id) return;
+    try {
+      // Get the most recent conversation
+      const convRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/conversations?user_id=eq.${session.user_id}&order=updated_at.desc&limit=1`,
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      if (!convRes.ok) return;
+      const conversations = await convRes.json();
+      if (!conversations || conversations.length === 0) return;
+
+      const conv = conversations[0];
+      setConversationId(conv.id);
+
+      // Load messages for this conversation
+      const msgRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conv.id}&order=created_at.asc&limit=50`,
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      if (msgRes.ok) {
+        const msgs = await msgRes.json();
+        if (msgs && msgs.length > 0) {
+          setMessages(msgs.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content })));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    }
+  };
+
+  const persistMessage = async (role: string, content: string) => {
+    if (!session.user_id) return;
+    try {
+      let convId = conversationId;
+      if (!convId) {
+        // Create a new conversation
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/conversations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify({ user_id: session.user_id, title: 'Extension Chat' }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          convId = data[0]?.id;
+          setConversationId(convId!);
+        }
+      }
+      if (!convId) return;
+
+      await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ conversation_id: convId, role, content }),
+      });
+    } catch (err) {
+      console.error('Failed to persist message:', err);
+    }
+  };
 
   useEffect(() => {
     chrome.storage.local.get(['homelens_pending_url', 'homelens_pending_property'], (result) => {
@@ -343,14 +591,21 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     selectedProperty?: PropertyContext | null,
   ) => {
     setLoading(true);
+    setMatchScore(null);
 
     const requestBody: Record<string, unknown> = {
       messages: apiMessages,
       conversationMode: true,
+      extensionMode: true,
     };
 
     if (selectedProperty) {
       requestBody.propertyData = selectedProperty;
+    }
+
+    // Include user profile for personalized analysis
+    if (userProfile && userProfile.onboarding_completed) {
+      requestBody.userProfile = userProfile;
     }
 
     try {
@@ -388,10 +643,14 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         const retryBody: Record<string, unknown> = {
           messages: retryMessages,
           conversationMode: true,
+          extensionMode: true,
         };
 
         if (selectedProperty) {
           retryBody.propertyData = selectedProperty;
+        }
+        if (userProfile && userProfile.onboarding_completed) {
+          retryBody.userProfile = userProfile;
         }
 
         const retryRes = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
@@ -406,16 +665,22 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
         if (retryRes.ok) {
           const retryData = await retryRes.json();
-          const content = retryData.response || retryData.message || "Sorry, I couldn't process that.";
-          setMessages((prev) => [...prev, { role: 'assistant', content }]);
+          const rawContent = retryData.response || retryData.message || "Sorry, I couldn't process that.";
+          const { score, cleanContent } = parseMatchScore(rawContent);
+          if (score !== null) setMatchScore(score);
+          setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
+          persistMessage('assistant', cleanContent);
         } else {
           throw new Error(`Retry failed (${retryRes.status})`);
         }
         return;
       }
 
-      const assistantContent = data.response || data.message || "Sorry, I couldn't process your request.";
-      setMessages((prev) => [...prev, { role: 'assistant', content: assistantContent }]);
+      const rawContent = data.response || data.message || "Sorry, I couldn't process your request.";
+      const { score, cleanContent } = parseMatchScore(typeof rawContent === 'string' ? rawContent : rawContent.message || JSON.stringify(rawContent));
+      if (score !== null) setMatchScore(score);
+      setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
+      persistMessage('assistant', cleanContent);
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
@@ -433,6 +698,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput('');
+    persistMessage('user', text);
 
     const detectedUrl = detectPropertyUrl(text);
 
@@ -464,6 +730,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
     const userMsg: Message = { role: 'user', content: `Analyze this property: ${pendingUrl}` };
     setMessages((prev) => [...prev, userMsg]);
+    persistMessage('user', `Analyze this property: ${pendingUrl}`);
 
     if (pendingProperty) {
       setActiveProperty(pendingProperty);
@@ -487,6 +754,13 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setPendingProperty(null);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setMatchScore(null);
+    setConversationId(null);
+    setActiveProperty(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -502,6 +776,8 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     }
   };
 
+  const firstName = userProfile?.full_name?.split(' ')[0];
+
   return (
     <>
       {/* Header */}
@@ -509,10 +785,16 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         <div className="hl-header-left">
           <HouseIcon />
           <span className="hl-header-logo">HomeLens</span>
+          {firstName && <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '4px' }}>· {firstName}</span>}
         </div>
-        <button className="hl-header-btn" onClick={onLogout}>
-          Sign out
-        </button>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <button className="hl-header-btn" onClick={handleNewChat} title="New chat">
+            +
+          </button>
+          <button className="hl-header-btn" onClick={onLogout}>
+            Sign out
+          </button>
+        </div>
       </div>
 
       {/* Purpose toggle */}
@@ -532,6 +814,15 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         </button>
       </div>
 
+      {/* Profile prompt if not completed */}
+      {userProfile && !userProfile.onboarding_completed && (
+        <div style={{ padding: '8px 12px', background: '#1a2332', borderBottom: '1px solid #2a3a4e', fontSize: '11px', color: '#9ca3af' }}>
+          <a href="https://homelens.ai/profile" target="_blank" rel="noopener" style={{ color: '#60a5fa', textDecoration: 'underline' }}>
+            Complete your profile
+          </a> on HomeLens for a personalized match score.
+        </div>
+      )}
+
       {/* Detected listing banner */}
       {pendingUrl && !bannerDismissed && (
         <div className="hl-banner">
@@ -549,13 +840,20 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         </div>
       )}
 
+      {/* Match Score */}
+      {matchScore !== null && (
+        <div style={{ padding: '8px 12px', borderBottom: '1px solid #2a3a4e' }}>
+          <MatchScoreBadge score={matchScore} />
+        </div>
+      )}
+
       {/* Messages */}
       <div className="hl-messages">
         {messages.length === 0 && (
           <div className="hl-empty">
             <div className="hl-empty-icon">🏡</div>
             <p>
-              Hi! I'm your HomeLens AI advisor. Paste a property listing URL or ask me anything
+              {firstName ? `Hi ${firstName}! ` : 'Hi! '}I'm your HomeLens AI advisor. Paste a property listing URL or ask me anything
               about real estate. I'll read the listing data directly and give you a concise analysis.
             </p>
           </div>
