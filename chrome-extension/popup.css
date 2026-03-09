@@ -409,3 +409,15 @@ body {
   background: #D1D9E0;
   border-radius: 2px;
 }
+
+/* Match Score Badge */
+.hl-match-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+.hl-match-score-info {
+  display: flex;
+  flex-direction: column;
+}
