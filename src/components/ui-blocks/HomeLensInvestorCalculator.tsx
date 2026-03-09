@@ -115,6 +115,31 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
     closingCostsMode: initialInputs.closingCosts > 0 ? 'dollar' : 'percent',
   }));
 
+  // Down payment as dollar value — derives downPct for calculations
+  const [downPaymentDollar, setDownPaymentDollar] = useState(() => {
+    const price = Math.max(0, initialInputs.price);
+    const pct = Math.max(0, Math.min(100, initialInputs.downPct));
+    return Math.round(price * pct / 100);
+  });
+
+  const handleDownPaymentChange = useCallback((value: number) => {
+    const v = Math.max(0, value);
+    setDownPaymentDollar(v);
+    setInputs(prev => {
+      const pct = prev.price > 0 ? Math.min(100, (v / prev.price) * 100) : 0;
+      return { ...prev, downPct: pct };
+    });
+  }, []);
+
+  const handlePriceChange = useCallback((value: number) => {
+    const v = Math.max(0, value);
+    setInputs(prev => {
+      // Keep the same down payment dollar amount, recalculate percentage
+      const pct = v > 0 ? Math.min(100, (downPaymentDollar / v) * 100) : 0;
+      return { ...prev, price: v, downPct: pct };
+    });
+  }, [downPaymentDollar]);
+
   const update = useCallback(<K extends keyof InvestorInputs>(field: K, value: InvestorInputs[K]) => {
     setInputs(prev => ({ ...prev, [field]: value }));
   }, []);
@@ -136,6 +161,7 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
   const isFloodRisk = FLOOD_RISK_STATES.includes(inputs.state);
   const pmiAmount = results.monthlyPMI;
   const ltvAbove80 = inputs.downPct < 20;
+  const downPctDisplay = inputs.price > 0 ? (downPaymentDollar / inputs.price * 100).toFixed(1) : '0.0';
 
   const equityChartData = results.projections.map(p => ({
     year: `Yr ${p.year}`,
@@ -160,7 +186,7 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
               {title}
             </CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setInputs({ ...DEFAULT_INPUTS })}>
+              <Button variant="outline" size="sm" onClick={() => { setInputs({ ...DEFAULT_INPUTS }); setDownPaymentDollar(Math.round(DEFAULT_INPUTS.price * DEFAULT_INPUTS.downPct / 100)); }}>
                 <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
               </Button>
               <Button variant="outline" size="sm" onClick={() => exportToExcel(inputs, results, scenarios)}>
@@ -177,12 +203,13 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
               {/* Purchase & Financing */}
               <Section title="Purchase & Financing" icon={<DollarSign className="h-4 w-4" />} defaultOpen>
                 <div>
-                  <Label>Purchase Price</Label>
-                  <Input type="number" value={inputs.price} onChange={e => updateNum('price', +e.target.value)} className="mt-1" />
+                  <Label>Purchase Price ($)</Label>
+                  <Input type="number" value={inputs.price} onChange={e => handlePriceChange(+e.target.value)} className="mt-1" />
                 </div>
                 <div>
-                  <Label>Down Payment (%)<InfoTip text="Percentage of purchase price paid upfront." /></Label>
-                  <Input type="number" step="0.1" value={inputs.downPct} onChange={e => updateNum('downPct', +e.target.value, 100)} className="mt-1" />
+                  <Label>Down Payment ($)<InfoTip text="Dollar amount paid upfront. The percentage is calculated automatically based on purchase price." /></Label>
+                  <Input type="number" value={downPaymentDollar} onChange={e => handleDownPaymentChange(+e.target.value)} className="mt-1" />
+                  <p className="text-xs text-muted-foreground mt-1">{downPctDisplay}% of purchase price</p>
                   {ltvAbove80 && (
                     <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />

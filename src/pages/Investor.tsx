@@ -35,6 +35,13 @@ export default function Investor() {
       <Navigation />
       
       <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">Investor Calculator</h1>
+          <p className="text-muted-foreground">
+            Professional-grade investment analysis for residential real estate
+          </p>
+        </div>
+
         <HomeLensInvestorCalculator
           title="HomeLens Investor Calculator"
           inputs={{
