@@ -298,6 +298,7 @@ RULES:
       // Search Mode
       systemPrompt = `You are a friendly and helpful U.S. real estate assistant, here to help users find their perfect property.
 ${goalContext}
+${profileContext}
 
 The user wants to search for properties. Your task:
 1. Understand their search criteria (location, price, bedrooms, bathrooms, property type, etc.)
