@@ -383,6 +383,7 @@ RULES:
       // General real estate question
       systemPrompt = `You are a friendly and approachable U.S. real estate assistant. Answer questions about home buying, mortgages, investments, and market trends in a warm, conversational way.
 ${goalContext}
+${profileContext}
 
 FORMAT YOUR RESPONSES WITH CLEAR STRUCTURE:
 
