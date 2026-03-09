@@ -476,7 +476,8 @@ CRITICAL:
 
     // Fetch fresh user profile from database if authenticated
     let userProfile = clientProfile;
-    if (authHeader && !userProfile) {
+    let fullProfile: any = null;
+    if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
       const { data: { user } } = await supabase.auth.getUser(token);
       
@@ -487,8 +488,11 @@ CRITICAL:
           .eq('id', user.id)
           .single();
         
-        if (profile && profile.onboarding_completed) {
-          userProfile = profile.buyer_type || 'regular-buyer';
+        if (profile) {
+          fullProfile = profile;
+          if (profile.onboarding_completed && !userProfile) {
+            userProfile = profile.buyer_type || 'regular-buyer';
+          }
         }
       }
     }
