@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
         const { data: { user } } = await supabase.auth.getUser(token);
         if (user) {
           const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-          if (profile && profile.onboarding_completed) {
+          if (profile) {
             const p = profile as any;
             const parts: string[] = [];
             if (p.budget_min && p.budget_max) parts.push(`Budget: $${p.budget_min.toLocaleString()}-$${p.budget_max.toLocaleString()}`);
