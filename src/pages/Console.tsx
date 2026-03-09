@@ -9,6 +9,7 @@ import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal } from "lucide
 import { OverviewPanel } from "@/components/console/OverviewPanel";
 import { SubscriptionPanel } from "@/components/console/SubscriptionPanel";
 import { AccountPreferencesPanel } from "@/components/console/AccountPreferencesPanel";
+import { PreferencesPanel } from "@/components/console/PreferencesPanel";
 
 export default function Console() {
   const navigate = useNavigate();
