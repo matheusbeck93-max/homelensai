@@ -157,6 +157,59 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
   const results = useMemo(() => computeResults(inputs), [inputs]);
   const scenarios = useMemo(() => computeStressScenarios(inputs), [inputs]);
 
+  // AI Insight state
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const insightRef = useRef<HTMLDivElement>(null);
+
+  const handleAiInsight = useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiInsight(null);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const investorData = {
+        homePrice: inputs.price,
+        downPayment: results.downPayment,
+        downPaymentPercent: Number((inputs.downPct).toFixed(1)),
+        loanAmount: results.loanAmount,
+        interestRate: inputs.ratePct,
+        loanTerm: inputs.years,
+        monthlyPI: results.monthlyMortgage,
+        monthlyPropertyTax: results.monthlyTax,
+        propertyTaxRate: inputs.taxPct,
+        monthlyInsurance: results.monthlyInsurance,
+        hoaMonthly: inputs.hoaMonthly,
+        monthlyPMI: results.monthlyPMI,
+        pmiRate: inputs.downPct < 20 ? 0.5 : 0,
+        totalMonthlyPayment: results.totalMonthlyExpenses + results.monthlyMortgage + results.monthlyPMI,
+        points: 0,
+        closingCosts: results.closingCosts,
+        rentMonthly: inputs.rentMonthly,
+        vacancyPct: inputs.vacancyPct,
+        monthlyCashFlow: results.monthlyCashFlow,
+        annualNOI: results.annualNOI,
+        capRate: results.capRate,
+        cashOnCash: results.cashOnCash,
+        dscr: results.dscr,
+        irr: results.irr,
+      };
+      const { data, error } = await supabase.functions.invoke('calculator-insights', {
+        body: { mortgage: investorData },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiInsight(data.insights);
+      setTimeout(() => insightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    } catch (err: any) {
+      console.error('AI Insight error:', err);
+      setAiError(err?.message || 'Failed to generate insights');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [inputs, results]);
+
   const isPositiveCashFlow = results.monthlyCashFlow > 0;
   const isFloodRisk = FLOOD_RISK_STATES.includes(inputs.state);
   const pmiAmount = results.monthlyPMI;
