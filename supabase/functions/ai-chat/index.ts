@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode } = validationResult.data;
+    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode, extensionMode } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
     
