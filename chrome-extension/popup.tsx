@@ -825,13 +825,15 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     chrome.storage.local.remove(['homelens_pending_url', 'homelens_pending_property']);
     setBannerDismissed(true);
 
-    const userMsg: Message = { role: 'user', content: `Analyze this property: ${pendingUrl}` };
+    const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
+    const userMsg: Message = { role: 'user', content: `Analyze this property for ${purposeLabel}: ${pendingUrl}` };
     setMessages((prev) => [...prev, userMsg]);
-    persistMessage('user', `Analyze this property: ${pendingUrl}`);
+    persistMessage('user', userMsg.content);
 
     if (pendingProperty) {
       setActiveProperty(pendingProperty);
-      const apiMessages = buildPropertyDataMessages(purpose, [], `Analyze this property for ${purpose}.`);
+      // Include the URL in the message so the edge function can detect it AND use propertyData
+      const apiMessages = buildAnalysisMessages(pendingUrl, purpose, []);
       setPendingUrl(null);
       setPendingProperty(null);
       callAiChat(apiMessages, pendingProperty);
