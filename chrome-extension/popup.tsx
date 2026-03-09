@@ -238,6 +238,40 @@ const SendIcon = () => (
   </svg>
 );
 
+const ShareIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+  </svg>
+);
+
+function ShareMenu({ content, onClose }: { content: string; onClose: () => void }) {
+  const shareText = `🏡 HomeLens AI Analysis:\n\n${content}\n\nAnalyzed with HomeLens — homelens.ai`;
+  const encoded = encodeURIComponent(shareText);
+
+  const options = [
+    { label: '📋 Copy', action: () => { navigator.clipboard.writeText(shareText); onClose(); } },
+    { label: '💬 WhatsApp', action: () => { window.open(`https://wa.me/?text=${encoded}`, '_blank'); onClose(); } },
+    { label: '📱 SMS', action: () => { window.open(`sms:?body=${encoded}`, '_blank'); onClose(); } },
+    { label: '𝕏 Twitter/X', action: () => { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText.substring(0, 280))}`, '_blank'); onClose(); } },
+    { label: '📘 Facebook', action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?quote=${encoded}`, '_blank'); onClose(); } },
+    { label: '✉️ Email', action: () => { window.open(`mailto:?subject=${encodeURIComponent('HomeLens AI Analysis')}&body=${encoded}`, '_blank'); onClose(); } },
+  ];
+
+  return (
+    <div className="hl-share-menu">
+      {options.map((opt) => (
+        <button key={opt.label} className="hl-share-option" onClick={opt.action}>
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function detectPropertyUrl(text: string): string | null {
   const match = text.match(PROPERTY_URL_REGEX);
   return match ? match[0] : null;
@@ -421,6 +455,33 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
         </a>
       </div>
     </form>
+  );
+}
+
+// ══════════════════════════════════════
+// Message Bubble with Share
+// ══════════════════════════════════════
+function MessageBubble({ msg }: { msg: Message }) {
+  const [shareOpen, setShareOpen] = useState(false);
+
+  return (
+    <div className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
+      <div className={`hl-bubble hl-bubble-${msg.role}`}>
+        {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+      </div>
+      {msg.role === 'assistant' && (
+        <div style={{ position: 'relative' }}>
+          <button
+            className="hl-share-btn"
+            onClick={() => setShareOpen(!shareOpen)}
+            title="Share this analysis"
+          >
+            <ShareIcon />
+          </button>
+          {shareOpen && <ShareMenu content={msg.content} onClose={() => setShareOpen(false)} />}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -860,11 +921,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`hl-msg hl-msg-${msg.role}`}>
-            <div className={`hl-bubble hl-bubble-${msg.role}`}>
-              {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
-            </div>
-          </div>
+          <MessageBubble key={i} msg={msg} />
         ))}
 
         {loading && (
