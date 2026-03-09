@@ -823,6 +823,27 @@ export type Database = {
           },
         ]
       }
+      state_tax_cache: {
+        Row: {
+          fetched_at: string
+          rate: number
+          source: string
+          state_code: string
+        }
+        Insert: {
+          fetched_at?: string
+          rate: number
+          source: string
+          state_code: string
+        }
+        Update: {
+          fetched_at?: string
+          rate?: number
+          source?: string
+          state_code?: string
+        }
+        Relationships: []
+      }
       weekly_picks_history: {
         Row: {
           created_at: string | null
