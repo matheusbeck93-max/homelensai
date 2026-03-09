@@ -804,7 +804,8 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
       if (structuredProperty) {
         setActiveProperty(structuredProperty);
-        const apiMessages = buildPropertyDataMessages(purpose, messages, text);
+        // Keep URL in message so edge function detects it AND uses propertyData
+        const apiMessages = buildAnalysisMessages(detectedUrl, purpose, messages);
         await callAiChat(apiMessages, structuredProperty);
         return;
       }
@@ -815,8 +816,29 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       return;
     }
 
+    // Regular chat message - also try to get fresh property data from active tab
+    let propertyForChat = activeProperty;
+    if (!propertyForChat && !detectedUrl) {
+      // Check if content script has property data for current tab
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]?.id) {
+          const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_ACTIVE_PROPERTY_CONTEXT' });
+          if (response?.ok && response.propertyData) {
+            const normalized = normalizePropertyContext(response.propertyData);
+            if (normalized) {
+              propertyForChat = normalized;
+              setActiveProperty(normalized);
+            }
+          }
+        }
+      } catch {
+        // Content script not available, continue without property context
+      }
+    }
+
     const apiMessages = buildChatMessages(messages, text);
-    await callAiChat(apiMessages, activeProperty);
+    await callAiChat(apiMessages, propertyForChat);
   };
 
   const handleAnalyzeNow = () => {
