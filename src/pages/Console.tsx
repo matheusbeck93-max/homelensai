@@ -5,7 +5,7 @@ import { Navigation } from "@/components/Navigation";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, CreditCard, Settings } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal } from "lucide-react";
 import { OverviewPanel } from "@/components/console/OverviewPanel";
 import { SubscriptionPanel } from "@/components/console/SubscriptionPanel";
 import { AccountPreferencesPanel } from "@/components/console/AccountPreferencesPanel";
