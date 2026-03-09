@@ -5,6 +5,9 @@ import { createRoot } from 'react-dom/client';
 const SUPABASE_URL = 'https://yckcdxtatwolzilboahx.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlja2NkeHRhdHdvbHppbGJvYWh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMDk3MTEsImV4cCI6MjA3Njg4NTcxMX0.MyOrW96L1QrSXoHaeU-XcR35-YEeqxKLxxc2pZJYww4';
 
+// URL pattern to detect property listing links
+const PROPERTY_URL_REGEX = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|homes|century21|coldwellbanker|compass|sothebysrealty|berkshirehathaway)\.com\/[^\s]+)/gi;
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -28,7 +31,7 @@ function renderMarkdown(text: string): React.ReactNode {
   });
 }
 
-// ── House icon SVG ──
+// ── SVG Icons ──
 const HouseIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -36,13 +39,71 @@ const HouseIcon = () => (
   </svg>
 );
 
-// ── Send icon SVG ──
 const SendIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="22" y1="2" x2="11" y2="13" />
     <polygon points="22 2 15 22 11 13 2 9 22 2" />
   </svg>
 );
+
+/**
+ * Detects if text contains a property listing URL.
+ */
+function detectPropertyUrl(text: string): string | null {
+  const match = text.match(PROPERTY_URL_REGEX);
+  return match ? match[0] : null;
+}
+
+/**
+ * Builds the messages array for the ai-chat edge function.
+ *
+ * Key insight: The ai-chat function checks `lastUserMessage` for URLs and
+ * has a `messages.length <= 2` guard that triggers a "purpose" question.
+ * To bypass that and get a direct analysis, we send 3+ messages where the
+ * LAST user message contains both the URL and the purpose, plus an
+ * instruction to keep the response concise (extension context).
+ */
+function buildAnalysisMessages(
+  url: string,
+  purpose: 'investment' | 'residence',
+  history: Message[],
+): { role: string; content: string }[] {
+  const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
+
+  // If there's already enough history, just append
+  if (history.length >= 2) {
+    return [
+      ...history.map((m) => ({ role: m.role, content: m.content })),
+      {
+        role: 'user' as const,
+        content: `Analyze this property for ${purposeLabel}: ${url}\n\nIMPORTANT: Keep the response SHORT and summarized — this is a browser extension with limited space. Use bullet points, no long paragraphs.`,
+      },
+    ];
+  }
+
+  // Pad with a synthetic exchange so messages.length > 2,
+  // bypassing the purpose question in ai-chat.
+  return [
+    { role: 'user', content: `I'd like to analyze a property for ${purposeLabel}.` },
+    { role: 'assistant', content: `Sure! Share the listing URL and I'll analyze it for ${purposeLabel}.` },
+    {
+      role: 'user',
+      content: `Analyze this property for ${purposeLabel}: ${url}\n\nIMPORTANT: Keep the response SHORT and summarized — this is a browser extension with limited space. Use bullet points, no long paragraphs.`,
+    },
+  ];
+}
+
+/**
+ * Wraps a general (non-URL) message with a concise instruction for the extension.
+ */
+function buildChatMessages(history: Message[], newText: string): { role: string; content: string }[] {
+  const msgs = history.map((m) => ({ role: m.role, content: m.content }));
+  msgs.push({
+    role: 'user',
+    content: `${newText}\n\n(Reply concisely — this is a browser extension popup with limited space. Use bullet points and short paragraphs.)`,
+  });
+  return msgs;
+}
 
 // ══════════════════════════════════════
 // Login Screen
@@ -64,7 +125,7 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
+          apikey: SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({ email, password }),
       });
@@ -89,7 +150,9 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
     <form className="hl-login" onSubmit={handleSubmit}>
       <HouseIcon />
       <div className="hl-login-title">HomeLens</div>
-      <div className="hl-login-subtitle">Sign in to your HomeLens account to access AI-powered real estate analysis.</div>
+      <div className="hl-login-subtitle">
+        Sign in to your HomeLens account to access AI-powered real estate analysis.
+      </div>
 
       {error && <div className="hl-login-error">{error}</div>}
 
@@ -134,6 +197,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const [loading, setLoading] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [purpose, setPurpose] = useState<'investment' | 'residence'>('investment');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom
@@ -150,45 +214,98 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     });
   }, []);
 
-  const sendMessage = async (text: string) => {
-    if (!text.trim() || loading) return;
-
-    const userMsg: Message = { role: 'user', content: text };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput('');
+  /**
+   * Core send function. Accepts a pre-built messages array to call ai-chat.
+   */
+  const callAiChat = async (apiMessages: { role: string; content: string }[]) => {
     setLoading(true);
-
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${session.access_token}`,
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
           conversationMode: true,
         }),
       });
 
       if (!res.ok) {
         if (res.status === 401) {
-          setMessages((prev) => [...prev, { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' }]);
-          setLoading(false);
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' },
+          ]);
           return;
         }
         throw new Error(`Request failed (${res.status})`);
       }
 
       const data = await res.json();
-      const assistantContent = data.response || data.message || 'Sorry, I couldn\'t process your request.';
+
+      // If the backend still asks about purpose (edge case), answer automatically
+      if (data.needsPurpose) {
+        const purposeAnswer = purpose === 'investment' ? 'Investment' : 'Primary residence';
+        const retryMessages = [
+          ...apiMessages,
+          { role: 'assistant', content: data.response },
+          { role: 'user', content: purposeAnswer },
+        ];
+        // Retry with purpose answered
+        const retryRes = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ messages: retryMessages, conversationMode: true }),
+        });
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          const content = retryData.response || retryData.message || "Sorry, I couldn't process that.";
+          setMessages((prev) => [...prev, { role: 'assistant', content }]);
+        } else {
+          throw new Error(`Retry failed (${retryRes.status})`);
+        }
+        return;
+      }
+
+      const assistantContent = data.response || data.message || "Sorry, I couldn't process your request.";
       setMessages((prev) => [...prev, { role: 'assistant', content: assistantContent }]);
     } catch (err: any) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${err.message}. Please try again.` }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `Error: ${err.message}. Please try again.` },
+      ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Send a user-typed message. Auto-detects property URLs.
+   */
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || loading) return;
+
+    const userMsg: Message = { role: 'user', content: text };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
+    setInput('');
+
+    const detectedUrl = detectPropertyUrl(text);
+    if (detectedUrl) {
+      // Property URL detected — use the analysis flow
+      const apiMessages = buildAnalysisMessages(detectedUrl, purpose, messages);
+      await callAiChat(apiMessages);
+    } else {
+      // General message
+      const apiMessages = buildChatMessages(messages, text);
+      await callAiChat(apiMessages);
     }
   };
 
@@ -196,8 +313,13 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     if (!pendingUrl) return;
     chrome.storage.local.remove('homelens_pending_url');
     setBannerDismissed(true);
-    sendMessage(`Please analyze this property: ${pendingUrl}`);
+
+    const userMsg: Message = { role: 'user', content: `Analyze this property: ${pendingUrl}` };
+    setMessages((prev) => [...prev, userMsg]);
+
+    const apiMessages = buildAnalysisMessages(pendingUrl, purpose, []);
     setPendingUrl(null);
+    callAiChat(apiMessages);
   };
 
   const handleDismissBanner = () => {
@@ -214,7 +336,11 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   };
 
   const getDomain = (url: string) => {
-    try { return new URL(url).hostname; } catch { return url; }
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
   };
 
   return (
@@ -225,7 +351,26 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           <HouseIcon />
           <span className="hl-header-logo">HomeLens</span>
         </div>
-        <button className="hl-header-btn" onClick={onLogout}>Sign out</button>
+        <button className="hl-header-btn" onClick={onLogout}>
+          Sign out
+        </button>
+      </div>
+
+      {/* Purpose toggle */}
+      <div className="hl-purpose-bar">
+        <span className="hl-purpose-label">Analysis mode:</span>
+        <button
+          className={`hl-purpose-btn ${purpose === 'investment' ? 'hl-purpose-active' : ''}`}
+          onClick={() => setPurpose('investment')}
+        >
+          💰 Investment
+        </button>
+        <button
+          className={`hl-purpose-btn ${purpose === 'residence' ? 'hl-purpose-active' : ''}`}
+          onClick={() => setPurpose('residence')}
+        >
+          🏡 Residence
+        </button>
       </div>
 
       {/* Detected listing banner */}
@@ -236,8 +381,12 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             <div className="hl-banner-title">Property detected</div>
             <div className="hl-banner-url">{getDomain(pendingUrl)}</div>
           </div>
-          <button className="hl-banner-analyze" onClick={handleAnalyzeNow}>Analyze now</button>
-          <button className="hl-banner-close" onClick={handleDismissBanner}>✕</button>
+          <button className="hl-banner-analyze" onClick={handleAnalyzeNow}>
+            Analyze now
+          </button>
+          <button className="hl-banner-close" onClick={handleDismissBanner}>
+            ✕
+          </button>
         </div>
       )}
 
@@ -247,9 +396,8 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           <div className="hl-empty">
             <div className="hl-empty-icon">🏡</div>
             <p>
-              Hi! I'm your HomeLens AI advisor. I can help you analyze any property,
-              estimate costs, check market trends, and answer any real estate question.
-              Paste a listing URL or ask me anything.
+              Hi! I'm your HomeLens AI advisor. Paste a property listing URL or ask me anything
+              about real estate. I'll read the listing data directly and give you a concise analysis.
             </p>
           </div>
         )}
@@ -277,7 +425,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       <div className="hl-input-area">
         <textarea
           className="hl-input"
-          placeholder="Ask anything about real estate..."
+          placeholder="Paste a listing URL or ask anything..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
