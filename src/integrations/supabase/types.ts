@@ -349,12 +349,14 @@ export type Database = {
       }
       profiles: {
         Row: {
+          about_me: string | null
           alert_email_enabled: boolean | null
           alert_price_drops: boolean | null
           alert_status_changes: boolean | null
           budget_max: number | null
           budget_min: number | null
           buyer_type: string | null
+          buyer_types: string[] | null
           children_ages: string[] | null
           climate_preference: string | null
           commute_preferences: Json | null
@@ -364,10 +366,12 @@ export type Database = {
           desired_monthly_payment: number | null
           email: string | null
           financing_preference: string | null
+          financing_preferences: string[] | null
           full_name: string | null
           has_children: boolean | null
           hold_period_years: number | null
           id: string
+          investment_strategies: string[] | null
           investment_strategy: string | null
           location_preferences: Json | null
           max_price_range: number | null
@@ -390,12 +394,14 @@ export type Database = {
           weekly_picks_last_sent: string | null
         }
         Insert: {
+          about_me?: string | null
           alert_email_enabled?: boolean | null
           alert_price_drops?: boolean | null
           alert_status_changes?: boolean | null
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
+          buyer_types?: string[] | null
           children_ages?: string[] | null
           climate_preference?: string | null
           commute_preferences?: Json | null
@@ -405,10 +411,12 @@ export type Database = {
           desired_monthly_payment?: number | null
           email?: string | null
           financing_preference?: string | null
+          financing_preferences?: string[] | null
           full_name?: string | null
           has_children?: boolean | null
           hold_period_years?: number | null
           id: string
+          investment_strategies?: string[] | null
           investment_strategy?: string | null
           location_preferences?: Json | null
           max_price_range?: number | null
@@ -431,12 +439,14 @@ export type Database = {
           weekly_picks_last_sent?: string | null
         }
         Update: {
+          about_me?: string | null
           alert_email_enabled?: boolean | null
           alert_price_drops?: boolean | null
           alert_status_changes?: boolean | null
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
+          buyer_types?: string[] | null
           children_ages?: string[] | null
           climate_preference?: string | null
           commute_preferences?: Json | null
@@ -446,10 +456,12 @@ export type Database = {
           desired_monthly_payment?: number | null
           email?: string | null
           financing_preference?: string | null
+          financing_preferences?: string[] | null
           full_name?: string | null
           has_children?: boolean | null
           hold_period_years?: number | null
           id?: string
+          investment_strategies?: string[] | null
           investment_strategy?: string | null
           location_preferences?: Json | null
           max_price_range?: number | null
