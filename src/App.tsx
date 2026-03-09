@@ -26,6 +26,7 @@ const Favorites = lazy(() => import("./pages/Favorites"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Console = lazy(() => import("./pages/Console"));
+const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
 const Compare = lazy(() => import("./pages/Compare"));
 const Chats = lazy(() => import("./pages/Chats"));
 const NotFound = lazy(() => import("./pages/NotFound"));
