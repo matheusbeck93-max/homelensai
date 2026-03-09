@@ -421,3 +421,55 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* Share button */
+.hl-share-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+  transition: color 150ms, background 150ms;
+}
+
+.hl-share-btn:hover {
+  color: #4E7FA3;
+  background: #F4F7FA;
+}
+
+/* Share menu */
+.hl-share-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #ffffff;
+  border: 1px solid #E8ECF0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  z-index: 100;
+  min-width: 160px;
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+
+.hl-share-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  color: #1E2D3D;
+  cursor: pointer;
+  transition: background 100ms;
+}
+
+.hl-share-option:hover {
+  background: #F4F7FA;
+}

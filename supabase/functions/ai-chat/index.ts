@@ -564,6 +564,18 @@ CRITICAL:
       if (profileSource.safety_priority) {
         prefs.push(`🛡️ Safety Priority: ${profileSource.safety_priority}`);
       }
+      if (profileSource.about_me) {
+        prefs.push(`📝 About the user: ${profileSource.about_me}`);
+      }
+      if (profileSource.buyer_types && profileSource.buyer_types.length > 0) {
+        prefs.push(`👤 Buyer Personas: ${profileSource.buyer_types.join(', ')}`);
+      }
+      if (profileSource.investment_strategies && profileSource.investment_strategies.length > 0) {
+        prefs.push(`📈 Investment Strategies: ${profileSource.investment_strategies.join(', ')}`);
+      }
+      if (profileSource.financing_preferences && profileSource.financing_preferences.length > 0) {
+        prefs.push(`🏦 Financing Preferences: ${profileSource.financing_preferences.join(', ')}`);
+      }
       
       if (prefs.length > 0) {
         personalizationContext = `\n\n## 👤 USER PROFILE & PREFERENCES\n${prefs.join('\n')}
