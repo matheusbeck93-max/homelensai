@@ -726,7 +726,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
         if (retryRes.ok) {
           const retryData = await retryRes.json();
-          const rawContent = retryData.response || retryData.message || "Sorry, I couldn't process that.";
+          const rawContent = extractMessageContent(retryData);
           const { score, cleanContent } = parseMatchScore(rawContent);
           if (score !== null) setMatchScore(score);
           setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
@@ -737,8 +737,8 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         return;
       }
 
-      const rawContent = data.response || data.message || "Sorry, I couldn't process your request.";
-      const { score, cleanContent } = parseMatchScore(typeof rawContent === 'string' ? rawContent : rawContent.message || JSON.stringify(rawContent));
+      const rawContent = extractMessageContent(data);
+      const { score, cleanContent } = parseMatchScore(rawContent);
       if (score !== null) setMatchScore(score);
       setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
       persistMessage('assistant', cleanContent);
@@ -751,6 +751,42 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       setLoading(false);
     }
   };
+
+  /**
+   * Extract readable message content from various response formats:
+   * - { response: "plain text" } (URL analysis path)
+   * - { response: { message: "text" } } (regular chat path, parsed JSON)
+   * - { response: "{\"message\": \"text\"}" } (regular chat path, stringified JSON)
+   * - { message: "text" } (fallback)
+   */
+  function extractMessageContent(data: any): string {
+    const resp = data.response;
+    
+    if (!resp) {
+      return data.message || "Sorry, I couldn't process your request.";
+    }
+
+    // If response is a string
+    if (typeof resp === 'string') {
+      // Try to parse as JSON
+      try {
+        const parsed = JSON.parse(resp);
+        if (parsed.message) return parsed.message;
+        return resp;
+      } catch {
+        // It's plain text
+        return resp;
+      }
+    }
+
+    // If response is an object
+    if (typeof resp === 'object') {
+      if (resp.message) return resp.message;
+      return JSON.stringify(resp);
+    }
+
+    return String(resp);
+  }
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -768,7 +804,8 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
       if (structuredProperty) {
         setActiveProperty(structuredProperty);
-        const apiMessages = buildPropertyDataMessages(purpose, messages, text);
+        // Keep URL in message so edge function detects it AND uses propertyData
+        const apiMessages = buildAnalysisMessages(detectedUrl, purpose, messages);
         await callAiChat(apiMessages, structuredProperty);
         return;
       }
@@ -779,8 +816,29 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       return;
     }
 
+    // Regular chat message - also try to get fresh property data from active tab
+    let propertyForChat = activeProperty;
+    if (!propertyForChat && !detectedUrl) {
+      // Check if content script has property data for current tab
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]?.id) {
+          const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_ACTIVE_PROPERTY_CONTEXT' });
+          if (response?.ok && response.propertyData) {
+            const normalized = normalizePropertyContext(response.propertyData);
+            if (normalized) {
+              propertyForChat = normalized;
+              setActiveProperty(normalized);
+            }
+          }
+        }
+      } catch {
+        // Content script not available, continue without property context
+      }
+    }
+
     const apiMessages = buildChatMessages(messages, text);
-    await callAiChat(apiMessages, activeProperty);
+    await callAiChat(apiMessages, propertyForChat);
   };
 
   const handleAnalyzeNow = () => {
@@ -789,13 +847,15 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     chrome.storage.local.remove(['homelens_pending_url', 'homelens_pending_property']);
     setBannerDismissed(true);
 
-    const userMsg: Message = { role: 'user', content: `Analyze this property: ${pendingUrl}` };
+    const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
+    const userMsg: Message = { role: 'user', content: `Analyze this property for ${purposeLabel}: ${pendingUrl}` };
     setMessages((prev) => [...prev, userMsg]);
-    persistMessage('user', `Analyze this property: ${pendingUrl}`);
+    persistMessage('user', userMsg.content);
 
     if (pendingProperty) {
       setActiveProperty(pendingProperty);
-      const apiMessages = buildPropertyDataMessages(purpose, [], `Analyze this property for ${purpose}.`);
+      // Include the URL in the message so the edge function can detect it AND use propertyData
+      const apiMessages = buildAnalysisMessages(pendingUrl, purpose, []);
       setPendingUrl(null);
       setPendingProperty(null);
       callAiChat(apiMessages, pendingProperty);

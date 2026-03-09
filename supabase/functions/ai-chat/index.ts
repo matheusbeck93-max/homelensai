@@ -72,7 +72,206 @@ Deno.serve(async (req) => {
     const isInvestment = purposeResponse.includes('invest');
     const isPrimaryResidence = purposeResponse.includes('residence') || purposeResponse.includes('primary') || purposeResponse.includes('live') || purposeResponse.includes('home');
     
-    // If 1+ URLs detected, trigger property analysis mode
+    // If propertyData is provided (from Chrome extension with DOM-extracted data),
+    // skip Firecrawl and use it directly - it's more accurate
+    if (propertyData && detectedUrls.length >= 1) {
+      console.log('Using client-provided propertyData (extension mode), skipping Firecrawl');
+      console.log('PropertyData:', JSON.stringify(propertyData, null, 2));
+      
+      // Build property object from client-provided data
+      const clientProperty = {
+        id: 'ext-property',
+        externalLink: propertyData.externalUrl || detectedUrls[0],
+        condition: 'active',
+        status: 'active',
+        price: propertyData.price || 0,
+        beds: propertyData.beds || 0,
+        baths: propertyData.baths || 0,
+        sqft: propertyData.sqft || 0,
+        year_built: propertyData.yearBuilt || null,
+        lot_size: propertyData.lotSize || null,
+        address: propertyData.address || 'Unknown',
+        city: propertyData.city || 'Unknown',
+        state: propertyData.state || 'XX',
+        zip: propertyData.zip || '00000',
+        image_urls: propertyData.imageUrl ? [propertyData.imageUrl] : [],
+        description: propertyData.description || '',
+        propertyType: propertyData.propertyType || null,
+      };
+      
+      // Determine purpose from conversation history
+      let purpose = 'investment';
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i]?.content?.toLowerCase() || '';
+        if (msg.includes('residence') || msg.includes('primary') || msg.includes('live') || msg.includes('home')) {
+          purpose = 'residence';
+          break;
+        } else if (msg.includes('invest')) {
+          purpose = 'investment';
+          break;
+        }
+      }
+      
+      console.log('Analysis purpose:', purpose);
+      
+      const properties = [clientProperty];
+      const analysisPrompt = purpose === 'investment'
+        ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
+
+Property Details:
+- Address: ${clientProperty.address}, ${clientProperty.city}, ${clientProperty.state} ${clientProperty.zip}
+- Price: $${clientProperty.price || 'N/A'}
+- Beds: ${clientProperty.beds || 'N/A'} | Baths: ${clientProperty.baths || 'N/A'} | Sqft: ${clientProperty.sqft || 'N/A'}
+- Year Built: ${clientProperty.year_built || 'N/A'}
+- Lot Size: ${clientProperty.lot_size || 'N/A'} sqft
+- Property Type: ${clientProperty.propertyType || 'N/A'}
+- Description: ${clientProperty.description || 'N/A'}
+
+User Query: ${lastUserMessage}
+
+Provide a structured INVESTMENT analysis using this format:
+
+**💰 Financial Analysis**
+• List price: $[amount]
+• Price per sqft: $[number]
+• Down payment (20%): $[amount]
+• Loan amount: $[amount]
+• Monthly payment (7% APR, 30 years): $[amount]
+
+**📊 Investment Metrics**
+• Estimated monthly rent: $[amount]
+• Monthly expenses:
+  - Mortgage: $[amount]
+  - Property tax: $[amount]
+  - Insurance: $[amount]
+  - Maintenance: $[amount]
+  - HOA fees: $[amount]
+• Net monthly cash flow: $[amount]
+• Annual cap rate: [percentage]%
+• Cash-on-cash return: [percentage]%
+
+**✨ Property Highlights**
+• [Key feature 1 - based on ACTUAL property data above]
+• [Key feature 2 - based on ACTUAL property data above]
+• [Key feature 3 - based on ACTUAL property data above]
+
+**💡 Investment Recommendation**
+[Brief recommendation based on the investment metrics]
+
+CRITICAL: 
+- Use the EXACT property data provided above (address, price, beds, baths, sqft, year built). Do NOT make up different numbers.
+- Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
+- Keep response concise with bullet points.`
+        : `Analyze this property FOR PRIMARY RESIDENCE with clear metrics (show final numbers only, NO formulas):
+
+Property Details:
+- Address: ${clientProperty.address}, ${clientProperty.city}, ${clientProperty.state} ${clientProperty.zip}
+- Price: $${clientProperty.price || 'N/A'}
+- Beds: ${clientProperty.beds || 'N/A'} | Baths: ${clientProperty.baths || 'N/A'} | Sqft: ${clientProperty.sqft || 'N/A'}
+- Year Built: ${clientProperty.year_built || 'N/A'}
+- Lot Size: ${clientProperty.lot_size || 'N/A'} sqft
+- Property Type: ${clientProperty.propertyType || 'N/A'}
+- Description: ${clientProperty.description || 'N/A'}
+
+User Query: ${lastUserMessage}
+
+Provide a structured HOMEBUYER analysis using this format:
+
+**💰 Acquisition Cost**
+• List price: $[amount]
+• Price per sqft: $[number]
+• Down payment (20%): $[amount]
+• Loan amount: $[amount]
+• Monthly payment (7% APR, 30 years): $[amount]
+
+**🏡 Monthly Housing Cost**
+• Mortgage: $[amount]
+• Estimated property tax: $[amount]
+• Home insurance: $[amount]
+• Maintenance: $[amount]
+• HOA fees: $[amount if applicable]
+• **Total monthly**: $[amount]
+
+**✨ Property Highlights**
+• [Key feature 1 - based on ACTUAL property data above]
+• [Key feature 2 - based on ACTUAL property data above]
+• [Key feature 3 - based on ACTUAL property data above]
+
+**⚠️ Important Considerations**
+• [Important factor 1 for living]
+• [Important factor 2 for living]
+• [Important factor 3 for living]
+
+**💡 Home Evaluation**
+[Brief recommendation based on living quality and affordability]
+
+CRITICAL: 
+- Use the EXACT property data provided above (address, price, beds, baths, sqft, year built). Do NOT make up different numbers.
+- Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
+- Keep response concise with bullet points.`;
+
+      // Fetch user profile for match score
+      let matchScoreInstructions = '';
+      if (authHeader) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user) {
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+          if (profile && profile.onboarding_completed) {
+            matchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${profile.budget_min || 0} - $${profile.budget_max || 'unlimited'}\n- Preferred cities: ${profile.preferred_cities?.join(', ') || 'any'}\n- Property types: ${profile.property_types?.join(', ') || 'any'}\n- Has children: ${profile.has_children ? 'Yes' : 'No'}\n- Safety priority: ${profile.safety_priority || 'medium'}\n- Risk level: ${profile.risk_level || 'moderate'}\nAfter the score line, continue with the analysis.`;
+          }
+        }
+      }
+
+      console.log('Calling Lovable AI Gateway with client-provided property data...');
+      
+      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}` },
+            ...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: analysisPrompt }
+          ],
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        if (aiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const errorText = await aiResponse.text();
+        console.error(`AI Gateway failed: ${aiResponse.status}`, errorText);
+        throw new Error(`AI Gateway failed: ${aiResponse.status} - ${errorText}`);
+      }
+
+      const aiData = await aiResponse.json();
+      const analysis = aiData.choices[0].message.content;
+      
+      console.log('AI analysis with client data generated successfully');
+      
+      return new Response(
+        JSON.stringify({ 
+          response: analysis,
+          properties: properties,
+          hasProperties: true
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If 1+ URLs detected (no propertyData from extension), trigger Firecrawl analysis mode
     if (detectedUrls.length >= 1) {
       // First, ask about purpose if this is the first property message
       if (!isWaitingForPurpose && messages.length <= 2) {
@@ -85,7 +284,7 @@ Deno.serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      console.log('Triggering property analysis mode');
+      console.log('Triggering property analysis mode (Firecrawl)');
       
       // Fetch real property data from URLs using Firecrawl
       const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
