@@ -58,6 +58,44 @@ body {
   background: rgba(255,255,255,0.1);
 }
 
+/* Purpose toggle bar */
+.hl-purpose-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #F4F7FA;
+  border-bottom: 1px solid #E8ECF0;
+  flex-shrink: 0;
+}
+
+.hl-purpose-label {
+  font-size: 11px;
+  color: #6B7C8D;
+  margin-right: 4px;
+}
+
+.hl-purpose-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #D1D9E0;
+  background: #ffffff;
+  color: #6B7C8D;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.hl-purpose-btn:hover {
+  border-color: #4E7FA3;
+}
+
+.hl-purpose-active {
+  background: #1E2D3D;
+  color: #ffffff;
+  border-color: #1E2D3D;
+}
+
 /* Banner */
 .hl-banner {
   display: flex;
