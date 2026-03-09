@@ -93,6 +93,8 @@ export default function Index() {
   const [heroInput, setHeroInput] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [heroFocused, setHeroFocused] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [primaryGoal, setPrimaryGoal] = useState<string | null>(null);
   const typingPlaceholder = useTypingPlaceholder();
 
   // Filter state with defaults
@@ -215,14 +217,31 @@ export default function Index() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) fetchUserProfile(session.user.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setUser(session?.user ?? null)
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) fetchUserProfile(session.user.id);
+        else { setUserName(null); setPrimaryGoal(null); }
+      }
     );
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name, primary_goal")
+      .eq("id", userId)
+      .single();
+    if (data) {
+      setUserName(data.full_name);
+      setPrimaryGoal(data.primary_goal);
+    }
+  };
 
   // Extract search results as hero card listings
   const searchListings = searchData?.listings || [];
@@ -388,8 +407,19 @@ export default function Index() {
       <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
           <HouseHeroAnimation />
           <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20 max-w-5xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">Only Good Deals</h1>
-            <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-4xl mx-auto px-4 whitespace-nowrap">Make Smarter Home Buying Decisions with AI Market Analysis</p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
+              {userName ? `Hello, ${userName.split(' ')[0]}` : 'Only Good Deals'}
+            </h1>
+            <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-4xl mx-auto px-4 whitespace-nowrap">
+              {userName && primaryGoal
+                ? primaryGoal === 'invest' ? 'Your AI Investment Advisor — Find High-Yield Opportunities'
+                : primaryGoal === 'buy_home' ? 'Your AI Home Buying Copilot — Find the Perfect Home'
+                : primaryGoal === 'rent' ? 'Your AI Rental Advisor — Find the Best Deals'
+                : primaryGoal === 'market_trends' ? 'Your AI Market Intelligence — Stay Ahead of Trends'
+                : primaryGoal === 'tax_incentives' ? 'Your AI Financial Advisor — Maximize Tax Benefits'
+                : 'Make Smarter Home Buying Decisions with AI Market Analysis'
+                : 'Make Smarter Home Buying Decisions with AI Market Analysis'}
+            </p>
 
             {/* Hero Search Input */}
             <form onSubmit={handleHeroSubmit} className="max-w-3xl mx-auto px-4">

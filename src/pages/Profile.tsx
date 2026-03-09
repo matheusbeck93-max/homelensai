@@ -110,6 +110,7 @@ export default function Profile() {
           setShowOnboarding(false);
           checkUser();
         }}
+        initialData={profile}
       />
     );
   }

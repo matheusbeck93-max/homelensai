@@ -16,7 +16,8 @@ const chatRequestSchema = z.object({
   hasImage: z.boolean().optional(),
   userProfile: z.any().optional(),
   propertyData: z.any().optional(),
-  conversationMode: z.boolean().optional(), // New flag for unified conversation mode
+  conversationMode: z.boolean().optional(),
+  extensionMode: z.boolean().optional(),
 });
 
 Deno.serve(async (req) => {
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode } = validationResult.data;
+    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode, extensionMode } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
     
@@ -475,7 +476,8 @@ CRITICAL:
 
     // Fetch fresh user profile from database if authenticated
     let userProfile = clientProfile;
-    if (authHeader && !userProfile) {
+    let fullProfile: any = null;
+    if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
       const { data: { user } } = await supabase.auth.getUser(token);
       
@@ -486,8 +488,11 @@ CRITICAL:
           .eq('id', user.id)
           .single();
         
-        if (profile && profile.onboarding_completed) {
-          userProfile = profile.buyer_type || 'regular-buyer';
+        if (profile) {
+          fullProfile = profile;
+          if (profile.onboarding_completed && !userProfile) {
+            userProfile = profile.buyer_type || 'regular-buyer';
+          }
         }
       }
     }
@@ -497,37 +502,67 @@ CRITICAL:
 
     // Build personalization context from full profile
     let personalizationContext = '';
-    if (clientProfile && clientProfile.onboarding_completed) {
+    const profileSource = fullProfile || clientProfile;
+    if (profileSource && profileSource.onboarding_completed) {
       const prefs = [];
       
-      if (clientProfile.budget_min && clientProfile.budget_max) {
-        prefs.push(`💰 Budget Range: $${clientProfile.budget_min.toLocaleString()} - $${clientProfile.budget_max.toLocaleString()}`);
+      if (profileSource.budget_min && profileSource.budget_max) {
+        prefs.push(`💰 Budget Range: $${profileSource.budget_min.toLocaleString()} - $${profileSource.budget_max.toLocaleString()}`);
       }
       
-      if (clientProfile.desired_monthly_payment) {
-        prefs.push(`💵 Target Monthly Payment: $${clientProfile.desired_monthly_payment.toLocaleString()}`);
+      if (profileSource.desired_monthly_payment) {
+        prefs.push(`💵 Target Monthly Payment: $${profileSource.desired_monthly_payment.toLocaleString()}`);
       }
       
-      if (clientProfile.property_types && clientProfile.property_types.length > 0) {
-        prefs.push(`🏠 Preferred Property Types: ${clientProfile.property_types.join(', ')}`);
+      if (profileSource.property_types && profileSource.property_types.length > 0) {
+        prefs.push(`🏠 Preferred Property Types: ${profileSource.property_types.join(', ')}`);
       }
       
-      if (clientProfile.location_preferences && clientProfile.location_preferences.length > 0) {
-        prefs.push(`📍 Preferred Locations: ${clientProfile.location_preferences.join(', ')}`);
+      if (profileSource.location_preferences && profileSource.location_preferences.length > 0) {
+        prefs.push(`📍 Preferred Locations: ${Array.isArray(profileSource.location_preferences) ? profileSource.location_preferences.join(', ') : JSON.stringify(profileSource.location_preferences)}`);
       }
       
-      if (clientProfile.risk_level) {
-        prefs.push(`📊 Investment Risk Tolerance: ${clientProfile.risk_level}`);
+      if (profileSource.risk_level) {
+        prefs.push(`📊 Investment Risk Tolerance: ${profileSource.risk_level}`);
       }
       
-      if (clientProfile.commute_preferences) {
-        const commutePref = clientProfile.commute_preferences as any;
+      if (profileSource.commute_preferences) {
+        const commutePref = profileSource.commute_preferences as any;
         if (commutePref.max_commute_minutes) {
           prefs.push(`🚗 Max Commute Time: ${commutePref.max_commute_minutes} minutes`);
         }
         if (commutePref.walkability_preference) {
           prefs.push(`🚶 Walkability Preference: ${commutePref.walkability_preference}`);
         }
+      }
+
+      // New profile fields
+      if (profileSource.investment_strategy) {
+        prefs.push(`📈 Investment Strategy: ${profileSource.investment_strategy}`);
+      }
+      if (profileSource.hold_period_years) {
+        prefs.push(`⏱️ Hold Period: ${profileSource.hold_period_years} years`);
+      }
+      if (profileSource.financing_preference) {
+        prefs.push(`🏦 Financing Preference: ${profileSource.financing_preference}`);
+      }
+      if (profileSource.min_bathrooms) {
+        prefs.push(`🚿 Min Bathrooms: ${profileSource.min_bathrooms}`);
+      }
+      if (profileSource.must_have_features && profileSource.must_have_features.length > 0) {
+        prefs.push(`✅ Must-Have Features: ${profileSource.must_have_features.join(', ')}`);
+      }
+      if (profileSource.has_children) {
+        prefs.push(`👨‍👩‍👧‍👦 Has Children: Yes`);
+        if (profileSource.children_ages && profileSource.children_ages.length > 0) {
+          prefs.push(`🎒 Children Ages: ${profileSource.children_ages.join(', ')}`);
+        }
+      }
+      if (profileSource.climate_preference) {
+        prefs.push(`🌤️ Climate Preference: ${profileSource.climate_preference}`);
+      }
+      if (profileSource.safety_priority) {
+        prefs.push(`🛡️ Safety Priority: ${profileSource.safety_priority}`);
       }
       
       if (prefs.length > 0) {
@@ -537,7 +572,10 @@ CRITICAL:
 - Automatically apply these preferences when the user searches for properties
 - If the user's query conflicts with their saved preferences, prioritize their explicit request
 - Remind them of their preferences when relevant ("Based on your $500K budget...")
-- Suggest properties that match their criteria without them having to repeat preferences`;
+- Suggest properties that match their criteria without them having to repeat preferences
+- If user has children, heavily weight school district quality in property evaluations
+- If safety_priority is high, prominently feature neighborhood safety data
+- If climate_preference is set, note climate alignment for suggested locations`;
       }
     }
 
@@ -558,9 +596,13 @@ ${personalizationContext}
 **SELECTED PROPERTY ANALYSIS**:
 The user has selected this specific property to analyze:
 - Address: ${propertyData.address}, ${propertyData.city}, ${propertyData.state}
-- Price: $${propertyData.price.toLocaleString()}
+- Price: $${propertyData.price?.toLocaleString?.() || propertyData.price}
 - Bedrooms: ${propertyData.beds} | Bathrooms: ${propertyData.baths}
 - Square Feet: ${propertyData.sqft}
+${propertyData.lotSize ? `- Lot Size: ${propertyData.lotSize} sqft` : ''}
+${propertyData.yearBuilt ? `- Year Built: ${propertyData.yearBuilt}` : ''}
+${propertyData.propertyType ? `- Property Type: ${propertyData.propertyType}` : ''}
+${propertyData.externalUrl ? `- Listing URL: ${propertyData.externalUrl}` : ''}
 ${propertyData.description ? `- Description: ${propertyData.description}` : ''}
 
 Provide a detailed analysis for this property.
@@ -894,6 +936,51 @@ ${contextInfo}
 ${propertyContext}
 
 ${profileInstructions[userProfile as keyof typeof profileInstructions] || profileInstructions['regular-buyer']}
+
+**MARKET & FINANCIAL INTELLIGENCE**:
+You are THE definitive real estate market and financial expert. You MUST:
+- Know current mortgage rate environment and how it impacts affordability
+- Understand property tax differences between states and cities (e.g., Texas has no state income tax but high property taxes ~2.2%; Florida has homestead exemptions; NJ/CT have the highest property taxes; California has Prop 13 limiting assessment increases)
+- Know state/local tax incentives: homestead exemptions, STAR programs (NY), Prop 13 (CA), no-income-tax states (TX, FL, NV, WA, TN)
+- Recommend loan programs: FHA (3.5% down, 580+ credit), VA (0% down for veterans), USDA (rural, 0% down), conventional (5-20% down), jumbo thresholds vary by county ($766,550 in 2025 for most areas)
+- Know first-time buyer programs by state: down payment assistance, tax credits (MCC), closing cost grants, state housing finance agencies
+- Understand 1031 exchanges for investors, depreciation benefits, capital gains exclusions ($250k single/$500k married for primary residence after 2 years)
+- Compare markets: appreciation rates, rent-to-price ratios, cap rates by metro area
+- Factor in insurance costs (flood zones require NFIP, hurricane-prone areas like FL/TX have higher premiums, wildfire risk in CA increases costs)
+- Know HOA trends, special assessments, and condo vs SFH cost structures
+- When user has children, heavily weight school district quality (GreatSchools ratings, state test scores)
+- Consider climate risks (flooding, hurricanes, wildfires, tornadoes) and how they affect insurance premiums and long-term property value
+- Consider neighborhood safety using crime data knowledge and trends
+- Proactively surface relevant tax benefits, loan programs, and market context the user may not have asked about
+
+${extensionMode ? `
+**EXTENSION MODE (Chrome Extension)**:
+- Keep responses SHORT and concise — under 250 words
+- Use bullet points, not long paragraphs
+- Skip asking about purpose — use the provided analysis mode
+- Do NOT ask follow-up questions unless truly needed
+` : ''}
+
+${extensionMode && propertyData && fullProfile?.onboarding_completed ? `
+**PROPERTY MATCH SCORE**:
+You MUST start your response with a single line: "MATCH_SCORE: X/10" where X is a number from 0 to 10 (can use decimals like 7.5).
+This score represents how well this specific property matches the user's complete profile considering ALL of these factors:
+- Budget fit (price vs. user's budget range)
+- Location match (vs. preferred cities/commute needs)
+- Property type match (vs. preferred types)
+- School quality (CRITICAL if user has children — weight this heavily)
+- Neighborhood safety (weighted by user's safety_priority setting)
+- Climate alignment (vs. user's climate_preference)
+- Investment potential (if investor: cap rate, appreciation, rental yield)
+- Tax implications (property tax burden, available programs like FHA/VA if user qualifies)
+- Lifestyle features (must-have features match, walkability)
+- Financing fit (eligible loan programs based on user's financing_preference)
+
+After the score line, explain your reasoning through the analysis bullets — reference which factors helped or hurt the score.
+Be specific: mention actual tax rates, applicable loan programs, school ratings, and market comparisons.
+If the score is below 5, clearly explain what makes this a poor match.
+If above 8, highlight why this is an excellent match.
+` : ''}
 
 ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image. Analyze it thoroughly for:\n- Property condition and quality\n- Visible features and upgrades\n- Estimated renovation needs\n- Market appeal and positioning\n' : ''}
 
