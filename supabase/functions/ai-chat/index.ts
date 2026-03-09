@@ -490,7 +490,7 @@ CRITICAL:
         
         if (profile) {
           fullProfile = profile;
-          if (profile.onboarding_completed && !userProfile) {
+          if (!userProfile) {
             userProfile = profile.buyer_type || 'regular-buyer';
           }
         }
