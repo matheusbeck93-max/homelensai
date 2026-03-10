@@ -120,6 +120,11 @@ All colors MUST be HSL.
 /* Smooth scroll behavior */
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
 }
 
 /* Focus visible styles for accessibility */

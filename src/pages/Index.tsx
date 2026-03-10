@@ -454,7 +454,7 @@ export default function Index() {
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
               {userName ? `Hello, ${userName.split(' ')[0]}` : 'Meet Your AI Real Estate Advisor'}
             </h1>
-            <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-4xl mx-auto px-4 whitespace-nowrap">
+            <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-4xl mx-auto px-4">
               {userName && primaryGoal
                 ? primaryGoal === 'invest' ? 'Your AI Investment Advisor — Find High-Yield Opportunities'
                 : primaryGoal === 'buy_home' ? 'Your AI Home Buying Copilot — Find the Perfect Home'
