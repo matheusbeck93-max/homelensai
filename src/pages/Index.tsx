@@ -772,6 +772,23 @@ export default function Index() {
                     <p>If you're actively considering buying, Pro gives you deeper financial clarity and more confident decision-making.</p>
                   </AccordionContent>
                 </AccordionItem>
+
+                <AccordionItem value="item-6" className="border rounded-lg px-4">
+                  <AccordionTrigger className="text-left">
+                    How does the HomeLens Chrome Extension work?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground space-y-3">
+                    <p>The HomeLens Chrome Extension brings AI-powered analysis directly to your browser while you browse listings on sites like Zillow, Redfin, and Realtor.com.</p>
+                    <p>Once installed, it automatically detects when you're viewing a property listing and lets you:</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>Get an instant AI analysis of the property with a single click</li>
+                      <li>See a personalized Property Match Score (0-10) based on your profile</li>
+                      <li>Ask follow-up questions about the property, neighborhood, schools, and more</li>
+                      <li>All conversations are saved and synced with your HomeLens account</li>
+                    </ul>
+                    <p>Simply install the extension from the Chrome Web Store, log in with your HomeLens account, and start analyzing listings as you browse.</p>
+                  </AccordionContent>
+                </AccordionItem>
               </Accordion>
             </motion.div>
           </div>
