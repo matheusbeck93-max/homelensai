@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { ComparisonProvider } from "@/contexts/ComparisonContext";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
