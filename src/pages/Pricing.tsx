@@ -194,7 +194,7 @@ export default function Pricing() {
         </div>
       </main>
 
-      <MobileBottomNav />
+      
     </div>
   );
 }
