@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useComparison } from "@/contexts/ComparisonContext";
 import { Navigation } from "@/components/Navigation";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+
 import { DetailedComparisonView } from "@/components/comparison/DetailedComparisonView";
 
 export default function Compare() {
