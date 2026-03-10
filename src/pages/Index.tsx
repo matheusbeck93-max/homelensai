@@ -10,7 +10,7 @@ import { UIBlock } from "@/types/ui-blocks";
 import { parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -66,6 +66,14 @@ const faqJsonLd = {
         "@type": "Answer",
         "text": "The Pro plan unlocks the full decision engine: advanced property analysis, detailed overpayment and risk indicators, long-term ownership projections, side-by-side comparison tools, saved analysis history, and ongoing tracking of properties and scenarios. If you're actively considering buying, Pro gives you deeper financial clarity and more confident decision-making."
       }
+    },
+    {
+      "@type": "Question",
+      "name": "How does the HomeLens Chrome Extension work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The HomeLens Chrome Extension brings AI-powered analysis directly to your browser while you browse listings on sites like Zillow, Redfin, and Realtor.com. Once installed, it automatically detects property listings and lets you get instant AI analysis, a personalized Property Match Score, and ask follow-up questions — all synced with your HomeLens account."
+      }
     }
   ]
 };
@@ -96,6 +104,17 @@ export default function Index() {
   const [userName, setUserName] = useState<string | null>(null);
   const [primaryGoal, setPrimaryGoal] = useState<string | null>(null);
   const typingPlaceholder = useTypingPlaceholder();
+  const [extensionBannerDismissed, setExtensionBannerDismissed] = useState(() => 
+    localStorage.getItem('extension-banner-dismissed') === 'true'
+  );
+
+  const handleDismissExtensionBanner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExtensionBannerDismissed(true);
+    localStorage.setItem('extension-banner-dismissed', 'true');
+  };
+
+  const CHROME_EXTENSION_URL = "https://chromewebstore.google.com/detail/homelens";
 
   // Filter state with defaults
   const [filters, setFilters] = useState<PropertyFiltersState>({
@@ -402,6 +421,31 @@ export default function Index() {
 
       <Navigation />
 
+      {/* Chrome Extension Banner - only for logged-in users who haven't dismissed */}
+      {user && !extensionBannerDismissed && !hasStartedConversation && (
+        <a
+          href={CHROME_EXTENSION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-3 relative group cursor-pointer hover:opacity-95 transition-opacity"
+        >
+          <div className="max-w-5xl mx-auto flex items-center justify-center gap-3">
+            <Chrome className="h-5 w-5 flex-shrink-0" />
+            <p className="text-sm font-medium">
+              <span className="hidden sm:inline">🚀 Analyze any listing instantly! Install the HomeLens Chrome Extension and get AI insights directly on Zillow, Redfin & more.</span>
+              <span className="sm:hidden">🚀 Get the HomeLens Chrome Extension!</span>
+            </p>
+            <button
+              onClick={handleDismissExtensionBanner}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-primary-foreground/20 transition-colors"
+              aria-label="Dismiss banner"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </a>
+      )}
+
       {/* Hero Section */}
       {!hasStartedConversation ?
       <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
@@ -449,7 +493,7 @@ export default function Index() {
             </form>
 
             {/* Feature Cards with Animations */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-10 max-w-5xl mx-auto px-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-10 max-w-6xl mx-auto px-4">
               <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -520,6 +564,26 @@ export default function Index() {
                     Understand your buying power and long-term financial impact.
                   </p>
                 </Card>
+              </motion.div>
+
+              <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.5 }}>
+
+                <a href={CHROME_EXTENSION_URL} target="_blank" rel="noopener noreferrer" className="block h-full">
+                  <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Chrome className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="font-semibold">Chrome Extension</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Analyze any listing directly on Zillow, Redfin & more with one click.
+                    </p>
+                  </Card>
+                </a>
               </motion.div>
             </div>
           </div>
@@ -714,6 +778,23 @@ export default function Index() {
                       <li>Ongoing tracking of properties and scenarios</li>
                     </ul>
                     <p>If you're actively considering buying, Pro gives you deeper financial clarity and more confident decision-making.</p>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-6" className="border rounded-lg px-4">
+                  <AccordionTrigger className="text-left">
+                    How does the HomeLens Chrome Extension work?
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground space-y-3">
+                    <p>The HomeLens Chrome Extension brings AI-powered analysis directly to your browser while you browse listings on sites like Zillow, Redfin, and Realtor.com.</p>
+                    <p>Once installed, it automatically detects when you're viewing a property listing and lets you:</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>Get an instant AI analysis of the property with a single click</li>
+                      <li>See a personalized Property Match Score (0-10) based on your profile</li>
+                      <li>Ask follow-up questions about the property, neighborhood, schools, and more</li>
+                      <li>All conversations are saved and synced with your HomeLens account</li>
+                    </ul>
+                    <p>Simply install the extension from the Chrome Web Store, log in with your HomeLens account, and start analyzing listings as you browse.</p>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
