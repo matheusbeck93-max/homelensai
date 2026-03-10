@@ -66,6 +66,14 @@ const faqJsonLd = {
         "@type": "Answer",
         "text": "The Pro plan unlocks the full decision engine: advanced property analysis, detailed overpayment and risk indicators, long-term ownership projections, side-by-side comparison tools, saved analysis history, and ongoing tracking of properties and scenarios. If you're actively considering buying, Pro gives you deeper financial clarity and more confident decision-making."
       }
+    },
+    {
+      "@type": "Question",
+      "name": "How does the HomeLens Chrome Extension work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The HomeLens Chrome Extension brings AI-powered analysis directly to your browser while you browse listings on sites like Zillow, Redfin, and Realtor.com. Once installed, it automatically detects property listings and lets you get instant AI analysis, a personalized Property Match Score, and ask follow-up questions — all synced with your HomeLens account."
+      }
     }
   ]
 };
