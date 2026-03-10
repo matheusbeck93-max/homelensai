@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Bed, Bath, Maximize, ExternalLink } from "lucide-react";
