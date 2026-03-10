@@ -413,6 +413,31 @@ export default function Index() {
 
       <Navigation />
 
+      {/* Chrome Extension Banner - only for logged-in users who haven't dismissed */}
+      {user && !extensionBannerDismissed && !hasStartedConversation && (
+        <a
+          href={CHROME_EXTENSION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-4 py-3 relative group cursor-pointer hover:opacity-95 transition-opacity"
+        >
+          <div className="max-w-5xl mx-auto flex items-center justify-center gap-3">
+            <Chrome className="h-5 w-5 flex-shrink-0" />
+            <p className="text-sm font-medium">
+              <span className="hidden sm:inline">🚀 Analyze any listing instantly! Install the HomeLens Chrome Extension and get AI insights directly on Zillow, Redfin & more.</span>
+              <span className="sm:hidden">🚀 Get the HomeLens Chrome Extension!</span>
+            </p>
+            <button
+              onClick={handleDismissExtensionBanner}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-primary-foreground/20 transition-colors"
+              aria-label="Dismiss banner"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </a>
+      )}
+
       {/* Hero Section */}
       {!hasStartedConversation ?
       <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
