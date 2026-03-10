@@ -129,7 +129,7 @@ export default function Favorites() {
         )}
       </div>
 
-      <MobileBottomNav />
+      
     </div>
   );
 }

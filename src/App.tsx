@@ -91,7 +91,7 @@ function App() {
               </Suspense>
               <ComparisonFloatingBar />
               <BackToTop />
-              <MobileBottomNav />
+              
               <CookieConsent />
             </BrowserRouter>
           </TooltipProvider>

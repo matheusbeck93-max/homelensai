@@ -27,7 +27,7 @@ export default function Compare() {
         onClose={() => navigate("/")}
         onRemove={removeFromComparison}
       />
-      <MobileBottomNav />
+      
     </div>
   );
 }
