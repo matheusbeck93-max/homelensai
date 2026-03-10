@@ -96,6 +96,17 @@ export default function Index() {
   const [userName, setUserName] = useState<string | null>(null);
   const [primaryGoal, setPrimaryGoal] = useState<string | null>(null);
   const typingPlaceholder = useTypingPlaceholder();
+  const [extensionBannerDismissed, setExtensionBannerDismissed] = useState(() => 
+    localStorage.getItem('extension-banner-dismissed') === 'true'
+  );
+
+  const handleDismissExtensionBanner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExtensionBannerDismissed(true);
+    localStorage.setItem('extension-banner-dismissed', 'true');
+  };
+
+  const CHROME_EXTENSION_URL = "https://chromewebstore.google.com/detail/homelens";
 
   // Filter state with defaults
   const [filters, setFilters] = useState<PropertyFiltersState>({
