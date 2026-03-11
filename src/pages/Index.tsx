@@ -571,8 +571,8 @@ export default function Index() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.5 }}>
 
-                <a href={CHROME_EXTENSION_URL} target="_blank" rel="noopener noreferrer" className="block h-full">
-                  <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+<div className="block h-full cursor-default">
+                <Card className="p-5 text-left h-full border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Chrome className="h-5 w-5 text-primary" />
@@ -583,7 +583,7 @@ export default function Index() {
                       Analyze any listing directly on Zillow, Redfin & more with one click.
                     </p>
                   </Card>
-                </a>
+                </div>
               </motion.div>
             </div>
           </div>
