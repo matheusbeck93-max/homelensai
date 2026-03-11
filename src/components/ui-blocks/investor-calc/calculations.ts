@@ -1,4 +1,4 @@
-import { InvestorInputs, ComputedResults, YearProjection, StressScenario } from './types';
+import { InvestorInputs, ComputedResults, YearProjection, StressScenario, STATE_CAPITAL_GAINS_RATES } from './types';
 
 function calcMonthlyMortgage(loanAmount: number, ratePct: number, years: number): number {
   const monthlyRate = ratePct / 100 / 12;
@@ -10,9 +10,14 @@ function calcMonthlyMortgage(loanAmount: number, ratePct: number, years: number)
 function calcLoanBalance(loanAmount: number, ratePct: number, years: number, monthsPaid: number): number {
   const monthlyRate = ratePct / 100 / 12;
   const n = years * 12;
+  if (monthsPaid >= n) return 0;
   if (monthlyRate <= 0) return Math.max(0, loanAmount - (loanAmount / n) * monthsPaid);
   const payment = calcMonthlyMortgage(loanAmount, ratePct, years);
   return loanAmount * Math.pow(1 + monthlyRate, monthsPaid) - payment * ((Math.pow(1 + monthlyRate, monthsPaid) - 1) / monthlyRate);
+}
+
+function getArmInitialYears(armPeriod: string): number {
+  return parseInt(armPeriod.split('/')[0]) || 7;
 }
 
 export function computeResults(inputs: InvestorInputs): ComputedResults {
@@ -23,6 +28,7 @@ export function computeResults(inputs: InvestorInputs): ComputedResults {
     : inputs.closingCostsDollar;
   const totalCashInvested = downPayment + closingCosts;
 
+  // Initial monthly mortgage (at initial rate)
   const monthlyMortgage = calcMonthlyMortgage(loanAmount, inputs.ratePct, inputs.years);
   const monthlyPMI = inputs.downPct < 20 ? (loanAmount * 0.01) / 12 : 0;
 
@@ -52,112 +58,132 @@ export function computeResults(inputs: InvestorInputs): ComputedResults {
   const breakEvenOccupancy = inputs.rentMonthly > 0 ? (totalMonthlyExpenses / inputs.rentMonthly) * 100 : 0;
   const breakEvenRent = (1 - inputs.vacancyPct / 100) > 0 ? totalMonthlyExpenses / (1 - inputs.vacancyPct / 100) : 0;
 
-  // ARM scenario
+  // ARM scenario (year 1 vs post-adjustment comparison)
+  const isArm = inputs.loanType === 'arm';
+  const armInitialYears = isArm ? getArmInitialYears(inputs.armPeriod) : inputs.years;
+  const postArmRate = inputs.armExpectedRate ?? (inputs.ratePct + inputs.armRateCap);
+
   let armMonthlyMortgage: number | undefined;
   let armMonthlyCashFlow: number | undefined;
-  if (inputs.loanType === 'arm') {
-    const armRate = inputs.ratePct + inputs.armRateCap;
-    armMonthlyMortgage = calcMonthlyMortgage(loanAmount, armRate, inputs.years);
-    const armTotalExpenses = armMonthlyMortgage + monthlyPMI + monthlyTax + monthlyInsurance +
+  if (isArm) {
+    // Compute balance at ARM adjustment point
+    const balAtAdj = Math.max(0, calcLoanBalance(loanAmount, inputs.ratePct, inputs.years, armInitialYears * 12));
+    const remainingTerm = inputs.years - armInitialYears;
+    if (remainingTerm > 0 && balAtAdj > 0) {
+      armMonthlyMortgage = calcMonthlyMortgage(balAtAdj, postArmRate, remainingTerm);
+    } else {
+      armMonthlyMortgage = monthlyMortgage;
+    }
+    // PMI may or may not apply after ARM adjustment
+    const pmiAfterAdj = (inputs.downPct < 20 && balAtAdj > inputs.price * 0.80) ? monthlyPMI : 0;
+    const armTotalExpenses = (armMonthlyMortgage ?? monthlyMortgage) + pmiAfterAdj + monthlyTax + monthlyInsurance +
       monthlyRepairs + monthlyCapex + monthlyManagement + monthlyHOA;
     armMonthlyCashFlow = effectiveRent - armTotalExpenses;
   }
 
-  // Projections
-  const projections: YearProjection[] = [];
-  let cumulativeCashFlow = 0;
-  const yearsToProject = [1, 2, 3, 5, 10, inputs.holdingPeriod];
-  const uniqueYears = [...new Set(yearsToProject)].filter(y => y > 0).sort((a, b) => a - b);
+  // Full year-by-year projections (ARM-aware, PMI-aware)
+  const displayYears = [1, 2, 3, 5, 10, inputs.holdingPeriod];
+  const uniqueDisplayYears = [...new Set(displayYears)].filter(y => y > 0).sort((a, b) => a - b);
+  const maxYear = Math.max(inputs.holdingPeriod, ...uniqueDisplayYears);
 
-  for (const year of uniqueYears) {
-    const propValue = inputs.price * Math.pow(1 + inputs.appreciationPct / 100, year);
-    const loanBal = Math.max(0, calcLoanBalance(loanAmount, inputs.ratePct, inputs.years, year * 12));
+  const fullProjections: YearProjection[] = [];
+  let cumCF = 0;
 
-    // Compound rent and expense growth
-    let yearCashFlow = 0;
-    for (let y = (year === uniqueYears[0] ? 1 : (uniqueYears[uniqueYears.indexOf(year) - 1] || 0) + 1); y <= year; y++) {
-      const rentY = inputs.rentMonthly * Math.pow(1 + inputs.rentGrowthPct / 100, y - 1);
-      const effRentY = rentY * (1 - inputs.vacancyPct / 100);
-      const mgmtY = inputs.selfManaged ? 0 : rentY * (inputs.managementPct / 100);
-      const repairsY = rentY * (inputs.repairsPct / 100);
-      const capexY = rentY * (inputs.capexPct / 100);
-      const expGrowth = Math.pow(1 + inputs.expenseGrowthPct / 100, y - 1);
-      const taxY = (inputs.price * (inputs.taxPct / 100)) / 12 * expGrowth;
-      const insY = (inputs.insuranceAnnual / 12) * expGrowth;
-      const totalExpY = monthlyMortgage + monthlyPMI + taxY + insY + repairsY + capexY + mgmtY + inputs.hoaMonthly;
-      yearCashFlow += (effRentY - totalExpY) * 12;
+  // Pre-compute ARM transition values
+  const balanceAtArmAdj = isArm
+    ? Math.max(0, calcLoanBalance(loanAmount, inputs.ratePct, inputs.years, armInitialYears * 12))
+    : 0;
+  const remainingTermAfterArm = inputs.years - armInitialYears;
+  const postArmPayment = isArm && remainingTermAfterArm > 0 && balanceAtArmAdj > 0
+    ? calcMonthlyMortgage(balanceAtArmAdj, postArmRate, remainingTermAfterArm)
+    : monthlyMortgage;
+
+  for (let y = 1; y <= maxYear; y++) {
+    const propValue = inputs.price * Math.pow(1 + inputs.appreciationPct / 100, y);
+
+    // Loan balance and mortgage payment (ARM-aware)
+    let loanBal: number;
+    let mortPayment: number;
+
+    if (isArm && y > armInitialYears && remainingTermAfterArm > 0 && balanceAtArmAdj > 0) {
+      mortPayment = postArmPayment;
+      loanBal = Math.max(0, calcLoanBalance(balanceAtArmAdj, postArmRate, remainingTermAfterArm, (y - armInitialYears) * 12));
+    } else {
+      mortPayment = monthlyMortgage;
+      loanBal = Math.max(0, calcLoanBalance(loanAmount, inputs.ratePct, inputs.years, y * 12));
     }
 
-    // For simpler computation, recalculate for this specific year
-    const rentThisYear = inputs.rentMonthly * Math.pow(1 + inputs.rentGrowthPct / 100, year - 1);
-    const effRentThisYear = rentThisYear * (1 - inputs.vacancyPct / 100);
-    const expGrowth = Math.pow(1 + inputs.expenseGrowthPct / 100, year - 1);
-    const mgmtThisYear = inputs.selfManaged ? 0 : rentThisYear * (inputs.managementPct / 100);
-    const opExThisYear = ((inputs.price * (inputs.taxPct / 100)) / 12 * expGrowth +
-      (inputs.insuranceAnnual / 12) * expGrowth +
-      rentThisYear * (inputs.repairsPct / 100) +
-      rentThisYear * (inputs.capexPct / 100) +
-      mgmtThisYear + inputs.hoaMonthly) * 12;
-    const noiThisYear = effRentThisYear * 12 - opExThisYear;
-    const cashFlowThisYear = noiThisYear - (monthlyMortgage + monthlyPMI) * 12;
+    // PMI: stops when loan balance <= 80% of original purchase price
+    const pmiThisYear = (inputs.downPct < 20 && loanBal > inputs.price * 0.80)
+      ? (loanAmount * 0.01) / 12
+      : 0;
 
-    // Cumulative: sum all years' cash flows
-    let cumCF = 0;
-    for (let y = 1; y <= year; y++) {
-      const rY = inputs.rentMonthly * Math.pow(1 + inputs.rentGrowthPct / 100, y - 1);
-      const eRY = rY * (1 - inputs.vacancyPct / 100);
-      const eG = Math.pow(1 + inputs.expenseGrowthPct / 100, y - 1);
-      const mY = inputs.selfManaged ? 0 : rY * (inputs.managementPct / 100);
-      const oY = ((inputs.price * (inputs.taxPct / 100)) / 12 * eG +
-        (inputs.insuranceAnnual / 12) * eG +
-        rY * (inputs.repairsPct / 100) +
-        rY * (inputs.capexPct / 100) +
-        mY + inputs.hoaMonthly) * 12;
-      cumCF += eRY * 12 - oY - (monthlyMortgage + monthlyPMI) * 12;
-    }
+    // Rent and expenses for this year
+    const rentY = inputs.rentMonthly * Math.pow(1 + inputs.rentGrowthPct / 100, y - 1);
+    const effRentY = rentY * (1 - inputs.vacancyPct / 100);
+    const expGrowth = Math.pow(1 + inputs.expenseGrowthPct / 100, y - 1);
+    const mgmtY = inputs.selfManaged ? 0 : rentY * (mgmtPct / 100);
+    const taxY = (inputs.price * (inputs.taxPct / 100)) / 12 * expGrowth;
+    const insY = (inputs.insuranceAnnual / 12) * expGrowth;
+    const repairsY = rentY * (inputs.repairsPct / 100);
+    const capexY = rentY * (inputs.capexPct / 100);
+
+    const totalExpY = mortPayment + pmiThisYear + taxY + insY + repairsY + capexY + mgmtY + inputs.hoaMonthly;
+    const annualCashFlowY = (effRentY - totalExpY) * 12;
+    cumCF += annualCashFlowY;
+
+    const opExY = (taxY + insY + repairsY + capexY + mgmtY + inputs.hoaMonthly) * 12;
+    const noiY = effRentY * 12 - opExY;
 
     const appreciationEquity = propValue - inputs.price;
     const amortizationEquity = loanAmount - loanBal;
 
-    projections.push({
-      year,
+    fullProjections.push({
+      year: y,
       propertyValue: propValue,
       equity: propValue - loanBal,
       appreciationEquity,
       amortizationEquity,
-      annualRent: rentThisYear * 12,
-      annualNOI: noiThisYear,
-      annualCashFlow: cashFlowThisYear,
+      annualRent: rentY * 12,
+      annualNOI: noiY,
+      annualCashFlow: annualCashFlowY,
       cumulativeCashFlow: cumCF,
       loanBalance: loanBal,
     });
   }
 
+  // Filter for display
+  const projections = fullProjections.filter(p => uniqueDisplayYears.includes(p.year));
+
   // Exit calculations
   const hp = inputs.holdingPeriod;
   const projectedSalePrice = inputs.price * Math.pow(1 + inputs.appreciationPct / 100, hp);
   const sellingCosts = projectedSalePrice * (inputs.sellingCostsPct / 100);
-  const remainingLoanBalance = Math.max(0, calcLoanBalance(loanAmount, inputs.ratePct, inputs.years, hp * 12));
+  const holdingProj = fullProjections.find(p => p.year === hp);
+  const remainingLoanBalance = holdingProj?.loanBalance ?? Math.max(0, calcLoanBalance(loanAmount, inputs.ratePct, inputs.years, hp * 12));
 
-  // Capital gains
+  // Capital gains — separate federal and state
   const gain = projectedSalePrice - inputs.price - sellingCosts;
-  let capitalGainsTax = 0;
+  const stateCapGainsRate = STATE_CAPITAL_GAINS_RATES[inputs.state] ?? 0;
+  let federalCapitalGainsTax = 0;
+  let stateCapitalGainsTax = 0;
+
   if (gain > 0) {
+    let taxableGain = gain;
     if (inputs.investorProfile === 'primary' && hp >= 2) {
-      const taxableGain = Math.max(0, gain - 250000); // Single exemption
-      capitalGainsTax = taxableGain * (inputs.marginalTaxRate / 100);
-    } else {
-      capitalGainsTax = gain * (inputs.marginalTaxRate / 100);
+      taxableGain = Math.max(0, gain - 250000);
     }
+    federalCapitalGainsTax = taxableGain * (inputs.marginalTaxRate / 100);
+    stateCapitalGainsTax = taxableGain * (stateCapGainsRate / 100);
   }
 
+  const capitalGainsTax = federalCapitalGainsTax + stateCapitalGainsTax;
   const netProceeds = projectedSalePrice - sellingCosts - remainingLoanBalance - capitalGainsTax;
-  const holdingProjection = projections.find(p => p.year === hp);
-  const cumulativeCF = holdingProjection?.cumulativeCashFlow || 0;
+  const cumulativeCF = holdingProj?.cumulativeCashFlow ?? 0;
   const totalReturn = netProceeds + cumulativeCF - totalCashInvested;
 
-  // IRR calculation using Newton's method
-  const irr = calcIRR(totalCashInvested, projections, netProceeds, hp);
+  // IRR calculation using Newton's method (uses full year-by-year data)
+  const irr = calcIRR(totalCashInvested, fullProjections, netProceeds, hp);
 
   return {
     loanAmount, downPayment, closingCosts, totalCashInvested,
@@ -168,28 +194,19 @@ export function computeResults(inputs: InvestorInputs): ComputedResults {
     capRate, cashOnCash, grm, dscr, breakEvenOccupancy, breakEvenRent,
     armMonthlyMortgage, armMonthlyCashFlow,
     projections, irr,
-    projectedSalePrice, sellingCosts, remainingLoanBalance, capitalGainsTax, netProceeds, totalReturn,
+    projectedSalePrice, sellingCosts, remainingLoanBalance,
+    capitalGainsTax, federalCapitalGainsTax, stateCapitalGainsTax, stateCapitalGainsRate: stateCapGainsRate,
+    netProceeds, totalReturn,
   };
 }
 
-function calcIRR(initialInvestment: number, projections: YearProjection[], netProceeds: number, holdingPeriod: number): number {
-  // Build cash flow array: year 0 = -investment, years 1..hp = annual cash flow, year hp += netProceeds
+function calcIRR(initialInvestment: number, fullProjections: YearProjection[], netProceeds: number, holdingPeriod: number): number {
   const cashFlows: number[] = [-initialInvestment];
   for (let y = 1; y <= holdingPeriod; y++) {
-    const proj = projections.find(p => p.year === y);
-    let cf = 0;
-    if (proj) {
-      cf = proj.annualCashFlow;
-    }
-    if (y === holdingPeriod) {
-      cf += netProceeds;
-    }
+    const proj = fullProjections.find(p => p.year === y);
+    let cf = proj?.annualCashFlow ?? 0;
+    if (y === holdingPeriod) cf += netProceeds;
     cashFlows.push(cf);
-  }
-
-  // Fill gaps
-  while (cashFlows.length <= holdingPeriod) {
-    cashFlows.push(0);
   }
 
   // Newton-Raphson IRR
@@ -211,9 +228,24 @@ function calcIRR(initialInvestment: number, projections: YearProjection[], netPr
 }
 
 export function computeStressScenarios(inputs: InvestorInputs): StressScenario[] {
-  const bear: InvestorInputs = { ...inputs, vacancyPct: inputs.vacancyPct + 10, rentGrowthPct: 0, appreciationPct: 0 };
+  const isArm = inputs.loanType === 'arm';
+  const currentArmRate = inputs.armExpectedRate ?? (inputs.ratePct + inputs.armRateCap);
+
+  const bear: InvestorInputs = {
+    ...inputs,
+    vacancyPct: inputs.vacancyPct + 10,
+    rentGrowthPct: 0,
+    appreciationPct: 0,
+    ...(isArm ? { armExpectedRate: currentArmRate + 1 } : {}),
+  };
   const base = inputs;
-  const bull: InvestorInputs = { ...inputs, vacancyPct: Math.max(0, inputs.vacancyPct - 5), rentGrowthPct: 5, appreciationPct: 5 };
+  const bull: InvestorInputs = {
+    ...inputs,
+    vacancyPct: Math.max(0, inputs.vacancyPct - 5),
+    rentGrowthPct: 5,
+    appreciationPct: 5,
+    ...(isArm ? { armExpectedRate: Math.max(0, currentArmRate - 1) } : {}),
+  };
 
   const bearR = computeResults(bear);
   const baseR = computeResults(base);
