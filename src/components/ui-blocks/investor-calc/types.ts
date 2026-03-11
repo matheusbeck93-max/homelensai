@@ -7,6 +7,7 @@ export interface InvestorInputs {
   loanType: 'fixed' | 'arm';
   armPeriod: '5/1' | '7/1' | '10/1';
   armRateCap: number;
+  armExpectedRate: number;
 
   // Rental Income
   rentMonthly: number;
@@ -83,6 +84,9 @@ export interface ComputedResults {
   sellingCosts: number;
   remainingLoanBalance: number;
   capitalGainsTax: number;
+  federalCapitalGainsTax: number;
+  stateCapitalGainsTax: number;
+  stateCapitalGainsRate: number;
   netProceeds: number;
   totalReturn: number;
 }
@@ -144,6 +148,14 @@ export const FALLBACK_TAX_RATES: Record<string, number> = {
   SD: 1.31, TN: 0.71, TX: 1.80, UT: 0.57, VT: 1.90, VA: 0.82, WA: 0.98, WV: 0.59, WI: 1.85, WY: 0.61, DC: 0.56,
 };
 
+export const STATE_CAPITAL_GAINS_RATES: Record<string, number> = {
+  AL: 5.0, AK: 0.0, AZ: 2.5, AR: 4.4, CA: 13.3, CO: 4.4, CT: 6.99, DE: 6.6, FL: 0.0, GA: 5.75,
+  HI: 7.25, ID: 5.8, IL: 4.95, IN: 3.23, IA: 6.0, KS: 5.7, KY: 5.0, LA: 4.25, ME: 7.15, MD: 5.75,
+  MA: 5.0, MI: 4.25, MN: 9.85, MS: 5.0, MO: 5.3, MT: 6.75, NE: 6.84, NV: 0.0, NH: 0.0, NJ: 10.75,
+  NM: 5.9, NY: 10.9, NC: 4.75, ND: 2.9, OH: 3.99, OK: 4.75, OR: 9.9, PA: 3.07, RI: 5.99, SC: 6.5,
+  SD: 0.0, TN: 0.0, TX: 0.0, UT: 4.85, VT: 8.75, VA: 5.75, WA: 7.0, WV: 6.5, WI: 7.65, WY: 0.0, DC: 10.75,
+};
+
 export const FLOOD_RISK_STATES = ['FL', 'TX', 'LA', 'SC', 'NC', 'NJ', 'NY', 'MS', 'AL', 'GA'];
 
 export const DEFAULT_INPUTS: InvestorInputs = {
@@ -152,8 +164,9 @@ export const DEFAULT_INPUTS: InvestorInputs = {
   ratePct: 7.0,
   years: 30,
   loanType: 'fixed',
-  armPeriod: '5/1',
+  armPeriod: '7/1',
   armRateCap: 2,
+  armExpectedRate: 9.0,
   rentMonthly: 2200,
   vacancyPct: 8,
   rentGrowthPct: 3,
