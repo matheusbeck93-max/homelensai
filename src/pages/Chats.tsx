@@ -11,11 +11,35 @@ import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Loader2, MessageSquare, Plus } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Plus, Target } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
+
+// ── Match Score parser ──
+function parseMatchScore(content: string): { score: number | null; cleanContent: string } {
+  const match = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
+  if (match) {
+    const score = parseFloat(match[1]);
+    const cleanContent = content.slice(match[0].length).trim();
+    return { score: Number.isFinite(score) ? score : null, cleanContent };
+  }
+  return { score: null, cleanContent: content };
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 8) return 'hsl(var(--chart-2))';  // green from design system
+  if (score >= 5) return 'hsl(var(--chart-4))';  // yellow
+  return 'hsl(var(--destructive))';  // red
+}
+
+function getScoreLabel(score: number): string {
+  if (score >= 8) return 'Excellent Match';
+  if (score >= 6) return 'Good Match';
+  if (score >= 4) return 'Fair Match';
+  return 'Poor Match';
+}
 
 interface PropertyLink {
   title: string;
@@ -191,12 +215,16 @@ export default function Chats() {
 
       if (error) throw error;
 
+      const rawMessage = data?.message || 'I could not process that request.';
+      const { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+
       const assistantMessage: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
-        content: data?.message || 'I could not process that request.',
+        content: cleanContent,
         links: data?.links || [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        metadata: matchScore !== null ? { matchScore } : undefined
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -207,11 +235,11 @@ export default function Chats() {
       }
 
       // Check if this was an analysis that can be compared
-      if (extractedUrl && data?.message) {
-        const parsed = parseAnalyzedProperty(data.message, extractedUrl);
+      if (extractedUrl && cleanContent) {
+        const parsed = parseAnalyzedProperty(cleanContent, extractedUrl);
         if (parsed) {
           // Store for potential comparison
-          assistantMessage.metadata = { analyzedProperty: parsed };
+          assistantMessage.metadata = { ...assistantMessage.metadata, analyzedProperty: parsed };
         }
       }
 
@@ -411,6 +439,34 @@ export default function Chats() {
 
                   {message.role === 'assistant' ?
                   <div className="prose prose-sm dark:prose-invert max-w-none">
+                      {/* Match Score Badge */}
+                      {message.metadata?.matchScore != null && (
+                        <div className="flex items-center gap-3 mb-3 p-3 rounded-lg border bg-background/50">
+                          <div className="relative w-12 h-12 flex-shrink-0">
+                            <svg width="48" height="48" viewBox="0 0 48 48">
+                              <circle cx="24" cy="24" r="19" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                              <circle
+                                cx="24" cy="24" r="19"
+                                fill="none"
+                                stroke={getScoreColor(message.metadata.matchScore)}
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeDasharray={`${(message.metadata.matchScore / 10) * (2 * Math.PI * 19)} ${2 * Math.PI * 19}`}
+                                transform="rotate(-90 24 24)"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: getScoreColor(message.metadata.matchScore) }}>
+                              {message.metadata.matchScore}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold" style={{ color: getScoreColor(message.metadata.matchScore) }}>
+                              {getScoreLabel(message.metadata.matchScore)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Property Match Score</div>
+                          </div>
+                        </div>
+                      )}
                       <ReactMarkdown
                       components={{
                         a: ({ href, children }) =>
