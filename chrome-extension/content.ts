@@ -144,6 +144,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
+// Never run on HomeLens itself
+const hostname = window.location.hostname;
+if (hostname === 'homelens.ai' || hostname.endsWith('.homelens.ai') || hostname.endsWith('.lovable.app') || hostname.endsWith('.lovable.dev')) {
+  // Skip injection entirely
+} else {
+
 // Wait for dynamic content (React/Next.js sites) then run detection
 setTimeout(() => {
   lastUrl = window.location.href;
