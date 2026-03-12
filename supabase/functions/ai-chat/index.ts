@@ -609,6 +609,26 @@ CRITICAL:
 
         console.log('Analysis prompt created, calling Lovable AI Gateway...');
       
+      // Fetch user profile for match score (Firecrawl path)
+      let firecrawlMatchScoreInstructions = '';
+      if (authHeader) {
+        try {
+          const fcSupabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const fcSupabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          const fcSupabase = createClient(fcSupabaseUrl, fcSupabaseKey);
+          const fcToken = authHeader.replace('Bearer ', '');
+          const { data: { user: fcUser } } = await fcSupabase.auth.getUser(fcToken);
+          if (fcUser) {
+            const { data: fcProfile } = await fcSupabase.from('profiles').select('*').eq('id', fcUser.id).single();
+            if (fcProfile && fcProfile.onboarding_completed) {
+              firecrawlMatchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${fcProfile.budget_min || 0} - $${fcProfile.budget_max || 'unlimited'}\n- Preferred cities: ${fcProfile.preferred_cities?.join(', ') || 'any'}\n- Property types: ${fcProfile.property_types?.join(', ') || 'any'}\n- Has children: ${fcProfile.has_children ? 'Yes' : 'No'}\n- Safety priority: ${fcProfile.safety_priority || 'medium'}\n- Risk level: ${fcProfile.risk_level || 'moderate'}\n- Min bedrooms: ${fcProfile.min_bedrooms || 'any'}\n- Min bathrooms: ${fcProfile.min_bathrooms || 'any'}\n- Must-have features: ${fcProfile.must_have_features?.join(', ') || 'none'}\nAfter the score line, continue with the analysis.`;
+            }
+          }
+        } catch (profileErr) {
+          console.error('Error fetching profile for match score (Firecrawl path):', profileErr);
+        }
+      }
+
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -618,7 +638,7 @@ CRITICAL:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: 'You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.' },
+            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}` },
             { role: 'user', content: analysisPrompt }
           ],
         }),
