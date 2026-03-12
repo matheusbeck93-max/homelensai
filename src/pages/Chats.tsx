@@ -11,11 +11,35 @@ import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Loader2, MessageSquare, Plus } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Plus, Target } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
+
+// ── Match Score parser ──
+function parseMatchScore(content: string): { score: number | null; cleanContent: string } {
+  const match = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
+  if (match) {
+    const score = parseFloat(match[1]);
+    const cleanContent = content.slice(match[0].length).trim();
+    return { score: Number.isFinite(score) ? score : null, cleanContent };
+  }
+  return { score: null, cleanContent: content };
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 8) return 'hsl(var(--chart-2))';  // green from design system
+  if (score >= 5) return 'hsl(var(--chart-4))';  // yellow
+  return 'hsl(var(--destructive))';  // red
+}
+
+function getScoreLabel(score: number): string {
+  if (score >= 8) return 'Excellent Match';
+  if (score >= 6) return 'Good Match';
+  if (score >= 4) return 'Fair Match';
+  return 'Poor Match';
+}
 
 interface PropertyLink {
   title: string;
