@@ -439,6 +439,34 @@ export default function Chats() {
 
                   {message.role === 'assistant' ?
                   <div className="prose prose-sm dark:prose-invert max-w-none">
+                      {/* Match Score Badge */}
+                      {message.metadata?.matchScore != null && (
+                        <div className="flex items-center gap-3 mb-3 p-3 rounded-lg border bg-background/50">
+                          <div className="relative w-12 h-12 flex-shrink-0">
+                            <svg width="48" height="48" viewBox="0 0 48 48">
+                              <circle cx="24" cy="24" r="19" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                              <circle
+                                cx="24" cy="24" r="19"
+                                fill="none"
+                                stroke={getScoreColor(message.metadata.matchScore)}
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeDasharray={`${(message.metadata.matchScore / 10) * (2 * Math.PI * 19)} ${2 * Math.PI * 19}`}
+                                transform="rotate(-90 24 24)"
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color: getScoreColor(message.metadata.matchScore) }}>
+                              {message.metadata.matchScore}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold" style={{ color: getScoreColor(message.metadata.matchScore) }}>
+                              {getScoreLabel(message.metadata.matchScore)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Property Match Score</div>
+                          </div>
+                        </div>
+                      )}
                       <ReactMarkdown
                       components={{
                         a: ({ href, children }) =>
