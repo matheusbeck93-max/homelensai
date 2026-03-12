@@ -170,3 +170,5 @@ setTimeout(() => {
     }
   }, 2000);
 }, 1500);
+
+} // end hostname guard
