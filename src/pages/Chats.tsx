@@ -215,12 +215,16 @@ export default function Chats() {
 
       if (error) throw error;
 
+      const rawMessage = data?.message || 'I could not process that request.';
+      const { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+
       const assistantMessage: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
-        content: data?.message || 'I could not process that request.',
+        content: cleanContent,
         links: data?.links || [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        metadata: matchScore !== null ? { matchScore } : undefined
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -231,11 +235,11 @@ export default function Chats() {
       }
 
       // Check if this was an analysis that can be compared
-      if (extractedUrl && data?.message) {
-        const parsed = parseAnalyzedProperty(data.message, extractedUrl);
+      if (extractedUrl && cleanContent) {
+        const parsed = parseAnalyzedProperty(cleanContent, extractedUrl);
         if (parsed) {
           // Store for potential comparison
-          assistantMessage.metadata = { analyzedProperty: parsed };
+          assistantMessage.metadata = { ...assistantMessage.metadata, analyzedProperty: parsed };
         }
       }
 
