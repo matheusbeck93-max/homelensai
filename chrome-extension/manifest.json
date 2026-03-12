@@ -36,7 +36,10 @@
         "https://netflix.com/*",
         "https://reddit.com/*",
         "https://linkedin.com/*",
-        "https://homelens.ai/*"
+        "https://homelens.ai/*",
+        "https://*.homelens.ai/*",
+        "https://*.lovable.app/*",
+        "https://*.lovable.dev/*"
       ]
     }
   ],
