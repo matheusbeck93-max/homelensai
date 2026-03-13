@@ -25,7 +25,7 @@ export function FeatureGate({
     return <>{children}</>;
   }
 
-  const tierName = requiredTier === 'premium' ? 'Premium' : 'Pro';
+  const tierName = requiredTier === 'premium' ? 'Premium' : 'Premium';
 
   return (
     <div className="relative">

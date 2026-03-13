@@ -216,7 +216,7 @@ export function AlertSettings() {
                 />
               </div>
 
-              {isProOrPremium && (
+              {isPremium && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground">
                     <strong>How it works:</strong> We check your favorited properties regularly for price drops and status changes. 

@@ -24,7 +24,7 @@ export function NeighborhoodPersonality({ address, city, state, zip, onPersonali
   const { toast } = useToast();
   const { hasAccess } = useSubscription();
 
-  const hasNeighborhoodPersonalityAccess = hasAccess('NEIGHBORHOOD_PERSONALITY');
+  const hasNeighborhoodPersonalityAccess = hasAccess('INVESTMENT_SCORE');
 
   const handleGenerate = async () => {
     if (!hasNeighborhoodPersonalityAccess) {

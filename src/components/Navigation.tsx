@@ -121,7 +121,7 @@ export function Navigation() {
                 className="gap-1.5"
               >
                 <Sparkles className="h-4 w-4" />
-                Upgrade to Pro
+                Upgrade to Premium
               </Button>
             )}
 

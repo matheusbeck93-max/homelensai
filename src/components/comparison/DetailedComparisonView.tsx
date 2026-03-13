@@ -19,7 +19,7 @@ interface DetailedComparisonViewProps {
 
 export function DetailedComparisonView({ properties, onClose, onRemove }: DetailedComparisonViewProps) {
   const { tier } = useSubscription();
-  const isPro = tier === 'pro' || tier === 'premium';
+  const isPremium = tier === 'premium';
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [buyerType, setBuyerType] = useState<string>('primary_residence');

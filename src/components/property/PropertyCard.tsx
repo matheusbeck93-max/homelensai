@@ -192,7 +192,7 @@ export function PropertyCard({
 
   const imageUrl = property.photoUrl || '/placeholder.svg';
   const location = [property.city, property.state].filter(Boolean).join(', ') || 'Location not specified';
-  const isPro = tier === 'pro' || tier === 'premium';
+  const isPremium = tier === 'premium';
 
   // Calculate rent-to-price ratio if we have rent estimate
   const rentToPriceRatio = insights?.rentToPriceRatio || 

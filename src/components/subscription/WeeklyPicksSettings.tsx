@@ -255,7 +255,7 @@ export function WeeklyPicksSettings() {
                 {saving ? 'Saving...' : 'Save Preferences'}
               </Button>
 
-              {isProOrPremium && (
+              {isPremium && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground">
                     <strong>How it works:</strong> Our AI analyzes your favorited properties and preferences to curate 
