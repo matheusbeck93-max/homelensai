@@ -117,7 +117,7 @@ export function AlertSettings() {
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
                 Smart Alerts
-                {!hasSmartAlertsAccess && <Badge variant="secondary">Pro</Badge>}
+                {!hasSmartAlertsAccess && <Badge variant="secondary">Premium</Badge>}
               </CardTitle>
               <CardDescription>
                 Get notified when favorited properties change
