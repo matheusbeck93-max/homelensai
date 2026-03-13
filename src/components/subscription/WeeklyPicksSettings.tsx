@@ -24,7 +24,7 @@ export function WeeklyPicksSettings() {
   const { toast } = useToast();
   const { hasAccess, isPremium } = useSubscription();
 
-  const hasWeeklyPicksAccess = hasAccess('PERSONALIZED_PICKS');
+  const hasWeeklyPicksAccess = hasAccess('FULL_CHAT_HISTORY');
 
   useEffect(() => {
     loadSettings();
