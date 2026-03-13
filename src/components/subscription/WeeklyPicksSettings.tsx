@@ -131,7 +131,7 @@ export function WeeklyPicksSettings() {
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
                 Weekly Property Picks
-                {!hasWeeklyPicksAccess && <Badge variant="secondary">Pro</Badge>}
+                {!hasWeeklyPicksAccess && <Badge variant="secondary">Premium</Badge>}
               </CardTitle>
               <CardDescription>
                 Get AI-curated property recommendations every week
