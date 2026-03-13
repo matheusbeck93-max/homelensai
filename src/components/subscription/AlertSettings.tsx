@@ -18,7 +18,7 @@ export function AlertSettings() {
   const [alertPriceDrops, setAlertPriceDrops] = useState(true);
   const [alertStatusChanges, setAlertStatusChanges] = useState(true);
   const { toast } = useToast();
-  const { hasAccess, isProOrPremium } = useSubscription();
+  const { hasAccess, isPremium } = useSubscription();
 
   const hasSmartAlertsAccess = hasAccess('SMART_ALERTS');
 
