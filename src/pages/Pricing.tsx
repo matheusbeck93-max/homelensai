@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
+import { Check, Crown, Sparkles } from "lucide-react";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscriptionPlans";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +16,7 @@ export default function Pricing() {
   const [currentTier, setCurrentTier] = useState<string>('free');
 
   // Load user's current subscription
-  useState(() => {
+  useEffect(() => {
     const loadSubscription = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -33,17 +32,17 @@ export default function Pricing() {
       }
     };
     loadSubscription();
-  });
+  }, []);
 
-  const handleUpgrade = async (tier: 'pro' | 'premium') => {
+  const handleUpgrade = async (tier: 'premium') => {
     setLoading(tier);
     
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to upgrade your plan",
+        title: "Autenticação necessária",
+        description: "Por favor, faça login para fazer upgrade",
         variant: "destructive"
       });
       setLoading(null);
@@ -52,9 +51,7 @@ export default function Pricing() {
     }
 
     try {
-      const priceId = tier === 'pro' 
-        ? 'price_1SXAGhDNPbNbmEcl7swPot9W' 
-        : 'price_1SXAIIDNPbNbmEcljT5VEjT8';
+      const priceId = 'price_1SXAIIDNPbNbmEcljT5VEjT8'; // Premium only
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { priceId }
@@ -63,17 +60,16 @@ export default function Pricing() {
       if (error) throw error;
 
       if (data?.url) {
-        // Open Stripe checkout in new tab
         window.open(data.url, '_blank');
         toast({
-          title: "Redirecting to checkout",
-          description: "Complete your payment in the new tab"
+          title: "Redirecionando para checkout",
+          description: "Complete seu pagamento na nova aba"
         });
       }
     } catch (error: any) {
       toast({
-        title: "Checkout failed",
-        description: error.message || "Failed to start checkout process",
+        title: "Falha no checkout",
+        description: error.message || "Falha ao iniciar processo de checkout",
         variant: "destructive"
       });
     } finally {
@@ -83,7 +79,6 @@ export default function Pricing() {
 
   const plans = [
     SUBSCRIPTION_PLANS.free,
-    SUBSCRIPTION_PLANS.pro,
     SUBSCRIPTION_PLANS.premium
   ];
 
@@ -92,59 +87,110 @@ export default function Pricing() {
       <Navigation />
       
       <main className="container mx-auto px-4 py-8 pb-24 md:pb-8">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
+            <h1 className="text-4xl font-bold mb-4">Escolha seu Plano</h1>
             <p className="text-muted-foreground text-lg">
-              Start free, upgrade anytime. All plans include our core search features.
+              Comece gratuitamente. Faça upgrade quando quiser.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {plans.map((plan) => {
               const isCurrent = currentTier === plan.tier;
-              const isUpgrade = 
-                (currentTier === 'free' && (plan.tier === 'pro' || plan.tier === 'premium')) ||
-                (currentTier === 'pro' && plan.tier === 'premium');
+              const isUpgrade = currentTier === 'free' && plan.tier === 'premium';
               
               return (
                 <Card 
                   key={plan.id} 
-                  className={`relative ${plan.tier === 'pro' ? 'border-primary shadow-lg' : ''}`}
+                  className={`relative ${plan.tier === 'premium' ? 'border-amber-500 shadow-lg' : ''}`}
                 >
-                  {plan.tier === 'pro' && (
-                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      Most Popular
+                  {plan.tier === 'premium' && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500">
+                      <Crown className="h-3 w-3 mr-1" />
+                      Recomendado
                     </Badge>
                   )}
                   
                   <CardHeader>
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                      {plan.tier === 'premium' && <Crown className="h-6 w-6 text-amber-500" />}
+                    </div>
                     <CardDescription>
                       <span className="text-3xl font-bold text-foreground">{plan.price}</span>
                       {plan.tier !== 'free' && (
-                        <span className="text-muted-foreground"> /month</span>
+                        <span className="text-muted-foreground"> /mês</span>
                       )}
                     </CardDescription>
+                    {plan.tier === 'free' && (
+                      <p className="text-xs text-muted-foreground mt-1">Sem cartão de crédito</p>
+                    )}
+                    {plan.tier === 'premium' && (
+                      <p className="text-xs text-muted-foreground mt-1">Cancele quando quiser</p>
+                    )}
                   </CardHeader>
 
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  <CardContent className="space-y-6">
+                    {/* Chat & IA */}
+                    <div>
+                      <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-2">
+                        Chat & IA
+                      </h4>
+                      <ul className="space-y-2">
+                        {plan.features.chatAndAI.slice(0, 4).map((feature) => (
+                          <li key={feature} className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                        {plan.features.chatAndAI.length > 4 && (
+                          <li className="text-xs text-primary">
+                            + {plan.features.chatAndAI.length - 4} mais recursos
+                          </li>
+                        )}
+                      </ul>
+                    </div>
 
+                    {/* Calculadoras */}
+                    <div>
+                      <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-2">
+                        Calculadoras
+                      </h4>
+                      <ul className="space-y-2">
+                        {plan.features.calculators.map((feature) => (
+                          <li key={feature} className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Chrome Extension */}
+                    <div>
+                      <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground mb-2">
+                        Chrome Extension
+                      </h4>
+                      <ul className="space-y-2">
+                        {plan.features.chromeExtension.slice(0, 3).map((feature) => (
+                          <li key={feature} className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Limitações (Free only) */}
                     {plan.limitations && (
-                      <div className="mt-4 pt-4 border-t">
-                        <p className="text-xs text-muted-foreground mb-2">Limitations:</p>
+                      <div className="pt-4 border-t">
+                        <p className="text-xs text-muted-foreground mb-2 font-medium">Não incluído:</p>
                         <ul className="space-y-1">
-                          {plan.limitations.map((limitation) => (
-                            <li key={limitation} className="text-xs text-muted-foreground">
-                              • {limitation}
+                          {plan.limitations.slice(0, 4).map((limitation) => (
+                            <li key={limitation} className="text-xs text-muted-foreground flex items-start gap-2">
+                              <span className="text-red-500">×</span>
+                              {limitation}
                             </li>
                           ))}
                         </ul>
@@ -155,26 +201,26 @@ export default function Pricing() {
                   <CardFooter>
                     <Button
                       className="w-full"
-                      variant={isCurrent ? "outline" : plan.tier === 'pro' ? "default" : "outline"}
+                      variant={isCurrent ? "outline" : plan.tier === 'premium' ? "default" : "outline"}
                       disabled={isCurrent || loading !== null}
                       onClick={() => {
                         if (plan.tier === 'free') {
                           toast({
-                            title: "Already on Free plan",
-                            description: "You're currently using the free tier"
+                            title: "Plano Free ativo",
+                            description: "Você está usando o plano gratuito"
                           });
                         } else if (isUpgrade) {
-                          handleUpgrade(plan.tier as 'pro' | 'premium');
+                          handleUpgrade('premium');
                         }
                       }}
                     >
                       {isCurrent 
-                        ? "Current Plan" 
+                        ? "Plano Atual" 
                         : loading === plan.tier 
-                          ? "Processing..." 
+                          ? "Processando..." 
                           : isUpgrade 
-                            ? `Upgrade to ${plan.name}`
-                            : "Get Started"
+                            ? <><Sparkles className="h-4 w-4 mr-2" />Fazer Upgrade</>
+                            : "Começar"
                       }
                     </Button>
                   </CardFooter>
@@ -185,16 +231,14 @@ export default function Pricing() {
 
           <div className="mt-12 text-center">
             <p className="text-sm text-muted-foreground">
-              All paid plans can be cancelled anytime. No hidden fees.
+              Plano pago pode ser cancelado a qualquer momento. Sem taxas ocultas.
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Need help choosing? <a href="/chat" className="text-primary hover:underline">Chat with us</a>
+              Precisa de ajuda? <a href="/chat" className="text-primary hover:underline">Fale conosco</a>
             </p>
           </div>
         </div>
       </main>
-
-      
     </div>
   );
 }

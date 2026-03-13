@@ -40,7 +40,7 @@ export async function canRunAnalysis(userId: string): Promise<{ canRun: boolean;
   }
 
   // Pro and Premium have unlimited analyses
-  if (subscription.subscription_status === 'pro' || subscription.subscription_status === 'premium') {
+  if (subscription.subscription_status === 'premium') {
     return { canRun: true };
   }
 
