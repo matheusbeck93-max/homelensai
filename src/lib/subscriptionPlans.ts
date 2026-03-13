@@ -4,16 +4,16 @@ export interface SubscriptionPlan {
   id: string;
   name: string;
   tier: SubscriptionTier;
+  subtitle: string;
   price: string;
   priceMonthly: number;
+  pricePeriod?: string;
   stripePriceId?: string;
   stripeProductId?: string;
-  features: {
-    chatAndAI: string[];
-    calculators: string[];
-    chromeExtension: string[];
-    support?: string[];
-  };
+  ctaLabel: string;
+  ctaVariant: 'outline' | 'default';
+  headerNote?: string;
+  features: string[];
   limitations?: string[];
 }
 
@@ -22,73 +22,65 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
     id: 'plan_free',
     name: 'Free',
     tier: 'free',
-    price: '$0/mês',
+    subtitle: 'Get started with HomeLens',
+    price: '$0',
     priceMonthly: 0,
-    features: {
-      chatAndAI: [
-        'Chat com agente especialista em real estate EUA',
-        'Análise de imóvel via link — 1x por dia',
-        'Pesquisa de benefícios e incentivos — 3x por dia',
-        'Pesquisa de tendências de mercado — 3x por dia',
-        'Histórico das últimas 5 conversas'
-      ],
-      calculators: [
-        'Calculadora Mortgage',
-        'Calculadora Buying Power'
-      ],
-      chromeExtension: [
-        'Chat HomeLens em qualquer aba',
-        'Detecção automática de listagens',
-        'Análise via extensão — 1x por dia'
-      ]
-    },
+    ctaLabel: 'Use HomeLens for free',
+    ctaVariant: 'outline',
+    headerNote: 'No credit card required',
+    features: [
+      'Chat with a US real estate expert agent',
+      'Property analysis via link — 1x per day',
+      'Benefits & incentives search — 3x per day',
+      'Market trends research — 3x per day',
+      'Last 5 conversations saved',
+      'Mortgage Calculator',
+      'Buying Power Calculator',
+      'HomeLens chat on any tab (Extension)',
+      'Auto-detect property listings (Extension)',
+      'Extension analysis — 1x per day',
+    ],
     limitations: [
-      'Sem calculadora Investor',
-      'Sem AI Insights nas calculadoras',
-      'Sem Excel workflow no chat',
-      'Sem Investment Score por imóvel',
-      'Sem Comparador de Mercados',
-      'Sem personalização do chat'
-    ]
+      'Investor Calculator',
+      'AI Insights on calculators',
+      'Excel workflow in chat',
+      'Investment Score per property',
+      'Market Comparator',
+      'Chat personalization',
+    ],
   },
   premium: {
     id: 'plan_premium_monthly',
     name: 'Premium',
     tier: 'premium',
-    price: '$4.97/mês',
+    subtitle: 'Unlock full investment power',
+    price: '$4.97',
     priceMonthly: 4.97,
+    pricePeriod: '/mo',
     stripePriceId: 'price_1SXAIIDNPbNbmEcljT5VEjT8',
     stripeProductId: 'prod_TU8ZtwtkutHhh5',
-    features: {
-      chatAndAI: [
-        'Análise de imóvel via link — ilimitado',
-        'Pesquisa de benefícios — ilimitado',
-        'Pesquisa de tendências — ilimitado',
-        'Histórico completo de conversas',
-        'Geração de workflows Excel no chat',
-        'Investment Score por imóvel',
-        'Comparador de Mercados para investimento',
-        'Personalização do chat com preferências do usuário'
-      ],
-      calculators: [
-        'Todas as calculadoras do Free',
-        'Calculadora Investor — Modo Simple e Advanced',
-        'AI Insights nas calculadoras'
-      ],
-      chromeExtension: [
-        'Todas as features da extensão do Free',
-        'Análise ilimitada via extensão',
-        'Investment Score via extensão'
-      ],
-      support: [
-        'Suporte prioritário'
-      ]
-    }
-  }
+    ctaLabel: 'Upgrade to Premium',
+    ctaVariant: 'default',
+    headerNote: 'Cancel anytime',
+    features: [
+      'Unlimited property analysis via link',
+      'Unlimited benefits & incentives search',
+      'Unlimited market trends research',
+      'Full conversation history',
+      'Generate Excel workflows in chat',
+      'Investment Score per property',
+      'Market Comparator for investing',
+      'Chat personalized to your preferences',
+      'Investor Calculator — Simple & Advanced',
+      'AI Insights on calculators',
+      'Unlimited extension analysis',
+      'Investment Score via extension',
+      'Priority support',
+    ],
+  },
 };
 
 export const FEATURE_GATES = {
-  // AI Analysis - Premium only
   UNLIMITED_AI_ANALYSIS: ['premium'],
   UNLIMITED_LINK_ANALYSIS: ['premium'],
   UNLIMITED_BENEFITS_SEARCH: ['premium'],
@@ -98,17 +90,11 @@ export const FEATURE_GATES = {
   INVESTMENT_SCORE: ['premium'],
   MARKET_COMPARATOR: ['premium'],
   CHAT_PERSONALIZATION: ['premium'],
-  
-  // Calculators - Premium only
   INVESTOR_CALCULATOR: ['premium'],
   AI_CALCULATOR_INSIGHTS: ['premium'],
-  
-  // Chrome Extension - Premium only
   UNLIMITED_EXTENSION_ANALYSIS: ['premium'],
   EXTENSION_INVESTMENT_SCORE: ['premium'],
-  
-  // Support - Premium only
-  PRIORITY_SUPPORT: ['premium']
+  PRIORITY_SUPPORT: ['premium'],
 } as const;
 
 export type FeatureKey = keyof typeof FEATURE_GATES;

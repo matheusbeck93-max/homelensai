@@ -12,19 +12,13 @@ export function SubscriptionBadge({ tier, variant = "default" }: SubscriptionBad
     return null;
   }
 
-  const isPremium = tier === 'premium';
-  
   if (variant === "compact") {
     return (
       <Badge 
         variant="secondary" 
-        className={`text-xs ${isPremium ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}
+        className="text-xs bg-primary/10 text-primary border-primary/20"
       >
-        {isPremium ? (
-          <Crown className="h-3 w-3" />
-        ) : (
-          <Sparkles className="h-3 w-3" />
-        )}
+        <Crown className="h-3 w-3" />
       </Badge>
     );
   }
@@ -32,19 +26,10 @@ export function SubscriptionBadge({ tier, variant = "default" }: SubscriptionBad
   return (
     <Badge 
       variant="secondary" 
-      className={`gap-1 ${isPremium ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}
+      className="gap-1 bg-primary/10 text-primary border-primary/20"
     >
-      {isPremium ? (
-        <>
-          <Crown className="h-3 w-3" />
-          Premium
-        </>
-      ) : (
-        <>
-          <Sparkles className="h-3 w-3" />
-          Pro
-        </>
-      )}
+      <Crown className="h-3 w-3" />
+      Premium
     </Badge>
   );
 }
