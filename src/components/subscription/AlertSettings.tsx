@@ -130,7 +130,7 @@ export function AlertSettings() {
             <div className="text-center py-8 space-y-4">
               <Lock className="h-12 w-12 text-muted-foreground mx-auto" />
               <div>
-                <p className="font-semibold mb-2">Upgrade to Pro for Smart Alerts</p>
+                <p className="font-semibold mb-2">Upgrade to Premium for Smart Alerts</p>
                 <p className="text-sm text-muted-foreground mb-4">
                   Get instant email notifications when properties you love drop in price or change status
                 </p>
