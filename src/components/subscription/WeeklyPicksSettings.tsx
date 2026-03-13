@@ -22,7 +22,7 @@ export function WeeklyPicksSettings() {
   const [minBedrooms, setMinBedrooms] = useState('2');
   const [preferredCities, setPreferredCities] = useState('');
   const { toast } = useToast();
-  const { hasAccess, isProOrPremium } = useSubscription();
+  const { hasAccess, isPremium } = useSubscription();
 
   const hasWeeklyPicksAccess = hasAccess('PERSONALIZED_PICKS');
 
