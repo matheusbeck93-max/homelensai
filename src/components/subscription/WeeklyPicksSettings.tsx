@@ -149,7 +149,7 @@ export function WeeklyPicksSettings() {
                   Receive personalized property recommendations every week based on your preferences and favorites
                 </p>
                 <Button onClick={() => setUpgradeModalOpen(true)}>
-                  Upgrade to Pro
+                  Upgrade to Premium
                 </Button>
               </div>
             </div>
