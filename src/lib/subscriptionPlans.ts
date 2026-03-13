@@ -1,4 +1,5 @@
 export type SubscriptionTier = 'free' | 'premium';
+export type BillingPeriod = 'monthly' | 'annual';
 
 export interface SubscriptionPlan {
   id: string;
@@ -15,6 +16,8 @@ export interface SubscriptionPlan {
   headerNote?: string;
   features: string[];
   limitations?: string[];
+  billingPeriod?: BillingPeriod;
+  discount?: string;
 }
 
 export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
@@ -78,6 +81,38 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Priority support',
     ],
   },
+};
+
+export const PREMIUM_ANNUAL_PLAN: SubscriptionPlan = {
+  id: 'plan_premium_annual',
+  name: 'Premium',
+  tier: 'premium',
+  subtitle: 'Unlock full investment power',
+  price: '$4.48',
+  priceMonthly: 4.48,
+  pricePeriod: '/mo',
+  stripePriceId: 'price_annual_placeholder', // Replace with actual Stripe price ID
+  stripeProductId: 'prod_TU8ZtwtkutHhh5',
+  ctaLabel: 'Upgrade to Premium',
+  ctaVariant: 'default',
+  headerNote: 'Billed annually ($53.70/year)',
+  features: [
+    'Unlimited property analysis via link',
+    'Unlimited benefits & incentives search',
+    'Unlimited market trends research',
+    'Full conversation history',
+    'Generate Excel workflows in chat',
+    'Investment Score per property',
+    'Market Comparator for investing',
+    'Chat personalized to your preferences',
+    'Investor Calculator — Simple & Advanced',
+    'AI Insights on calculators',
+    'Unlimited extension analysis',
+    'Investment Score via extension',
+    'Priority support',
+  ],
+  billingPeriod: 'annual',
+  discount: 'Save 10%',
 };
 
 export const FEATURE_GATES = {
