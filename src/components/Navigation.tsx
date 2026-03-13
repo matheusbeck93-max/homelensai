@@ -125,7 +125,7 @@ export function Navigation() {
               </Button>
             )}
 
-            {user && !subscriptionLoading && (tier === 'pro' || tier === 'premium') && (
+            {user && !subscriptionLoading && tier === 'premium' && (
               <div className="flex items-center gap-2">
                 <SubscriptionBadge tier={tier} />
               </div>
