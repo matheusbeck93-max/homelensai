@@ -15,7 +15,7 @@ interface FeatureGateProps {
 
 export function FeatureGate({ 
   isLocked, 
-  requiredTier = 'pro',
+  requiredTier = 'premium',
   featureName, 
   onUpgradeClick, 
   children,

@@ -135,7 +135,7 @@ export function AlertSettings() {
                   Get instant email notifications when properties you love drop in price or change status
                 </p>
                 <Button onClick={() => setUpgradeModalOpen(true)}>
-                  Upgrade to Pro
+                  Upgrade to Premium
                 </Button>
               </div>
             </div>
