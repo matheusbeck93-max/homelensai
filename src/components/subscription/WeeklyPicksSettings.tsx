@@ -22,9 +22,9 @@ export function WeeklyPicksSettings() {
   const [minBedrooms, setMinBedrooms] = useState('2');
   const [preferredCities, setPreferredCities] = useState('');
   const { toast } = useToast();
-  const { hasAccess, isProOrPremium } = useSubscription();
+  const { hasAccess, isPremium } = useSubscription();
 
-  const hasWeeklyPicksAccess = hasAccess('PERSONALIZED_PICKS');
+  const hasWeeklyPicksAccess = hasAccess('FULL_CHAT_HISTORY');
 
   useEffect(() => {
     loadSettings();
@@ -131,7 +131,7 @@ export function WeeklyPicksSettings() {
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
                 Weekly Property Picks
-                {!hasWeeklyPicksAccess && <Badge variant="secondary">Pro</Badge>}
+                {!hasWeeklyPicksAccess && <Badge variant="secondary">Premium</Badge>}
               </CardTitle>
               <CardDescription>
                 Get AI-curated property recommendations every week
@@ -144,12 +144,12 @@ export function WeeklyPicksSettings() {
             <div className="text-center py-8 space-y-4">
               <Lock className="h-12 w-12 text-muted-foreground mx-auto" />
               <div>
-                <p className="font-semibold mb-2">Upgrade to Pro for Weekly Picks</p>
+                <p className="font-semibold mb-2">Upgrade to Premium for Weekly Picks</p>
                 <p className="text-sm text-muted-foreground mb-4">
                   Receive personalized property recommendations every week based on your preferences and favorites
                 </p>
                 <Button onClick={() => setUpgradeModalOpen(true)}>
-                  Upgrade to Pro
+                  Upgrade to Premium
                 </Button>
               </div>
             </div>
@@ -255,7 +255,7 @@ export function WeeklyPicksSettings() {
                 {saving ? 'Saving...' : 'Save Preferences'}
               </Button>
 
-              {isProOrPremium && (
+              {isPremium && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground">
                     <strong>How it works:</strong> Our AI analyzes your favorited properties and preferences to curate 

@@ -125,20 +125,16 @@ export function useSubscription() {
     return hasFeatureAccess(tier, feature);
   };
 
-  const isPro = tier === 'pro';
-  const isPremium = tier === 'premium';
-  const isProOrPremium = isPro || isPremium;
-  const isFree = tier === 'free';
+  const isPremiumUser = tier === 'premium';
+  const isFreeUser = tier === 'free';
 
   return {
     tier,
     userId,
     loading,
     hasAccess,
-    isPro,
-    isPremium,
-    isProOrPremium,
-    isFree,
+    isPremium: isPremiumUser,
+    isFree: isFreeUser,
     refresh: loadSubscription
   };
 }

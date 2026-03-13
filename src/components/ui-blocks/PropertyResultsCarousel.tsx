@@ -33,7 +33,7 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
 
-  const hasPriceFairnessAccess = hasAccess('PRICE_FAIRNESS_METER');
+  const hasPriceFairnessAccess = hasAccess('INVESTMENT_SCORE');
 
   // Calculate price fairness and enrichment for properties
   const enrichedProperties = useMemo(() => {

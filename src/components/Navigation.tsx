@@ -121,11 +121,11 @@ export function Navigation() {
                 className="gap-1.5"
               >
                 <Sparkles className="h-4 w-4" />
-                Upgrade to Pro
+                Upgrade to Premium
               </Button>
             )}
 
-            {user && !subscriptionLoading && (tier === 'pro' || tier === 'premium') && (
+            {user && !subscriptionLoading && tier === 'premium' && (
               <div className="flex items-center gap-2">
                 <SubscriptionBadge tier={tier} />
               </div>

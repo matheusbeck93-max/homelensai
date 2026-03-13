@@ -25,7 +25,7 @@ export function PropertyPDFExport({
   const { toast } = useToast();
   const { hasAccess } = useSubscription();
 
-  const hasPDFExportAccess = hasAccess('EXPORT_PDF');
+  const hasPDFExportAccess = hasAccess('EXCEL_WORKFLOW');
 
   const handleExportPDF = async () => {
     if (!hasPDFExportAccess) {

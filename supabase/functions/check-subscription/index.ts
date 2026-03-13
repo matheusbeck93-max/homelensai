@@ -14,7 +14,6 @@ const logStep = (step: string, details?: any) => {
 
 // Product ID to tier mapping
 const PRODUCT_TIER_MAP: Record<string, string> = {
-  "prod_TU8XHaYsigHmU3": "pro",
   "prod_TU8ZtwtkutHhh5": "premium"
 };
 

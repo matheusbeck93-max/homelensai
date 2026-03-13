@@ -18,9 +18,9 @@ export function AlertSettings() {
   const [alertPriceDrops, setAlertPriceDrops] = useState(true);
   const [alertStatusChanges, setAlertStatusChanges] = useState(true);
   const { toast } = useToast();
-  const { hasAccess, isProOrPremium } = useSubscription();
+  const { hasAccess, isPremium } = useSubscription();
 
-  const hasSmartAlertsAccess = hasAccess('SMART_ALERTS');
+  const hasSmartAlertsAccess = hasAccess('UNLIMITED_EXTENSION_ANALYSIS');
 
   useEffect(() => {
     loadAlertPreferences();
@@ -117,7 +117,7 @@ export function AlertSettings() {
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
                 Smart Alerts
-                {!hasSmartAlertsAccess && <Badge variant="secondary">Pro</Badge>}
+                {!hasSmartAlertsAccess && <Badge variant="secondary">Premium</Badge>}
               </CardTitle>
               <CardDescription>
                 Get notified when favorited properties change
@@ -130,12 +130,12 @@ export function AlertSettings() {
             <div className="text-center py-8 space-y-4">
               <Lock className="h-12 w-12 text-muted-foreground mx-auto" />
               <div>
-                <p className="font-semibold mb-2">Upgrade to Pro for Smart Alerts</p>
+                <p className="font-semibold mb-2">Upgrade to Premium for Smart Alerts</p>
                 <p className="text-sm text-muted-foreground mb-4">
                   Get instant email notifications when properties you love drop in price or change status
                 </p>
                 <Button onClick={() => setUpgradeModalOpen(true)}>
-                  Upgrade to Pro
+                  Upgrade to Premium
                 </Button>
               </div>
             </div>
@@ -216,7 +216,7 @@ export function AlertSettings() {
                 />
               </div>
 
-              {isProOrPremium && (
+              {isPremium && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground">
                     <strong>How it works:</strong> We check your favorited properties regularly for price drops and status changes. 
