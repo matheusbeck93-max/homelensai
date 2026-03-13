@@ -328,10 +328,10 @@ export function PropertyCard({
           {priceFairnessBadge && (
             <Badge className={`${priceFairnessBadge.colors.bg} ${priceFairnessBadge.colors.text} ${priceFairnessBadge.colors.border} border`}>
               {priceFairnessBadge.label}
-              {isPro && priceFairnessBadge.score && (
+              {isPremium && priceFairnessBadge.score && (
                 <span className="ml-1">({priceFairnessBadge.score > 0 ? '+' : ''}{priceFairnessBadge.score.toFixed(1)}%)</span>
               )}
-              {!isPro && showProLockedBadges && (
+              {!isPremium && showProLockedBadges && (
                 <Lock className="h-3 w-3 ml-1 inline" />
               )}
             </Badge>
@@ -339,10 +339,10 @@ export function PropertyCard({
           {rentYieldBadge && (
             <Badge className={`${rentYieldBadge.color} border`}>
               {rentYieldBadge.label}
-              {isPro && rentToPriceRatio && (
+              {isPremium && rentToPriceRatio && (
                 <span className="ml-1">({(rentToPriceRatio * 100).toFixed(1)}%)</span>
               )}
-              {!isPro && showProLockedBadges && (
+              {!isPremium && showProLockedBadges && (
                 <Lock className="h-3 w-3 ml-1 inline" />
               )}
             </Badge>
@@ -426,27 +426,27 @@ export function PropertyCard({
           </div>
         </div>
 
-        {/* Investment insights (Pro) */}
+        {/* Investment insights (Premium) */}
         {insights?.estRentMonthly && (
           <div className="pt-3 border-t space-y-2 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Est. Monthly Rent:</span>
-              {isPro ? (
+              {isPremium ? (
                 <span className="font-semibold">{formatPrice(insights.estRentMonthly)}</span>
               ) : (
                 <span className="flex items-center gap-1 text-muted-foreground">
                   <Lock className="h-3 w-3" />
-                  Pro
+                  Premium
                 </span>
               )}
             </div>
-            {isPro && insights.estValue && (
+            {isPremium && insights.estValue && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Est. Market Value:</span>
                 <span className="font-semibold">{formatPrice(insights.estValue)}</span>
               </div>
             )}
-            {isPro && insights.capRate && (
+            {isPremium && insights.capRate && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Cap Rate:</span>
                 <span className="font-semibold flex items-center gap-1">
