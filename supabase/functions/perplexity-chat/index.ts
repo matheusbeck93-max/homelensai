@@ -500,6 +500,7 @@ You are exclusively a real estate assistant focused on the U.S. market. Topics y
     }
 
     console.log(`[perplexity-chat] Mode: ${isUrl ? 'URL_ANALYSIS' : isSearch ? 'SEARCH' : 'GENERAL'}, Query: ${query.substring(0, 100)}...`);
+    console.log(`[perplexity-chat] Message roles: ${messages.map(m => m.role).join(' -> ')}`);
 
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
