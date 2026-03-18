@@ -465,16 +465,35 @@ You are exclusively a real estate assistant focused on the U.S. market. Topics y
       }
     }
 
-    const messages = [
+    // Ensure history starts with 'user' and strictly alternates user/assistant
+    const sanitizedHistory: { role: string; content: string }[] = [];
+    for (const m of dedupedHistory) {
+      const expectedRole = sanitizedHistory.length % 2 === 0 ? 'user' : 'assistant';
+      if (m.role === expectedRole) {
+        sanitizedHistory.push(m);
+      } else if (sanitizedHistory.length === 0 && m.role === 'assistant') {
+        // Skip assistant messages at the start (must begin with user)
+        continue;
+      } else {
+        // Role mismatch - merge into previous or skip
+        if (sanitizedHistory.length > 0 && sanitizedHistory[sanitizedHistory.length - 1].role === m.role) {
+          sanitizedHistory[sanitizedHistory.length - 1].content += '\n\n' + m.content;
+        }
+        // Otherwise skip to maintain alternation
+      }
+    }
+
+    // Build final messages array
+    const messages: { role: string; content: string }[] = [
       { role: 'system', content: systemPrompt },
-      ...dedupedHistory.map(m => ({
+      ...sanitizedHistory.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content
       })),
       { role: 'user', content: query }
     ];
     
-    // If last history message is also 'user', merge with current query to avoid consecutive user messages
+    // If last history message is also 'user', merge with current query
     if (messages.length >= 3 && messages[messages.length - 2].role === 'user') {
       const prevUserMsg = messages.splice(messages.length - 2, 1)[0];
       messages[messages.length - 1].content = prevUserMsg.content + '\n\n' + messages[messages.length - 1].content;
