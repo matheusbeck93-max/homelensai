@@ -864,7 +864,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       return;
     }
 
-    // Regular chat message - also try to get fresh property data from active tab
+    // Regular chat message - check if there's active property context
     let propertyForChat = activeProperty;
     if (!propertyForChat && !detectedUrl) {
       // Check if content script has property data for current tab
@@ -885,8 +885,14 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       }
     }
 
-    const apiMessages = buildChatMessages(messages, text);
-    await callAiChat(apiMessages, propertyForChat);
+    // If there's property context, use ai-chat (for property-specific analysis)
+    // Otherwise use perplexity-chat (matching main system behavior)
+    if (propertyForChat) {
+      const apiMessages = buildChatMessages(messages, text);
+      await callAiChat(apiMessages, propertyForChat);
+    } else {
+      await callPerplexityChat(text, messages);
+    }
   };
 
   const handleAnalyzeNow = () => {
