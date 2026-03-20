@@ -647,6 +647,54 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     });
   };
 
+  // Use perplexity-chat for general queries (matching main system behavior)
+  const callPerplexityChat = async (query: string, history: Message[]) => {
+    setLoading(true);
+    setMatchScore(null);
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/perplexity-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          query,
+          conversationHistory: history.map((m) => ({ role: m.role, content: m.content })),
+          userGoal: userProfile?.primary_goal || null,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' },
+          ]);
+          return;
+        }
+        throw new Error(`Request failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      const rawMessage = data?.message || 'I could not process that request.';
+      const { score, cleanContent } = parseMatchScore(rawMessage);
+      if (score !== null) setMatchScore(score);
+      setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
+      persistMessage('assistant', cleanContent);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `Error: ${err.message}. Please try again.` },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use ai-chat for property URL analysis (with propertyData context)
   const callAiChat = async (
     apiMessages: { role: string; content: string }[],
     selectedProperty?: PropertyContext | null,
@@ -816,7 +864,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       return;
     }
 
-    // Regular chat message - also try to get fresh property data from active tab
+    // Regular chat message - check if there's active property context
     let propertyForChat = activeProperty;
     if (!propertyForChat && !detectedUrl) {
       // Check if content script has property data for current tab
@@ -837,8 +885,14 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       }
     }
 
-    const apiMessages = buildChatMessages(messages, text);
-    await callAiChat(apiMessages, propertyForChat);
+    // If there's property context, use ai-chat (for property-specific analysis)
+    // Otherwise use perplexity-chat (matching main system behavior)
+    if (propertyForChat) {
+      const apiMessages = buildChatMessages(messages, text);
+      await callAiChat(apiMessages, propertyForChat);
+    } else {
+      await callPerplexityChat(text, messages);
+    }
   };
 
   const handleAnalyzeNow = () => {
