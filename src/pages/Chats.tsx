@@ -489,6 +489,14 @@ export default function Chats() {
                         {message.content.replace(/\[\d+\]/g, '')}
                       </ReactMarkdown>
                       
+                      {/* Listen to response */}
+                      {message.content && (
+                        <div className="flex justify-end mt-1">
+                          <TextToSpeechButton text={message.content} />
+                        </div>
+                      )}
+                      </ReactMarkdown>
+                      
                       {/* Add to Comparison Button */}
                       {isAnalysis && analysisUrl &&
                     <Button
