@@ -26,7 +26,7 @@ serve(async (req) => {
     }
 
     // Default to "Sarah" voice - natural female English voice
-    const selectedVoice = voiceId || 'EXAVITQu4vr4xnSDxMaL';
+    const selectedVoice = voiceId || 'cjVigY5qzO86Huf0OWal';
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}?output_format=mp3_44100_128`,

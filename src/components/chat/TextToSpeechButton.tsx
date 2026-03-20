@@ -20,7 +20,7 @@ export const VOICE_OPTIONS = [
   { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', description: 'Deep, resonant male voice' },
 ] as const;
 
-const DEFAULT_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah
+const DEFAULT_VOICE_ID = 'cjVigY5qzO86Huf0OWal'; // Eric
 
 export function TextToSpeechButton({ text, className }: TextToSpeechButtonProps) {
   const { toast } = useToast();
