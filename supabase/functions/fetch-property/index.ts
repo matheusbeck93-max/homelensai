@@ -22,10 +22,17 @@ Deno.serve(async (req) => {
       throw new Error('FIRECRAWL_API_KEY is not configured');
     }
 
-    // Validate URL is from supported sites
-    const urlPattern = /(zillow|realtor|redfin|trulia|homes)\.com/i;
-    if (!urlPattern.test(url)) {
-      throw new Error('Please use a URL from Zillow, Realtor, Redfin, Trulia, or Homes.com');
+    // Validate URL is a valid HTTP(S) URL
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Please provide a valid HTTP or HTTPS URL');
+      }
+    } catch (e) {
+      if (e instanceof TypeError) {
+        throw new Error('Please provide a valid URL');
+      }
+      throw e;
     }
 
     console.log(`Fetching property data from: ${url}`);
