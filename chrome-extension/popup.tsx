@@ -647,6 +647,54 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     });
   };
 
+  // Use perplexity-chat for general queries (matching main system behavior)
+  const callPerplexityChat = async (query: string, history: Message[]) => {
+    setLoading(true);
+    setMatchScore(null);
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/perplexity-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          query,
+          conversationHistory: history.map((m) => ({ role: m.role, content: m.content })),
+          userGoal: userProfile?.primary_goal || null,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' },
+          ]);
+          return;
+        }
+        throw new Error(`Request failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      const rawMessage = data?.message || 'I could not process that request.';
+      const { score, cleanContent } = parseMatchScore(rawMessage);
+      if (score !== null) setMatchScore(score);
+      setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
+      persistMessage('assistant', cleanContent);
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `Error: ${err.message}. Please try again.` },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use ai-chat for property URL analysis (with propertyData context)
   const callAiChat = async (
     apiMessages: { role: string; content: string }[],
     selectedProperty?: PropertyContext | null,
