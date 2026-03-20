@@ -87,3 +87,5 @@ verify_jwt = false
 [functions.perplexity-chat]
 verify_jwt = false
 
+[functions.elevenlabs-tts]
+verify_jwt = false
