@@ -495,7 +495,6 @@ export default function Chats() {
                           <TextToSpeechButton text={message.content} />
                         </div>
                       )}
-                      </ReactMarkdown>
                       
                       {/* Add to Comparison Button */}
                       {isAnalysis && analysisUrl &&
