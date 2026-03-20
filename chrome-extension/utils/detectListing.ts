@@ -62,7 +62,6 @@ function parseAreaToSqft(value: unknown, unitText?: string): number | undefined 
     return Math.round(amount * 10.7639);
   }
 
-  // If no unit is provided, assume sqft
   return Math.round(amount);
 }
 
@@ -108,7 +107,8 @@ function extractFromJsonLd(): { data: PropertyShape; signals: string[] } {
       type.includes('house') ||
       type.includes('residence') ||
       type.includes('apartment') ||
-      type.includes('place')
+      type.includes('place') ||
+      type.includes('product')
     );
   });
 
@@ -121,8 +121,8 @@ function extractFromJsonLd(): { data: PropertyShape; signals: string[] } {
   const lotSize = listingNode.lotSize || listingNode.landSize || {};
 
   const data: PropertyShape = {
-    price: parseCurrency(offers.price) || parseCurrency(listingNode.price),
-    beds: parseNumber(listingNode.numberOfBedrooms ?? listingNode.bedrooms),
+    price: parseCurrency(offers.price) || parseCurrency(offers.lowPrice) || parseCurrency(listingNode.price),
+    beds: parseNumber(listingNode.numberOfBedrooms ?? listingNode.bedrooms ?? listingNode.numberOfRooms),
     baths: parseNumber(
       listingNode.numberOfBathroomsTotal ??
       listingNode.numberOfBathrooms ??
@@ -150,12 +150,41 @@ function extractFromJsonLd(): { data: PropertyShape; signals: string[] } {
 }
 
 function extractAddressFromHeading(): PropertyShape {
-  const h1 = document.querySelector('h1')?.textContent?.trim();
-  if (!h1) return {};
+  // Try multiple heading patterns
+  const headingSelectors = [
+    'h1',
+    '[data-testid="bdp-property-title"]',
+    '[data-testid*="address"]',
+    '.hdp__sc-1s978ul-1',  // Zillow
+    '.home-details-header .address',
+    '.listing-detail-header h1',
+  ];
 
-  const locationMatch = h1.match(/,\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
+  let headingText = '';
+  for (const sel of headingSelectors) {
+    const el = document.querySelector(sel);
+    if (el?.textContent?.trim()) {
+      headingText = el.textContent.trim();
+      break;
+    }
+  }
+
+  if (!headingText) return {};
+
+  // Try US address format: "123 Main St, City, ST 12345"
+  const fullMatch = headingText.match(/^(.+?),\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
+  if (fullMatch) {
+    return {
+      address: headingText,
+      city: fullMatch[2]?.trim(),
+      state: fullMatch[3],
+      zip: fullMatch[4],
+    };
+  }
+
+  const locationMatch = headingText.match(/,\s*([^,]+),\s*([A-Z]{2})\s*(\d{5})?/);
   return {
-    address: h1,
+    address: headingText,
     city: locationMatch?.[1]?.trim(),
     state: locationMatch?.[2],
     zip: locationMatch?.[3],
@@ -194,7 +223,91 @@ function readNumericByLabel(text: string, regex: RegExp): number | undefined {
   return parseNumber(match[1]);
 }
 
+/**
+ * Site-specific extraction for major listing sites
+ */
+function extractFromSiteSpecific(): { data: PropertyShape; signals: string[] } {
+  const hostname = window.location.hostname.toLowerCase();
+  const data: PropertyShape = {};
+  const signals: string[] = [];
+
+  // ── Zillow ──
+  if (hostname.includes('zillow')) {
+    // Price
+    const priceEl = document.querySelector('[data-testid="price"] span, .ds-summary-row .ds-value, .summary-container [data-testid="bed-bath-beyond"] ~ span');
+    if (!priceEl) {
+      const priceMeta = document.querySelector('meta[property="product:price:amount"]')?.getAttribute('content');
+      if (priceMeta) { data.price = parseCurrency(priceMeta); signals.push('zillow_meta_price'); }
+    } else {
+      data.price = parseCurrency(priceEl.textContent);
+      signals.push('zillow_price');
+    }
+
+    // Beds/Baths/Sqft from summary row
+    const summaryItems = document.querySelectorAll('[data-testid="bed-bath-beyond"] span, .ds-bed-bath-living-area span');
+    summaryItems.forEach((el) => {
+      const text = (el.textContent || '').toLowerCase();
+      if (text.includes('bd') || text.includes('bed')) {
+        const n = parseNumber(text);
+        if (n) { data.beds = n; signals.push('zillow_beds'); }
+      }
+      if (text.includes('ba') || text.includes('bath')) {
+        const n = parseNumber(text);
+        if (n) { data.baths = n; signals.push('zillow_baths'); }
+      }
+      if (text.includes('sqft') || text.includes('sq ft')) {
+        const n = parseNumber(text);
+        if (n) { data.sqft = n; signals.push('zillow_sqft'); }
+      }
+    });
+
+    // Year built from facts
+    const facts = document.querySelectorAll('.hdp__sc-1ybti9a-1, [data-testid="facts-table"] span, .zsg-content_collapsed li');
+    facts.forEach((el) => {
+      const text = (el.textContent || '').toLowerCase();
+      if (text.includes('year built') || text.includes('built in')) {
+        const yr = parseNumber(text.match(/(19|20)\d{2}/)?.[0]);
+        if (yr) { data.yearBuilt = yr; signals.push('zillow_year'); }
+      }
+    });
+  }
+
+  // ── Redfin ──
+  if (hostname.includes('redfin')) {
+    const priceEl = document.querySelector('.statsValue [data-rf-test-id="abp-price"] .value, .price-section .statsValue');
+    if (priceEl) { data.price = parseCurrency(priceEl.textContent); signals.push('redfin_price'); }
+
+    const stats = document.querySelectorAll('.home-main-stats-variant .stat-block, .HomeInfoV2 .stat-block');
+    stats.forEach((el) => {
+      const label = (el.querySelector('.stat-label')?.textContent || '').toLowerCase();
+      const value = el.querySelector('.stat-value')?.textContent || '';
+      if (label.includes('bed')) { data.beds = parseNumber(value); signals.push('redfin_beds'); }
+      if (label.includes('bath')) { data.baths = parseNumber(value); signals.push('redfin_baths'); }
+      if (label.includes('sq ft') || label.includes('sqft')) { data.sqft = parseNumber(value); signals.push('redfin_sqft'); }
+    });
+  }
+
+  // ── Realtor.com ──
+  if (hostname.includes('realtor')) {
+    const priceEl = document.querySelector('[data-testid="list-price"], .list-price, .ldp-header-price');
+    if (priceEl) { data.price = parseCurrency(priceEl.textContent); signals.push('realtor_price'); }
+
+    const detailItems = document.querySelectorAll('[data-testid="property-meta-list"] li, .property-meta li, .ldp-header-meta li');
+    detailItems.forEach((el) => {
+      const text = (el.textContent || '').toLowerCase();
+      if (text.includes('bed')) { data.beds = parseNumber(text); signals.push('realtor_beds'); }
+      if (text.includes('bath')) { data.baths = parseNumber(text); signals.push('realtor_baths'); }
+      if (text.includes('sqft') || text.includes('sq ft')) { data.sqft = parseNumber(text); signals.push('realtor_sqft'); }
+    });
+  }
+
+  return { data, signals };
+}
+
 function extractFromDom(): { data: PropertyShape; signals: string[] } {
+  // First try site-specific extraction
+  const { data: siteData, signals: siteSignals } = extractFromSiteSpecific();
+
   const selectors = [
     '[data-testid*="price"]',
     '[class*="price"]',
@@ -203,6 +316,9 @@ function extractFromDom(): { data: PropertyShape; signals: string[] } {
     '[class*="bath"]',
     '[class*="sqft"]',
     '[class*="detail"]',
+    '[class*="summary"]',
+    '[class*="stat"]',
+    '[class*="fact"]',
     'h1',
     'h2',
   ];
@@ -219,28 +335,33 @@ function extractFromDom(): { data: PropertyShape; signals: string[] } {
     .filter((n): n is number => typeof n === 'number' && n >= 10000 && n <= 100000000);
 
   const data: PropertyShape = {
-    price: priceCandidates.length ? Math.min(...priceCandidates) : undefined,
-    beds: readNumericByLabel(text, /(\d+(?:\.\d+)?)\s*(?:bed|beds|bd|bedroom)s?\b/i),
-    baths: readNumericByLabel(text, /(\d+(?:\.\d+)?)\s*(?:bath|baths|ba|bathroom)s?\b/i),
-    sqft: readNumericByLabel(
+    price: siteData.price || (priceCandidates.length ? Math.min(...priceCandidates) : undefined),
+    beds: siteData.beds || readNumericByLabel(text, /(\d+(?:\.\d+)?)\s*(?:bed|beds|bd|bedroom)s?\b/i),
+    baths: siteData.baths || readNumericByLabel(text, /(\d+(?:\.\d+)?)\s*(?:bath|baths|ba|bathroom)s?\b/i),
+    sqft: siteData.sqft || readNumericByLabel(
       text,
       /([\d,]+)\s*(?:sq\.?\s*ft|sqft|square\s*feet)\b(?!\s*(?:lot|lot\s*size))/i,
     ),
-    lotSize: readNumericByLabel(
+    lotSize: siteData.lotSize || readNumericByLabel(
       text,
       /(?:lot\s*size[^\d]{0,15}|\blot\b[^\d]{0,15})([\d,]+)\s*(?:sq\.?\s*ft|sqft)/i,
     ),
-    yearBuilt: readNumericByLabel(bodyText, /(?:year\s*built|built\s*in|built)\D{0,12}(19\d{2}|20\d{2})/i),
+    yearBuilt: siteData.yearBuilt || readNumericByLabel(bodyText, /(?:year\s*built|built\s*in|built)\D{0,12}(19\d{2}|20\d{2})/i),
+    propertyType: siteData.propertyType,
+    imageUrl: siteData.imageUrl,
   };
 
   const headingAddress = extractAddressFromHeading();
-  Object.assign(data, headingAddress);
+  if (!data.address) data.address = headingAddress.address;
+  if (!data.city) data.city = headingAddress.city;
+  if (!data.state) data.state = headingAddress.state;
+  if (!data.zip) data.zip = headingAddress.zip;
 
-  const signals: string[] = [];
-  if (data.price) signals.push('dom_price');
-  if (data.beds) signals.push('dom_beds');
-  if (data.baths) signals.push('dom_baths');
-  if (data.sqft) signals.push('dom_sqft');
+  const signals: string[] = [...siteSignals];
+  if (data.price && !siteSignals.some(s => s.endsWith('_price'))) signals.push('dom_price');
+  if (data.beds && !siteSignals.some(s => s.endsWith('_beds'))) signals.push('dom_beds');
+  if (data.baths && !siteSignals.some(s => s.endsWith('_baths'))) signals.push('dom_baths');
+  if (data.sqft && !siteSignals.some(s => s.endsWith('_sqft'))) signals.push('dom_sqft');
   if (data.address) signals.push('dom_address');
 
   return { data, signals };
@@ -273,28 +394,23 @@ export function detectPropertyListing(): DetectionResult {
   const signals: string[] = [];
   let confidence = 0;
 
-  // Gather visible text from relevant elements only (performance optimization)
   const selectors = 'h1, h2, h3, p, span, [class*="price"], [class*="bed"], [class*="bath"], [class*="detail"], [class*="listing"], [class*="property"], [class*="address"], [data-testid], [class*="home"], [class*="sqft"], [class*="mls"]';
   const elements = document.querySelectorAll(selectors);
   let visibleText = '';
   elements.forEach((el) => {
     visibleText += ' ' + (el.textContent || '');
   });
-  // Limit text size for performance
   visibleText = visibleText.slice(0, 50000).toLowerCase();
 
   const url = window.location.href.toLowerCase();
   const hostname = window.location.hostname.toLowerCase();
 
   // ── HIGH CONFIDENCE SIGNALS (15 points each) ──
-
-  // 1. Real estate price pattern: $XXX,XXX or $X,XXX,XXX
   if (/\$[\d,]{6,}/.test(visibleText)) {
     confidence += 15;
     signals.push('price_pattern');
   }
 
-  // 2. Beds AND baths present together
   const hasBeds = /\b(bed|beds|br|bedroom|bedrooms)\b/.test(visibleText);
   const hasBaths = /\b(bath|baths|ba|bathroom|bathrooms)\b/.test(visibleText);
   if (hasBeds && hasBaths) {
@@ -302,20 +418,17 @@ export function detectPropertyListing(): DetectionResult {
     signals.push('beds_and_baths');
   }
 
-  // 3. Square footage
   if (/\b(sqft|sq\s*ft|square\s*feet|sq\.\s*ft)\b/.test(visibleText)) {
     confidence += 15;
     signals.push('sqft');
   }
 
-  // 4. og:type meta tag
   const ogType = document.querySelector('meta[property="og:type"]')?.getAttribute('content')?.toLowerCase() || '';
   if (ogType.includes('realestate') || ogType.includes('home_listing')) {
     confidence += 15;
     signals.push('og_type_realestate');
   }
 
-  // 5. URL contains known listing patterns
   const urlListingPatterns = [
     '/homedetails/', '/homes-detail/', '/home-details/', '/listing/',
     '/property/', '/for-sale/', '/mls/', '/realestateandhomes-detail/',
@@ -327,44 +440,36 @@ export function detectPropertyListing(): DetectionResult {
   }
 
   // ── MEDIUM CONFIDENCE SIGNALS (8 points each) ──
-
-  // MLS reference
   if (/\b(mls\s*#|mls\s*id|mls\s*number|mls:)\b/.test(visibleText) || /\bmls\b/.test(visibleText)) {
     confidence += 8;
     signals.push('mls_reference');
   }
 
-  // Year built
   if (/\b(year\s*built|built\s*in)\s*(19|20)\d{2}\b/.test(visibleText)) {
     confidence += 8;
     signals.push('year_built');
   }
 
-  // Lot size
   if (/\b(lot\s*size|lot:)\b/.test(visibleText)) {
     confidence += 8;
     signals.push('lot_size');
   }
 
-  // Garage/parking with number
   if (/\b(garage|parking)\b/.test(visibleText) && /\d+\s*(car|space|spot)/i.test(visibleText)) {
     confidence += 8;
     signals.push('garage_parking');
   }
 
-  // American address format: number + street + city + 2-letter state + ZIP
   if (/\d+\s+[\w\s]+,\s*[\w\s]+,\s*[A-Z]{2}\s+\d{5}/.test(document.body.textContent?.slice(0, 30000) || '')) {
     confidence += 8;
     signals.push('us_address_format');
   }
 
-  // HOA
   if (/\b(hoa|hoa\s*fee|homeowners?\s*association)\b/.test(visibleText)) {
     confidence += 8;
     signals.push('hoa');
   }
 
-  // Schema.org markup
   const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
   schemaScripts.forEach((script) => {
     const text = (script.textContent || '').toLowerCase();
@@ -375,7 +480,6 @@ export function detectPropertyListing(): DetectionResult {
   });
 
   // ── LOW CONFIDENCE SIGNALS (4 points each) ──
-
   if (/\bproperty\s*type\b/.test(visibleText)) {
     confidence += 4;
     signals.push('property_type');
@@ -391,7 +495,6 @@ export function detectPropertyListing(): DetectionResult {
     signals.push('days_on_market');
   }
 
-  // Domain-based signal
   const realtorDomains = [
     'zillow', 'redfin', 'realtor', 'trulia', 'homes.com', 'remax', 'coldwell',
     'compass', 'century21', 'keller', 'berkshire', 'sotheby', 'opendoor',
@@ -436,7 +539,8 @@ export function extractPropertyDataFromPage(): ExtractedPropertyData | null {
     merged.yearBuilt,
   ].filter((v) => v !== undefined && v !== null).length;
 
-  if (availableFields < 3) {
+  // Lowered threshold from 3 to 2 for better detection
+  if (availableFields < 2) {
     return null;
   }
 
