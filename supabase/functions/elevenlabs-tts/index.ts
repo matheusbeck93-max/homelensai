@@ -25,11 +25,12 @@ serve(async (req) => {
       );
     }
 
-    // Default to "Sarah" voice - natural female English voice
-    const selectedVoice = voiceId || 'EXAVITQu4vr4xnSDxMaL';
+    // Default to Eric voice
+    const selectedVoice = voiceId || 'cjVigY5qzO86Huf0OWal';
 
+    // Use streaming endpoint + turbo model for faster time-to-first-audio
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}?output_format=mp3_44100_128`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}/stream?output_format=mp3_22050_32`,
       {
         method: 'POST',
         headers: {
@@ -38,7 +39,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           text: text.substring(0, 5000),
-          model_id: 'eleven_multilingual_v2',
+          model_id: 'eleven_turbo_v2_5',
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
@@ -56,12 +57,12 @@ serve(async (req) => {
       throw new Error(`ElevenLabs API failed: ${response.status}`);
     }
 
-    const audioBuffer = await response.arrayBuffer();
-
-    return new Response(audioBuffer, {
+    // Stream the audio back directly
+    return new Response(response.body, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'audio/mpeg',
+        'Transfer-Encoding': 'chunked',
       },
     });
   } catch (error) {
