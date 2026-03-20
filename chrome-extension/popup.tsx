@@ -91,7 +91,6 @@ function renderMarkdown(text: string): React.ReactNode {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Headers
     if (trimmed.startsWith('## ')) {
       flushList();
       elements.push(<h3 key={`h-${i}`} style={{ fontWeight: 'bold', fontSize: '14px', marginTop: '8px', marginBottom: '4px' }}>{renderInline(trimmed.slice(3))}</h3>);
@@ -103,14 +102,12 @@ function renderMarkdown(text: string): React.ReactNode {
       continue;
     }
 
-    // Bullet list
     if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
       if (listType !== 'ul') { flushList(); listType = 'ul'; }
       currentList.push(renderInline(trimmed.slice(2)));
       continue;
     }
 
-    // Numbered list
     const numMatch = trimmed.match(/^(\d+)\.\s+(.+)/);
     if (numMatch) {
       if (listType !== 'ol') { flushList(); listType = 'ol'; }
@@ -118,14 +115,12 @@ function renderMarkdown(text: string): React.ReactNode {
       continue;
     }
 
-    // Empty line
     if (!trimmed) {
       flushList();
       elements.push(<br key={`br-${i}`} />);
       continue;
     }
 
-    // Regular paragraph
     flushList();
     elements.push(<p key={`p-${i}`} style={{ margin: '2px 0' }}>{renderInline(trimmed)}</p>);
   }
@@ -189,7 +184,7 @@ function normalizePropertyContext(raw: any): PropertyContext | null {
     normalized.state,
   ].filter((v) => v !== undefined && v !== null).length;
 
-  return filledFields >= 3 ? normalized : null;
+  return filledFields >= 2 ? normalized : null;
 }
 
 function stripPropertyUrls(text: string): string {
@@ -211,9 +206,9 @@ function parseMatchScore(content: string): { score: number | null; cleanContent:
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 8) return '#22c55e';  // green
-  if (score >= 5) return '#eab308';  // yellow
-  return '#ef4444';  // red
+  if (score >= 8) return '#22c55e';
+  if (score >= 5) return '#eab308';
+  return '#ef4444';
 }
 
 function getScoreLabel(score: number): string {
@@ -279,48 +274,43 @@ function detectPropertyUrl(text: string): string | null {
 
 function buildAnalysisMessages(
   url: string,
-  purpose: 'investment' | 'residence',
   history: Message[],
 ): { role: string; content: string }[] {
-  const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
-
   if (history.length >= 2) {
     return [
       ...history.map((m) => ({ role: m.role, content: m.content })),
       {
         role: 'user' as const,
-        content: `Analyze this property for ${purposeLabel}: ${url}\n\nIMPORTANT: Keep the response SHORT and summarized — this is a browser extension with limited space. Use bullet points, no long paragraphs.`,
+        content: `Analyze this property: ${url}\n\nIMPORTANT: Keep the response SHORT and summarized — this is a browser extension with limited space. Use bullet points, no long paragraphs. After the analysis, ask the user whether their interest is for investment or primary residence, so you can tailor follow-up advice.`,
       },
     ];
   }
 
   return [
-    { role: 'user', content: `I'd like to analyze a property for ${purposeLabel}.` },
-    { role: 'assistant', content: `Sure! Share the listing URL and I'll analyze it for ${purposeLabel}.` },
+    { role: 'user', content: `I'd like to analyze a property.` },
+    { role: 'assistant', content: `Sure! Share the listing URL and I'll analyze it.` },
     {
       role: 'user',
-      content: `Analyze this property for ${purposeLabel}: ${url}\n\nIMPORTANT: Keep the response SHORT and summarized — this is a browser extension with limited space. Use bullet points, no long paragraphs.`,
+      content: `Analyze this property: ${url}\n\nIMPORTANT: Keep the response SHORT and summarized — this is a browser extension with limited space. Use bullet points, no long paragraphs. After the analysis, ask the user whether their interest is for investment or primary residence, so you can tailor follow-up advice.`,
     },
   ];
 }
 
 function buildPropertyDataMessages(
-  purpose: 'investment' | 'residence',
   history: Message[],
   userText?: string,
 ): { role: string; content: string }[] {
-  const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
   const cleanedRequest = stripPropertyUrls(userText || '');
 
   const request = cleanedRequest
     ? `${cleanedRequest}`
-    : `Analyze the selected property for ${purposeLabel}.`;
+    : `Analyze the selected property.`;
 
   return [
     ...history.map((m) => ({ role: m.role, content: m.content })),
     {
       role: 'user',
-      content: `${request}\n\nUse the selected property data already provided in context. Focus on ${purposeLabel}. Keep the answer SHORT, summarized, and in bullet points.`,
+      content: `${request}\n\nUse the selected property data already provided in context. Keep the answer SHORT, summarized, and in bullet points. After the analysis, ask the user whether their interest is for investment or primary residence, so you can tailor follow-up advice.`,
     },
   ];
 }
@@ -489,6 +479,7 @@ function MessageBubble({ msg }: { msg: Message }) {
 // Chat Screen
 // ══════════════════════════════════════
 function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => void }) {
+  // Always start fresh — no conversation history loaded from DB
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -496,21 +487,59 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const [pendingProperty, setPendingProperty] = useState<PropertyContext | null>(null);
   const [activeProperty, setActiveProperty] = useState<PropertyContext | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [purpose, setPurpose] = useState<'investment' | 'residence'>('investment');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Fetch user profile on mount
+  // Fetch user profile and detect current tab on mount
   useEffect(() => {
     fetchUserProfile();
-    loadLastConversation();
+    detectCurrentTab();
   }, []);
+
+  // Load session-scoped history (same site only) from chrome.storage.session
+  useEffect(() => {
+    if (!currentTabUrl) return;
+    const siteKey = getSiteKey(currentTabUrl);
+    chrome.storage.session?.get(`hl_chat_${siteKey}`, (result) => {
+      const stored = result?.[`hl_chat_${siteKey}`];
+      if (stored && Array.isArray(stored.messages)) {
+        setMessages(stored.messages);
+      }
+    });
+  }, [currentTabUrl]);
+
+  // Persist messages to session storage (cleared when browser closes)
+  useEffect(() => {
+    if (!currentTabUrl || messages.length === 0) return;
+    const siteKey = getSiteKey(currentTabUrl);
+    chrome.storage.session?.set({ [`hl_chat_${siteKey}`]: { messages, updatedAt: Date.now() } });
+  }, [messages, currentTabUrl]);
+
+  const getSiteKey = (url: string): string => {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname.replace(/\./g, '_');
+    } catch {
+      return 'unknown';
+    }
+  };
+
+  const detectCurrentTab = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]?.url) {
+        setCurrentTabUrl(tabs[0].url);
+      }
+    } catch {
+      // Ignore
+    }
+  };
 
   const fetchUserProfile = async () => {
     if (!session.user_id) return;
@@ -535,86 +564,8 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     }
   };
 
-  const loadLastConversation = async () => {
-    if (!session.user_id) return;
-    try {
-      // Get the most recent conversation
-      const convRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/conversations?user_id=eq.${session.user_id}&order=updated_at.desc&limit=1`,
-        {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      if (!convRes.ok) return;
-      const conversations = await convRes.json();
-      if (!conversations || conversations.length === 0) return;
-
-      const conv = conversations[0];
-      setConversationId(conv.id);
-
-      // Load messages for this conversation
-      const msgRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conv.id}&order=created_at.asc&limit=50`,
-        {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      if (msgRes.ok) {
-        const msgs = await msgRes.json();
-        if (msgs && msgs.length > 0) {
-          setMessages(msgs.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content })));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load conversation:', err);
-    }
-  };
-
-  const persistMessage = async (role: string, content: string) => {
-    if (!session.user_id) return;
-    try {
-      let convId = conversationId;
-      if (!convId) {
-        // Create a new conversation
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/conversations`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${session.access_token}`,
-            Prefer: 'return=representation',
-          },
-          body: JSON.stringify({ user_id: session.user_id, title: 'Extension Chat' }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          convId = data[0]?.id;
-          setConversationId(convId!);
-        }
-      }
-      if (!convId) return;
-
-      await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ conversation_id: convId, role, content }),
-      });
-    } catch (err) {
-      console.error('Failed to persist message:', err);
-    }
-  };
-
   useEffect(() => {
+    // Load pending property from content script on mount
     chrome.storage.local.get(['homelens_pending_url', 'homelens_pending_property'], (result) => {
       if (result.homelens_pending_url) {
         setPendingUrl(result.homelens_pending_url);
@@ -625,7 +576,30 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         setPendingProperty(normalized);
       }
     });
+
+    // Also try to get fresh data from content script directly
+    refreshPropertyFromContentScript();
   }, []);
+
+  const refreshPropertyFromContentScript = async () => {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]?.id) {
+        const response = await chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_ACTIVE_PROPERTY_CONTEXT' });
+        if (response?.ok && response.propertyData) {
+          const normalized = normalizePropertyContext(response.propertyData);
+          if (normalized) {
+            setPendingProperty(normalized);
+            if (response.url) {
+              setPendingUrl(response.url);
+            }
+          }
+        }
+      }
+    } catch {
+      // Content script not available
+    }
+  };
 
   const getStoredPropertyForUrl = async (url: string): Promise<PropertyContext | null> => {
     return new Promise((resolve) => {
@@ -683,7 +657,6 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       const { score, cleanContent } = parseMatchScore(rawMessage);
       if (score !== null) setMatchScore(score);
       setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
-      persistMessage('assistant', cleanContent);
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
@@ -741,55 +714,10 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
       const data = await res.json();
 
-      if (data.needsPurpose) {
-        const purposeAnswer = purpose === 'investment' ? 'Investment' : 'Primary residence';
-        const retryMessages = [
-          ...apiMessages,
-          { role: 'assistant', content: data.response },
-          { role: 'user', content: purposeAnswer },
-        ];
-
-        const retryBody: Record<string, unknown> = {
-          messages: retryMessages,
-          conversationMode: true,
-          extensionMode: true,
-        };
-
-        if (selectedProperty) {
-          retryBody.propertyData = selectedProperty;
-        }
-        if (userProfile && userProfile.onboarding_completed) {
-          retryBody.userProfile = userProfile;
-        }
-
-        const retryRes = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify(retryBody),
-        });
-
-        if (retryRes.ok) {
-          const retryData = await retryRes.json();
-          const rawContent = extractMessageContent(retryData);
-          const { score, cleanContent } = parseMatchScore(rawContent);
-          if (score !== null) setMatchScore(score);
-          setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
-          persistMessage('assistant', cleanContent);
-        } else {
-          throw new Error(`Retry failed (${retryRes.status})`);
-        }
-        return;
-      }
-
       const rawContent = extractMessageContent(data);
       const { score, cleanContent } = parseMatchScore(rawContent);
       if (score !== null) setMatchScore(score);
       setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
-      persistMessage('assistant', cleanContent);
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
@@ -800,13 +728,6 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     }
   };
 
-  /**
-   * Extract readable message content from various response formats:
-   * - { response: "plain text" } (URL analysis path)
-   * - { response: { message: "text" } } (regular chat path, parsed JSON)
-   * - { response: "{\"message\": \"text\"}" } (regular chat path, stringified JSON)
-   * - { message: "text" } (fallback)
-   */
   function extractMessageContent(data: any): string {
     const resp = data.response;
     
@@ -814,20 +735,16 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       return data.message || "Sorry, I couldn't process your request.";
     }
 
-    // If response is a string
     if (typeof resp === 'string') {
-      // Try to parse as JSON
       try {
         const parsed = JSON.parse(resp);
         if (parsed.message) return parsed.message;
         return resp;
       } catch {
-        // It's plain text
         return resp;
       }
     }
 
-    // If response is an object
     if (typeof resp === 'object') {
       if (resp.message) return resp.message;
       return JSON.stringify(resp);
@@ -843,7 +760,6 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput('');
-    persistMessage('user', text);
 
     const detectedUrl = detectPropertyUrl(text);
 
@@ -852,14 +768,13 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 
       if (structuredProperty) {
         setActiveProperty(structuredProperty);
-        // Keep URL in message so edge function detects it AND uses propertyData
-        const apiMessages = buildAnalysisMessages(detectedUrl, purpose, messages);
+        const apiMessages = buildAnalysisMessages(detectedUrl, messages);
         await callAiChat(apiMessages, structuredProperty);
         return;
       }
 
       setActiveProperty(null);
-      const apiMessages = buildAnalysisMessages(detectedUrl, purpose, messages);
+      const apiMessages = buildAnalysisMessages(detectedUrl, messages);
       await callAiChat(apiMessages);
       return;
     }
@@ -867,7 +782,6 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     // Regular chat message - check if there's active property context
     let propertyForChat = activeProperty;
     if (!propertyForChat && !detectedUrl) {
-      // Check if content script has property data for current tab
       try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tabs[0]?.id) {
@@ -881,12 +795,10 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           }
         }
       } catch {
-        // Content script not available, continue without property context
+        // Content script not available
       }
     }
 
-    // If there's property context, use ai-chat (for property-specific analysis)
-    // Otherwise use perplexity-chat (matching main system behavior)
     if (propertyForChat) {
       const apiMessages = buildChatMessages(messages, text);
       await callAiChat(apiMessages, propertyForChat);
@@ -901,22 +813,19 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     chrome.storage.local.remove(['homelens_pending_url', 'homelens_pending_property']);
     setBannerDismissed(true);
 
-    const purposeLabel = purpose === 'investment' ? 'investment' : 'primary residence';
-    const userMsg: Message = { role: 'user', content: `Analyze this property for ${purposeLabel}: ${pendingUrl}` };
+    const userMsg: Message = { role: 'user', content: `Analyze this property: ${pendingUrl}` };
     setMessages((prev) => [...prev, userMsg]);
-    persistMessage('user', userMsg.content);
 
     if (pendingProperty) {
       setActiveProperty(pendingProperty);
-      // Include the URL in the message so the edge function can detect it AND use propertyData
-      const apiMessages = buildAnalysisMessages(pendingUrl, purpose, []);
+      const apiMessages = buildAnalysisMessages(pendingUrl, []);
       setPendingUrl(null);
       setPendingProperty(null);
       callAiChat(apiMessages, pendingProperty);
       return;
     }
 
-    const apiMessages = buildAnalysisMessages(pendingUrl, purpose, []);
+    const apiMessages = buildAnalysisMessages(pendingUrl, []);
     setPendingUrl(null);
     setPendingProperty(null);
     callAiChat(apiMessages);
@@ -932,8 +841,12 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const handleNewChat = () => {
     setMessages([]);
     setMatchScore(null);
-    setConversationId(null);
     setActiveProperty(null);
+    // Clear session storage for current site
+    if (currentTabUrl) {
+      const siteKey = getSiteKey(currentTabUrl);
+      chrome.storage.session?.remove(`hl_chat_${siteKey}`);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -972,23 +885,6 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         </div>
       </div>
 
-      {/* Purpose toggle */}
-      <div className="hl-purpose-bar">
-        <span className="hl-purpose-label">Analysis mode:</span>
-        <button
-          className={`hl-purpose-btn ${purpose === 'investment' ? 'hl-purpose-active' : ''}`}
-          onClick={() => setPurpose('investment')}
-        >
-          💰 Investment
-        </button>
-        <button
-          className={`hl-purpose-btn ${purpose === 'residence' ? 'hl-purpose-active' : ''}`}
-          onClick={() => setPurpose('residence')}
-        >
-          🏡 Residence
-        </button>
-      </div>
-
       {/* Profile prompt if not completed */}
       {userProfile && !userProfile.onboarding_completed && (
         <div style={{ padding: '8px 12px', background: '#1a2332', borderBottom: '1px solid #2a3a4e', fontSize: '11px', color: '#9ca3af' }}>
@@ -1005,6 +901,16 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           <div className="hl-banner-text">
             <div className="hl-banner-title">Property detected</div>
             <div className="hl-banner-url">{getDomain(pendingUrl)}</div>
+            {pendingProperty && (
+              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>
+                {[
+                  pendingProperty.price ? `$${pendingProperty.price.toLocaleString()}` : null,
+                  pendingProperty.beds ? `${pendingProperty.beds}bd` : null,
+                  pendingProperty.baths ? `${pendingProperty.baths}ba` : null,
+                  pendingProperty.sqft ? `${pendingProperty.sqft.toLocaleString()} sqft` : null,
+                ].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
           <button className="hl-banner-analyze" onClick={handleAnalyzeNow}>
             Analyze now
