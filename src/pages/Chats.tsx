@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus, Target } from "lucide-react";
+import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
@@ -487,6 +488,13 @@ export default function Chats() {
 
                         {message.content.replace(/\[\d+\]/g, '')}
                       </ReactMarkdown>
+                      
+                      {/* Listen to response */}
+                      {message.content && (
+                        <div className="flex justify-end mt-1">
+                          <TextToSpeechButton text={message.content} />
+                        </div>
+                      )}
                       
                       {/* Add to Comparison Button */}
                       {isAnalysis && analysisUrl &&
