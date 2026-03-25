@@ -92,12 +92,13 @@ export function StickyChat({
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    console.log('[StickyChat] handleFileChange triggered, files:', files?.length, 'types:', Array.from(files || []).map(f => `${f.name} (${f.type}, ${f.size}b)`));
-    if (!files || files.length === 0) {
+    const selectedFiles = Array.from(e.target.files ?? []);
+    console.log('[StickyChat] handleFileChange triggered, files:', selectedFiles.length, 'types:', selectedFiles.map(f => `${f.name} (${f.type}, ${f.size}b)`));
+    if (selectedFiles.length === 0) {
       console.log('[StickyChat] No files selected, returning');
       return;
     }
+    // reset after cloning files to avoid losing FileList in some browsers
     e.target.value = "";
 
     const remainingSlots = MAX_FILES - attachments.length;
@@ -110,8 +111,8 @@ export function StickyChat({
       return;
     }
 
-    const filesToProcess = Array.from(files).slice(0, remainingSlots);
-    if (files.length > remainingSlots) {
+    const filesToProcess = selectedFiles.slice(0, remainingSlots);
+    if (selectedFiles.length > remainingSlots) {
       toast({
         title: "Some files skipped",
         description: `Only ${remainingSlots} more file(s) can be added (max ${MAX_FILES}).`,
