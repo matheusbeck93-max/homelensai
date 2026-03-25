@@ -112,7 +112,7 @@ export function StickyChat({
     }
 
     const filesToProcess = selectedFiles.slice(0, remainingSlots);
-    if (files.length > remainingSlots) {
+    if (selectedFiles.length > remainingSlots) {
       toast({
         title: "Some files skipped",
         description: `Only ${remainingSlots} more file(s) can be added (max ${MAX_FILES}).`,
