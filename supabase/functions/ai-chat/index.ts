@@ -18,6 +18,11 @@ const chatRequestSchema = z.object({
   propertyData: z.any().optional(),
   conversationMode: z.boolean().optional(),
   extensionMode: z.boolean().optional(),
+  attachment: z.object({
+    name: z.string(),
+    mimeType: z.string(),
+    data: z.string(),
+  }).optional(),
 });
 
 Deno.serve(async (req) => {
@@ -43,7 +48,7 @@ Deno.serve(async (req) => {
       );
     }
     
-    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode, extensionMode } = validationResult.data;
+    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode, extensionMode, attachment } = validationResult.data;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
     
