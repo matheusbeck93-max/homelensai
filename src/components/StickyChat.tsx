@@ -64,7 +64,10 @@ export function StickyChat({
 }: StickyChatProps) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentWithFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const dragCounter = useRef(0);
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -91,87 +94,100 @@ export function StickyChat({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files ?? []);
-    console.log('[StickyChat] handleFileChange triggered, files:', selectedFiles.length, 'types:', selectedFiles.map(f => `${f.name} (${f.type}, ${f.size}b)`));
-    if (selectedFiles.length === 0) {
-      console.log('[StickyChat] No files selected, returning');
-      return;
-    }
-    // reset after cloning files to avoid losing FileList in some browsers
-    e.target.value = "";
+  const processFiles = async (files: File[]) => {
+    if (files.length === 0) return;
 
     const remainingSlots = MAX_FILES - attachments.length;
     if (remainingSlots <= 0) {
-      toast({
-        title: "Maximum files reached",
-        description: `You can attach up to ${MAX_FILES} files per message.`,
-        variant: "destructive",
-      });
+      toast({ title: "Maximum files reached", description: `You can attach up to ${MAX_FILES} files per message.`, variant: "destructive" });
       return;
     }
 
-    const filesToProcess = selectedFiles.slice(0, remainingSlots);
-    if (selectedFiles.length > remainingSlots) {
-      toast({
-        title: "Some files skipped",
-        description: `Only ${remainingSlots} more file(s) can be added (max ${MAX_FILES}).`,
-      });
+    const filesToProcess = files.slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+      toast({ title: "Some files skipped", description: `Only ${remainingSlots} more file(s) can be added (max ${MAX_FILES}).` });
     }
 
     const newAttachments: AttachmentWithFile[] = [];
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.bmp', '.svg'];
 
     for (const file of filesToProcess) {
-      console.log(`[StickyChat] Processing file: ${file.name}, type: "${file.type}", size: ${file.size}`);
-      // Validate type: allow PDF and any image type (jpeg/png/webp/heic/etc.)
-      // Also allow files with image extensions even if browser doesn't set MIME type
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.bmp', '.svg'];
       const hasImageExtension = imageExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
       const isSupportedType = file.type === "application/pdf" || file.type.startsWith("image/") || hasImageExtension;
       if (!isSupportedType) {
-        console.log(`[StickyChat] Rejected file: ${file.name}, type: "${file.type}"`);
         if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
           toast({ title: "DOCX not supported yet", description: "Please export as PDF.", variant: "destructive" });
         } else {
-          toast({ title: `Unsupported: ${file.name}`, description: `Unsupported type: ${file.type || 'unknown'}. Upload PDF or image files.`, variant: "destructive" });
+          toast({ title: `Unsupported: ${file.name}`, description: `Upload PDF or image files.`, variant: "destructive" });
         }
         continue;
       }
-
-      // Validate size
       if (file.size > MAX_FILE_SIZE) {
         toast({ title: `File too large: ${file.name}`, description: `Max ${formatFileSize(MAX_FILE_SIZE)}.`, variant: "destructive" });
         continue;
       }
-
-      // Validate not empty
       if (file.size === 0) {
         toast({ title: `Empty file: ${file.name}`, description: "Skipped.", variant: "destructive" });
         continue;
       }
 
       const hasLargePdfWarning = file.type === "application/pdf" && file.size > LARGE_PDF_WARNING_PAGES * 10 * 1024;
-      // Determine MIME type - fallback to image/jpeg for image files without proper MIME
       const mimeType = file.type || (hasImageExtension ? 'image/jpeg' : 'application/octet-stream');
 
       try {
         const base64 = await fileToBase64(file);
-        console.log(`[StickyChat] File read successfully: ${file.name}, base64 length: ${base64.length}`);
         newAttachments.push({
           attachment: { name: file.name, mimeType, data: base64 },
           file,
           hasLargePdfWarning,
         });
       } catch (err) {
-        console.error(`[StickyChat] Error reading file: ${file.name}`, err);
         toast({ title: `Error reading: ${file.name}`, description: "Please try again.", variant: "destructive" });
       }
     }
 
-    console.log(`[StickyChat] Processed ${newAttachments.length} new attachments, total will be: ${attachments.length + newAttachments.length}`);
     if (newAttachments.length > 0) {
       setAttachments(prev => [...prev, ...newAttachments]);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    await processFiles(selectedFiles);
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    await processFiles(droppedFiles);
   };
 
   const removeAttachment = (index: number) => {
@@ -181,7 +197,22 @@ export function StickyChat({
   const hasLargePdf = attachments.some(a => a.hasLargePdfWarning);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe">
+    <div
+      ref={dropZoneRef}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className={`fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe transition-colors ${isDragging ? 'ring-2 ring-primary ring-inset bg-primary/5' : ''}`}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm z-10 pointer-events-none rounded">
+          <div className="flex flex-col items-center gap-2 text-primary">
+            <Plus className="h-8 w-8 animate-bounce" />
+            <p className="text-sm font-medium">Drop files here</p>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-3">
         {/* Attachments preview */}
         {attachments.length > 0 && (

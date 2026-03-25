@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText, Image as ImageIcon } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -172,6 +172,7 @@ export default function Chats() {
       id: uuidv4(),
       role: 'user',
       content: cleanedMessage,
+      attachments: attachments?.map(a => ({ name: a.name, mimeType: a.mimeType })),
       createdAt: new Date().toISOString()
     };
 
@@ -485,6 +486,18 @@ export default function Chats() {
                   'bg-primary text-primary-foreground' :
                   'bg-muted'}`
                   }>
+
+                  {/* Attachment badges for user messages */}
+                  {message.role === 'user' && message.attachments && message.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {message.attachments.map((att, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 bg-primary-foreground/20 text-primary-foreground rounded px-2 py-0.5 text-[10px] sm:text-xs">
+                          {att.mimeType.startsWith("image/") ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+                          <span className="truncate max-w-[120px]">{att.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {message.role === 'assistant' ?
                   <div className="prose prose-sm dark:prose-invert max-w-none">
