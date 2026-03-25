@@ -153,8 +153,8 @@ export default function Chats() {
     }
   }, [messages, loading]);
 
-  const handleSendMessage = useCallback(async (messageText: string, attachment?: ChatAttachment) => {
-    if ((!messageText.trim() && !attachment) || loading) return;
+  const handleSendMessage = useCallback(async (messageText: string, attachments?: ChatAttachment[]) => {
+    if ((!messageText.trim() && (!attachments || attachments.length === 0)) || loading) return;
 
     // Detect insight origin tags
     let insightOrigin: string | null = null;
@@ -212,17 +212,18 @@ export default function Chats() {
         userGoal: userPrimaryGoal
       };
 
-      // If there's an attachment, use ai-chat edge function directly for multimodal support
-      if (attachment) {
+      // If there are attachments, use ai-chat edge function directly for multimodal support
+      if (attachments && attachments.length > 0) {
+        const fileNames = attachments.map(a => a.name).join(', ');
         const { data, error } = await supabase.functions.invoke('ai-chat', {
           body: {
-            messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: cleanedMessage || `Analyze this document: ${attachment.name}` }],
+            messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: cleanedMessage || `Analyze these documents: ${fileNames}` }],
             conversationMode: true,
-            attachment: {
-              name: attachment.name,
-              mimeType: attachment.mimeType,
-              data: attachment.data,
-            },
+            attachments: attachments.map(a => ({
+              name: a.name,
+              mimeType: a.mimeType,
+              data: a.data,
+            })),
           }
         });
 
@@ -242,7 +243,7 @@ export default function Chats() {
         const assistantMessage: ChatMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content: jsonData.message || 'I could not process that document.',
+          content: jsonData.message || 'I could not process those documents.',
           createdAt: new Date().toISOString()
         };
 
