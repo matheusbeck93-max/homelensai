@@ -197,7 +197,22 @@ export function StickyChat({
   const hasLargePdf = attachments.some(a => a.hasLargePdfWarning);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe">
+    <div
+      ref={dropZoneRef}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className={`fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe transition-colors ${isDragging ? 'ring-2 ring-primary ring-inset bg-primary/5' : ''}`}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm z-10 pointer-events-none rounded">
+          <div className="flex flex-col items-center gap-2 text-primary">
+            <Plus className="h-8 w-8 animate-bounce" />
+            <p className="text-sm font-medium">Drop files here</p>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-3">
         {/* Attachments preview */}
         {attachments.length > 0 && (
