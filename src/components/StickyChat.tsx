@@ -93,7 +93,11 @@ export function StickyChat({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    console.log('[StickyChat] handleFileChange triggered, files:', files?.length, 'types:', Array.from(files || []).map(f => `${f.name} (${f.type}, ${f.size}b)`));
+    if (!files || files.length === 0) {
+      console.log('[StickyChat] No files selected, returning');
+      return;
+    }
     e.target.value = "";
 
     const remainingSlots = MAX_FILES - attachments.length;
