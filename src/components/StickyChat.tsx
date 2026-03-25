@@ -184,7 +184,7 @@ export function StickyChat({
                 </button>
               </div>
               {largePdfWarning && (
-                <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                <div className="flex items-center gap-1.5 text-xs text-warning dark:text-warning">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   <span>Large documents may be partially analyzed.</span>
                 </div>
