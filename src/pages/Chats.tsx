@@ -628,7 +628,7 @@ export default function Chats() {
         <StickyChat
           onSend={handleSendMessage}
           loading={loading}
-          placeholder="Search for properties or paste a listing URL..."
+          placeholder="Ask something..."
           showVoice={true} />
 
       </div>
