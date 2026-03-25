@@ -3,8 +3,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Plus, X, FileText, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import { VoiceInputButton } from "@/components/chat/VoiceInputButton";
-import { useSubscription } from "@/hooks/useSubscription";
-import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { useToast } from "@/hooks/use-toast";
 
 const SUPPORTED_TYPES = [
@@ -51,10 +49,10 @@ export function StickyChat({
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [largePdfWarning, setLargePdfWarning] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { isFree } = useSubscription();
+  
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,10 +76,6 @@ export function StickyChat({
   };
 
   const handleFileClick = () => {
-    if (isFree) {
-      setShowUpgradeModal(true);
-      return;
-    }
     fileInputRef.current?.click();
   };
 
@@ -251,12 +245,6 @@ export function StickyChat({
         </div>
       </div>
 
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        reason="Unlock document analysis to ask questions about contracts, inspection reports, and more."
-        feature="Document Upload & Analysis"
-      />
     </>
   );
 }
