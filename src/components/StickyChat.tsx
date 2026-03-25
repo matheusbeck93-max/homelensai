@@ -64,7 +64,10 @@ export function StickyChat({
 }: StickyChatProps) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentWithFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const dragCounter = useRef(0);
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {

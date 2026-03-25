@@ -1,15 +1,21 @@
 import React, { useEffect, useRef } from "react";
-import { Bot, User } from "lucide-react";
+import { Bot, User, FileText, Image as ImageIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { UIBlock } from "@/types/ui-blocks";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+export interface MessageAttachment {
+  name: string;
+  mimeType: string;
+}
 
 export interface ConversationMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   uiBlock?: UIBlock | null;
+  attachments?: MessageAttachment[];
   createdAt: string;
 }
 
@@ -17,6 +23,16 @@ interface ConversationPanelProps {
   messages: ConversationMessage[];
   loading?: boolean;
   onPropertyAnalyze?: (property: any) => void;
+}
+
+function AttachmentBadge({ attachment }: { attachment: MessageAttachment }) {
+  const isImage = attachment.mimeType.startsWith("image/");
+  return (
+    <span className="inline-flex items-center gap-1 bg-primary-foreground/20 text-primary-foreground rounded px-2 py-0.5 text-[10px] sm:text-xs">
+      {isImage ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+      <span className="truncate max-w-[120px]">{attachment.name}</span>
+    </span>
+  );
 }
 
 export function ConversationPanel({ messages, loading, onPropertyAnalyze }: ConversationPanelProps) {
@@ -40,6 +56,13 @@ export function ConversationPanel({ messages, loading, onPropertyAnalyze }: Conv
           {message.role === "user" && (
             <div className="flex justify-end gap-1.5 sm:gap-2 md:gap-3 mb-3 sm:mb-4 md:mb-6">
               <div className="max-w-[90%] sm:max-w-[85%] md:max-w-[80%] rounded-xl sm:rounded-2xl bg-primary text-primary-foreground px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3">
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-1.5">
+                    {message.attachments.map((att, i) => (
+                      <AttachmentBadge key={i} attachment={att} />
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs sm:text-sm whitespace-pre-wrap break-words">{message.content}</p>
               </div>
               <div className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">

@@ -172,6 +172,7 @@ export default function Chats() {
       id: uuidv4(),
       role: 'user',
       content: cleanedMessage,
+      attachments: attachments?.map(a => ({ name: a.name, mimeType: a.mimeType })),
       createdAt: new Date().toISOString()
     };
 

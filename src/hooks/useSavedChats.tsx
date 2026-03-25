@@ -2,11 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export interface ChatMessageAttachment {
+  name: string;
+  mimeType: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   links?: PropertyLink[];
+  attachments?: ChatMessageAttachment[];
   createdAt: string;
   metadata?: Record<string, any>;
 }
