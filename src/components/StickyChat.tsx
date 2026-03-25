@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, Sparkles, Paperclip, X, FileText, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Send, Sparkles, Plus, X, FileText, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import { VoiceInputButton } from "@/components/chat/VoiceInputButton";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
@@ -217,7 +217,7 @@ export function StickyChat({
               className="h-[44px] w-[44px] sm:h-[52px] sm:w-[52px] md:h-[60px] md:w-[60px] flex-shrink-0"
               title="Upload document or image"
             >
-              <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
 
             <Textarea
