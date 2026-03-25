@@ -449,8 +449,7 @@ export default function Chats() {
                 <p className="text-xs text-muted-foreground">Expected rent for a 2-bed condo in Denver</p>
               </Card>
               <Card className="p-4">
-                <p className="text-sm font-medium flex items-center gap-1.5">
-                  <Paperclip className="h-3.5 w-3.5 text-primary" />
+                <p className="text-sm font-medium">
                   Upload a document
                 </p>
                 <p className="text-xs text-muted-foreground">Attach a contract, inspection report, or loan estimate and ask questions about it</p>
