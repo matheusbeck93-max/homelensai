@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 import { ConversationPanel, ConversationMessage } from "@/components/ConversationPanel";
-import { StickyChat } from "@/components/StickyChat";
+import { StickyChat, ChatAttachment } from "@/components/StickyChat";
 import { HouseHeroAnimation } from "@/components/HouseHeroAnimation";
 import { UIBlock } from "@/types/ui-blocks";
 import { parseLocationComponents } from "@/utils/propertySearchHelpers";
