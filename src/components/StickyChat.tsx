@@ -7,9 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 
 const SUPPORTED_TYPES = [
   "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file
