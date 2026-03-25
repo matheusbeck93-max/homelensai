@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Loader2, MessageSquare, Plus, Target } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
@@ -447,6 +447,13 @@ export default function Chats() {
               <Card className="p-4">
                 <p className="text-sm font-medium">Estimate rental income</p>
                 <p className="text-xs text-muted-foreground">Expected rent for a 2-bed condo in Denver</p>
+              </Card>
+              <Card className="p-4">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <Paperclip className="h-3.5 w-3.5 text-primary" />
+                  Upload a document
+                </p>
+                <p className="text-xs text-muted-foreground">Attach a contract, inspection report, or loan estimate and ask questions about it</p>
               </Card>
             </div>
           </div>
