@@ -1313,15 +1313,42 @@ Always include uiBlock alongside your conversational message.`;
 
     console.log('Making Lovable AI Gateway call for regular chat...');
     
+    // Build messages for the AI request, handling multimodal attachment
+    const aiMessages: any[] = [
+      {
+        role: 'system',
+        content: systemPrompt
+      },
+    ];
+
+    // Add all messages except the last one as-is
+    for (let i = 0; i < messages.length - 1; i++) {
+      aiMessages.push(messages[i]);
+    }
+
+    // For the last message, include attachment as multimodal content if present
+    const lastMsg = messages[messages.length - 1];
+    if (attachment && lastMsg) {
+      console.log(`Including attachment: ${attachment.name} (${attachment.mimeType}, ${Math.round(attachment.data.length / 1024)}KB base64)`);
+      aiMessages.push({
+        role: lastMsg.role,
+        content: [
+          { type: 'text', text: lastMsg.content || `Analyze this document: ${attachment.name}` },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${attachment.mimeType};base64,${attachment.data}`
+            }
+          }
+        ]
+      });
+    } else {
+      aiMessages.push(lastMsg);
+    }
+
     const requestBody: any = {
       model: 'google/gemini-2.5-flash',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        ...messages
-      ],
+      messages: aiMessages,
     };
 
     if (tools && tools.length > 0) {
