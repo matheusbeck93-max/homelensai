@@ -78,10 +78,6 @@ export function StickyChat({
   };
 
   const handleFileClick = () => {
-    if (isFree) {
-      setShowUpgradeModal(true);
-      return;
-    }
     fileInputRef.current?.click();
   };
 
