@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Loader2, MessageSquare, Plus, Target } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
