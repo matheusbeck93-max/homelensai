@@ -23,6 +23,11 @@ const chatRequestSchema = z.object({
     mimeType: z.string(),
     data: z.string(),
   }).optional(),
+  attachments: z.array(z.object({
+    name: z.string(),
+    mimeType: z.string(),
+    data: z.string(),
+  })).optional(),
 });
 
 Deno.serve(async (req) => {
