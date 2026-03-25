@@ -53,7 +53,14 @@ Deno.serve(async (req) => {
       );
     }
     
-    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode, extensionMode, attachment } = validationResult.data;
+    const { messages, hasImage, userProfile: clientProfile, propertyData, conversationMode, extensionMode, attachment, attachments: attachmentsArray } = validationResult.data;
+    // Normalize: support both single `attachment` (legacy) and `attachments` array
+    const allAttachments: Array<{ name: string; mimeType: string; data: string }> = [];
+    if (attachmentsArray && attachmentsArray.length > 0) {
+      allAttachments.push(...attachmentsArray);
+    } else if (attachment) {
+      allAttachments.push(attachment);
+    }
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
     
