@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
-import { StickyChat } from "@/components/StickyChat";
+import { StickyChat, ChatAttachment } from "@/components/StickyChat";
 import { SavedChatsSidebar } from "@/components/chat/SavedChatsSidebar";
 import { ChatComparisonPanel, AnalyzedProperty } from "@/components/chat/ChatComparisonPanel";
 import { useSavedChats, ChatMessage } from "@/hooks/useSavedChats";
@@ -153,8 +153,8 @@ export default function Chats() {
     }
   }, [messages, loading]);
 
-  const handleSendMessage = useCallback(async (messageText: string) => {
-    if (!messageText.trim() || loading) return;
+  const handleSendMessage = useCallback(async (messageText: string, attachment?: ChatAttachment) => {
+    if ((!messageText.trim() && !attachment) || loading) return;
 
     // Detect insight origin tags
     let insightOrigin: string | null = null;
@@ -202,16 +202,57 @@ export default function Chats() {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('perplexity-chat', {
-        body: {
-          query: cleanedMessage,
-          conversationHistory: messages.map((m) => ({
-            role: m.role,
-            content: m.content
-          })),
-          insightOrigin,
-          userGoal: userPrimaryGoal
+      const requestBody: any = {
+        query: cleanedMessage,
+        conversationHistory: messages.map((m) => ({
+          role: m.role,
+          content: m.content
+        })),
+        insightOrigin,
+        userGoal: userPrimaryGoal
+      };
+
+      // If there's an attachment, use ai-chat edge function directly for multimodal support
+      if (attachment) {
+        const { data, error } = await supabase.functions.invoke('ai-chat', {
+          body: {
+            messages: [...messages.map(m => ({ role: m.role, content: m.content })), { role: 'user', content: cleanedMessage || `Analyze this document: ${attachment.name}` }],
+            conversationMode: true,
+            attachment: {
+              name: attachment.name,
+              mimeType: attachment.mimeType,
+              data: attachment.data,
+            },
+          }
+        });
+
+        if (error) throw error;
+
+        let rawResponse = data?.response ?? data;
+        let jsonData: any = null;
+
+        if (rawResponse && typeof rawResponse === 'object' && rawResponse.message) {
+          jsonData = rawResponse;
+        } else if (typeof rawResponse === 'string') {
+          try { jsonData = JSON.parse(rawResponse); } catch { jsonData = { message: rawResponse }; }
+        } else {
+          jsonData = { message: String(rawResponse || 'No response received') };
         }
+
+        const assistantMessage: ChatMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: jsonData.message || 'I could not process that document.',
+          createdAt: new Date().toISOString()
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+        if (user && conversationId) saveMessage(assistantMessage, conversationId);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('perplexity-chat', {
+        body: requestBody
       });
 
       if (error) throw error;
