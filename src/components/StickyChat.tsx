@@ -117,12 +117,13 @@ export function StickyChat({
     const newAttachments: AttachmentWithFile[] = [];
 
     for (const file of filesToProcess) {
-      // Validate type
-      if (!SUPPORTED_TYPES.includes(file.type)) {
+      // Validate type: allow PDF and any image type (jpeg/png/webp/heic/etc.)
+      const isSupportedType = file.type === "application/pdf" || file.type.startsWith("image/");
+      if (!isSupportedType) {
         if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
           toast({ title: "DOCX not supported yet", description: "Please export as PDF.", variant: "destructive" });
         } else {
-          toast({ title: `Unsupported: ${file.name}`, description: "Upload PDF, JPG, PNG, or WEBP.", variant: "destructive" });
+          toast({ title: `Unsupported: ${file.name}`, description: `Unsupported type: ${file.type || 'unknown'}. Upload PDF or image files.`, variant: "destructive" });
         }
         continue;
       }
@@ -204,7 +205,7 @@ export function StickyChat({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,image/*"
             multiple
             className="hidden"
             onChange={handleFileChange}
