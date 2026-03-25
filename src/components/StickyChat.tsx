@@ -44,7 +44,7 @@ function formatFileSize(bytes: number) {
 export function StickyChat({ 
   onSend, 
   loading, 
-  placeholder = "Ask about properties, mortgages, investments, or paste a property link...",
+  placeholder = "Ask something",
   showVoice = false
 }: StickyChatProps) {
   const [input, setInput] = useState("");
