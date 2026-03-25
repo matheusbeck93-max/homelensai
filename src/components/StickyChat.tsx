@@ -93,7 +93,11 @@ export function StickyChat({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    console.log('[StickyChat] handleFileChange triggered, files:', files?.length, 'types:', Array.from(files || []).map(f => `${f.name} (${f.type}, ${f.size}b)`));
+    if (!files || files.length === 0) {
+      console.log('[StickyChat] No files selected, returning');
+      return;
+    }
     e.target.value = "";
 
     const remainingSlots = MAX_FILES - attachments.length;
@@ -117,9 +121,14 @@ export function StickyChat({
     const newAttachments: AttachmentWithFile[] = [];
 
     for (const file of filesToProcess) {
+      console.log(`[StickyChat] Processing file: ${file.name}, type: "${file.type}", size: ${file.size}`);
       // Validate type: allow PDF and any image type (jpeg/png/webp/heic/etc.)
-      const isSupportedType = file.type === "application/pdf" || file.type.startsWith("image/");
+      // Also allow files with image extensions even if browser doesn't set MIME type
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.gif', '.bmp', '.svg'];
+      const hasImageExtension = imageExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+      const isSupportedType = file.type === "application/pdf" || file.type.startsWith("image/") || hasImageExtension;
       if (!isSupportedType) {
+        console.log(`[StickyChat] Rejected file: ${file.name}, type: "${file.type}"`);
         if (file.name.endsWith(".docx") || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
           toast({ title: "DOCX not supported yet", description: "Please export as PDF.", variant: "destructive" });
         } else {
@@ -141,19 +150,24 @@ export function StickyChat({
       }
 
       const hasLargePdfWarning = file.type === "application/pdf" && file.size > LARGE_PDF_WARNING_PAGES * 10 * 1024;
+      // Determine MIME type - fallback to image/jpeg for image files without proper MIME
+      const mimeType = file.type || (hasImageExtension ? 'image/jpeg' : 'application/octet-stream');
 
       try {
         const base64 = await fileToBase64(file);
+        console.log(`[StickyChat] File read successfully: ${file.name}, base64 length: ${base64.length}`);
         newAttachments.push({
-          attachment: { name: file.name, mimeType: file.type, data: base64 },
+          attachment: { name: file.name, mimeType, data: base64 },
           file,
           hasLargePdfWarning,
         });
-      } catch {
+      } catch (err) {
+        console.error(`[StickyChat] Error reading file: ${file.name}`, err);
         toast({ title: `Error reading: ${file.name}`, description: "Please try again.", variant: "destructive" });
       }
     }
 
+    console.log(`[StickyChat] Processed ${newAttachments.length} new attachments, total will be: ${attachments.length + newAttachments.length}`);
     if (newAttachments.length > 0) {
       setAttachments(prev => [...prev, ...newAttachments]);
     }
