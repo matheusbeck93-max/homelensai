@@ -1338,21 +1338,26 @@ Always include uiBlock alongside your conversational message.`;
       aiMessages.push(messages[i]);
     }
 
-    // For the last message, include attachment as multimodal content if present
+    // For the last message, include attachments as multimodal content if present
     const lastMsg = messages[messages.length - 1];
-    if (attachment && lastMsg) {
-      console.log(`Including attachment: ${attachment.name} (${attachment.mimeType}, ${Math.round(attachment.data.length / 1024)}KB base64)`);
+    if (allAttachments.length > 0 && lastMsg) {
+      const fileNames = allAttachments.map(a => a.name).join(', ');
+      console.log(`Including ${allAttachments.length} attachment(s): ${fileNames}`);
+      const contentParts: any[] = [
+        { type: 'text', text: lastMsg.content || `Analyze these documents: ${fileNames}` },
+      ];
+      for (const att of allAttachments) {
+        console.log(`  - ${att.name} (${att.mimeType}, ${Math.round(att.data.length / 1024)}KB base64)`);
+        contentParts.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${att.mimeType};base64,${att.data}`
+          }
+        });
+      }
       aiMessages.push({
         role: lastMsg.role,
-        content: [
-          { type: 'text', text: lastMsg.content || `Analyze this document: ${attachment.name}` },
-          {
-            type: 'image_url',
-            image_url: {
-              url: `data:${attachment.mimeType};base64,${attachment.data}`
-            }
-          }
-        ]
+        content: contentParts
       });
     } else {
       aiMessages.push(lastMsg);
