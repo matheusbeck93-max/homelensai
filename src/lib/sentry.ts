@@ -9,15 +9,15 @@ export function initSentry() {
       integrations: [
         Sentry.browserTracingIntegration(),
         Sentry.replayIntegration({
-          maskAllText: false,
-          blockAllMedia: false,
+          maskAllText: true,
+          blockAllMedia: true,
         }),
       ],
       // Performance Monitoring
-      tracesSampleRate: 0.1, // 10% of transactions
+      tracesSampleRate: 0.1,
       // Session Replay
-      replaysSessionSampleRate: 0.1, // 10% of sessions
-      replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors
+      replaysSessionSampleRate: 0.05, // 5% of sessions
+      replaysOnErrorSampleRate: 1.0,
       
       environment: import.meta.env.MODE,
       
@@ -94,12 +94,11 @@ export function trackValidationError(
   });
 }
 
-export function setUserContext(userId: string, email?: string) {
+export function setUserContext(userId: string) {
   if (!import.meta.env.PROD) return;
   
   Sentry.setUser({
     id: userId,
-    email,
   });
 }
 

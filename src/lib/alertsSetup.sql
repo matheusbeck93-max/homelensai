@@ -14,8 +14,8 @@ SELECT cron.schedule(
   $$
   SELECT
     net.http_post(
-        url:='https://yckcdxtatwolzilboahx.supabase.co/functions/v1/check-property-alerts',
-        headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlja2NkeHRhdHdvbHppbGJvYWh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMDk3MTEsImV4cCI6MjA3Njg4NTcxMX0.MyOrW96L1QrSXoHaeU-XcR35-YEeqxKLxxc2pZJYww4"}'::jsonb,
+        url:=current_setting('app.settings.supabase_url') || '/functions/v1/check-property-alerts',
+        headers:=jsonb_build_object('Content-Type', 'application/json', 'Authorization', 'Bearer ' || current_setting('app.settings.anon_key')),
         body:='{}'::jsonb
     ) as request_id;
   $$
