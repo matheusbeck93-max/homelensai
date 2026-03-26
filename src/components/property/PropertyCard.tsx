@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Bed, Bath, Ruler, TrendingUp, ExternalLink, Heart, Share2, Bell, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Bed, Bath, Ruler, TrendingUp, ExternalLink, Share2, Bell, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
