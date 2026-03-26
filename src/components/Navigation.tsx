@@ -52,7 +52,7 @@ export function Navigation() {
   const portfolioNavItem = { label: 'Portfolio', path: '/portfolio', icon: Briefcase, requiresPremium: true };
  
   const handleGoHome = () => {
-    console.log('Navigating to homepage from:', location.pathname);
+    
     if (location.pathname === '/') {
       // Already on homepage - force full page reload to reset conversation state
       window.location.href = '/';
@@ -87,7 +87,7 @@ export function Navigation() {
                   key={item.path}
                   variant="ghost"
                   onClick={() => {
-                    console.log(`Navigation: ${item.label} clicked, navigating to ${item.path}`);
+                    
                     navigate(item.path);
                   }}
                   className={isActive ? "text-primary" : ""}

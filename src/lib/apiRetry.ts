@@ -67,7 +67,7 @@ export async function retryWithBackoff<T>(
         finalConfig.maxDelayMs
       );
       
-      console.log(`Retry attempt ${attempt + 1}/${finalConfig.maxRetries} after ${delay}ms`);
+      
       await sleep(delay);
     }
   }

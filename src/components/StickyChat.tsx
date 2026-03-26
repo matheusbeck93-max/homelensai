@@ -6,6 +6,11 @@ import { VoiceInputButton } from "@/components/chat/VoiceInputButton";
 import { useToast } from "@/hooks/use-toast";
 
 const SUPPORTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
   "application/pdf",
 ];
 

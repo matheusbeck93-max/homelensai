@@ -184,18 +184,13 @@ export default function Index() {
     queryFn: async () => {
       if (!effectiveSearchParams?.location) return null;
 
-      console.log('[Index] Fetching properties with params:', effectiveSearchParams);
-
       const { data, error } = await supabase.functions.invoke('search-listings', {
         body: effectiveSearchParams
       });
 
       if (error) {
-        console.error('[Index] Search error:', error);
         throw error;
       }
-
-      console.log('[Index] Search results:', data?.listings?.length || 0, 'properties from', data?.source);
       return data;
     },
     enabled: !!effectiveSearchParams?.location,
@@ -323,7 +318,7 @@ export default function Index() {
 
       // Check if AI wants to trigger a property search
       if (jsonData && jsonData.searchParams && jsonData.searchParams.location) {
-        console.log('[Index] AI provided searchParams, triggering property search:', jsonData.searchParams);
+        // AI provided searchParams, trigger property search
 
         // Only add message if it's not empty/duplicate
         if (displayMessage && displayMessage.trim()) {

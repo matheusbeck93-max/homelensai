@@ -191,7 +191,7 @@ export default function DealAnalysis() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         // TODO: Save analysis when we have property_id
-        console.log("Analysis calculated for user:", user.id, "with scores:", scores);
+        // TODO: Save analysis when we have property_id
       }
 
       toast({
