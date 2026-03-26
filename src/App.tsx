@@ -11,7 +11,6 @@ import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatin
 import { BackToTop } from "@/components/BackToTop";
 import { CookieConsent } from "@/components/CookieConsent";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { CookieConsent } from "@/components/CookieConsent";
 
 // Eagerly loaded routes (critical path)
 import Index from "./pages/Index";
