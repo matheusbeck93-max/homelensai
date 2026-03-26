@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MapPin, Bed, Bath, Ruler, TrendingUp, Scale, BarChart } from "lucide-react";
-import { FavoriteButton } from "@/components/FavoriteButton";
+
 import { ShareButton } from "@/components/ShareButton";
 import { supabase } from "@/integrations/supabase/client";
 import { PropertyInsights } from "@/components/PropertyInsights";
@@ -54,13 +54,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { addToComparison, isInComparison } = useComparison();
-  const [userId, setUserId] = useState<string | undefined>();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id);
-    });
-  }, []);
   
   const handleAddToCompare = () => {
     addToComparison({
@@ -116,7 +109,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
           {property.condition}
         </Badge>
         <ShareButton property={property} />
-        <FavoriteButton propertyId={property.id} userId={userId} variant="icon" />
       </div>
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary">

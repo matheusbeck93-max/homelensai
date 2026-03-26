@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Bed, Bath, Ruler, TrendingUp, ExternalLink, Heart, Share2, Bell, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Bed, Bath, Ruler, TrendingUp, ExternalLink, Share2, Bell, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { HomeLensListing } from "@/types/ui-blocks";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,8 +26,6 @@ interface PropertyCardProps {
   property: HomeLensListing;
   onAnalyze?: (property: HomeLensListing) => void;
   onViewDetails?: (property: HomeLensListing) => void;
-  isFavorite?: boolean;
-  onToggleFavorite?: (propertyId: string) => void;
   isWatched?: boolean;
   onToggleAlert?: (propertyId: string) => void;
   insights?: PropertyCardInsights;
@@ -38,8 +36,6 @@ export function PropertyCard({
   property,
   onAnalyze,
   onViewDetails,
-  isFavorite: propIsFavorite,
-  onToggleFavorite,
   isWatched: propIsWatched,
   onToggleAlert,
   insights,
@@ -48,87 +44,17 @@ export function PropertyCard({
   const { toast } = useToast();
   const { tier, userId } = useSubscription();
   const { addToComparison, removeFromComparison, isSelected, canAddMore } = useComparison();
-  const [isFavorite, setIsFavorite] = useState(propIsFavorite ?? false);
   const [isWatched, setIsWatched] = useState(propIsWatched ?? false);
   const [loading, setLoading] = useState(false);
   
   const isComparisonSelected = isSelected(property.id);
 
   useEffect(() => {
-    if (propIsFavorite !== undefined) {
-      setIsFavorite(propIsFavorite);
-    } else if (userId) {
-      checkFavorite();
+    if (propIsWatched !== undefined) {
+      setIsWatched(propIsWatched);
     }
-  }, [propIsFavorite, userId, property.id]);
+  }, [propIsWatched]);
 
-  const checkFavorite = async () => {
-    if (!userId) return;
-    
-    const { data } = await supabase
-      .from("favorites")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("property_id", property.id)
-      .single();
-
-    setIsFavorite(!!data);
-  };
-
-  const handleToggleFavorite = async () => {
-    if (onToggleFavorite) {
-      onToggleFavorite(property.id);
-      setIsFavorite(!isFavorite);
-      return;
-    }
-
-    if (!userId) {
-      toast({
-        title: "Login required",
-        description: "Please sign in to save favorites",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      if (isFavorite) {
-        const { error } = await supabase
-          .from("favorites")
-          .delete()
-          .eq("user_id", userId)
-          .eq("property_id", property.id);
-
-        if (error) throw error;
-
-        setIsFavorite(false);
-        toast({
-          title: "Removed from favorites",
-        });
-      } else {
-        const { error } = await supabase
-          .from("favorites")
-          .insert({ user_id: userId, property_id: property.id });
-
-        if (error) throw error;
-
-        setIsFavorite(true);
-        toast({
-          title: "Added to favorites",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleToggleAlert = () => {
     if (onToggleAlert) {
@@ -387,15 +313,6 @@ export function PropertyCard({
             className="bg-background/80 backdrop-blur-sm hover:bg-background h-8 w-8 p-0"
           >
             <Share2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleToggleFavorite}
-            disabled={loading}
-            className="bg-background/80 backdrop-blur-sm hover:bg-background h-8 w-8 p-0"
-          >
-            <Heart className={`h-4 w-4 ${isFavorite ? "fill-red-500 text-red-500" : ""}`} />
           </Button>
         </div>
       </div>

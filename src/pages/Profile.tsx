@@ -5,31 +5,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PropertyCard } from "@/components/PropertyCard";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Navigation } from "@/components/Navigation";
-import { EmptyState } from "@/components/EmptyState";
-import { User, LogOut, Heart, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
 
-interface Property {
-  id: string;
-  address: string;
-  city: string;
-  state: string;
-  price: number;
-  beds: number;
-  baths: number;
-  sqft: number;
-  condition: string;
-  image_urls: string[];
-  roi_percent?: number;
-}
+import { User, LogOut, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
+
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [favorites, setFavorites] = useState<Property[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const { toast } = useToast();
@@ -63,32 +50,10 @@ export default function Profile() {
       setShowOnboarding(true);
     }
 
-    await fetchFavorites(user.id);
+    
     setLoading(false);
   };
 
-  const fetchFavorites = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("favorites")
-        .select(`
-          property_id,
-          properties (*)
-        `)
-        .eq("user_id", userId);
-
-      if (error) throw error;
-
-      const properties = data?.map((fav: any) => fav.properties).filter(Boolean) || [];
-      setFavorites(properties);
-    } catch (error: any) {
-      toast({
-        title: "Error loading favorites",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -253,30 +218,6 @@ export default function Profile() {
             </Card>
           )}
 
-          {/* Favorites Section */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-6">
-              <Heart className="h-6 w-6 text-primary" />
-              <h2 className="text-2xl font-semibold">Favorite Properties</h2>
-              <span className="text-muted-foreground">({favorites.length})</span>
-            </div>
-
-            {favorites.length === 0 ? (
-              <EmptyState
-                icon={Heart}
-                title="No Favorite Properties"
-                description="Start favoriting properties to keep track of homes you're interested in. Your favorites will appear here."
-                actionLabel="Explore Properties"
-                onAction={() => navigate("/properties")}
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {favorites.map((property) => (
-                  <PropertyCard key={property.id} property={property} />
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
