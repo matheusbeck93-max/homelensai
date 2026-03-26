@@ -5,26 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PropertyCard } from "@/components/PropertyCard";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Navigation } from "@/components/Navigation";
 import { EmptyState } from "@/components/EmptyState";
-import { User, LogOut, Heart, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
+import { User, LogOut, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
 
-interface Property {
-  id: string;
-  address: string;
-  city: string;
-  state: string;
-  price: number;
-  beds: number;
-  baths: number;
-  sqft: number;
-  condition: string;
-  image_urls: string[];
-  roi_percent?: number;
-}
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
