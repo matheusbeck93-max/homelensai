@@ -1,15 +1,13 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { requireEnv } from '../_shared/env.ts';
+import { createLogger } from '../_shared/logging.ts';
+import { fetchWithTimeout } from '../_shared/http.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
-
-const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const log = createLogger('get-state-tax-data');
 
 const STATE_CODES: Record<string, string> = {
   'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
@@ -38,26 +36,19 @@ function normalizeState(input: string): string | null {
   return null;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const { state } = await req.json();
-    if (!state) {
-      return new Response(JSON.stringify({ error: 'State is required' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    if (!state) return validationError('State is required');
 
     const stateCode = normalizeState(state);
-    if (!stateCode) {
-      return new Response(JSON.stringify({ error: 'Invalid state' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    if (!stateCode) return validationError('Invalid state');
 
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Check cache (24h TTL)
@@ -72,29 +63,15 @@ serve(async (req) => {
       const now = new Date();
       const hoursSince = (now.getTime() - fetchedAt.getTime()) / (1000 * 60 * 60);
       if (hoursSince < 24) {
-        return new Response(JSON.stringify({
-          rate: Number(cached.rate),
-          source: cached.source,
-          updatedAt: cached.fetched_at,
-          fromCache: true,
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonResponse({ rate: Number(cached.rate), source: cached.source, updatedAt: cached.fetched_at, fromCache: true });
       }
     }
 
-    // Call Perplexity
-    if (!PERPLEXITY_API_KEY) {
-      throw new Error('PERPLEXITY_API_KEY not configured');
-    }
-
+    const PERPLEXITY_API_KEY = requireEnv('PERPLEXITY_API_KEY');
     const stateName = STATE_NAMES[stateCode] || stateCode;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const pResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+    const pResponse = await fetchWithTimeout('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
-      signal: controller.signal,
       headers: {
         'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
         'Content-Type': 'application/json',
@@ -108,9 +85,7 @@ serve(async (req) => {
           },
         ],
       }),
-    });
-
-    clearTimeout(timeout);
+    }, 8000);
 
     if (!pResponse.ok) {
       throw new Error(`Perplexity returned ${pResponse.status}`);
@@ -119,44 +94,24 @@ serve(async (req) => {
     const pData = await pResponse.json();
     const content = pData.choices?.[0]?.message?.content || '';
 
-    // Parse rate and source
     const rateMatch = content.match(/RATE:\s*(\d+\.?\d*)%?/i);
     const sourceMatch = content.match(/SOURCE:\s*(.+?)(?:\n|$)/i);
 
-    if (!rateMatch) {
-      throw new Error('Could not parse rate from Perplexity response');
-    }
+    if (!rateMatch) throw new Error('Could not parse rate from Perplexity response');
 
     const rate = parseFloat(rateMatch[1]);
     const source = sourceMatch ? sourceMatch[1].trim() : 'Perplexity AI';
 
-    if (isNaN(rate) || rate <= 0 || rate > 10) {
-      throw new Error('Invalid rate value');
-    }
+    if (isNaN(rate) || rate <= 0 || rate > 10) throw new Error('Invalid rate value');
 
-    // Upsert cache
     await supabase
       .from('state_tax_cache')
-      .upsert({
-        state_code: stateCode,
-        rate,
-        source,
-        fetched_at: new Date().toISOString(),
-      }, { onConflict: 'state_code' });
+      .upsert({ state_code: stateCode, rate, source, fetched_at: new Date().toISOString() }, { onConflict: 'state_code' });
 
-    return new Response(JSON.stringify({
-      rate,
-      source,
-      updatedAt: new Date().toISOString(),
-      fromCache: false,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ rate, source, updatedAt: new Date().toISOString(), fromCache: false });
 
   } catch (error) {
-    console.error('Error in get-state-tax-data:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch tax data' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    log.error('Error:', error);
+    return errorResponse('Failed to fetch tax data');
   }
 });
