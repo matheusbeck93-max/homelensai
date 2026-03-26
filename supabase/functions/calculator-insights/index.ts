@@ -1,24 +1,15 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { callAiGateway } from '../_shared/ai-gateway.ts';
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const { buyingPower, mortgage } = await req.json();
-
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
 
     const prompt = `You are a U.S. real estate and mortgage advisor. Analyze the following financial data and provide clear, actionable insights. You can analyze each calculator independently OR provide a combined assessment if both are filled.
 
@@ -84,51 +75,16 @@ Requirements:
 - Analyze calculators independently when only partial data is provided
 - For mortgage analysis, explain PITI components and affordability`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: 'You are a knowledgeable U.S. mortgage and real estate financial advisor providing clear, actionable insights.' },
-          { role: 'user', content: prompt }
-        ],
-      }),
-    });
+    const aiResult = await callAiGateway([
+      { role: 'system', content: 'You are a knowledgeable U.S. mortgage and real estate financial advisor providing clear, actionable insights.' },
+      { role: 'user', content: prompt }
+    ]);
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error('Failed to generate insights');
-    }
+    if ('error' in aiResult) return aiResult.error;
 
-    const data = await response.json();
-    const insights = data.choices[0].message.content;
-
-    return new Response(JSON.stringify({ insights }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ insights: aiResult.result.message });
   } catch (error) {
     console.error('Error in calculator-insights function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(getErrorMessage(error));
   }
 });

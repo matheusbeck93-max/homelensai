@@ -1,22 +1,16 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { requireEnv } from '../_shared/env.ts';
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const { prompt, size = "1024x1024", quality = "standard" } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    const LOVABLE_API_KEY = requireEnv('LOVABLE_API_KEY');
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -43,10 +37,10 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return errorResponse("Rate limits exceeded, please try again later.", 429);
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return errorResponse("Payment required, please add funds to your workspace.", 402);
       }
       const errorText = await response.text();
       console.error('Image generation error:', response.status, errorText);
@@ -60,19 +54,9 @@ Deno.serve(async (req) => {
     const base64Match = content.match(/data:image\/[^;]+;base64,([^\s"]+)/);
     const imageData = base64Match ? base64Match[1] : content;
 
-    return new Response(
-      JSON.stringify({ 
-        image: imageData,
-        prompt: prompt 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ image: imageData, prompt });
   } catch (error) {
     console.error('Error in generate-image:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(getErrorMessage(error));
   }
 });

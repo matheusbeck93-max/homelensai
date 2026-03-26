@@ -1,22 +1,15 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { callAiGateway } from '../_shared/ai-gateway.ts';
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const { query, lastSearchSpec, userProfile } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
 
     const systemPrompt = `You are the Search Brain for HomeLens, an AI assistant that helps users find homes in the United States. Your ONLY job is to:
 
@@ -109,122 +102,21 @@ CRITICAL RULES:
   - Query is too vague (e.g., "show me houses" with no other context)
   - Important constraint is unclear
 - Provide a SHORT, friendly clarification_question
-- Examples:
-  - "Which city and state should I search in?"
-  - "What's your budget range for these properties?"
 
 11. MULTI-TURN AWARENESS:
 - If user says "show me condos instead" or "try under 700k", reuse previous location and other params from lastSearchSpec, only changing what they mentioned
 - If user refines search, carry forward unchanged params
 
-EXAMPLES:
-
-Input: "Find 3 bedroom houses under 650k in Arlington, VA"
-Output:
-{
-  "intent": "property_search",
-  "search_spec": {
-    "location_raw": "Arlington, VA",
-    "city": "Arlington",
-    "state": "VA",
-    "zip": null,
-    "minPrice": null,
-    "maxPrice": 650000,
-    "minBeds": 3,
-    "maxBeds": null,
-    "minBaths": null,
-    "propertyType": "house",
-    "must_haves": ["3+ bedrooms", "under $650k", "Arlington, VA"],
-    "nice_to_haves": [],
-    "persona": "unspecified"
-  },
-  "needs_clarification": false,
-  "clarification_question": null
-}
-
-Input: "Show me investment properties"
-Output:
-{
-  "intent": "property_search",
-  "search_spec": {
-    "location_raw": "",
-    "city": null,
-    "state": null,
-    "zip": null,
-    "minPrice": null,
-    "maxPrice": null,
-    "minBeds": null,
-    "maxBeds": null,
-    "minBaths": null,
-    "propertyType": "any",
-    "must_haves": [],
-    "nice_to_haves": [],
-    "persona": "investor"
-  },
-  "needs_clarification": true,
-  "clarification_question": "Which city and state should I search for investment properties?"
-}
-
-Input: "condos instead" (with lastSearchSpec showing Austin, TX, under 500k)
-Output:
-{
-  "intent": "property_search",
-  "search_spec": {
-    "location_raw": "Austin, TX",
-    "city": "Austin",
-    "state": "TX",
-    "zip": null,
-    "minPrice": null,
-    "maxPrice": 500000,
-    "minBeds": null,
-    "maxBeds": null,
-    "minBaths": null,
-    "propertyType": "condo",
-    "must_haves": ["Austin, TX", "under $500k", "condo"],
-    "nice_to_haves": [],
-    "persona": "unspecified"
-  },
-  "needs_clarification": false,
-  "clarification_question": null
-}
-
 Now analyze the user query and respond with ONLY the JSON, no other text.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: query }
-        ],
-      }),
-    });
+    const aiResult = await callAiGateway([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: query }
+    ]);
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limits exceeded, please try again later." }), 
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), 
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      throw new Error('AI gateway error');
-    }
+    if ('error' in aiResult) return aiResult.error;
 
-    const aiData = await response.json();
-    let content = aiData.choices[0].message.content;
+    let content = aiResult.result.message;
     
     // Clean up response - remove markdown code blocks if present
     content = content.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
@@ -233,22 +125,15 @@ Now analyze the user query and respond with ONLY the JSON, no other text.`;
     
     const searchSpec = JSON.parse(content);
     
-    return new Response(
-      JSON.stringify(searchSpec),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse(searchSpec);
   } catch (error) {
     console.error('Error in ai-build-search-spec:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return new Response(
-      JSON.stringify({ 
-        error: errorMessage,
-        intent: "other",
-        search_spec: null,
-        needs_clarification: true,
-        clarification_question: "I had trouble understanding your search. Could you rephrase it with a location and your requirements?"
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      error: getErrorMessage(error),
+      intent: "other",
+      search_spec: null,
+      needs_clarification: true,
+      clarification_question: "I had trouble understanding your search. Could you rephrase it with a location and your requirements?"
+    });
   }
 });
