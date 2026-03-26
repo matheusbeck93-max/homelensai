@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles, Map as MapIcon, Briefcase } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FavoriteButton } from "@/components/FavoriteButton";
+
 import { ExternalLinks } from "@/components/ExternalLinks";
 import { NeighborhoodInsights } from "@/components/NeighborhoodInsights";
 import { NeighborhoodPersonality } from "@/components/NeighborhoodPersonality";
@@ -278,7 +278,7 @@ export default function PropertyDetail() {
               )}
             </Button>
 
-            <FavoriteButton propertyId={property.id} userId={userId} />
+            
 
             <Button
               variant="outline"
