@@ -166,7 +166,7 @@ export default function PropertyDetail() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Property not found</h1>
-          <Button onClick={() => navigate("/properties")}>
+          <Button onClick={() => navigate("/")}>
             Back to Properties
           </Button>
         </div>
@@ -179,7 +179,7 @@ export default function PropertyDetail() {
       <div className="container mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button
           variant="ghost"
-          onClick={() => navigate("/properties")}
+          onClick={() => navigate("/")}
           className="mb-6"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
