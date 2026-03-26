@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Navigation } from "@/components/Navigation";
-import { EmptyState } from "@/components/EmptyState";
+
 import { User, LogOut, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
 
 
