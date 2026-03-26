@@ -1,22 +1,15 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { requireEnv } from '../_shared/env.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
-    }
-
+    const OPENAI_API_KEY = requireEnv('OPENAI_API_KEY');
     const { instructions, voice = "alloy" } = await req.json();
 
     // Request an ephemeral token from OpenAI
@@ -42,15 +35,9 @@ Deno.serve(async (req) => {
     const data = await response.json();
     console.log("Realtime session created successfully");
 
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse(data);
   } catch (error) {
     console.error("Error in realtime-token:", error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(getErrorMessage(error));
   }
 });
