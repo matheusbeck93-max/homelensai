@@ -1,10 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
+import { getErrorMessage, handleAiGatewayError } from '../_shared/errors.ts';
+import { requireEnv } from '../_shared/env.ts';
+import { createLogger } from '../_shared/logging.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const log = createLogger('property-assistant');
 
 // Input validation schema
 const assistantRequestSchema = z.object({
@@ -144,25 +146,15 @@ function buildPropertyLinks(query: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const body = await req.json();
     const validationResult = assistantRequestSchema.safeParse(body);
     
     if (!validationResult.success) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid input parameters',
-          details: validationResult.error.errors 
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return validationError('Invalid input parameters', validationResult.error.errors);
     }
     
     const { query, categories, properties, marketSnapshot } = validationResult.data;

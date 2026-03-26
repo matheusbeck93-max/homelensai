@@ -1,13 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createLogger } from '../_shared/logging.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
 
 const log = createLogger('ai-chat');
 

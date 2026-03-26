@@ -1,19 +1,17 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { createLogger } from '../_shared/logging.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
+const log = createLogger('send-weekly-picks');
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
