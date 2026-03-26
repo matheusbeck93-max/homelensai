@@ -44,6 +44,7 @@ export function PropertyCard({
   const { toast } = useToast();
   const { tier, userId } = useSubscription();
   const { addToComparison, removeFromComparison, isSelected, canAddMore } = useComparison();
+  const [isWatched, setIsWatched] = useState(propIsWatched ?? false);
   const [loading, setLoading] = useState(false);
   
   const isComparisonSelected = isSelected(property.id);
