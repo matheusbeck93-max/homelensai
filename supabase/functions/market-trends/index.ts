@@ -1,10 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { createLogger } from '../_shared/logging.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const log = createLogger('market-trends');
 
 interface TrendDataPoint {
   period: string;
@@ -23,31 +23,24 @@ interface MarketTrendsResponse {
   generatedAt: string;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const { location, force_refresh = false } = await req.json();
 
     if (!location || typeof location !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'Location is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return validationError('Location is required');
     }
 
-    console.log('Market trends request for:', location);
+    log.info('Market trends request for:', location);
 
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     
     if (!PERPLEXITY_API_KEY) {
-      console.log('No Perplexity API key, returning fallback data');
-      return new Response(
-        JSON.stringify(generateFallbackData(location)),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      log.info('No Perplexity API key, returning fallback data');
+      return jsonResponse(generateFallbackData(location));
     }
 
     // Check cache first (unless force_refresh)
@@ -68,11 +61,8 @@ serve(async (req) => {
       if (cached) {
         const ageHours = (Date.now() - new Date(cached.updated_at).getTime()) / (1000 * 60 * 60);
         if (ageHours < 12) {
-          console.log('Returning cached trends data');
-          return new Response(
-            JSON.stringify(cached.results),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          log.info('Returning cached trends data');
+          return jsonResponse(cached.results);
         }
       }
     }
@@ -103,7 +93,7 @@ Requirements:
 
 Respond ONLY with valid JSON, no markdown or explanation.`;
 
-    console.log('Calling Perplexity API...');
+    log.info('Calling Perplexity API...');
     
     const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -114,10 +104,7 @@ Respond ONLY with valid JSON, no markdown or explanation.`;
       body: JSON.stringify({
         model: 'sonar',
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are a real estate market analyst. Provide accurate, data-driven market trends. Always respond with valid JSON only.' 
-          },
+          { role: 'system', content: 'You are a real estate market analyst. Provide accurate, data-driven market trends. Always respond with valid JSON only.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
@@ -126,23 +113,18 @@ Respond ONLY with valid JSON, no markdown or explanation.`;
 
     if (!perplexityResponse.ok) {
       const errorText = await perplexityResponse.text();
-      console.error('Perplexity API error:', perplexityResponse.status, errorText);
-      return new Response(
-        JSON.stringify(generateFallbackData(location)),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      log.error('Perplexity API error:', perplexityResponse.status, errorText);
+      return jsonResponse(generateFallbackData(location));
     }
 
     const perplexityData = await perplexityResponse.json();
-    console.log('Perplexity response received');
+    log.info('Perplexity response received');
 
     const content = perplexityData.choices?.[0]?.message?.content || '';
     const citations = perplexityData.citations || [];
 
-    // Parse the JSON response
     let parsedData: any;
     try {
-      // Try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsedData = JSON.parse(jsonMatch[0]);
@@ -150,11 +132,8 @@ Respond ONLY with valid JSON, no markdown or explanation.`;
         throw new Error('No JSON found in response');
       }
     } catch (parseError) {
-      console.error('Failed to parse Perplexity response:', parseError);
-      return new Response(
-        JSON.stringify(generateFallbackData(location)),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      log.error('Failed to parse Perplexity response:', parseError);
+      return jsonResponse(generateFallbackData(location));
     }
 
     const result: MarketTrendsResponse = {
@@ -174,25 +153,19 @@ Respond ONLY with valid JSON, no markdown or explanation.`;
         source: 'perplexity_trends',
         results: result,
         params: { location },
-        ttl_minutes: 720, // 12 hours
+        ttl_minutes: 720,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'normalized_query,source'
       });
 
-    console.log('Market trends data cached');
+    log.info('Market trends data cached');
 
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse(result);
 
   } catch (error) {
-    console.error('Market trends error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to fetch market trends', details: (error as Error).message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    log.error('Error:', error);
+    return errorResponse(getErrorMessage(error));
   }
 });
 

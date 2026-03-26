@@ -1,16 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { createLogger } from '../_shared/logging.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-interface NeighborhoodRequest {
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-}
+const log = createLogger('neighborhood-insights');
 
 interface School {
   name: string;
@@ -62,26 +55,22 @@ interface NeighborhoodInsights {
   lastUpdated?: string;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
-    const { address, city, state, zip } = await req.json() as NeighborhoodRequest;
+    const { address, city, state, zip } = await req.json();
     const location = `${address}, ${city}, ${state} ${zip}`;
 
-    console.log('[neighborhood-insights] Fetching insights for:', location);
+    log.info('Fetching insights for:', location);
 
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
     
     if (!PERPLEXITY_API_KEY) {
-      console.log('[neighborhood-insights] No Perplexity API key, using fallback data');
+      log.info('No Perplexity API key, using fallback data');
       const insights = generateFallbackInsights(city, state, zip);
-      return new Response(
-        JSON.stringify({ insights, source: 'fallback' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ insights, source: 'fallback' });
     }
 
     // Use Perplexity to get real-time neighborhood data
@@ -134,16 +123,13 @@ Respond ONLY with valid JSON in this exact format:
     });
 
     if (!perplexityResponse.ok) {
-      console.error('[neighborhood-insights] Perplexity API error:', perplexityResponse.status);
+      log.error('Perplexity API error:', perplexityResponse.status);
       const insights = generateFallbackInsights(city, state, zip);
-      return new Response(
-        JSON.stringify({ insights, source: 'fallback' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ insights, source: 'fallback' });
     }
 
     const perplexityData = await perplexityResponse.json();
-    console.log('[neighborhood-insights] Perplexity response received');
+    log.info('Perplexity response received');
 
     const content = perplexityData.choices?.[0]?.message?.content || '';
     const citations = perplexityData.citations || [];
@@ -151,7 +137,6 @@ Respond ONLY with valid JSON in this exact format:
     // Parse the JSON response
     let parsedInsights: NeighborhoodInsights;
     try {
-      // Extract JSON from the response (handle potential markdown code blocks)
       let jsonStr = content;
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
@@ -171,33 +156,24 @@ Respond ONLY with valid JSON in this exact format:
         lastUpdated: new Date().toISOString(),
       };
 
-      console.log('[neighborhood-insights] Successfully parsed Perplexity data');
+      log.info('Successfully parsed Perplexity data');
     } catch (parseError) {
-      console.error('[neighborhood-insights] Failed to parse Perplexity response:', parseError);
-      console.log('[neighborhood-insights] Raw content:', content.substring(0, 500));
+      log.error('Failed to parse Perplexity response:', parseError);
+      log.info('Raw content:', content.substring(0, 500));
       
-      // Fall back to generated data
       parsedInsights = generateFallbackInsights(city, state, zip);
-      parsedInsights.aiSummary = content.substring(0, 500); // Include raw summary if parsing failed
+      parsedInsights.aiSummary = content.substring(0, 500);
     }
 
-    return new Response(
-      JSON.stringify({ insights: parsedInsights, source: 'perplexity' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ insights: parsedInsights, source: 'perplexity' });
 
   } catch (error) {
-    console.error('[neighborhood-insights] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', details: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    log.error('Error:', error);
+    return errorResponse(getErrorMessage(error));
   }
 });
 
 function generateFallbackInsights(city: string, state: string, zip: string): NeighborhoodInsights {
-  // Generate realistic fallback data based on location
   const zipNum = parseInt(zip) || 22206;
   const seed = zipNum % 100;
 
@@ -213,27 +189,9 @@ function generateFallbackInsights(city: string, state: string, zip: string): Nei
 
   return {
     schools: [
-      {
-        name: `${city} Elementary School`,
-        type: 'Elementary',
-        rating: 7 + (seed % 3),
-        distance: 0.5 + (seed % 10) / 10,
-        grades: 'K-5',
-      },
-      {
-        name: `${city} Middle School`,
-        type: 'Middle',
-        rating: 6 + (seed % 4),
-        distance: 0.8 + (seed % 15) / 10,
-        grades: '6-8',
-      },
-      {
-        name: `${state} High School`,
-        type: 'High',
-        rating: 8 + (seed % 2),
-        distance: 1.2 + (seed % 20) / 10,
-        grades: '9-12',
-      },
+      { name: `${city} Elementary School`, type: 'Elementary', rating: 7 + (seed % 3), distance: 0.5 + (seed % 10) / 10, grades: 'K-5' },
+      { name: `${city} Middle School`, type: 'Middle', rating: 6 + (seed % 4), distance: 0.8 + (seed % 15) / 10, grades: '6-8' },
+      { name: `${state} High School`, type: 'High', rating: 8 + (seed % 2), distance: 1.2 + (seed % 20) / 10, grades: '9-12' },
     ],
     walkScore: {
       score: walkScore,
@@ -245,11 +203,7 @@ function generateFallbackInsights(city: string, state: string, zip: string): Nei
       overallRating,
       crimeRate,
       comparison: `${Math.abs(50 - crimeRate)}% ${crimeRate < 50 ? 'lower' : 'higher'} than national average`,
-      categories: {
-        violent: Math.round(crimeRate * 0.3),
-        property: Math.round(crimeRate * 0.5),
-        other: Math.round(crimeRate * 0.2),
-      },
+      categories: { violent: Math.round(crimeRate * 0.3), property: Math.round(crimeRate * 0.5), other: Math.round(crimeRate * 0.2) },
     },
     amenities: {
       restaurants: [

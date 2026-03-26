@@ -1,28 +1,18 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { requireEnv } from '../_shared/env.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const { text, voiceId } = await req.json();
-    const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
-
-    if (!ELEVENLABS_API_KEY) {
-      throw new Error('ELEVENLABS_API_KEY is not configured');
-    }
+    const ELEVENLABS_API_KEY = requireEnv('ELEVENLABS_API_KEY');
 
     if (!text || text.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Text is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return validationError('Text is required');
     }
 
     // Default to Eric voice
@@ -67,9 +57,6 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('TTS error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return errorResponse(getErrorMessage(error));
   }
 });
