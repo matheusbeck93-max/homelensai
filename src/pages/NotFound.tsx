@@ -30,7 +30,7 @@ const NotFound = () => {
               <Home className="mr-2 h-5 w-5" />
               Go Home
             </Button>
-            <Button variant="outline" size="lg" onClick={() => navigate("/properties")}>
+            <Button variant="outline" size="lg" onClick={() => navigate("/")}>
               <Search className="mr-2 h-5 w-5" />
               Search Properties
             </Button>

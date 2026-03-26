@@ -57,7 +57,7 @@ export default function Console() {
         <div className="container mx-auto px-4 py-16 text-center">
           <h1 className="text-3xl font-bold mb-4">Welcome to My HomeLens</h1>
           <p className="text-muted-foreground mb-8">
-            Create a free HomeLens account to save favorites, manage searches and use investor tools.
+            Create a free HomeLens account to manage searches and use investor tools.
           </p>
           <div className="flex gap-4 justify-center">
             <Button onClick={() => navigate("/auth?mode=signup")} size="lg">
@@ -80,7 +80,7 @@ export default function Console() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">My HomeLens</h1>
           <p className="text-muted-foreground">
-            Your real estate HQ – favorites, searches, portfolio & settings
+            Your real estate HQ – searches, portfolio & settings
           </p>
         </div>
 

@@ -147,7 +147,7 @@ export default function Portfolio() {
               <p className="text-muted-foreground">Track and analyze your property investments</p>
             </div>
           </div>
-          <Button onClick={() => navigate('/properties')}>
+           <Button onClick={() => navigate('/')}>
             <Plus className="h-4 w-4 mr-2" />
             Add Property
           </Button>
@@ -174,7 +174,7 @@ export default function Portfolio() {
             <p className="text-muted-foreground mb-6">
               Start building your portfolio by adding properties
             </p>
-            <Button onClick={() => navigate('/properties')}>
+            <Button onClick={() => navigate('/')}>
               <Plus className="h-4 w-4 mr-2" />
               Browse Properties
             </Button>
