@@ -194,22 +194,6 @@ export function Navigation() {
                       )}
                     </div>
 
-                    {user && (
-                      <div className="border-t pt-4">
-                        <p className="text-sm font-medium mb-2 px-2">Account</p>
-                        <Button
-                          variant="ghost"
-                          className="justify-start w-full"
-                          onClick={() => {
-                            navigate('/console');
-                            setMobileOpen(false);
-                          }}
-                        >
-                          <LayoutDashboard className="h-4 w-4 mr-2" />
-                          My HomeLens
-                        </Button>
-                      </div>
-                    )}
 
                     <div className="border-t pt-4">
                       {user ? (
