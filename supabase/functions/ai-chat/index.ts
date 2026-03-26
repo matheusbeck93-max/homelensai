@@ -74,6 +74,29 @@ Deno.serve(async (req) => {
     } else if (attachment) {
       allAttachments.push(attachment);
     }
+
+    // --- Server-side attachment validation ---
+    if (allAttachments.length > MAX_ATTACHMENTS) {
+      return new Response(
+        JSON.stringify({ error: `Maximum ${MAX_ATTACHMENTS} attachments allowed per message.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    for (const att of allAttachments) {
+      if (!ALLOWED_MIME_TYPES.includes(att.mimeType.toLowerCase())) {
+        return new Response(
+          JSON.stringify({ error: `File type "${att.mimeType}" is not supported. Allowed: PDF, JPG, PNG, WEBP, HEIC.` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (att.data.length > MAX_BASE64_LENGTH) {
+        return new Response(
+          JSON.stringify({ error: `File "${att.name}" exceeds the 10MB size limit.` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
     
