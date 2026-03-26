@@ -54,13 +54,6 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { addToComparison, isInComparison } = useComparison();
-  const [userId, setUserId] = useState<string | undefined>();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id);
-    });
-  }, []);
   
   const handleAddToCompare = () => {
     addToComparison({
