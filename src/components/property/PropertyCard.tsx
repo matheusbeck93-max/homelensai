@@ -54,7 +54,6 @@ export function PropertyCard({
     }
   }, [propIsWatched]);
 
-  };
 
   const handleToggleAlert = () => {
     if (onToggleAlert) {
