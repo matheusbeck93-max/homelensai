@@ -1,32 +1,28 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { getErrorMessage, handleAiGatewayError } from '../_shared/errors.ts';
+import { requireEnv } from '../_shared/env.ts';
+import { createLogger } from '../_shared/logging.ts';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const log = createLogger('ai-analyze-property');
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     const { source, listing, userContext, userId, userTier } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    const LOVABLE_API_KEY = requireEnv('LOVABLE_API_KEY');
 
     // Enforce daily limits for free tier users
     if (userId && userTier === 'free') {
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.2");
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
-      // Get user's current analysis count
       const { data: profile, error: profileError } = await supabaseAdmin
         .from('profiles')
         .select('daily_analysis_count, daily_analysis_last_reset')
@@ -34,7 +30,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (profileError) {
-        console.error('Error fetching profile:', profileError);
+        log.error('Error fetching profile:', profileError);
         throw new Error('Failed to check analysis limit');
       }
 
@@ -42,7 +38,6 @@ Deno.serve(async (req) => {
       const lastReset = profile.daily_analysis_last_reset;
       let currentCount = profile.daily_analysis_count || 0;
 
-      // Reset counter if it's a new day
       if (lastReset !== today) {
         currentCount = 0;
         await supabaseAdmin
@@ -54,22 +49,14 @@ Deno.serve(async (req) => {
           .eq('id', userId);
       }
 
-      // Check if limit exceeded (3 per day for free tier)
       if (currentCount >= 3) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Daily analysis limit reached',
-            message: 'You have reached your daily limit of 3 AI analyses. Upgrade to Pro for unlimited analyses.',
-            limitReached: true
-          }),
-          { 
-            status: 429, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+        return jsonResponse({ 
+          error: 'Daily analysis limit reached',
+          message: 'You have reached your daily limit of 3 AI analyses. Upgrade to Pro for unlimited analyses.',
+          limitReached: true
+        }, 429);
       }
 
-      // Increment the counter
       await supabaseAdmin
         .from('profiles')
         .update({
@@ -77,7 +64,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', userId);
 
-      console.log(`Analysis count incremented for user ${userId}: ${currentCount + 1}/3`);
+      log.step(`Analysis count incremented for user`, { count: currentCount + 1 });
     }
 
     const systemPrompt = `You are the Property Analysis engine for HomeLens, a real estate copilot for the US market. You receive:
@@ -113,123 +100,30 @@ Your response MUST have these sections with headings:
   - Demographics (median household income, owner vs renter occupancy rates, median age)
   - If insights are not provided, skip this section or state "Market data not available".
 - In "Financial & Affordability View", state clearly which numbers come from the listing and which are assumptions from userContext.
-  Example: "Listing price: $540,000 (from listing data)" vs "Estimated total monthly payment using your 20% down and 6.5% interest (assumed) is about $X."
 
 3) HANDLE MISSING DATA EXPLICITLY
 Whenever important fields are null or missing:
 - Mention it in "Risks & Unknowns".
-- Example: "The listing does not provide HOA fees or property tax amounts. Your actual monthly payment could be significantly higher once these are known."
 
 4) URL-BASED ANALYSIS (user_pasted_url)
 - If source is "user_pasted_url" and fields are sparse:
   - Base the analysis ONLY on fields that were successfully extracted.
-  - If extraction is obviously incomplete, say something like:
-    "I only have partial data for this property from the URL you provided. For a more accurate analysis, please paste the full price, HOA, taxes, and any other key details you know."
-- NEVER claim that you "checked the website live" or saw images; you only know what is in the JSON.
+  - NEVER claim that you "checked the website live" or saw images.
 
 5) MARKET / NEIGHBORHOOD COMMENTS
-- You may use general knowledge about the city or area ONLY if:
-  - city and state are known, AND
-  - your statements are clearly labeled as general, not specific to this exact property.
-  Example: "In general, Austin, TX has seen strong demand and price growth in recent years" is acceptable.
-  But do NOT say: "This specific street is very safe" or "Great schools right next door" unless explicitly given.
+- You may use general knowledge about the city or area ONLY if city and state are known, AND your statements are clearly labeled as general.
 
 6) BE CONSERVATIVE WITH INVESTOR ANALYSIS
-- If persona is "investor", you may discuss:
-  - Potential strategies (long-term rental, house-hack, flip) at a high level.
+- If persona is "investor", you may discuss strategies at a high level.
 - You MUST NOT pretend you know rents, expenses, or cap rate if you weren't given those numbers.
-  - Instead say: "Rents are not provided. To evaluate cash flow, you'd need estimated monthly rent and fixed expenses such as taxes, insurance, HOA, and maintenance."
 
 7) US-FOCUSED
 - Assume US financing and US property conventions (USD, 30-year fixed mortgages, etc.).
-- Currency is always USD. Never convert to other currencies.
-
-FORMAT YOUR OUTPUT LIKE THIS (markdown):
-
-### 1. Data Snapshot (Facts from listing)
-
-- **Address**: [address, city, state, zip or "Not provided"]
-- **Status**: [status or "Unknown"]
-- **List Price**: [price or "Not provided"]
-- **Beds / Baths**: [beds/baths or "Not provided"]
-- **Interior Size**: [sqft sqft or "Not provided"]
-- **Lot Size**: [lot_sqft sqft or "Not provided"]
-- **Property Type**: [property_type or "Not specified"]
-- **Year Built**: [year_built or "Not provided"]
-- **HOA (Monthly)**: [hoa_monthly or "Not provided"]
-- **Annual Taxes**: [taxes_annual or "Not provided"]
-- **Days on Market**: [days_on_market or "Not provided"]
-- **Price per sqft**: [calculated if possible, else "Cannot calculate - missing data"]
-
-If something is unknown, write "Not provided in the listing data".
-
-### 2. Market & Demographics (From Third-Party Data)
-
-**ONLY include this section if listing.insights exists. Otherwise skip it.**
-
-If available, show:
-- **Estimated Monthly Rent**: [insights.rentcast.rent_estimate] (RentCast estimate)
-- **Rent Range**: [insights.rentcast.rent_low] - [insights.rentcast.rent_high]
-- **Market Summary for ZIP**:
-  - Median Rent: [insights.rentcast.zip_market_summary.median_rent]
-  - Median Home Value: [insights.rentcast.zip_market_summary.median_home_value]
-  - Market Trend: [insights.rentcast.zip_market_summary.trend_label]
-- **Demographics (Census)**:
-  - Median Household Income: [insights.census.median_household_income]
-  - Owner-Occupied Rate: [insights.census.owner_occupied_rate]%
-  - Renter-Occupied Rate: [insights.census.renter_occupied_rate]%
-  - Median Age: [insights.census.median_age]
-
-### 3. Financial & Affordability View
-
-Use listing price + userContext (down payment %, interest rate, time horizon if given).
-Very clearly label assumptions and what was provided.
-
-Example:
-- **Purchase Price**: $540,000 (from listing)
-- **Down Payment**: 20% = $108,000 (from your profile)
-- **Loan Amount**: $432,000
-- **Estimated Monthly P&I** (at 6.5% for 30 years): ~$2,730
-- **Property Taxes** (estimated if not provided): ~$450/month (1% annually, estimated)
-- **Insurance** (estimated): ~$150/month
-- **HOA**: Not provided - need to verify
-- **Total Estimated Monthly Cost**: ~$3,330 + unknown HOA
-
-### 4. Fit for You
-
-Explain in natural language, but base it ONLY on:
-- Fields in the listing.
-- Insights data (if provided).
-- Basic interpretations (e.g. "3 beds works for small family").
-- Persona from userContext.
-
-Example:
-"Based on your ${userContext?.persona || 'profile'}, this property [brief analysis based on actual data]. The ${listing?.beds || 'bedroom count'} and ${listing?.sqft || 'size'} could work for [reasonable interpretation]."
-
-### 5. Risks & Unknowns
-
-List missing data and key questions:
-- "HOA and property taxes not provided - actual monthly cost could be higher."
-- "No information about recent renovations or property condition."
-- "Year built not available - may need inspection to assess systems age."
-
-### 6. Questions to Ask Your Agent or Lender
-
-Provide 4–7 short, practical questions based on what's missing or important to verify.
-
-Examples:
-- What are the monthly HOA fees and what do they cover?
-- What's the actual annual property tax amount?
-- Has the property had any major renovations or updates?
-- What's the condition of the roof, HVAC, and major systems?
-- Are there any special assessments or planned HOA increases?
 
 GENERAL TONE
 - Helpful, calm, realistic.
 - Never oversell a property.
-- Always encourage the user to verify important facts with their agent or lender.
-
-You MUST obey these rules even if the user asks you to speculate. If the user asks for something you cannot know from the data, politely explain the limitation and suggest what data they should obtain.`;
+- Always encourage the user to verify important facts with their agent or lender.`;
 
     const userPrompt = `Analyze this property listing:
 
@@ -258,39 +152,23 @@ Provide your analysis following the structured format with the 5 required sectio
       }),
     });
 
+    const gatewayError = handleAiGatewayError(response);
+    if (gatewayError) return gatewayError;
+
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limits exceeded, please try again later." }), 
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), 
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      log.error('AI gateway error:', response.status);
       throw new Error('AI gateway error');
     }
 
     const aiData = await response.json();
     const analysis = aiData.choices[0].message.content;
     
-    console.log('Property analysis complete');
+    log.step('Property analysis complete');
     
-    return new Response(
-      JSON.stringify({ analysis }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ analysis });
   } catch (error) {
-    console.error('Error in ai-analyze-property:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    log.error('Error:', error);
+    return errorResponse(getErrorMessage(error));
   }
 });

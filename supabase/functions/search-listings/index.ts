@@ -1,11 +1,11 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { createLogger } from '../_shared/logging.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const log = createLogger('search-listings');
 
 // Input validation schema - allow empty location for default handling
 const searchParamsSchema = z.object({
@@ -380,10 +380,9 @@ async function getStaleCache(
   }
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     // Parse and validate request
