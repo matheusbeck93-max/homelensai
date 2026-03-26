@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
     const urlRegex = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|homes)\.com\/[^\s]+)/gi;
     const detectedUrls = lastUserMessage.match(urlRegex) || [];
     
-    console.log(`Detected ${detectedUrls.length} property URLs:`, detectedUrls);
+    log.step('URL detection', { count: detectedUrls.length });
     
     // In conversation mode, let AI handle property search queries naturally
     // We removed the auto-deflect logic - AI will now parse and trigger searches
@@ -128,8 +128,7 @@ Deno.serve(async (req) => {
     // If propertyData is provided (from Chrome extension with DOM-extracted data),
     // skip Firecrawl and use it directly - it's more accurate
     if (propertyData && detectedUrls.length >= 1) {
-      console.log('Using client-provided propertyData (extension mode), skipping Firecrawl');
-      console.log('PropertyData:', JSON.stringify(propertyData, null, 2));
+      log.step('Using client-provided propertyData (extension mode)');
       
       // Build property object from client-provided data
       const clientProperty = {
@@ -165,7 +164,7 @@ Deno.serve(async (req) => {
         }
       }
       
-      console.log('Analysis purpose:', purpose);
+      log.step('Analysis purpose', { purpose });
       
       const properties = [clientProperty];
       const analysisPrompt = purpose === 'investment'
@@ -279,7 +278,7 @@ CRITICAL:
         }
       }
 
-      console.log('Calling Lovable AI Gateway with client-provided property data...');
+      log.step('Calling AI Gateway with client property data');
       
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -430,7 +429,7 @@ CRITICAL:
             propertyData.description = descMatch[1].substring(0, 200);
           }
           
-          console.log(`Extracted property data for ${url}:`, propertyData);
+          log.step('Property data extracted', { url: new URL(url).hostname });
           
           // Set defaults
           propertyData.address = propertyData.address || `Property ${index + 1}`;
@@ -469,8 +468,7 @@ CRITICAL:
       const properties = await Promise.all(propertyPromises);
       
       try {
-        console.log('All properties fetched, starting AI analysis...');
-        console.log('Properties data:', JSON.stringify(properties, null, 2));
+        log.step('Properties fetched, starting AI analysis', { count: properties.length });
         
         // Determine purpose from conversation history
         let purpose = 'investment'; // default
@@ -1439,7 +1437,7 @@ Always include uiBlock alongside your conversational message.`;
     
     const assistantMessage = data.choices[0].message;
     let assistantResponse = assistantMessage.content;
-    console.log('AI Gateway raw response:', assistantResponse);
+    log.step('AI Gateway response received', { length: assistantResponse?.length });
 
     /**
      * RESPONSE SANITIZATION & LINK GENERATION
@@ -1482,7 +1480,7 @@ Always include uiBlock alongside your conversational message.`;
         }
       }
 
-      console.log('Parsed JSON response:', JSON.stringify(parsed, null, 2));
+      log.step('Response parsed successfully', { hasSearchParams: !!parsed.searchParams, hasUiBlock: !!parsed.uiBlock });
 
       // searchParams will be passed directly to frontend for property fetching
       // No need to generate external links - frontend will show hero cards
@@ -1526,7 +1524,7 @@ Always include uiBlock alongside your conversational message.`;
         parsed.message = "Let me find those properties for you...";
       }
 
-      console.log('Final cleaned response:', JSON.stringify(parsed, null, 2));
+      log.step('Response cleaned and ready');
 
       // Return the parsed object directly (not double-stringified)
       // Frontend expects { response: { message: "...", searchParams: {...} } }
