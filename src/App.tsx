@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { ComparisonProvider } from "@/contexts/ComparisonContext";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
 import { BackToTop } from "@/components/BackToTop";
@@ -23,7 +22,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const SavedSearches = lazy(() => import("./pages/SavedSearches"));
 const Calculators = lazy(() => import("./pages/Calculators"));
 const Investor = lazy(() => import("./pages/Investor"));
-const Favorites = lazy(() => import("./pages/Favorites"));
+
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Console = lazy(() => import("./pages/Console"));
@@ -55,8 +54,7 @@ const PageLoader = () => (
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <FavoritesProvider>
-        <ComparisonProvider>
+      <ComparisonProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -71,7 +69,7 @@ function App() {
                   <Route path="/saved-searches" element={<ProtectedRoute><SavedSearches /></ProtectedRoute>} />
                   <Route path="/calculators" element={<Calculators />} />
                   <Route path="/investor" element={<Investor />} />
-                  <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+                  
                   <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/pricing" element={<Pricing />} />
@@ -97,7 +95,6 @@ function App() {
             </BrowserRouter>
           </TooltipProvider>
         </ComparisonProvider>
-      </FavoritesProvider>
     </QueryClientProvider>
   );
 }
