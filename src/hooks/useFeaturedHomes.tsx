@@ -37,7 +37,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
   const fetchListings = async (location: string, pageNum: number = 1, append: boolean = false) => {
     // Prevent duplicate concurrent calls
     if (isFetching && !append) {
-      console.log('[useFeaturedHomes] Search already in progress, skipping duplicate call');
+      
       return;
     }
     
@@ -50,7 +50,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
       const cached = getCachedData<HomeLensListing[]>(cacheKey, { ttlMs: CACHE_TTL_MS });
       
       if (cached && isCacheValid(cached, CACHE_TTL_MS)) {
-        console.log('[useFeaturedHomes] Serving from cache:', location);
+        
         setListings(cached.data);
         setLocationLabel(location);
         setHasMore(cached.data.length >= 20);
@@ -60,7 +60,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
 
       // If cache exists but is stale, show it while we refresh
       if (cached) {
-        console.log('[useFeaturedHomes] Showing stale cache while refreshing:', location);
+        
         setListings(cached.data);
         setLocationLabel(location);
         setHasMore(cached.data.length >= 20);
@@ -75,7 +75,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
     });
     
     if (!rateLimit.allowed) {
-      console.log('[useFeaturedHomes] Client rate limit exceeded, using cached data');
+      
       const cached = getCachedData<HomeLensListing[]>(cacheKey, { ttlMs: CACHE_TTL_MS });
       
       if (cached) {
@@ -103,7 +103,7 @@ export function useFeaturedHomes(userPreferredArea?: string | null): FeaturedHom
       setIsLoading(true);
       setError(null);
 
-      console.log(`[useFeaturedHomes] API call allowed. Remaining: ${rateLimit.remaining}`);
+      
 
       const { data, error: fetchError } = await supabase.functions.invoke('search-listings', {
         body: {

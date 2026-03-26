@@ -85,14 +85,14 @@ export function useSubscription() {
   const checkStripeSubscription = async () => {
     // Prevent concurrent checks
     if (checkInProgress.current) {
-      console.log('Subscription check already in progress, skipping...');
+      
       return;
     }
 
     // Use cached result if available and fresh
     const now = Date.now();
     if (cachedTier && (now - lastCheckTime) < CACHE_DURATION) {
-      console.log('Using cached subscription tier:', cachedTier);
+      
       setTier(cachedTier);
       return;
     }
@@ -109,7 +109,7 @@ export function useSubscription() {
 
       if (data?.tier) {
         const newTier = data.tier as SubscriptionTier;
-        console.log('Subscription tier updated from Stripe:', newTier);
+        
         setTier(newTier);
         cachedTier = newTier;
         lastCheckTime = now;
