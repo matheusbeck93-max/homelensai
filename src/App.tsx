@@ -10,6 +10,8 @@ import { ComparisonProvider } from "@/contexts/ComparisonContext";
 import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatingBar";
 import { BackToTop } from "@/components/BackToTop";
 import { CookieConsent } from "@/components/CookieConsent";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { CookieConsent } from "@/components/CookieConsent";
 
 // Eagerly loaded routes (critical path)
 import Index from "./pages/Index";
@@ -64,20 +66,20 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/property/:id" element={<PropertyDetail />} />
-                  <Route path="/chats" element={<Chats />} />
+                  <Route path="/chats" element={<ProtectedRoute><Chats /></ProtectedRoute>} />
                   <Route path="/chat" element={<Navigate to="/chats" replace />} />
-                  <Route path="/console" element={<Console />} />
-                  <Route path="/saved-searches" element={<SavedSearches />} />
+                  <Route path="/console" element={<ProtectedRoute><Console /></ProtectedRoute>} />
+                  <Route path="/saved-searches" element={<ProtectedRoute><SavedSearches /></ProtectedRoute>} />
                   <Route path="/calculators" element={<Calculators />} />
                   <Route path="/investor" element={<Investor />} />
-                  <Route path="/favorites" element={<Favorites />} />
-                  <Route path="/portfolio" element={<Portfolio />} />
+                  <Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+                  <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/profile-setup" element={<ProfileSetup />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/cookies" element={<CookiePolicy />} />
