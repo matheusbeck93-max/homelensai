@@ -1,10 +1,11 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { handleCors } from '../_shared/cors.ts';
+import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
+import { createLogger } from '../_shared/logging.ts';
+import { retryWithBackoff } from '../_shared/http.ts';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const log = createLogger('enrich-property');
 
 // Input validation schema
 const enrichParamsSchema = z.object({
@@ -21,7 +22,7 @@ interface RateLimitEntry {
 }
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
-const RATE_LIMIT = { maxRequests: 60, windowMs: 60000 }; // 60 requests per minute
+const RATE_LIMIT = { maxRequests: 60, windowMs: 60000 };
 
 function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
@@ -46,34 +47,9 @@ function checkRateLimit(userId: string): { allowed: boolean; remaining: number }
   return { allowed: true, remaining: RATE_LIMIT.maxRequests - currentEntry.count };
 }
 
-// Retry utility
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  baseDelay = 1000
-): Promise<T> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      const isRetryable = error.status === 429 || error.status >= 500 || error.name === 'TypeError';
-      
-      if (attempt === maxRetries || !isRetryable) {
-        throw error;
-      }
-      
-      const delay = Math.min(baseDelay * Math.pow(2, attempt), 10000);
-      console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw new Error('Max retries exceeded');
-}
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
 
   try {
     // Get user ID for rate limiting
@@ -83,20 +59,7 @@ serve(async (req) => {
     // Check rate limit
     const rateLimit = checkRateLimit(userId);
     if (!rateLimit.allowed) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Rate limit exceeded. Please try again later.',
-          retryAfter: 60 
-        }),
-        { 
-          status: 429,
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json',
-            'Retry-After': '60'
-          } 
-        }
-      );
+      return errorResponse('Rate limit exceeded. Please try again later.', 429);
     }
     
     // Parse and validate request body
@@ -104,16 +67,7 @@ serve(async (req) => {
     const validationResult = enrichParamsSchema.safeParse(body);
     
     if (!validationResult.success) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid input parameters',
-          details: validationResult.error.errors 
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return validationError('Invalid input parameters', validationResult.error.errors);
     }
     
     const { address, city, state, zip } = validationResult.data;
@@ -121,7 +75,7 @@ serve(async (req) => {
     const RENTCAST_API_KEY = Deno.env.get('RENTCAST_API_KEY');
     const CENSUS_API_KEY = Deno.env.get('CENSUS_API_KEY');
 
-    console.log(`Enriching property: ${address}, ${city}, ${state} ${zip}`);
+    log.info(`Enriching property: ${address}, ${city}, ${state} ${zip}`);
 
     const insights: any = {};
 
@@ -136,9 +90,8 @@ serve(async (req) => {
         });
 
         const rentcastUrl = `https://api.rentcast.io/v1/avm/rent?${rentcastParams}`;
-        console.log('Calling RentCast API:', rentcastUrl);
+        log.info('Calling RentCast API:', rentcastUrl);
 
-        // Fetch with retry logic
         const rentcastResponse = await retryWithBackoff(async () => {
           const res = await fetch(rentcastUrl, {
             headers: {
@@ -152,11 +105,11 @@ serve(async (req) => {
             throw error;
           }
           return res;
-        });
+        }, 3);
 
         if (rentcastResponse.ok) {
           const rentData = await rentcastResponse.json();
-          console.log('RentCast data received:', rentData);
+          log.info('RentCast data received:', rentData);
 
           insights.rentcast = {
             rent_estimate: rentData.rent || null,
@@ -183,11 +136,11 @@ serve(async (req) => {
                   throw error;
                 }
                 return res;
-              });
+              }, 3);
 
               if (marketResponse.ok) {
                 const marketData = await marketResponse.json();
-                console.log('RentCast market data:', marketData);
+                log.info('RentCast market data:', marketData);
                 
                 insights.rentcast.zip_market_summary = {
                   median_rent: marketData.medianRent || null,
@@ -198,16 +151,14 @@ serve(async (req) => {
                 };
               }
             } catch (e) {
-              const error = e as Error;
-              console.log('RentCast market data error:', error.message);
+              log.info('RentCast market data error:', (e as Error).message);
             }
           }
         } else {
-          console.log('RentCast API error:', await rentcastResponse.text());
+          log.info('RentCast API error:', await rentcastResponse.text());
         }
       } catch (e) {
-        const error = e as Error;
-        console.log('RentCast error:', error.message);
+        log.info('RentCast error:', (e as Error).message);
         insights.rentcast = null;
       }
     }
@@ -215,12 +166,10 @@ serve(async (req) => {
     // 2) US Census Bureau API - Demographics
     if (CENSUS_API_KEY && zip) {
       try {
-        // Using ACS 5-Year estimates for ZIP Code Tabulation Areas (ZCTA)
         const censusUrl = `https://api.census.gov/data/2022/acs/acs5?get=B19013_001E,B25003_002E,B25003_003E,B01002_001E,B25010_001E&for=zip%20code%20tabulation%20area:${zip}&key=${CENSUS_API_KEY}`;
         
-        console.log('Calling Census API for ZIP:', zip);
+        log.info('Calling Census API for ZIP:', zip);
 
-        // Fetch with retry logic
         const censusResponse = await retryWithBackoff(async () => {
           const res = await fetch(censusUrl);
           if (!res.ok && (res.status === 429 || res.status >= 500)) {
@@ -233,7 +182,7 @@ serve(async (req) => {
 
         if (censusResponse.ok) {
           const censusData = await censusResponse.json();
-          console.log('Census data received:', censusData);
+          log.info('Census data received:', censusData);
 
           if (censusData && censusData.length > 1) {
             const data = censusData[1];
@@ -254,36 +203,22 @@ serve(async (req) => {
             };
           }
         } else {
-          console.log('Census API error:', await censusResponse.text());
+          log.info('Census API error:', await censusResponse.text());
         }
       } catch (e) {
-        const error = e as Error;
-        console.log('Census error:', error.message);
+        log.info('Census error:', (e as Error).message);
         insights.census = null;
       }
     }
 
-    console.log('Final insights:', insights);
+    log.info('Final insights:', insights);
 
-    return new Response(
-      JSON.stringify({ insights }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          'X-RateLimit-Remaining': rateLimit.remaining.toString()
-        } 
-      }
+    return jsonResponse(
+      { insights },
+      200,
     );
   } catch (error) {
-    console.error('Error enriching property:', error);
-    const err = error as Error;
-    return new Response(
-      JSON.stringify({ error: err.message, insights: {} }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    log.error('Error enriching property:', error);
+    return errorResponse(getErrorMessage(error));
   }
 });
