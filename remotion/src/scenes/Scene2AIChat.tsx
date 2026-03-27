@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Sequence } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
 
 const { fontFamily } = loadFont("normal", { weights: ["700", "400", "500"], subsets: ["latin"] });
@@ -17,17 +17,15 @@ export const Scene2AIChat = ({ colors }: Props) => {
     [0, 1], [-80, 0]
   );
 
-  // Chat messages appear one by one
   const messages = [
     { text: "Find 3-bed homes in Austin under $400k", isUser: true, delay: 20 },
-    { text: "I found 12 properties matching your criteria in Austin, TX. Here are the top 3 with best investment potential...", isUser: false, delay: 45 },
+    { text: "I found 12 properties matching your criteria. Here are the top 3 with best investment potential...", isUser: false, delay: 45 },
     { text: "What's the ROI on the second one?", isUser: true, delay: 75 },
     { text: "Estimated ROI: 8.2% annually with rental income of $2,100/mo. Cap rate: 5.4%", isUser: false, delay: 95 },
   ];
 
   return (
     <AbsoluteFill style={{ fontFamily, padding: 80 }}>
-      {/* Left side - title */}
       <div style={{ position: "absolute", left: 80, top: 100 }}>
         <div
           style={{
@@ -41,7 +39,7 @@ export const Scene2AIChat = ({ colors }: Props) => {
         >
           AI-Powered
           <br />
-          <span style={{ color: colors.primary }}>Property Search</span>
+          <span style={{ color: colors.primaryLight }}>Property Search</span>
         </div>
         <div
           style={{
@@ -59,7 +57,6 @@ export const Scene2AIChat = ({ colors }: Props) => {
         </div>
       </div>
 
-      {/* Right side - chat mockup */}
       <div
         style={{
           position: "absolute",
@@ -67,9 +64,9 @@ export const Scene2AIChat = ({ colors }: Props) => {
           top: 80,
           width: 700,
           height: 800,
-          background: "rgba(30, 42, 66, 0.8)",
+          background: `rgba(44, 62, 85, 0.8)`,
           borderRadius: 24,
-          border: `1px solid rgba(62, 141, 160, 0.3)`,
+          border: `1px solid rgba(107, 141, 181, 0.3)`,
           padding: 30,
           display: "flex",
           flexDirection: "column",
@@ -77,10 +74,9 @@ export const Scene2AIChat = ({ colors }: Props) => {
           overflow: "hidden",
         }}
       >
-        {/* Chat header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 18, background: colors.primary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 18, color: "white" }}>🤖</span>
+            <span style={{ fontSize: 18, color: "white" }}>🏠</span>
           </div>
           <span style={{ color: colors.white, fontWeight: 600, fontSize: 18 }}>HomeLens AI</span>
         </div>
@@ -113,7 +109,6 @@ export const Scene2AIChat = ({ colors }: Props) => {
           );
         })}
 
-        {/* Typing indicator */}
         {frame > 110 && (
           <div
             style={{

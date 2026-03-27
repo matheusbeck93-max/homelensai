@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Sequence } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Img, staticFile } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
 
 const { fontFamily } = loadFont("normal", { weights: ["700", "400"], subsets: ["latin"] });
@@ -11,47 +11,42 @@ export const Scene1Intro = ({ colors }: Props) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Lens icon animation
-  const lensScale = spring({ frame, fps, config: { damping: 12, stiffness: 120 } });
-  const lensRotate = interpolate(spring({ frame: frame - 5, fps, config: { damping: 20 } }), [0, 1], [-90, 0]);
+  const logoScale = spring({ frame, fps, config: { damping: 12, stiffness: 120 } });
+  const logoOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
 
-  // Title
   const titleY = interpolate(
-    spring({ frame: frame - 15, fps, config: { damping: 18, stiffness: 150 } }),
+    spring({ frame: frame - 20, fps, config: { damping: 18, stiffness: 150 } }),
     [0, 1], [60, 0]
   );
-  const titleOpacity = interpolate(frame, [15, 35], [0, 1], { extrapolateRight: "clamp" });
+  const titleOpacity = interpolate(frame, [20, 40], [0, 1], { extrapolateRight: "clamp" });
 
-  // Subtitle
-  const subOpacity = interpolate(frame, [40, 60], [0, 1], { extrapolateRight: "clamp" });
+  const subOpacity = interpolate(frame, [50, 70], [0, 1], { extrapolateRight: "clamp" });
   const subY = interpolate(
-    spring({ frame: frame - 40, fps, config: { damping: 20 } }),
+    spring({ frame: frame - 50, fps, config: { damping: 20 } }),
     [0, 1], [30, 0]
   );
 
-  // Tagline
-  const tagOpacity = interpolate(frame, [65, 85], [0, 1], { extrapolateRight: "clamp" });
+  const tagOpacity = interpolate(frame, [75, 95], [0, 1], { extrapolateRight: "clamp" });
 
-  // Subtle glow line
   const lineWidth = interpolate(
-    spring({ frame: frame - 50, fps, config: { damping: 200 } }),
+    spring({ frame: frame - 60, fps, config: { damping: 200 } }),
     [0, 1], [0, 400]
   );
 
   return (
     <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", fontFamily }}>
-      {/* Lens icon */}
+      {/* Logo */}
       <div
         style={{
-          transform: `scale(${lensScale}) rotate(${lensRotate}deg)`,
+          transform: `scale(${logoScale})`,
+          opacity: logoOpacity,
           marginBottom: 30,
         }}
       >
-        <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
-          <circle cx="50" cy="50" r="35" stroke={colors.primary} strokeWidth="6" fill="none" />
-          <line x1="75" y1="75" x2="105" y2="105" stroke={colors.secondary} strokeWidth="6" strokeLinecap="round" />
-          <circle cx="50" cy="50" r="15" fill={colors.primary} opacity="0.3" />
-        </svg>
+        <Img
+          src={staticFile("images/logo.png")}
+          style={{ width: 200, height: 200, objectFit: "contain" }}
+        />
       </div>
 
       {/* Title */}
@@ -59,13 +54,13 @@ export const Scene1Intro = ({ colors }: Props) => {
         style={{
           transform: `translateY(${titleY}px)`,
           opacity: titleOpacity,
-          fontSize: 88,
+          fontSize: 82,
           fontWeight: 700,
           color: colors.white,
           letterSpacing: -2,
         }}
       >
-        Home<span style={{ color: colors.primary }}>Lens</span>
+        Home<span style={{ color: colors.primaryLight }}>Lens</span>
       </div>
 
       {/* Gradient line */}
@@ -73,7 +68,7 @@ export const Scene1Intro = ({ colors }: Props) => {
         style={{
           width: lineWidth,
           height: 3,
-          background: `linear-gradient(90deg, transparent, ${colors.primary}, ${colors.secondary}, transparent)`,
+          background: `linear-gradient(90deg, transparent, ${colors.primary}, ${colors.accent}, transparent)`,
           margin: "16px 0",
           borderRadius: 2,
         }}
@@ -84,7 +79,7 @@ export const Scene1Intro = ({ colors }: Props) => {
         style={{
           opacity: subOpacity,
           transform: `translateY(${subY}px)`,
-          fontSize: 32,
+          fontSize: 30,
           color: colors.muted,
           fontWeight: 400,
         }}
@@ -96,8 +91,8 @@ export const Scene1Intro = ({ colors }: Props) => {
       <div
         style={{
           opacity: tagOpacity,
-          fontSize: 22,
-          color: colors.secondary,
+          fontSize: 20,
+          color: colors.accent,
           marginTop: 20,
           fontWeight: 400,
           letterSpacing: 4,

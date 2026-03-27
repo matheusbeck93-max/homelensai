@@ -19,11 +19,10 @@ export const PersistentBackground = ({ colors }: Props) => {
           background: `linear-gradient(${gradientAngle}deg, ${colors.dark} 0%, ${colors.darkMid} ${50 + pulse}%, ${colors.dark} 100%)`,
         }}
       />
-      {/* Floating orbs */}
       {[0, 1, 2].map((i) => {
         const x = interpolate(frame, [0, 600], [10 + i * 30, 20 + i * 25]);
         const y = 30 + Math.sin(frame * 0.015 + i * 2) * 15;
-        const opacity = 0.06 + Math.sin(frame * 0.01 + i) * 0.03;
+        const opacity = 0.08 + Math.sin(frame * 0.01 + i) * 0.04;
         return (
           <div
             key={i}
@@ -34,7 +33,7 @@ export const PersistentBackground = ({ colors }: Props) => {
               width: 400 + i * 100,
               height: 400 + i * 100,
               borderRadius: "50%",
-              background: i % 2 === 0 ? colors.primary : colors.secondary,
+              background: i % 2 === 0 ? colors.primary : colors.accent,
               opacity,
               filter: "blur(80px)",
             }}

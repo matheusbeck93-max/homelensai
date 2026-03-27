@@ -11,19 +11,17 @@ export const Scene4Calculators = ({ colors }: Props) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Animated chart bars
   const bars = [
     { label: "Year 1", value: 45, color: colors.primary },
     { label: "Year 3", value: 62, color: colors.primary },
-    { label: "Year 5", value: 78, color: colors.secondary },
-    { label: "Year 10", value: 95, color: colors.secondary },
+    { label: "Year 5", value: 78, color: colors.primaryLight },
+    { label: "Year 10", value: 95, color: colors.accent },
   ];
 
   const titleOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill style={{ fontFamily, padding: 80 }}>
-      {/* Right side - title */}
       <div style={{ position: "absolute", right: 80, top: 140, textAlign: "right" }}>
         <div
           style={{
@@ -36,7 +34,7 @@ export const Scene4Calculators = ({ colors }: Props) => {
         >
           Investment
           <br />
-          <span style={{ color: colors.secondary }}>Intelligence</span>
+          <span style={{ color: colors.accent }}>Intelligence</span>
         </div>
         <div
           style={{
@@ -53,7 +51,6 @@ export const Scene4Calculators = ({ colors }: Props) => {
           and buying power analysis.
         </div>
 
-        {/* Stats */}
         {[
           { label: "Avg ROI", val: "8.2%", delay: 40 },
           { label: "Cap Rate", val: "5.4%", delay: 50 },
@@ -63,13 +60,12 @@ export const Scene4Calculators = ({ colors }: Props) => {
           return (
             <div key={i} style={{ opacity: op, display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 18, alignItems: "center" }}>
               <span style={{ fontSize: 16, color: colors.muted }}>{s.label}</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: colors.secondary }}>{s.val}</span>
+              <span style={{ fontSize: 28, fontWeight: 700, color: colors.accent }}>{s.val}</span>
             </div>
           );
         })}
       </div>
 
-      {/* Left side - chart */}
       <div
         style={{
           position: "absolute",
@@ -77,9 +73,9 @@ export const Scene4Calculators = ({ colors }: Props) => {
           top: 120,
           width: 650,
           height: 700,
-          background: "rgba(30, 42, 66, 0.6)",
+          background: `rgba(58, 80, 104, 0.6)`,
           borderRadius: 24,
-          border: `1px solid rgba(62, 141, 160, 0.2)`,
+          border: `1px solid rgba(107, 141, 181, 0.2)`,
           padding: 40,
           display: "flex",
           flexDirection: "column",

@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Img, staticFile } from "remotion";
 import { loadFont } from "@remotion/google-fonts/Inter";
 
 const { fontFamily } = loadFont("normal", { weights: ["700", "400"], subsets: ["latin"] });
@@ -23,12 +23,10 @@ export const Scene5Closing = ({ colors }: Props) => {
   const ctaOpacity = interpolate(frame, [70, 90], [0, 1], { extrapolateRight: "clamp" });
   const ctaScale = spring({ frame: frame - 70, fps, config: { damping: 14 } });
 
-  // Pulsing glow
-  const glowOpacity = 0.15 + Math.sin(frame * 0.05) * 0.08;
+  const glowOpacity = 0.12 + Math.sin(frame * 0.05) * 0.06;
 
   return (
     <AbsoluteFill style={{ fontFamily, justifyContent: "center", alignItems: "center" }}>
-      {/* Center glow */}
       <div
         style={{
           position: "absolute",
@@ -41,16 +39,13 @@ export const Scene5Closing = ({ colors }: Props) => {
         }}
       />
 
-      {/* Logo */}
       <div style={{ transform: `scale(${logoScale})`, marginBottom: 20 }}>
-        <svg width="100" height="100" viewBox="0 0 120 120" fill="none">
-          <circle cx="50" cy="50" r="35" stroke={colors.primary} strokeWidth="5" fill="none" />
-          <line x1="75" y1="75" x2="105" y2="105" stroke={colors.secondary} strokeWidth="5" strokeLinecap="round" />
-          <circle cx="50" cy="50" r="15" fill={colors.primary} opacity="0.4" />
-        </svg>
+        <Img
+          src={staticFile("images/logo.png")}
+          style={{ width: 160, height: 160, objectFit: "contain" }}
+        />
       </div>
 
-      {/* Title */}
       <div
         style={{
           opacity: titleOpacity,
@@ -60,20 +55,18 @@ export const Scene5Closing = ({ colors }: Props) => {
           letterSpacing: -2,
         }}
       >
-        Home<span style={{ color: colors.primary }}>Lens</span>
+        Home<span style={{ color: colors.primaryLight }}>Lens</span>
       </div>
 
-      {/* Line */}
       <div
         style={{
           width: lineWidth,
           height: 2,
-          background: `linear-gradient(90deg, transparent, ${colors.secondary}, transparent)`,
+          background: `linear-gradient(90deg, transparent, ${colors.accent}, transparent)`,
           margin: "20px 0",
         }}
       />
 
-      {/* Subtitle */}
       <div
         style={{
           opacity: subOpacity,
@@ -88,7 +81,6 @@ export const Scene5Closing = ({ colors }: Props) => {
         Powered by AI
       </div>
 
-      {/* CTA-like badge */}
       <div
         style={{
           opacity: ctaOpacity,
@@ -96,7 +88,7 @@ export const Scene5Closing = ({ colors }: Props) => {
           marginTop: 40,
           padding: "16px 48px",
           borderRadius: 50,
-          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+          background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
           fontSize: 22,
           fontWeight: 700,
           color: colors.white,

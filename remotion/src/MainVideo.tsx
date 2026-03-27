@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
+import { AbsoluteFill } from "remotion";
 import { TransitionSeries, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
@@ -10,12 +10,16 @@ import { Scene5Closing } from "./scenes/Scene5Closing";
 import { PersistentBackground } from "./components/PersistentBackground";
 
 const COLORS = {
-  primary: "#3E8DA0",
-  secondary: "#3EBF8A",
-  dark: "#141B2D",
-  darkMid: "#1E2A42",
-  white: "#F8FAFC",
-  muted: "#94A3B8",
+  primary: "#6B8DB5",
+  primaryLight: "#8AADD0",
+  primaryDark: "#4A6E94",
+  accent: "#A3C4E0",
+  dark: "#2C3E55",
+  darkMid: "#3A5068",
+  white: "#FFFFFF",
+  offWhite: "#F0F4F8",
+  muted: "#B0C4D8",
+  mutedDark: "#7A95AD",
 };
 
 export const MainVideo = () => {
@@ -24,40 +28,40 @@ export const MainVideo = () => {
       <PersistentBackground colors={COLORS} />
 
       <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={130}>
+        <TransitionSeries.Sequence durationInFrames={140}>
           <Scene1Intro colors={COLORS} />
         </TransitionSeries.Sequence>
 
         <TransitionSeries.Transition
           presentation={fade()}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
+          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
         />
 
-        <TransitionSeries.Sequence durationInFrames={130}>
+        <TransitionSeries.Sequence durationInFrames={140}>
           <Scene2AIChat colors={COLORS} />
         </TransitionSeries.Sequence>
 
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-left" })}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
+          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
         />
 
-        <TransitionSeries.Sequence durationInFrames={130}>
+        <TransitionSeries.Sequence durationInFrames={140}>
           <Scene3Features colors={COLORS} />
         </TransitionSeries.Sequence>
 
         <TransitionSeries.Transition
           presentation={fade()}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
+          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
         />
 
-        <TransitionSeries.Sequence durationInFrames={130}>
+        <TransitionSeries.Sequence durationInFrames={140}>
           <Scene4Calculators colors={COLORS} />
         </TransitionSeries.Sequence>
 
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-right" })}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
+          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
         />
 
         <TransitionSeries.Sequence durationInFrames={140}>
