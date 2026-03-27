@@ -24,6 +24,9 @@ export const Scene2AIChat = ({ colors }: Props) => {
     { text: "Estimated ROI: 8.2% annually with rental income of $2,100/mo. Cap rate: 5.4%", isUser: false, delay: 95 },
   ];
 
+  // URL paste feature
+  const urlOpacity = interpolate(frame, [110, 125], [0, 1], { extrapolateRight: "clamp" });
+
   return (
     <AbsoluteFill style={{ fontFamily, padding: 80 }}>
       <div style={{ position: "absolute", left: 80, top: 100 }}>
@@ -51,9 +54,27 @@ export const Scene2AIChat = ({ colors }: Props) => {
             lineHeight: 1.6,
           }}
         >
-          Ask questions in natural language.
+          Search by natural language or
           <br />
-          Get instant, intelligent answers.
+          paste any listing URL for instant analysis.
+        </div>
+
+        {/* URL feature badge */}
+        <div
+          style={{
+            opacity: urlOpacity,
+            marginTop: 24,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 20px",
+            borderRadius: 12,
+            background: `rgba(107, 141, 181, 0.2)`,
+            border: `1px solid rgba(107, 141, 181, 0.3)`,
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🔗</span>
+          <span style={{ fontSize: 16, color: colors.accent }}>Paste URL → Instant AI Analysis</span>
         </div>
       </div>
 
@@ -109,10 +130,10 @@ export const Scene2AIChat = ({ colors }: Props) => {
           );
         })}
 
-        {frame > 110 && (
+        {frame > 115 && (
           <div
             style={{
-              opacity: interpolate(frame, [110, 120], [0, 1], { extrapolateRight: "clamp" }),
+              opacity: interpolate(frame, [115, 125], [0, 1], { extrapolateRight: "clamp" }),
               alignSelf: "flex-start",
               padding: "14px 20px",
               borderRadius: "20px 20px 20px 4px",
@@ -129,7 +150,7 @@ export const Scene2AIChat = ({ colors }: Props) => {
                   height: 8,
                   borderRadius: 4,
                   background: colors.muted,
-                  opacity: 0.4 + Math.sin((frame - 110) * 0.15 + d * 1.5) * 0.4,
+                  opacity: 0.4 + Math.sin((frame - 115) * 0.15 + d * 1.5) * 0.4,
                 }}
               />
             ))}
