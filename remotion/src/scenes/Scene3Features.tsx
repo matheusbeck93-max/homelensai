@@ -24,7 +24,6 @@ export const Scene3Features = ({ colors }: Props) => {
 
   return (
     <AbsoluteFill style={{ fontFamily, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-      {/* Title */}
       <div
         style={{
           opacity: titleOpacity,
@@ -36,10 +35,9 @@ export const Scene3Features = ({ colors }: Props) => {
         }}
       >
         Everything You Need,{" "}
-        <span style={{ color: colors.secondary }}>One Platform</span>
+        <span style={{ color: colors.accent }}>One Platform</span>
       </div>
 
-      {/* Feature grid */}
       <div
         style={{
           display: "flex",
@@ -62,9 +60,9 @@ export const Scene3Features = ({ colors }: Props) => {
                 transform: `scale(${cardScale})`,
                 width: 340,
                 padding: "32px 28px",
-                background: "rgba(30, 42, 66, 0.7)",
+                background: `rgba(58, 80, 104, 0.7)`,
                 borderRadius: 20,
-                border: `1px solid rgba(62, 141, 160, 0.2)`,
+                border: `1px solid rgba(107, 141, 181, 0.25)`,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
