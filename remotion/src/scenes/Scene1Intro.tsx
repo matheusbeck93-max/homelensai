@@ -11,114 +11,50 @@ export const Scene1Intro = ({ colors }: Props) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const logoScale = spring({ frame, fps, config: { damping: 12, stiffness: 120 } });
+  const logoScale = spring({ frame, fps, config: { damping: 12, stiffness: 80 } });
   const logoOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
-  const logoRotate = interpolate(spring({ frame, fps, config: { damping: 15 } }), [0, 1], [-15, 0]);
 
-  const titleY = interpolate(
-    spring({ frame: frame - 20, fps, config: { damping: 18, stiffness: 150 } }),
-    [0, 1], [60, 0]
+  const textOpacity = interpolate(frame, [20, 40], [0, 1], { extrapolateRight: "clamp" });
+  const textY = interpolate(
+    spring({ frame: frame - 20, fps, config: { damping: 18 } }),
+    [0, 1], [40, 0]
   );
-  const titleOpacity = interpolate(frame, [20, 40], [0, 1], { extrapolateRight: "clamp" });
-
-  const subOpacity = interpolate(frame, [50, 70], [0, 1], { extrapolateRight: "clamp" });
-  const subY = interpolate(
-    spring({ frame: frame - 50, fps, config: { damping: 20 } }),
-    [0, 1], [30, 0]
-  );
-
-  const tagOpacity = interpolate(frame, [75, 95], [0, 1], { extrapolateRight: "clamp" });
 
   const lineWidth = interpolate(
-    spring({ frame: frame - 60, fps, config: { damping: 200 } }),
+    spring({ frame: frame - 35, fps, config: { damping: 200 } }),
     [0, 1], [0, 400]
   );
 
-  // Pulsing glow behind logo
-  const glowScale = 1 + Math.sin(frame * 0.06) * 0.08;
-  const glowOpacity = interpolate(frame, [0, 20], [0, 0.15], { extrapolateRight: "clamp" });
+  const glowOpacity = 0.08 + Math.sin(frame * 0.04) * 0.04;
 
   return (
-    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", fontFamily }}>
-      {/* Glow behind logo */}
-      <div
-        style={{
-          position: "absolute",
-          width: 350,
-          height: 350,
-          borderRadius: "50%",
-          background: `radial-gradient(circle, ${colors.primary}88, transparent)`,
-          transform: `scale(${glowScale * logoScale})`,
-          opacity: glowOpacity,
-          filter: "blur(40px)",
-        }}
-      />
+    <AbsoluteFill style={{ fontFamily, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+      <div style={{
+        position: "absolute", width: 500, height: 500, borderRadius: "50%",
+        background: colors.primary, opacity: glowOpacity, filter: "blur(100px)",
+      }} />
 
-      {/* Logo */}
-      <div
-        style={{
-          transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
-          opacity: logoOpacity,
-          marginBottom: 30,
-        }}
-      >
-        <Img
-          src={staticFile("images/logo.png")}
-          style={{ width: 200, height: 200, objectFit: "contain" }}
-        />
+      <div style={{ opacity: logoOpacity, transform: `scale(${logoScale})`, marginBottom: 16 }}>
+        <Img src={staticFile("images/logo.png")} style={{ width: 160, height: 160, objectFit: "contain" }} />
       </div>
 
-      {/* Title */}
-      <div
-        style={{
-          transform: `translateY(${titleY}px)`,
-          opacity: titleOpacity,
-          fontSize: 82,
-          fontWeight: 700,
-          color: colors.white,
-          letterSpacing: -2,
-        }}
-      >
+      <div style={{
+        opacity: textOpacity, transform: `translateY(${textY}px)`,
+        fontSize: 64, fontWeight: 700, color: colors.white, letterSpacing: -2,
+      }}>
         Home<span style={{ color: colors.primaryLight }}>Lens</span>
       </div>
 
-      {/* Gradient line */}
-      <div
-        style={{
-          width: lineWidth,
-          height: 3,
-          background: `linear-gradient(90deg, transparent, ${colors.primary}, ${colors.accent}, transparent)`,
-          margin: "16px 0",
-          borderRadius: 2,
-        }}
-      />
+      <div style={{
+        width: lineWidth, height: 2, margin: "14px 0",
+        background: `linear-gradient(90deg, transparent, ${colors.accent}, transparent)`,
+      }} />
 
-      {/* Subtitle */}
-      <div
-        style={{
-          opacity: subOpacity,
-          transform: `translateY(${subY}px)`,
-          fontSize: 30,
-          color: colors.muted,
-          fontWeight: 400,
-        }}
-      >
-        Your AI-Powered Real Estate Assistant
-      </div>
-
-      {/* Tagline */}
-      <div
-        style={{
-          opacity: tagOpacity,
-          fontSize: 20,
-          color: colors.accent,
-          marginTop: 20,
-          fontWeight: 400,
-          letterSpacing: 4,
-          textTransform: "uppercase",
-        }}
-      >
-        Search • Analyze • Invest
+      <div style={{
+        opacity: interpolate(frame, [40, 60], [0, 1], { extrapolateRight: "clamp" }),
+        fontSize: 22, color: colors.muted, letterSpacing: 4, textTransform: "uppercase",
+      }}>
+        Smarter Real Estate Decisions
       </div>
     </AbsoluteFill>
   );
