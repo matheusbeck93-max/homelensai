@@ -37,7 +37,7 @@ export const MainVideo = () => {
           timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
         />
 
-        <TransitionSeries.Sequence durationInFrames={140}>
+        <TransitionSeries.Sequence durationInFrames={150}>
           <Scene2AIChat colors={COLORS} />
         </TransitionSeries.Sequence>
 
@@ -55,7 +55,7 @@ export const MainVideo = () => {
           timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
         />
 
-        <TransitionSeries.Sequence durationInFrames={140}>
+        <TransitionSeries.Sequence durationInFrames={160}>
           <Scene4Calculators colors={COLORS} />
         </TransitionSeries.Sequence>
 
@@ -64,7 +64,7 @@ export const MainVideo = () => {
           timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
         />
 
-        <TransitionSeries.Sequence durationInFrames={140}>
+        <TransitionSeries.Sequence durationInFrames={170}>
           <Scene5Closing colors={COLORS} />
         </TransitionSeries.Sequence>
       </TransitionSeries>

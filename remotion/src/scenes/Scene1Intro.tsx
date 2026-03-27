@@ -13,6 +13,7 @@ export const Scene1Intro = ({ colors }: Props) => {
 
   const logoScale = spring({ frame, fps, config: { damping: 12, stiffness: 120 } });
   const logoOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
+  const logoRotate = interpolate(spring({ frame, fps, config: { damping: 15 } }), [0, 1], [-15, 0]);
 
   const titleY = interpolate(
     spring({ frame: frame - 20, fps, config: { damping: 18, stiffness: 150 } }),
@@ -33,12 +34,30 @@ export const Scene1Intro = ({ colors }: Props) => {
     [0, 1], [0, 400]
   );
 
+  // Pulsing glow behind logo
+  const glowScale = 1 + Math.sin(frame * 0.06) * 0.08;
+  const glowOpacity = interpolate(frame, [0, 20], [0, 0.15], { extrapolateRight: "clamp" });
+
   return (
     <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", fontFamily }}>
+      {/* Glow behind logo */}
+      <div
+        style={{
+          position: "absolute",
+          width: 350,
+          height: 350,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${colors.primary}88, transparent)`,
+          transform: `scale(${glowScale * logoScale})`,
+          opacity: glowOpacity,
+          filter: "blur(40px)",
+        }}
+      />
+
       {/* Logo */}
       <div
         style={{
-          transform: `scale(${logoScale})`,
+          transform: `scale(${logoScale}) rotate(${logoRotate}deg)`,
           opacity: logoOpacity,
           marginBottom: 30,
         }}
