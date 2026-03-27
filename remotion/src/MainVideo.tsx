@@ -4,9 +4,11 @@ import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
 import { Scene1Intro } from "./scenes/Scene1Intro";
 import { Scene2AIChat } from "./scenes/Scene2AIChat";
-import { Scene3Features } from "./scenes/Scene3Features";
-import { Scene4Calculators } from "./scenes/Scene4Calculators";
-import { Scene5Closing } from "./scenes/Scene5Closing";
+import { Scene3BuyingPower } from "./scenes/Scene3BuyingPower";
+import { Scene4Mortgage } from "./scenes/Scene4Mortgage";
+import { Scene5Investor } from "./scenes/Scene5Investor";
+import { Scene6AIInsight } from "./scenes/Scene6AIInsight";
+import { Scene7Closing } from "./scenes/Scene7Closing";
 import { PersistentBackground } from "./components/PersistentBackground";
 
 const COLORS = {
@@ -22,50 +24,52 @@ const COLORS = {
   mutedDark: "#7A95AD",
 };
 
+const TRANSITION = springTiming({ config: { damping: 200 }, durationInFrames: 20 });
+
 export const MainVideo = () => {
   return (
     <AbsoluteFill>
       <PersistentBackground colors={COLORS} />
 
       <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={140}>
+        <TransitionSeries.Sequence durationInFrames={100}>
           <Scene1Intro colors={COLORS} />
         </TransitionSeries.Sequence>
 
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
-        />
+        <TransitionSeries.Transition presentation={fade()} timing={TRANSITION} />
 
-        <TransitionSeries.Sequence durationInFrames={150}>
+        <TransitionSeries.Sequence durationInFrames={130}>
           <Scene2AIChat colors={COLORS} />
         </TransitionSeries.Sequence>
 
-        <TransitionSeries.Transition
-          presentation={slide({ direction: "from-left" })}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
-        />
+        <TransitionSeries.Transition presentation={slide({ direction: "from-left" })} timing={TRANSITION} />
 
-        <TransitionSeries.Sequence durationInFrames={140}>
-          <Scene3Features colors={COLORS} />
+        <TransitionSeries.Sequence durationInFrames={110}>
+          <Scene3BuyingPower colors={COLORS} />
         </TransitionSeries.Sequence>
 
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
-        />
+        <TransitionSeries.Transition presentation={fade()} timing={TRANSITION} />
 
-        <TransitionSeries.Sequence durationInFrames={160}>
-          <Scene4Calculators colors={COLORS} />
+        <TransitionSeries.Sequence durationInFrames={120}>
+          <Scene4Mortgage colors={COLORS} />
         </TransitionSeries.Sequence>
 
-        <TransitionSeries.Transition
-          presentation={slide({ direction: "from-right" })}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 25 })}
-        />
+        <TransitionSeries.Transition presentation={slide({ direction: "from-right" })} timing={TRANSITION} />
 
-        <TransitionSeries.Sequence durationInFrames={170}>
-          <Scene5Closing colors={COLORS} />
+        <TransitionSeries.Sequence durationInFrames={110}>
+          <Scene5Investor colors={COLORS} />
+        </TransitionSeries.Sequence>
+
+        <TransitionSeries.Transition presentation={fade()} timing={TRANSITION} />
+
+        <TransitionSeries.Sequence durationInFrames={110}>
+          <Scene6AIInsight colors={COLORS} />
+        </TransitionSeries.Sequence>
+
+        <TransitionSeries.Transition presentation={fade()} timing={TRANSITION} />
+
+        <TransitionSeries.Sequence durationInFrames={110}>
+          <Scene7Closing colors={COLORS} />
         </TransitionSeries.Sequence>
       </TransitionSeries>
     </AbsoluteFill>

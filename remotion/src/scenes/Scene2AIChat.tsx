@@ -11,148 +11,96 @@ export const Scene2AIChat = ({ colors }: Props) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const titleOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+  const titleOpacity = interpolate(frame, [0, 18], [0, 1], { extrapolateRight: "clamp" });
   const titleX = interpolate(
     spring({ frame, fps, config: { damping: 20, stiffness: 150 } }),
-    [0, 1], [-80, 0]
+    [0, 1], [-60, 0]
   );
 
-  const messages = [
-    { text: "Find 3-bed homes in Austin under $400k", isUser: true, delay: 20 },
-    { text: "I found 12 properties matching your criteria. Here are the top 3 with best investment potential...", isUser: false, delay: 45 },
-    { text: "What's the ROI on the second one?", isUser: true, delay: 75 },
-    { text: "Estimated ROI: 8.2% annually with rental income of $2,100/mo. Cap rate: 5.4%", isUser: false, delay: 95 },
-  ];
+  const tagline = "With HomeLens, you have a real estate\nexpert available whenever you need one.";
+  const tagOp = interpolate(frame, [15, 35], [0, 1], { extrapolateRight: "clamp" });
 
-  // URL paste feature
-  const urlOpacity = interpolate(frame, [110, 125], [0, 1], { extrapolateRight: "clamp" });
+  const messages = [
+    { text: "Find 3-bed homes in Austin under $400k", isUser: true, delay: 25 },
+    { text: "I found 12 properties matching your criteria. Here are the top picks with best ROI…", isUser: false, delay: 50 },
+    { text: "What about the neighborhood safety?", isUser: true, delay: 75 },
+    { text: "This area scores 8.4/10 for safety with low crime rates and top-rated schools nearby.", isUser: false, delay: 95 },
+  ];
 
   return (
     <AbsoluteFill style={{ fontFamily, padding: 80 }}>
-      <div style={{ position: "absolute", left: 80, top: 100 }}>
-        <div
-          style={{
-            opacity: titleOpacity,
-            transform: `translateX(${titleX}px)`,
-            fontSize: 52,
-            fontWeight: 700,
-            color: colors.white,
-            lineHeight: 1.2,
-          }}
-        >
-          AI-Powered
-          <br />
-          <span style={{ color: colors.primaryLight }}>Property Search</span>
+      {/* Left title */}
+      <div style={{ position: "absolute", left: 80, top: 120 }}>
+        <div style={{
+          opacity: titleOpacity, transform: `translateX(${titleX}px)`,
+          fontSize: 48, fontWeight: 700, color: colors.white, lineHeight: 1.2,
+        }}>
+          AI-Powered<br />
+          <span style={{ color: colors.accent }}>Property Search</span>
         </div>
-        <div
-          style={{
-            opacity: interpolate(frame, [15, 35], [0, 1], { extrapolateRight: "clamp" }),
-            fontSize: 20,
-            color: colors.muted,
-            marginTop: 20,
-            maxWidth: 400,
-            lineHeight: 1.6,
-          }}
-        >
-          Search by natural language or
-          <br />
-          paste any listing URL for instant analysis.
+        <div style={{
+          opacity: tagOp, fontSize: 19, color: colors.muted, marginTop: 24,
+          maxWidth: 420, lineHeight: 1.7, whiteSpace: "pre-line",
+        }}>
+          {tagline}
         </div>
 
-        {/* URL feature badge */}
-        <div
-          style={{
-            opacity: urlOpacity,
-            marginTop: 24,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 20px",
-            borderRadius: 12,
-            background: `rgba(107, 141, 181, 0.2)`,
-            border: `1px solid rgba(107, 141, 181, 0.3)`,
-          }}
-        >
+        <div style={{
+          opacity: interpolate(frame, [100, 115], [0, 1], { extrapolateRight: "clamp" }),
+          marginTop: 28, display: "inline-flex", alignItems: "center", gap: 10,
+          padding: "10px 20px", borderRadius: 12,
+          background: `rgba(107, 141, 181, 0.2)`, border: `1px solid rgba(107, 141, 181, 0.3)`,
+        }}>
           <span style={{ fontSize: 18 }}>🔗</span>
-          <span style={{ fontSize: 16, color: colors.accent }}>Paste URL → Instant AI Analysis</span>
+          <span style={{ fontSize: 15, color: colors.accent }}>Paste any URL → Instant AI Analysis</span>
         </div>
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          right: 80,
-          top: 80,
-          width: 700,
-          height: 800,
-          background: `rgba(44, 62, 85, 0.8)`,
-          borderRadius: 24,
-          border: `1px solid rgba(107, 141, 181, 0.3)`,
-          padding: 30,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 18, background: colors.primary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 18, color: "white" }}>🏠</span>
+      {/* Chat mockup */}
+      <div style={{
+        position: "absolute", right: 80, top: 80, width: 680, height: 780,
+        background: `rgba(44, 62, 85, 0.85)`, borderRadius: 24,
+        border: `1px solid rgba(107, 141, 181, 0.25)`, padding: 28,
+        display: "flex", flexDirection: "column", gap: 14, overflow: "hidden",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 17, background: colors.primary, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 16, color: "white" }}>🏠</span>
           </div>
-          <span style={{ color: colors.white, fontWeight: 600, fontSize: 18 }}>HomeLens AI</span>
+          <span style={{ color: colors.white, fontWeight: 600, fontSize: 17 }}>HomeLens AI</span>
         </div>
 
         {messages.map((msg, i) => {
-          const msgOpacity = interpolate(frame, [msg.delay, msg.delay + 15], [0, 1], { extrapolateRight: "clamp" });
+          const msgOp = interpolate(frame, [msg.delay, msg.delay + 12], [0, 1], { extrapolateRight: "clamp" });
           const msgY = interpolate(
-            spring({ frame: frame - msg.delay, fps, config: { damping: 18 } }),
-            [0, 1], [30, 0]
+            spring({ frame: frame - msg.delay, fps, config: { damping: 16 } }),
+            [0, 1], [25, 0]
           );
           return (
-            <div
-              key={i}
-              style={{
-                opacity: msgOpacity,
-                transform: `translateY(${msgY}px)`,
-                alignSelf: msg.isUser ? "flex-end" : "flex-start",
-                maxWidth: "80%",
-                padding: "14px 20px",
-                borderRadius: msg.isUser ? "20px 20px 4px 20px" : "20px 20px 20px 4px",
-                background: msg.isUser ? colors.primary : "rgba(255,255,255,0.08)",
-                color: colors.white,
-                fontSize: 16,
-                lineHeight: 1.5,
-                fontWeight: 400,
-              }}
-            >
+            <div key={i} style={{
+              opacity: msgOp, transform: `translateY(${msgY}px)`,
+              alignSelf: msg.isUser ? "flex-end" : "flex-start", maxWidth: "80%",
+              padding: "13px 18px", fontSize: 15, lineHeight: 1.5, color: colors.white,
+              borderRadius: msg.isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+              background: msg.isUser ? colors.primary : "rgba(255,255,255,0.08)",
+            }}>
               {msg.text}
             </div>
           );
         })}
 
-        {frame > 115 && (
-          <div
-            style={{
-              opacity: interpolate(frame, [115, 125], [0, 1], { extrapolateRight: "clamp" }),
-              alignSelf: "flex-start",
-              padding: "14px 20px",
-              borderRadius: "20px 20px 20px 4px",
-              background: "rgba(255,255,255,0.08)",
-              display: "flex",
-              gap: 6,
-            }}
-          >
-            {[0, 1, 2].map((d) => (
-              <div
-                key={d}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  background: colors.muted,
-                  opacity: 0.4 + Math.sin((frame - 115) * 0.15 + d * 1.5) * 0.4,
-                }}
-              />
+        {frame > 110 && (
+          <div style={{
+            opacity: interpolate(frame, [110, 120], [0, 1], { extrapolateRight: "clamp" }),
+            alignSelf: "flex-start", padding: "12px 18px",
+            borderRadius: "18px 18px 18px 4px", background: "rgba(255,255,255,0.08)",
+            display: "flex", gap: 6,
+          }}>
+            {[0, 1, 2].map(d => (
+              <div key={d} style={{
+                width: 7, height: 7, borderRadius: 4, background: colors.muted,
+                opacity: 0.4 + Math.sin((frame - 110) * 0.15 + d * 1.5) * 0.4,
+              }} />
             ))}
           </div>
         )}
