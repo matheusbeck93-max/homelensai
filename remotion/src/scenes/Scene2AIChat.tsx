@@ -58,7 +58,7 @@ export const Scene2AIChat = ({ colors }: Props) => {
       }}>
         <Img
           src={staticFile("images/page-chats.png")}
-          style={{ width: 900, height: 560, objectFit: "cover", objectPosition: "top" }}
+          style={{ width: 1100, height: 680, objectFit: "cover", objectPosition: "top" }}
         />
         {/* Animated highlight cursor */}
         <div style={{

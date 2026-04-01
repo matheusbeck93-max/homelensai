@@ -51,7 +51,7 @@ export const Scene5Investor = ({ colors }: Props) => {
         position: "absolute", right: 40, top: 80, opacity: screenOp, transform: `translateX(${screenX}px)`,
         borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.5)", border: "1px solid rgba(107,141,181,0.2)",
       }}>
-        <Img src={staticFile("images/page-investor.png")} style={{ width: 900, height: 600, objectFit: "cover", objectPosition: "top" }} />
+        <Img src={staticFile("images/page-investor.png")} style={{ width: 1100, height: 720, objectFit: "cover", objectPosition: "top" }} />
       </div>
     </AbsoluteFill>
   );

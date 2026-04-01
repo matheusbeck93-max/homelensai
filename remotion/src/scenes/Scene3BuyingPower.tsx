@@ -31,7 +31,7 @@ export const Scene3BuyingPower = ({ colors }: Props) => {
         boxShadow: "0 30px 80px rgba(0,0,0,0.5)",
         border: "1px solid rgba(107,141,181,0.2)",
       }}>
-        <Img src={staticFile("images/page-calculators.png")} style={{ width: 900, height: 560, objectFit: "cover", objectPosition: "top" }} />
+        <Img src={staticFile("images/page-calculators.png")} style={{ width: 1100, height: 680, objectFit: "cover", objectPosition: "top" }} />
       </div>
 
       <div style={{
