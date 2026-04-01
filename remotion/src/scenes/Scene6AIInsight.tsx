@@ -26,7 +26,7 @@ export const Scene6AIInsight = ({ colors }: Props) => {
           Then let AI put it all{"\n"}together for you.
         </div>
         <div style={{ opacity: screenOp, borderRadius: 16, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.5)", border: "1px solid rgba(107,141,181,0.2)", display: "inline-block" }}>
-          <Img src={staticFile("images/page-console.png")} style={{ width: 1000, height: 450, objectFit: "cover", objectPosition: "top" }} />
+          <Img src={staticFile("images/page-console.png")} style={{ width: 1200, height: 550, objectFit: "cover", objectPosition: "top" }} />
         </div>
       </div>
     </AbsoluteFill>

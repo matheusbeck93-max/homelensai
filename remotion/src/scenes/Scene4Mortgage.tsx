@@ -34,7 +34,7 @@ export const Scene4Mortgage = ({ colors }: Props) => {
         boxShadow: "0 30px 80px rgba(0,0,0,0.5)",
         border: "1px solid rgba(107,141,181,0.2)",
       }}>
-        <Img src={staticFile("images/page-calculators.png")} style={{ width: 1100, height: 520, objectFit: "cover", objectPosition: "center 70%" }} />
+        <Img src={staticFile("images/page-calculators.png")} style={{ width: 1300, height: 580, objectFit: "cover", objectPosition: "center 70%" }} />
       </div>
 
       <div style={{ position: "absolute", bottom: 80, left: 80, right: 80, opacity: interpolate(frame, [20, 40], [0, 1], { extrapolateRight: "clamp" }) }}>
