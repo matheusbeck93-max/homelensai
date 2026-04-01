@@ -447,7 +447,7 @@ export default function Index() {
           <HouseHeroAnimation />
           <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20 max-w-5xl mx-auto">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
-              {userName ? `Hello, ${userName.split(' ')[0]}` : 'Meet Your AI Real Estate Advisor'}
+              {userName ? `Hello, ${userName.split(' ')[0]}` : 'Meet Your Real Estate Advisor'}
             </h1>
             <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-4xl mx-auto px-4">
               {userName && primaryGoal
@@ -456,8 +456,8 @@ export default function Index() {
                 : primaryGoal === 'rent' ? 'Your AI Rental Advisor — Find the Best Deals'
                 : primaryGoal === 'market_trends' ? 'Your AI Market Intelligence — Stay Ahead of Trends'
                 : primaryGoal === 'tax_incentives' ? 'Your AI Financial Advisor — Maximize Tax Benefits'
-                : 'Make Smarter Home Buying Decisions with AI Market Analysis'
-                : 'Make Smarter Home Buying Decisions with AI Market Analysis'}
+                : 'Big decisions deserve the full picture'
+                : 'Big decisions deserve the full picture'}
             </p>
 
             {/* Hero Search Input */}
