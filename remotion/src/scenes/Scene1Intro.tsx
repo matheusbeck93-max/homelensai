@@ -15,7 +15,7 @@ export const Scene1Intro = ({ colors }: Props) => {
   const logoOp = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
   const textOp = interpolate(frame, [25, 45], [0, 1], { extrapolateRight: "clamp" });
   const textY = interpolate(spring({ frame: frame - 25, fps, config: { damping: 18 } }), [0, 1], [40, 0]);
-  const fadeOut = interpolate(frame, [100, 119], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fadeOut = interpolate(frame, [80, 99], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill style={{ fontFamily, opacity: fadeOut, justifyContent: "center", alignItems: "center" }}>

@@ -12,7 +12,7 @@ export const Scene2AIChat = ({ colors }: Props) => {
   const { fps } = useVideoConfig();
 
   const fadeIn = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(frame, [160, 179], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fadeOut = interpolate(frame, [140, 159], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const op = fadeIn * fadeOut;
 
   const titleY = interpolate(spring({ frame, fps, config: { damping: 20 } }), [0, 1], [-40, 0]);

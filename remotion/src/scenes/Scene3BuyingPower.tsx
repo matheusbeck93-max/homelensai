@@ -12,7 +12,7 @@ export const Scene3BuyingPower = ({ colors }: Props) => {
   const { fps } = useVideoConfig();
 
   const fadeIn = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(frame, [130, 149], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fadeOut = interpolate(frame, [110, 129], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const op = fadeIn * fadeOut;
 
   const screenX = interpolate(spring({ frame: frame - 5, fps, config: { damping: 18, stiffness: 100 } }), [0, 1], [-200, 0]);
