@@ -31,7 +31,7 @@ export const Scene1Intro = ({ colors }: Props) => {
         />
         <div style={{ opacity: textOp, transform: `translateY(${textY}px)`, textAlign: "center" }}>
           <div style={{ fontSize: 64, fontWeight: 700, color: colors.white, letterSpacing: -1 }}>HomeLens</div>
-          <div style={{ fontSize: 24, color: colors.muted, marginTop: 12 }}>Your AI Home Buying Copilot</div>
+          <div style={{ fontSize: 24, color: colors.muted, marginTop: 12 }}>Your Home Buying Copilot</div>
         </div>
       </div>
     </AbsoluteFill>
