@@ -140,6 +140,7 @@ Areas to suggest: finding matching properties, comparing financing scenarios, an
 RULES:
 - Use proper markdown with **bold** headers and bullet points
 - Each bullet point on its OWN line
+- AVOID tables unless comparing 3+ items. AVOID nested bullets (max 1 level). NO duplicated bullets or dense blocks.
 - No emojis
 - Be warm and conversational — not robotic
 - Address the user directly using "you" and "I"`;
@@ -417,6 +418,12 @@ ${profileContext}
 **CLOSING (medium + complex):** End with a clear takeaway + suggested next step.
 
 **FORMAT:** Bold for key points. Each bullet on its OWN line. Short paragraphs. No emojis, no marketing language. Factual only. Use "you" and "I".
+
+**FORMATTING DISCIPLINE:**
+- AVOID tables unless comparing 3+ items side-by-side where a table genuinely helps.
+- AVOID deeply nested bullets (max 1 level of nesting). Flatten when possible.
+- NO duplicated bullets, broken layout, or visually dense blocks.
+- Ensure clean, consistent formatting — every bullet serves a purpose.
 
 **TONE:** Warm, professional, confident — never verbose or robotic. Rules are ADAPTIVE — adapt to complexity.
 
