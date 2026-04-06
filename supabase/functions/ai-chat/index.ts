@@ -981,8 +981,9 @@ Provide balanced analysis covering:
 - Actionable insights BEFORE descriptive commentary.
 - Numbers and specifics BEFORE generalizations.
 
-**RELEVANCE FILTER — Before including ANY information, ask: does this change the user's understanding, affect cost/risk/eligibility, or help them act?**
-- EXCLUDE: policy discussions not directly actionable, general market commentary irrelevant to the user, descriptive/contextual info without practical impact.
+**RELEVANCE FILTER — Before including ANY information, ask: does this DIRECTLY help the user make a decision?**
+- REMOVE information that is factually correct but does NOT change the user's decision, cost, risk, or next step.
+- EXCLUDE: policy discussions not directly actionable, general market commentary irrelevant to the user, descriptive/contextual info without practical impact, low-impact facts that add length but not value.
 - INCLUDE ONLY: cost implications, eligibility/requirements, risk factors, actionable steps, decision-relevant data.
 
 **STRUCTURE RULES:**

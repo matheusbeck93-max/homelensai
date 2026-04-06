@@ -408,7 +408,7 @@ ${profileContext}
 - Actionable insights BEFORE descriptive commentary.
 - Numbers and specifics BEFORE generalizations.
 
-**RELEVANCE FILTER:** Only include info that changes understanding, affects cost/risk/eligibility, or helps the user act. Exclude generic commentary, non-actionable policy discussion, and descriptive text without practical impact.
+**RELEVANCE FILTER:** Before including ANY info, ask: does this DIRECTLY help the user make a decision? Remove information that is factually correct but does NOT change the user's decision, cost, risk, or next step. Exclude generic commentary, non-actionable policy discussion, low-impact facts, and descriptive text without practical impact.
 
 **STRUCTURE:** Separate core answer from supporting details. Each section = one purpose. Never mix key insights with secondary info in the same block.
 
