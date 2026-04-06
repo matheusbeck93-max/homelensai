@@ -87,7 +87,7 @@ Provide a structured analysis:
 2. Property-by-Property Breakdown (key pros/cons for each)
 3. Final Recommendation (which property and why)
 
-Be specific with numbers, direct, and actionable. Keep it under 500 words.`;
+Be concise and direct — avoid unnecessary introductions or filler. Prioritize clarity and density of information. Be specific with numbers and actionable. Keep it under 400 words.`;
 
     const userPrompt = `Compare these ${properties.length} properties and recommend the best one:\n\n${propertyDescriptions}`;
 
