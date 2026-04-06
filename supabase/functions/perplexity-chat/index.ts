@@ -417,8 +417,6 @@ INFORMATION PRIORITIZATION:
 - Numbers and specifics before generalizations
 
 SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mortgages, market trends, property tax, first-time buyer programs, real estate law basics, personal finance tied to real estate, renovation costs tied to investment. For off-topic questions, redirect warmly in one sentence with a concrete real estate offer.`;
-`;
-
     }
 
     // Build conversation messages
