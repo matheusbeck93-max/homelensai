@@ -76,7 +76,7 @@ Requirements:
 - For mortgage analysis, explain PITI components and affordability`;
 
     const aiResult = await callAiGateway([
-      { role: 'system', content: 'You are a knowledgeable U.S. mortgage and real estate financial advisor providing clear, actionable insights.' },
+      { role: 'system', content: 'You are a knowledgeable U.S. mortgage and real estate financial advisor. Be concise and direct — go straight to actionable insights without unnecessary introductions or repetition. Keep a friendly tone but prioritize clarity and density of information.' },
       { role: 'user', content: prompt }
     ]);
 

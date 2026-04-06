@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a U.S. real estate expert advisor." },
+          { role: "system", content: "You are a U.S. real estate expert advisor. Be concise and direct — go straight to the point, avoid unnecessary introductions or repetition. Keep a friendly, natural tone but prioritize clarity and actionable insights. Expand only when the topic genuinely requires deeper explanation." },
           { role: "user", content: query },
         ],
       }),
