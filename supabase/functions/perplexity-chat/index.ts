@@ -367,32 +367,24 @@ Examples:
 
 DO NOT include "Link:" text in your response. Just provide the URLs directly.
 
-Format your response clearly and directly:
+Format response concisely:
 
-**Here's what I'm searching for you:**
-• Location: [city, state]
-• Price Range: [min] - [max]
-• Bedrooms: [number]+
-• [Any other filters]
+**Searching:** [city, state] | [price range] | [beds]+ beds
 
 Your search links are ready below!
 
 ---
-
-**Found something you like?** Send me the listing URL and I'll break it down for you!
+**Found something?** Send me the listing URL and I'll break it down!
 
 RULES:
-- Be concise — confirm what you're searching for briefly, then provide the links
-- Generate EXACTLY 3 URLs: one Zillow, one Redfin, one Realtor.com
-- URLs MUST have the user's filters pre-applied
-- Use the EXACT URL formats shown above - do NOT deviate
-- Each bullet point on its OWN line
-- Do NOT include any text like "Link:" before URLs
-- Do NOT include individual listing links, only search result page URLs
-- No property summaries or listing details
-- No images
-- Be warm, friendly and conversational
-- Address the user directly`;
+- Confirm criteria in 2-3 lines max, then provide links
+- FORBIDDEN openers: "Great choice!", "Exciting!". Just state what you're searching.
+- Generate EXACTLY 3 URLs: Zillow, Redfin, Realtor.com
+- Filters MUST be pre-applied using EXACT formats above
+- No "Link:" text before URLs
+- No listing details or property summaries
+- No emojis`;
+
     } else {
       // General real estate question
       systemPrompt = `You are a friendly and approachable U.S. real estate assistant. Answer questions about home buying, mortgages, investments, and market trends in a warm, conversational way.
