@@ -258,7 +258,7 @@ export function SavedChatsSidebar({
                     onClick={() => editingId !== conversation.id && onSelectConversation(conversation.id)}
                   >
                     <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex-1 min-w-0">
                       {editingId === conversation.id ? (
                         <Input
                           value={editTitle}
@@ -269,18 +269,12 @@ export function SavedChatsSidebar({
                           autoFocus
                         />
                       ) : (
-                        <>
-                          <p className="text-sm font-medium truncate">
-                            {conversation.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(conversation.updatedAt), { addSuffix: true })}
-                          </p>
-                        </>
+                        <p className="text-sm font-medium truncate leading-snug" title={conversation.title}>
+                          {conversation.title}
+                        </p>
                       )}
                     </div>
                     
-                    {/* Action buttons - always visible */}
                     {editingId === conversation.id ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <Button
@@ -301,33 +295,20 @@ export function SavedChatsSidebar({
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        {onRenameConversation && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 min-w-[28px] min-h-[28px] hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => startEditing(e, conversation)}
-                            title="Rename"
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 min-w-[28px] min-h-[28px] hover:bg-destructive/10"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            setConversationToDelete(conversation.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                          title="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 min-w-[24px] min-h-[24px] hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setConversationToDelete(conversation.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
                     )}
                   </div>
                 ))}
