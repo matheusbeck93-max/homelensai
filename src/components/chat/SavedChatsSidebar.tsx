@@ -258,7 +258,7 @@ export function SavedChatsSidebar({
                     onClick={() => editingId !== conversation.id && onSelectConversation(conversation.id)}
                   >
                     <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 overflow-hidden">
                       {editingId === conversation.id ? (
                         <Input
                           value={editTitle}
@@ -269,7 +269,7 @@ export function SavedChatsSidebar({
                           autoFocus
                         />
                       ) : (
-                        <p className="text-sm font-medium truncate leading-snug" title={conversation.title}>
+                        <p className="text-sm font-medium truncate" title={conversation.title}>
                           {conversation.title}
                         </p>
                       )}
@@ -298,7 +298,7 @@ export function SavedChatsSidebar({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 min-w-[24px] min-h-[24px] hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        className="h-6 w-6 min-w-[24px] min-h-[24px] hover:bg-destructive/10 flex-shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
