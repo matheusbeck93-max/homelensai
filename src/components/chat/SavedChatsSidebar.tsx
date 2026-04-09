@@ -295,10 +295,8 @@ export function SavedChatsSidebar({
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 min-w-[24px] min-h-[24px] hover:bg-destructive/10 flex-shrink-0"
+                      <button
+                        className="h-7 w-7 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md hover:bg-destructive/10 flex-shrink-0 transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
@@ -307,8 +305,8 @@ export function SavedChatsSidebar({
                         }}
                         title="Delete"
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
+                        <Trash2 className="h-4 w-4 text-destructive/70 hover:text-destructive" />
+                      </button>
                     )}
                   </div>
                 ))}
