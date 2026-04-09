@@ -252,13 +252,13 @@ export function SavedChatsSidebar({
                   <div
                     key={conversation.id}
                     className={cn(
-                      "group flex items-center gap-2 rounded-md p-2 hover:bg-accent cursor-pointer transition-colors",
+                      "group flex items-center rounded-md px-2 py-2 hover:bg-accent cursor-pointer transition-colors",
                       currentConversationId === conversation.id && "bg-accent"
                     )}
                     onClick={() => editingId !== conversation.id && onSelectConversation(conversation.id)}
                   >
-                    <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0 overflow-hidden">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0 mr-2" />
+                    <span className="flex-1 text-sm font-medium truncate min-w-0" title={conversation.title}>
                       {editingId === conversation.id ? (
                         <Input
                           value={editTitle}
@@ -269,14 +269,12 @@ export function SavedChatsSidebar({
                           autoFocus
                         />
                       ) : (
-                        <p className="text-sm font-medium truncate" title={conversation.title}>
-                          {conversation.title}
-                        </p>
+                        conversation.title
                       )}
-                    </div>
+                    </span>
                     
                     {editingId === conversation.id ? (
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 ml-1">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -296,7 +294,7 @@ export function SavedChatsSidebar({
                       </div>
                     ) : (
                       <button
-                        className="h-7 w-7 min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md hover:bg-destructive/10 flex-shrink-0 transition-colors"
+                        className="shrink-0 ml-1 p-1.5 rounded-md hover:bg-destructive/10 transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
@@ -305,7 +303,7 @@ export function SavedChatsSidebar({
                         }}
                         title="Delete"
                       >
-                        <Trash2 className="h-4 w-4 text-destructive/70 hover:text-destructive" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </button>
                     )}
                   </div>
