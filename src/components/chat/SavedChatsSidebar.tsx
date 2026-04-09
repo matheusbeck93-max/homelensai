@@ -246,7 +246,7 @@ export function SavedChatsSidebar({
               </p>
             </div>
           ) : (
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
               <div className="p-2 space-y-1">
                 {conversations.map((conversation) => (
                   <div
