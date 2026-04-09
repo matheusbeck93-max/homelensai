@@ -246,8 +246,8 @@ export function SavedChatsSidebar({
               </p>
             </div>
           ) : (
-            <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
-              <div className="p-2 pr-3 space-y-1">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+              <div className="p-2 space-y-1">
                 {conversations.map((conversation) => (
                   <div
                     key={conversation.id}
@@ -309,7 +309,7 @@ export function SavedChatsSidebar({
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
       </div>
