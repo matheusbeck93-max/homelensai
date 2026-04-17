@@ -1,57 +1,44 @@
 
 
 ## Goal
-Tighten response style further so simple factual questions stay 1–3 sentences with no structure, and decision-based questions open with a clear yes/no or likely conclusion. Suppress default "next steps" unless they add real value.
+Tighten responses by 15–20% and prefer bullets when they improve scanability, **without losing analytical depth or breaking any contracts**.
 
 ## Scope
-Prompt-layer only. No logic, contracts, schemas, parsers, models, or frontend changes. Build error reported is infra (R2 upload timeout) — unrelated to code; will resolve on next deploy.
+Prompt-layer only. Same edge functions as before. No logic, schema, parser, model, or frontend change.
 
-## Files to Edit (system prompts only)
+## Editing Principle
 
-1. **`supabase/functions/perplexity-chat/index.ts`** — main conversational engine. Add explicit rules for the two response shapes (factual vs decision) and the "no default next steps" rule. Keep verbatim: citation suppression, role/merge logic, Markdown rules.
+Add to the existing tone blocks (where they already exist) two new style rules:
 
-2. **`supabase/functions/property-assistant/index.ts`** — refine the system message with the same two-shape rules. Links contract untouched.
+1. **Conciseness target**: cut filler ~15–20%; every sentence must add information (cost, risk, eligibility, fit, decision). No restating the question, no transitional padding.
+2. **Prefer bullets when they improve scanability**: for medium/complex answers with 3+ supporting points, render them as a flat bullet list instead of long prose paragraphs. Keep bullets short (one idea each, ≤2 lines). Use paragraphs when 1–2 connected points read more naturally as prose, or for the opening verdict sentence. Never bullet simple factual answers.
 
-3. **`supabase/functions/ai-chat/index.ts`** — minimal high-level addition only ("simple → 1–3 sentences, decision → lead with conclusion, skip next-steps unless useful"). Do NOT touch uiBlock/searchParams contract.
+Keep verbatim:
+- Simple-factual rule (1–3 sentences, no bullets) — bullets stay forbidden there.
+- Decision-first rule (verdict sentence opens, then bullets when they help).
+- All JSON/uiBlock/searchParams/MATCH_SCORE/citation/6-section contracts.
 
-4. **`supabase/functions/calculator-insights/index.ts`**, **`ai-analyze/index.ts`**, **`compare-properties-ai/index.ts`** — light tone refinement. Keep numbered output sections, persona logic, and structural requirements verbatim.
+## Files to Edit
 
-5. **`supabase/functions/ai-analyze-property/index.ts`** — leave the 6 fixed sections intact (they are inherently structured/decision-based, so the new rules don't apply to factual-shape there). Only refine the closing "GENERAL TONE" lines to add: "Skip next-step suggestions unless they materially help the decision."
-
-## Editing Principle (per file, not one-size-fits-all)
-
-Add only these new rules where a free-form tone block exists:
-
-- **Simple factual** → 1–3 sentences, no headings, no bullets, no follow-ups.
-- **Decision-based** → first sentence = yes/no or likely conclusion; no ambiguous openers.
-- **Next steps / follow-ups** → only when they add clear value; never default.
-
-These rules layer on top of the existing "answer-first / relevance-filter / personalization-as-relevance" instructions already in place — no contradictions, no duplication.
-
-## Hard Guarantees
-
-- All JSON contract sentences (uiBlock, searchParams, links array, MATCH_SCORE prefix, citation suppression, 6 fixed analysis sections) remain verbatim.
-- No model, temperature, max_tokens, schema, parser, or tool change.
-- No frontend change.
-- Personalization injection logic untouched.
+- `supabase/functions/perplexity-chat/index.ts` — main impact, conversational engine.
+- `supabase/functions/property-assistant/index.ts` — short follow-up assistant.
+- `supabase/functions/ai-chat/index.ts` — minimal addition only; do NOT touch uiBlock/searchParams contract.
+- `supabase/functions/ai-analyze-property/index.ts` — only the GENERAL TONE block; 6 sections stay verbatim.
+- `supabase/functions/ai-analyze/index.ts` — tone lines only.
+- `supabase/functions/compare-properties-ai/index.ts` — tone lines only.
+- `supabase/functions/calculator-insights/index.ts` — tone lines only.
 
 ## Memory Update
 
-Update `mem://ai/estilo-de-comunicacao-objetiva-e-direta` to reflect the two new rules (factual shape vs decision shape, no default next steps). Update `mem://index.md` Core line for AI Tone accordingly.
+Update `mem://ai/estilo-de-comunicacao-objetiva-e-direta` with the two new rules (conciseness 15–20%, prefer bullets when they improve scanability). Update `mem://index.md` Core line accordingly.
 
-## Validation Plan
+## Hard Guarantees
 
-After deploy, run these chat smoke tests:
+- No contract sentence rewritten/reordered.
+- Simple factual answers still 1–3 sentences with NO bullets.
+- Decision answers still open with verdict, then bullets when they help scanability.
+- No model/temperature/schema/parser/frontend change.
 
-1. **Simple factual** — "What is PMI?" → 1–3 sentences, no headings, no bullets, no "next steps".
-2. **Simple factual** — "What's a typical closing cost percentage?" → same shape.
-3. **Decision-based** — "Should I buy a $700k home on $130k income?" → first sentence = clear yes/no/likely; key factors after; takeaway only if useful.
-4. **Decision-based** — "Is it better to put 10% or 20% down right now?" → opens with conclusion, not "it depends".
-5. **Property analysis URL** — still returns the 6 fixed sections verbatim.
-6. **searchParams trigger** — "Find 3-bed homes in Austin under $500k" → JSON contract intact.
-7. **uiBlock trigger** — "Build me a mortgage calculator" → uiBlock JSON intact.
-8. **Personalization used** — saved $400k budget user asks "Is this $700k home a stretch?" → conclusion-first, leverages budget, no profile echo.
-9. **Personalization NOT forced** — same user asks "What is escrow?" → 1–3 sentence factual answer, no profile injection, no follow-ups.
+## Validation
 
-Pass criteria: all parsers continue to work; factual answers are visibly tighter; decision answers lead with the verdict; gratuitous "next steps" disappear from simple replies.
-
+Re-run the existing 9 chat smoke tests; additionally check that decision-based and analytical answers (affordability, comparisons, neighborhood, calculator insight) now use bullets for the supporting factors when they improve scanability and read ~15–20% shorter, while structured outputs (uiBlock, searchParams, MATCH_SCORE, 6 sections) still parse correctly.
