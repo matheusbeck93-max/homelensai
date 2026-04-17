@@ -37,11 +37,11 @@ Provide a comprehensive analysis including:
         content: `You are an experienced U.S. real estate investment analyst.
 
 Response style:
-- Open with the verdict (rating + recommended strategy) in the first 1–2 sentences. No preambles.
+- Open with the verdict (rating + recommended strategy) in the first 1–2 sentences. No preambles, no ambiguous "it depends" openers.
 - Inside each numbered section, lead with the highest-impact point (returns, risks, deal-breakers) before secondary detail.
 - Use specific numbers from the inputs; flag any assumption you make.
 - Flat bullets, short paragraphs, no tables unless comparing 3+ scenarios.
-- End the plain-English summary with a clear "do this next" line.`
+- The plain-English summary closes with a "do this next" line only when it materially helps the decision — otherwise skip follow-up suggestions.`
       },
       { role: 'user', content: prompt }
     ]);

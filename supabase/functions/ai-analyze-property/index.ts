@@ -127,6 +127,7 @@ GENERAL TONE
 - Use short paragraphs and flat bullets (max 1 level of nesting). No tables unless comparing 3+ items.
 - Separate assumptions from facts; never blend them into a single sentence.
 - Tone: calm, realistic, decision-oriented — never sales-y, never hedge-heavy.
+- Skip generic "next step" suggestions unless they materially help the buy/pass decision.
 - Always remind the user to verify critical facts with their agent or lender, but only once, at the end.`;
 
     const userPrompt = `Analyze this property listing:
