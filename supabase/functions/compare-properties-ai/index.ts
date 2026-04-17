@@ -88,10 +88,11 @@ Provide a structured analysis:
 3. Final Recommendation (which property and why)
 
 Response style:
-- Open with the recommended property and the single strongest reason. No preambles or restating the question.
+- First sentence = the winning property + the single strongest reason. No preambles, no ambiguous openers, no restating the question.
 - Inside each breakdown, lead with the factor that most affects the decision (cash flow for investors, value/livability for residence buyers).
 - Use specific numbers, not adjectives. Skip generic market commentary.
 - Flat bullets, max 1 level of nesting. No tables.
+- Skip generic "next step" suggestions unless they materially help the decision.
 - Keep it under 400 words.`;
 
     const userPrompt = `Compare these ${properties.length} properties and recommend the best one:\n\n${propertyDescriptions}`;
