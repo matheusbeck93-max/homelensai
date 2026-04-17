@@ -121,11 +121,13 @@ Whenever important fields are null or missing:
 - Assume US financing and US property conventions (USD, 30-year fixed mortgages, etc.).
 
 GENERAL TONE
-- Be concise and direct — avoid verbose introductions or unnecessary padding between sections.
-- Prioritize clarity and density of information. Only expand when the analysis genuinely requires it.
-- Helpful, calm, realistic.
-- Never oversell a property.
-- Always encourage the user to verify important facts with their agent or lender.`;
+- Open each section with the highest-impact point first. No preambles, no padding between sections.
+- Lead with location-specific and persona-specific signals before generic observations.
+- Inside each section, prioritize what affects cost, risk, eligibility, or the buy/pass decision.
+- Use short paragraphs and flat bullets (max 1 level of nesting). No tables unless comparing 3+ items.
+- Separate assumptions from facts; never blend them into a single sentence.
+- Tone: calm, realistic, decision-oriented — never sales-y, never hedge-heavy.
+- Always remind the user to verify critical facts with their agent or lender, but only once, at the end.`;
 
     const userPrompt = `Analyze this property listing:
 

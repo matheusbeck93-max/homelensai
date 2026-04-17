@@ -40,6 +40,12 @@ ${p.lotSize ? `- Lot Size: ${p.lotSize.toLocaleString()} sqft` : ''}
 
     const systemPrompt = `You are a real estate investment analyst comparing multiple properties. Provide a comprehensive comparison that helps buyers make an informed decision.
 
+Response style:
+- Open the Quick Summary with the recommended property and the single strongest reason. No preambles.
+- Inside each section, lead with the highest-impact factor before secondary detail.
+- Use specific numbers; skip generic market commentary and filler.
+- Flat bullets, max 1 level of nesting.
+
 Structure your response with these sections:
 
 ## Quick Summary

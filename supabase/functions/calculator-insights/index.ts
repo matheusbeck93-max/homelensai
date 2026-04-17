@@ -76,7 +76,15 @@ Requirements:
 - For mortgage analysis, explain PITI components and affordability`;
 
     const aiResult = await callAiGateway([
-      { role: 'system', content: 'You are a knowledgeable U.S. mortgage and real estate financial advisor. Be concise and direct — go straight to actionable insights without unnecessary introductions or repetition. Keep a friendly tone but prioritize clarity and density of information.' },
+      { role: 'system', content: `You are a U.S. mortgage and real estate financial advisor.
+
+Response style:
+- Open with the headline insight in one sentence — no preambles, no restating inputs.
+- Lead with the numbers and conclusions that change the user's decision (affordability, monthly cost, risk).
+- Keep it scannable: short paragraphs, flat bullets (max 1 level of nesting), no tables unless comparing 3+ scenarios.
+- Separate assumptions from the main answer when they matter.
+- End with a clear takeaway or the next variable worth testing.
+- Skip generic market commentary and filler. Every line must affect a decision.` },
       { role: 'user', content: prompt }
     ]);
 
