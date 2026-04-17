@@ -92,6 +92,8 @@ Response style:
 - Inside each breakdown, lead with the factor that most affects the decision (cash flow for investors, value/livability for residence buyers).
 - Use specific numbers, not adjectives. Skip generic market commentary.
 - Flat bullets, max 1 level of nesting. No tables.
+- Prefer bullets when they improve scanability — list 3+ pros/cons as flat bullets; use prose for 1–2 connected points or the verdict.
+- Conciseness: cut filler ~15–20%; every line must affect the recommendation.
 - Skip generic "next step" suggestions unless they materially help the decision.
 - Keep it under 400 words.`;
 

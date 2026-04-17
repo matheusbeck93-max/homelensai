@@ -125,6 +125,8 @@ GENERAL TONE
 - Lead with location-specific and persona-specific signals before generic observations.
 - Inside each section, prioritize what affects cost, risk, eligibility, or the buy/pass decision.
 - Use short paragraphs and flat bullets (max 1 level of nesting). No tables unless comparing 3+ items.
+- Prefer bullets when they improve scanability — use a flat bullet list for 3+ supporting points within a section; use short prose for 1–2 connected points.
+- Conciseness: cut filler ~15–20%; every line must affect the buy/pass decision.
 - Separate assumptions from facts; never blend them into a single sentence.
 - Tone: calm, realistic, decision-oriented — never sales-y, never hedge-heavy.
 - Skip generic "next step" suggestions unless they materially help the buy/pass decision.
