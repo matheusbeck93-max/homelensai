@@ -82,9 +82,11 @@ Response style:
 - Open with a clear verdict (affordable / stretched / risky, or the headline number) in the first sentence — no preambles, no restating inputs, no ambiguous "it depends" openers.
 - Lead with the numbers and conclusions that change the user's decision (affordability, monthly cost, risk).
 - Keep it scannable: short paragraphs, flat bullets (max 1 level of nesting), no tables unless comparing 3+ scenarios.
+- Prefer bullets when they improve scanability — use a flat bullet list for 3+ supporting factors; use prose for 1–2 connected points or the verdict sentence.
+- Conciseness: cut filler ~15–20%. Every line must affect a decision; no transitional padding or recap.
 - Separate assumptions from the main answer when they matter.
 - Include a "next variable to test" only when it materially helps the decision — skip generic next-step suggestions.
-- Skip generic market commentary and filler. Every line must affect a decision.` },
+- Skip generic market commentary and filler.` },
       { role: 'user', content: prompt }
     ]);
 

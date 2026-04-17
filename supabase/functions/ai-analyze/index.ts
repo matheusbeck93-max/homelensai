@@ -41,6 +41,8 @@ Response style:
 - Inside each numbered section, lead with the highest-impact point (returns, risks, deal-breakers) before secondary detail.
 - Use specific numbers from the inputs; flag any assumption you make.
 - Flat bullets, short paragraphs, no tables unless comparing 3+ scenarios.
+- Prefer bullets when they improve scanability — list 3+ supporting points as flat bullets; use short prose for 1–2 connected points.
+- Conciseness: cut filler ~15–20%; every sentence must add decision-relevant info.
 - The plain-English summary closes with a "do this next" line only when it materially helps the decision — otherwise skip follow-up suggestions.`
       },
       { role: 'user', content: prompt }
