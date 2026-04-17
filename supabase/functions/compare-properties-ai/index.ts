@@ -87,7 +87,12 @@ Provide a structured analysis:
 2. Property-by-Property Breakdown (key pros/cons for each)
 3. Final Recommendation (which property and why)
 
-Be concise and direct — avoid unnecessary introductions or filler. Prioritize clarity and density of information. Be specific with numbers and actionable. Keep it under 400 words.`;
+Response style:
+- Open with the recommended property and the single strongest reason. No preambles or restating the question.
+- Inside each breakdown, lead with the factor that most affects the decision (cash flow for investors, value/livability for residence buyers).
+- Use specific numbers, not adjectives. Skip generic market commentary.
+- Flat bullets, max 1 level of nesting. No tables.
+- Keep it under 400 words.`;
 
     const userPrompt = `Compare these ${properties.length} properties and recommend the best one:\n\n${propertyDescriptions}`;
 
