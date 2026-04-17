@@ -1,64 +1,70 @@
 
 
-# HomeLens Full Blueprint Document (PDF)
+## Goal
+Refine assistant response *style* across all prompt layers without altering any logic, contracts, or structured-output instructions.
 
-## What this plan does
-Generate a comprehensive, professionally formatted PDF blueprint document covering all 11 sections requested by the user, based on the full codebase analysis already performed.
+## Discovery (already mapped)
+System prompts live in:
+1. `supabase/functions/perplexity-chat/index.ts` — Search + URL Analysis modes (heavy conversational layer)
+2. `supabase/functions/ai-chat/index.ts` — Workflow / uiBlock generator (heavy structured-output contract)
+3. `supabase/functions/property-assistant/index.ts` — Follow-up chat (light, mixed with link contract)
+4. `supabase/functions/ai-analyze-property/index.ts` — Structured property analysis (6 fixed sections)
+5. `supabase/functions/compare-properties-ai/index.ts` — Comparison narrative
+6. `supabase/functions/ai-analyze/index.ts` — Investor narrative
+7. `supabase/functions/calculator-insights/index.ts`, `neighborhood-personality/index.ts`, `neighborhood-insights/index.ts`, `market-snapshot/index.ts`, `market-trends/index.ts` — will scan for any conversational tone instructions and refine only where present.
 
-## Technical approach
-- Use Python with `reportlab` to generate a multi-page PDF at `/mnt/documents/HomeLens_Blueprint.pdf`
-- Include all 11 sections: Overview, Tech Stack, Architecture, File Structure, DB Schema, Auth, Features, APIs, User Flows, Gaps, Next Steps
-- Professional formatting with consistent headers, colors matching HomeLens brand (#0EA5E9), and clear section separation
+I will do one more pass with `code--search_files` for `system` / `systemPrompt` / `role: 'system'` to confirm no prompt layer is missed before editing.
 
-## Content Summary
+## Editing Principle (per file, NOT one-size-fits-all)
 
-### 1. Project Overview
-HomeLens — AI-powered real estate decision platform. Slogan: "Big decisions deserve the full picture." Target: US home buyers and investors. Not a listing site — a decision engine for affordability, risk, and long-term cost analysis.
+- **Do not** inject the same style block everywhere.
+- **Do not** touch any sentence describing JSON shape, uiBlock schema, searchParams, links array, citation suppression, section headings, or output format. These remain **verbatim**.
+- Style refinements are inserted only into the *tone/behavior* sections that already exist, and sized to each function's role.
 
-### 2. Tech Stack
-Frontend: React 18 + TypeScript + Vite 5 + Tailwind CSS v3 + shadcn/ui + Framer Motion + Recharts + Mapbox GL + React Router v6 + TanStack Query + PWA (vite-plugin-pwa)
-Backend: Supabase (PostgreSQL + 31 Edge Functions + Auth + RLS)
-AI: Perplexity API, OpenAI, Lovable AI Gateway
-Payments: Stripe
-Other: xlsx, lottie-react, react-markdown, Sentry, ElevenLabs TTS
+### Per-file plan
 
-### 3. Architecture Diagram (ASCII)
-Browser → React SPA → Supabase Client → Edge Functions → External APIs (Zillow/RapidAPI, Perplexity, OpenAI, Stripe, Mapbox, ElevenLabs, Rentcast, Firecrawl)
+**`perplexity-chat/index.ts`** (largest impact)
+- Rewrite the conversational-tone paragraphs in both Search and URL-analysis system prompts.
+- Add: answer-first, adapt-to-complexity, prioritization (state/local first), relevance filter, scanability, decision-oriented close, personalization-as-relevance-layer.
+- Keep verbatim: citation suppression rules, Markdown structure rules already enforced for the frontend, role/merge logic comments.
 
-### 4. File Structure
-src/pages (23 pages), src/components (80+ components), src/hooks, src/lib, src/utils, src/types, supabase/functions (31), chrome-extension, remotion
+**`ai-chat/index.ts`** (minimal, high-level)
+- Add a short 3–5 line style note above the existing prompt body: "answer-first, no preambles, prioritize highest-impact info, end medium/complex answers with a clear takeaway."
+- Do NOT touch the uiBlock/searchParams/JSON contract block at all.
 
-### 5. Database Schema
-17 tables: profiles, conversations, messages, properties, favorites, saved_searches, saved_calculations, portfolio_properties, compare_sets, alert_events, alert_preferences, sent_alerts, market_metrics, market_snapshots, search_cache, state_tax_cache, programs, property_snapshots, property_vectors, weekly_picks_history, rates, analyses
+**`property-assistant/index.ts`**
+- Replace only the single-line system message with a tightened version (answer-first, decision-oriented, no filler). Links contract untouched.
 
-### 6. Auth & Roles
-Supabase Auth with email/password. Two tiers: Free and Premium ($4.97/mo). Feature gating via FEATURE_GATES. RLS on all tables using auth.uid(). No admin roles table — subscription_status on profiles.
+**`ai-analyze-property/index.ts`**
+- Refine only the "GENERAL TONE" block at the bottom. The 6 numbered structural rules and section headings stay verbatim.
 
-### 7. Core Features & Pages
-Home + AI Chat, Property Detail, Calculators (Buying Power, Mortgage, Investor), Property Comparison, Portfolio, Console (dashboard), Pricing, Saved Searches, Chats History, Chrome Extension, Profile Setup, Legal pages
+**`compare-properties-ai/index.ts`** and **`ai-analyze/index.ts`**
+- Refine the tone sentences only. Numbered output sections, persona logic, and word limits stay verbatim.
 
-### 8. APIs & Integrations
-Zillow/RapidAPI, Perplexity, OpenAI, Stripe, Mapbox, ElevenLabs, Rentcast, Firecrawl, Census API, Lovable AI Gateway
+**Other functions (calculator-insights, neighborhood-*, market-*)**
+- Inspect; only adjust if a free-form tone instruction exists. Skip if the prompt is purely structured.
 
-### 9. User Flows
-Search flow, URL analysis flow, calculator flow, comparison flow, subscription flow, alert flow
+## Hard Guarantees
 
-### 10. Known Gaps
-- Annual Stripe price ID is placeholder
-- No admin dashboard
-- No roles table (subscription on profiles — not ideal per security best practices)
-- Chrome extension not yet published
-- No automated tests
-- Remotion video generation is separate project
+- No JSON contract sentence is rewritten, reordered, paraphrased, or weakened.
+- No schema, tool, model, temperature, max_tokens, or parsing logic changes.
+- No frontend changes.
+- Personalization data injection unchanged; only the *instruction on how to use it* is refined (use as relevance layer, never echo back).
 
-### 11. Suggested Next Steps
-1. Add proper user_roles table
-2. Replace annual plan placeholder Stripe price ID
-3. Add admin dashboard
-4. Publish Chrome extension
-5. Add automated testing
-6. Add email verification enforcement
+## Validation Plan (expanded)
 
-## Implementation
-Single script execution generating PDF with reportlab, followed by QA via pdftoppm inspection.
+After deployment, run these end-to-end smoke tests via the chat UI and inspect responses + raw payloads:
+
+1. **Plain factual** — "What is PMI?" → expect 1–3 sentences, no headings, no preferences echoed.
+2. **Affordability** — "Can I afford a $600k home on $120k income?" → answer-first, structured key factors, takeaway; assumptions separated.
+3. **Property analysis** — paste a listing URL → still returns the 6 fixed sections verbatim (Data Snapshot → Questions to Ask).
+4. **searchParams contract** — "Find 3-bed homes in Austin under $500k" → response still contains the exact JSON / searchParams payload the frontend parses.
+5. **uiBlock contract** — "Build me a mortgage calculator" / "Run an investor ROI plan" → response still contains the exact uiBlock JSON the frontend renders.
+6. **Personalization used** — user with saved budget $400k asks "Is this $700k home a stretch?" → answer leverages budget without restating the full profile.
+7. **Personalization NOT forced** — same user asks "What is escrow?" → factual answer only, no profile injection.
+
+Pass criteria: all parsers (uiBlock, searchParams, citations regex, links array) continue to work; tone/structure visibly improved per principles above.
+
+## Out of Scope
+Frontend, schemas, models, tools, memory writes, env vars.
 
