@@ -664,9 +664,23 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         if (res.status === 401) {
           setMessages((prev) => [
             ...prev,
-            { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' },
+            { role: 'assistant', content: 'Please sign in to HomeLens to use the assistant.' },
           ]);
           return;
+        }
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.limitReached) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
+                upgradeCta: true,
+              },
+            ]);
+            return;
+          }
         }
         throw new Error(`Request failed (${res.status})`);
       }
@@ -724,9 +738,23 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         if (res.status === 401) {
           setMessages((prev) => [
             ...prev,
-            { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' },
+            { role: 'assistant', content: 'Please sign in to HomeLens to use the assistant.' },
           ]);
           return;
+        }
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.limitReached) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
+                upgradeCta: true,
+              },
+            ]);
+            return;
+          }
         }
         throw new Error(`Request failed (${res.status})`);
       }
