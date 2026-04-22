@@ -1,44 +1,71 @@
 
 
 ## Goal
-Tighten responses by 15–20% and prefer bullets when they improve scanability, **without losing analytical depth or breaking any contracts**.
+Make the Chrome extension respect the **same daily limit the app already enforces** (3 AI analyses/day for free users, unlimited for premium). Counter is shared between app and extension via the existing `profiles.daily_analysis_count` column. Premium users unaffected.
 
-## Scope
-Prompt-layer only. Same edge functions as before. No logic, schema, parser, model, or frontend change.
+> Note: Lovable's internal guidance discourages adding new backend rate-limiting because there are no shared primitives yet. Since you explicitly requested it and a counter already exists in `profiles`, I'll **reuse the existing pattern** rather than introduce a new `usage_tracking` table. This keeps the implementation ad-hoc but consistent with what the app does today.
 
-## Editing Principle
+## Where the limit lives today
 
-Add to the existing tone blocks (where they already exist) two new style rules:
+- **Already in backend**: `supabase/functions/ai-analyze-property/index.ts` checks `profiles.daily_analysis_count` and returns `429 { limitReached: true }` when free users hit 3/day. ✅
+- **Only in frontend (bypassable)**: `src/lib/useRateLimit.ts` (localStorage). Used for featured homes / search throttling — UX-only, kept as-is.
+- **No limit at all**: `ai-chat` and `perplexity-chat` (the two endpoints the extension actually calls).
 
-1. **Conciseness target**: cut filler ~15–20%; every sentence must add information (cost, risk, eligibility, fit, decision). No restating the question, no transitional padding.
-2. **Prefer bullets when they improve scanability**: for medium/complex answers with 3+ supporting points, render them as a flat bullet list instead of long prose paragraphs. Keep bullets short (one idea each, ≤2 lines). Use paragraphs when 1–2 connected points read more naturally as prose, or for the opening verdict sentence. Never bullet simple factual answers.
+## Plan
 
-Keep verbatim:
-- Simple-factual rule (1–3 sentences, no bullets) — bullets stay forbidden there.
-- Decision-first rule (verdict sentence opens, then bullets when they help).
-- All JSON/uiBlock/searchParams/MATCH_SCORE/citation/6-section contracts.
+### 1. Backend — add the same limit to `ai-chat` and `perplexity-chat`
 
-## Files to Edit
+Reuse the existing `profiles.daily_analysis_count` + `daily_analysis_last_reset` columns (no new table, no new schema). Both functions will:
 
-- `supabase/functions/perplexity-chat/index.ts` — main impact, conversational engine.
-- `supabase/functions/property-assistant/index.ts` — short follow-up assistant.
-- `supabase/functions/ai-chat/index.ts` — minimal addition only; do NOT touch uiBlock/searchParams contract.
-- `supabase/functions/ai-analyze-property/index.ts` — only the GENERAL TONE block; 6 sections stay verbatim.
-- `supabase/functions/ai-analyze/index.ts` — tone lines only.
-- `supabase/functions/compare-properties-ai/index.ts` — tone lines only.
-- `supabase/functions/calculator-insights/index.ts` — tone lines only.
+1. Read `Authorization` header → resolve `user.id` via `_shared/auth.ts` (`getAuthenticatedUserProfile`).
+2. Read `subscription_status` from `profiles`. If `premium` → skip limit.
+3. If free: reset count if `daily_analysis_last_reset` ≠ today, then check `daily_analysis_count >= 3` → return `429 { error, message, limitReached: true }` with the **same message the app uses**.
+4. If allowed: increment `daily_analysis_count` and proceed.
+5. Unauthenticated requests on the extension path → return `401 { error: 'auth_required' }` (does not consume a quota slot).
 
-## Memory Update
+The check is **placed at the top** of each handler, before any AI call. Existing behavior for authenticated app callers is identical to today's `ai-analyze-property` behavior.
 
-Update `mem://ai/estilo-de-comunicacao-objetiva-e-direta` with the two new rules (conciseness 15–20%, prefer bullets when they improve scanability). Update `mem://index.md` Core line accordingly.
+The client-supplied `userTier` field continues to be accepted in `ai-analyze-property` for backward compatibility, but the new checks in `ai-chat`/`perplexity-chat` derive tier server-side only — the extension cannot spoof it.
 
-## Hard Guarantees
+### 2. Chrome extension — surface the 429 + login states
 
-- No contract sentence rewritten/reordered.
-- Simple factual answers still 1–3 sentences with NO bullets.
-- Decision answers still open with verdict, then bullets when they help scanability.
-- No model/temperature/schema/parser/frontend change.
+Edit `chrome-extension/popup.tsx` only:
+
+- After `fetch` to `ai-chat` and `perplexity-chat`, if `res.status === 401` → show "Please sign in to HomeLens to use the assistant." with link to login screen (already exists).
+- If `res.status === 429` and body has `limitReached: true` → render an inline assistant message:
+  > "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access."
+  with an **Upgrade** button that opens `https://homelensai.com/pricing` in a new tab.
+- No client-side counter inside the extension. It only reacts to backend responses.
+
+No changes to `chrome-extension/background.ts`, `manifest.json`, or build config.
+
+### 3. App principal — zero changes
+
+- `useRateLimit.ts` untouched.
+- `ai-analyze-property` behavior unchanged.
+- All existing UI, toasts, and limit messages unchanged.
+
+## Out of scope
+
+- New `usage_tracking` table. Not needed; the existing `profiles.daily_analysis_count` already serves as the shared counter and is what the app reads/writes today. Adding a parallel table would create two sources of truth.
+- Splitting `app` vs `extension` source tracking. Not requested for behavior; can be added later as a `source` column if you want analytics.
+- Touching any other edge function (`ai-search`, `compare-properties`, etc.) — out of the extension's call surface.
 
 ## Validation
 
-Re-run the existing 9 chat smoke tests; additionally check that decision-based and analytical answers (affordability, comparisons, neighborhood, calculator insight) now use bullets for the supporting factors when they improve scanability and read ~15–20% shorter, while structured outputs (uiBlock, searchParams, MATCH_SCORE, 6 sections) still parse correctly.
+After deploy, test in this order:
+
+1. **Free user, 1st extension chat** → works.
+2. **Free user, 4th request of the day from the extension** (after 3 in the app) → 429 + upgrade message in popup.
+3. **Free user, 4th request from the app** (after 3 in the extension) → existing app limit-reached toast fires (counter is shared).
+4. **Premium user** → unlimited in both surfaces.
+5. **Logged-out extension user** → "Please sign in" prompt; no counter consumed.
+6. **App users (non-extension)** → behavior unchanged; daily counter still increments only on AI analyses as before.
+
+## Files touched
+
+- `supabase/functions/ai-chat/index.ts` — add auth + limit gate at top of handler.
+- `supabase/functions/perplexity-chat/index.ts` — same gate.
+- `chrome-extension/popup.tsx` — handle 401 / 429 responses with friendly UI + Upgrade CTA.
+- Memory: add note in `mem://faturamento/planos-de-assinatura-e-tiers-premium-free` that the daily 3-analysis limit is also enforced by `ai-chat` and `perplexity-chat` and shared with the extension.
+
