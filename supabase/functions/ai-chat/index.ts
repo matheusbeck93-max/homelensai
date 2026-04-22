@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { enforceDailyLimit } from '../_shared/dailyLimit.ts';
 
 const log = createLogger('ai-chat');
 
@@ -44,6 +45,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Enforce daily AI limit (shared across app + extension via profiles.daily_analysis_count).
+    // Premium = unlimited. Free = 3/day. Unauthenticated = 401 (no quota consumed).
+    const limitResult = await enforceDailyLimit(req);
+    if (!limitResult.allowed) {
+      return limitResult.response!;
+    }
+
     // Parse and validate request body
     const body = await req.json();
     const validationResult = chatRequestSchema.safeParse(body);

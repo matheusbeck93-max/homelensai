@@ -11,6 +11,7 @@ const PROPERTY_URL_REGEX = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  upgradeCta?: boolean;
 }
 
 interface Session {
@@ -458,8 +459,26 @@ function MessageBubble({ msg }: { msg: Message }) {
     <div className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
       <div className={`hl-bubble hl-bubble-${msg.role}`}>
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+        {msg.upgradeCta && (
+          <button
+            onClick={() => window.open('https://homelensai.com/pricing', '_blank')}
+            style={{
+              marginTop: '10px',
+              padding: '8px 14px',
+              background: '#6B8DB5',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            Upgrade to Premium
+          </button>
+        )}
       </div>
-      {msg.role === 'assistant' && (
+      {msg.role === 'assistant' && !msg.upgradeCta && (
         <div style={{ position: 'relative' }}>
           <button
             className="hl-share-btn"
@@ -645,9 +664,23 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         if (res.status === 401) {
           setMessages((prev) => [
             ...prev,
-            { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' },
+            { role: 'assistant', content: 'Please sign in to HomeLens to use the assistant.' },
           ]);
           return;
+        }
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.limitReached) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
+                upgradeCta: true,
+              },
+            ]);
+            return;
+          }
         }
         throw new Error(`Request failed (${res.status})`);
       }
@@ -705,9 +738,23 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         if (res.status === 401) {
           setMessages((prev) => [
             ...prev,
-            { role: 'assistant', content: 'Session expired. Please sign out and sign in again.' },
+            { role: 'assistant', content: 'Please sign in to HomeLens to use the assistant.' },
           ]);
           return;
+        }
+        if (res.status === 429) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.limitReached) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
+                upgradeCta: true,
+              },
+            ]);
+            return;
+          }
         }
         throw new Error(`Request failed (${res.status})`);
       }
