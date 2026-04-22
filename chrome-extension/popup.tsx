@@ -11,6 +11,7 @@ const PROPERTY_URL_REGEX = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  upgradeCta?: boolean;
 }
 
 interface Session {
@@ -458,8 +459,26 @@ function MessageBubble({ msg }: { msg: Message }) {
     <div className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
       <div className={`hl-bubble hl-bubble-${msg.role}`}>
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+        {msg.upgradeCta && (
+          <button
+            onClick={() => window.open('https://homelensai.com/pricing', '_blank')}
+            style={{
+              marginTop: '10px',
+              padding: '8px 14px',
+              background: '#6B8DB5',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            Upgrade to Premium
+          </button>
+        )}
       </div>
-      {msg.role === 'assistant' && (
+      {msg.role === 'assistant' && !msg.upgradeCta && (
         <div style={{ position: 'relative' }}>
           <button
             className="hl-share-btn"
