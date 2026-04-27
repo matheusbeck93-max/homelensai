@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
 
 export interface AnalyzedProperty {
   id: string;
@@ -342,12 +344,9 @@ export function ChatComparisonPanel({
                 </div>
                 <div className="prose prose-sm dark:prose-invert max-w-none">
                   <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     components={{
-                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>,
-                      li: ({ children }) => <li className="text-sm">{children}</li>,
-                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                      ...chatMarkdownComponents,
                       h1: ({ children }) => <h4 className="font-bold text-base mt-3 mb-2">{children}</h4>,
                       h2: ({ children }) => <h4 className="font-bold text-base mt-3 mb-2">{children}</h4>,
                       h3: ({ children }) => <h4 className="font-semibold text-sm mt-2 mb-1">{children}</h4>,
