@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { Bot, User, FileText, Image as ImageIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { UIBlock } from "@/types/ui-blocks";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -82,11 +84,8 @@ export function ConversationPanel({ messages, loading, onPropertyAnalyze }: Conv
                 {message.content && (
                   <div className="rounded-xl sm:rounded-2xl bg-muted px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 prose prose-sm max-w-none overflow-x-auto text-xs sm:text-sm break-words">
                     <ReactMarkdown
-                      components={{
-                        a: ({ node, ...props }) => (
-                          <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium" />
-                        ),
-                      }}
+                      remarkPlugins={[remarkGfm]}
+                      components={chatMarkdownComponents}
                     >
                       {message.content}
                     </ReactMarkdown>

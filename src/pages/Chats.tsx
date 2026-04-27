@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText, Image as ImageIcon } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
 import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
@@ -530,22 +532,8 @@ export default function Chats() {
                         </div>
                       )}
                       <ReactMarkdown
-                      components={{
-                        a: ({ href, children }) =>
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline inline-flex items-center gap-1">
-
-                              {children}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>,
-
-                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                        ul: ({ children }) => <ul className="list-none space-y-1 my-2">{children}</ul>,
-                        li: ({ children }) => <li className="flex items-start gap-2"><span>•</span><span>{children}</span></li>
-                      }}>
+                      remarkPlugins={[remarkGfm]}
+                      components={chatMarkdownComponents}>
 
                         {message.content.replace(/\[\d+\]/g, '')}
                       </ReactMarkdown>
