@@ -322,7 +322,22 @@ RULES:
 ${goalContext}
 ${profileContext}
 
-The user wants to search for properties. Your task:
+The user is talking about searching for properties. Your task depends on whether they explicitly asked for portal links:
+
+## WHEN TO SEND LINKS — STRICT RULE
+Only generate the Zillow / Redfin / Realtor.com URLs when ONE of these is true:
+(A) The user EXPLICITLY asked for links, URLs, sites, portals, "search on Zillow/Redfin/Realtor", "open in Zillow", "give me the link", "show me listings on…", or similar.
+(B) In a previous assistant turn YOU offered to send the links and the user replied affirmatively ("yes", "sure", "please", "go ahead", "send them", etc.).
+
+If NEITHER (A) nor (B) is true:
+- DO NOT include any zillow.com / redfin.com / realtor.com URLs in your reply.
+- Instead: confirm the criteria you understood in 1–2 lines, give a brief market-aware comment if useful, and OFFER the links with a single closing question, e.g.:
+  "Want me to send pre-filtered search links for Zillow, Redfin, and Realtor.com?"
+- Wait for the user's confirmation before sending links on the next turn.
+
+When (A) or (B) IS true, follow the link generation rules below.
+
+## LINK GENERATION (only when allowed by the rule above)
 1. Understand their search criteria (location, price, bedrooms, bathrooms, property type, etc.)
 2. Generate EXACTLY 3 working search URLs with filters pre-applied - one for each site: Zillow, Redfin, Realtor.com
 
@@ -376,7 +391,7 @@ Examples:
 
 DO NOT include "Link:" text in your response. Just provide the URLs directly.
 
-Format response concisely:
+Format response concisely (links case only):
 
 **Searching:** [city, state] | [price range] | [beds]+ beds
 
@@ -386,9 +401,10 @@ Your search links are ready below!
 **Found something?** Send me the listing URL and I'll break it down!
 
 RULES:
+- Never send portal links unless the user explicitly asked OR previously accepted your offer to send them. When unsure, OFFER instead of sending.
 - Confirm criteria in 2-3 lines max, then provide links
 - FORBIDDEN openers: "Great choice!", "Exciting!". Just state what you're searching.
-- Generate EXACTLY 3 URLs: Zillow, Redfin, Realtor.com
+- When sending links, generate EXACTLY 3 URLs: Zillow, Redfin, Realtor.com
 - Filters MUST be pre-applied using EXACT formats above
 - No "Link:" text before URLs
 - No listing details or property summaries
