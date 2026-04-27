@@ -1,71 +1,88 @@
-
-
 ## Goal
-Make the Chrome extension respect the **same daily limit the app already enforces** (3 AI analyses/day for free users, unlimited for premium). Counter is shared between app and extension via the existing `profiles.daily_analysis_count` column. Premium users unaffected.
 
-> Note: Lovable's internal guidance discourages adding new backend rate-limiting because there are no shared primitives yet. Since you explicitly requested it and a counter already exists in `profiles`, I'll **reuse the existing pattern** rather than introduce a new `usage_tracking` table. This keeps the implementation ad-hoc but consistent with what the app does today.
+When the AI's reply contains numeric calculations (loan snapshot, affordability, mortgage breakdown, ROI, etc.), the chat should render them like the screenshots:
 
-## Where the limit lives today
+- A bold title with a small icon
+- A clean 2-column **Label → Value** table with thin horizontal dividers
+- An optional callout block (gray side-bar) underneath for the key takeaway
 
-- **Already in backend**: `supabase/functions/ai-analyze-property/index.ts` checks `profiles.daily_analysis_count` and returns `429 { limitReached: true }` when free users hit 3/day. ✅
-- **Only in frontend (bypassable)**: `src/lib/useRateLimit.ts` (localStorage). Used for featured homes / search throttling — UX-only, kept as-is.
-- **No limit at all**: `ai-chat` and `perplexity-chat` (the two endpoints the extension actually calls).
+This is achieved by (A) telling the AI to format calculation summaries with a specific markdown pattern, and (B) rendering that markdown properly in the chat UI.
 
-## Plan
+---
 
-### 1. Backend — add the same limit to `ai-chat` and `perplexity-chat`
+## What changes
 
-Reuse the existing `profiles.daily_analysis_count` + `daily_analysis_last_reset` columns (no new table, no new schema). Both functions will:
+### 1. Render markdown tables and blockquotes (frontend)
 
-1. Read `Authorization` header → resolve `user.id` via `_shared/auth.ts` (`getAuthenticatedUserProfile`).
-2. Read `subscription_status` from `profiles`. If `premium` → skip limit.
-3. If free: reset count if `daily_analysis_last_reset` ≠ today, then check `daily_analysis_count >= 3` → return `429 { error, message, limitReached: true }` with the **same message the app uses**.
-4. If allowed: increment `daily_analysis_count` and proceed.
-5. Unauthenticated requests on the extension path → return `401 { error: 'auth_required' }` (does not consume a quota slot).
+Currently `src/pages/Chats.tsx` and `src/components/ConversationPanel.tsx` use `react-markdown` **without `remark-gfm`**, so any markdown table the AI sends is ignored. We will:
 
-The check is **placed at the top** of each handler, before any AI call. Existing behavior for authenticated app callers is identical to today's `ai-analyze-property` behavior.
+- Add `remark-gfm` to `react-markdown` in both components.
+- Add styled renderers for `table`, `thead`, `tbody`, `tr`, `th`, `td` that match the screenshot:
+  - Full-width table, no outer border
+  - Thin `border-t border-border` between rows
+  - Label left-aligned (muted-foreground), value right-aligned (foreground, semibold for currency)
+  - Comfortable vertical padding (`py-3`)
+- Add a styled `blockquote` renderer for the callout: left border (`border-l-4 border-muted`), padded, slightly muted background, used for the "PMI is not required..." style note.
+- Keep the existing `a`, `p`, `ul`, `li` overrides; the new `ul/li` rule should only apply to bullets that are NOT inside a table.
 
-The client-supplied `userTier` field continues to be accepted in `ai-analyze-property` for backward compatibility, but the new checks in `ai-chat`/`perplexity-chat` derive tier server-side only — the extension cannot spoof it.
+Same changes applied to `ConversationPanel.tsx` and `ChatComparisonPanel.tsx` so the look is consistent everywhere markdown is rendered.
 
-### 2. Chrome extension — surface the 429 + login states
+No new component is created — we lean on markdown + tailwind styling, matching the project's "non-destructive, incremental additions" rule.
 
-Edit `chrome-extension/popup.tsx` only:
+### 2. Teach the AI to use this format (backend, prompts only)
 
-- After `fetch` to `ai-chat` and `perplexity-chat`, if `res.status === 401` → show "Please sign in to HomeLens to use the assistant." with link to login screen (already exists).
-- If `res.status === 429` and body has `limitReached: true` → render an inline assistant message:
-  > "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access."
-  with an **Upgrade** button that opens `https://homelensai.com/pricing` in a new tab.
-- No client-side counter inside the extension. It only reacts to backend responses.
+Update the system prompts in `supabase/functions/ai-chat/index.ts` and `supabase/functions/perplexity-chat/index.ts` (general/L2/L3 branches) to add a "NUMERIC SUMMARY FORMAT" rule:
 
-No changes to `chrome-extension/background.ts`, `manifest.json`, or build config.
+> When your answer includes a set of related numeric figures (loan snapshot, affordability breakdown, mortgage P&I, monthly cost stack, ROI summary, etc.), present them as a markdown table with two columns: **Label** and **Value**. Title the block with a bold heading on the line above (e.g. `**Your Loan Snapshot**`). After the table, if there's a key takeaway, put it in a `>` blockquote on its own line.
 
-### 3. App principal — zero changes
+Concrete example shipped in the prompt:
 
-- `useRateLimit.ts` untouched.
-- `ai-analyze-property` behavior unchanged.
-- All existing UI, toasts, and limit messages unchanged.
+```
+**Your Loan Snapshot**
+
+| Label | Value |
+|---|---|
+| Home Price | $1,000,000 |
+| Down Payment | $200,000 (20%) |
+| Loan Amount | $800,000 |
+| Rate (30yr fixed, VA ~Apr 2026) | ~6.75% APR |
+| Est. Monthly P&I | ~$5,190 |
+
+> PMI is not required — your 20% down clears that threshold. That's a meaningful saving (~$200–$300/mo that other buyers at lower down payments carry).
+```
+
+Rules added to the prompt:
+- Use this format whenever there are 3+ related numeric rows. Below 3, inline prose is fine.
+- Always 2 columns only (Label, Value). Never invent extra columns.
+- Currency stays formatted with `$` and commas. Use `~` for estimates, exactly like the example.
+- No emojis in the table itself; the bold title above the table may use one only if it adds clarity (the screenshots use a small house/coin glyph).
+- Keep this consistent with the existing **Decision-First** rule: the verdict/answer comes first, then the table, then the callout.
+
+### 3. Memory
+
+Add a short memory note documenting the contract so future prompt edits don't drift:
+
+`mem://ui/numeric-summary-table-format` — "Numeric breakdowns render as a 2-col markdown table (Label | Value) with a bold title above and an optional `>` blockquote takeaway below. Frontend renders with remark-gfm + custom table/blockquote styling in Chats.tsx, ConversationPanel.tsx, ChatComparisonPanel.tsx."
+
+Update the index.md memories list to reference it.
+
+---
 
 ## Out of scope
 
-- New `usage_tracking` table. Not needed; the existing `profiles.daily_analysis_count` already serves as the shared counter and is what the app reads/writes today. Adding a parallel table would create two sources of truth.
-- Splitting `app` vs `extension` source tracking. Not requested for behavior; can be added later as a `source` column if you want analytics.
-- Touching any other edge function (`ai-search`, `compare-properties`, etc.) — out of the extension's call surface.
+- No new uiBlock / no new React component for calculations. Markdown is enough and keeps the AI in control.
+- No change to the existing `workflow_excel` / portal-links offer-and-accept rules.
+- No change to the calculator pages or `InlineCalculator`.
+- TextToSpeech sanitization already strips markdown punctuation; tables will be read as plain text — acceptable, no change needed.
 
-## Validation
-
-After deploy, test in this order:
-
-1. **Free user, 1st extension chat** → works.
-2. **Free user, 4th request of the day from the extension** (after 3 in the app) → 429 + upgrade message in popup.
-3. **Free user, 4th request from the app** (after 3 in the extension) → existing app limit-reached toast fires (counter is shared).
-4. **Premium user** → unlimited in both surfaces.
-5. **Logged-out extension user** → "Please sign in" prompt; no counter consumed.
-6. **App users (non-extension)** → behavior unchanged; daily counter still increments only on AI analyses as before.
+---
 
 ## Files touched
 
-- `supabase/functions/ai-chat/index.ts` — add auth + limit gate at top of handler.
-- `supabase/functions/perplexity-chat/index.ts` — same gate.
-- `chrome-extension/popup.tsx` — handle 401 / 429 responses with friendly UI + Upgrade CTA.
-- Memory: add note in `mem://faturamento/planos-de-assinatura-e-tiers-premium-free` that the daily 3-analysis limit is also enforced by `ai-chat` and `perplexity-chat` and shared with the extension.
-
+- `src/pages/Chats.tsx` — add `remark-gfm`, table/blockquote renderers.
+- `src/components/ConversationPanel.tsx` — same.
+- `src/components/chat/ChatComparisonPanel.tsx` — same.
+- `package.json` — add `remark-gfm` dependency.
+- `supabase/functions/ai-chat/index.ts` — add NUMERIC SUMMARY FORMAT block to the general system prompt.
+- `supabase/functions/perplexity-chat/index.ts` — add the same block to the general/L3 branch system prompt.
+- `mem://ui/numeric-summary-table-format` (new) and `mem://index.md` (add reference).
