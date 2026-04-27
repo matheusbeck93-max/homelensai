@@ -52,18 +52,13 @@ export const chatMarkdownComponents: Components = {
       {children}
     </th>
   ),
-  td: ({ children, node }) => {
-    // First cell = label (left, muted), subsequent cells = value (right, semibold)
-    const parent = node?.parent as any;
-    const idx = parent?.children?.filter((c: any) => c.type === "element").indexOf(node);
-    const isLabel = idx === 0;
+  td: ({ children, ...props }) => {
+    // First cell in the row = label (left, muted), others = value (right, semibold).
+    // react-markdown forwards the source position; we use DOM order via CSS instead.
     return (
       <td
-        className={
-          isLabel
-            ? "text-left text-muted-foreground py-3 pr-4 align-top"
-            : "text-right font-semibold text-foreground py-3 pl-4 align-top"
-        }
+        {...(props as any)}
+        className="py-3 align-top text-muted-foreground first:text-left first:pr-4 [&:not(:first-child)]:text-right [&:not(:first-child)]:font-semibold [&:not(:first-child)]:text-foreground [&:not(:first-child)]:pl-4"
       >
         {children}
       </td>
