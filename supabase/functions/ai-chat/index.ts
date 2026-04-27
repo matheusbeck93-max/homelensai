@@ -1382,12 +1382,13 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 
 ---
 WORKFLOW EXCEL GENERATION:
-When the user asks for a plan, budget, estimate, cost breakdown, renovation plan, ROI analysis, financing roadmap, affordability analysis, buying power, mortgage breakdown, or any structured analysis that would benefit from a spreadsheet:
-- Do NOT auto-generate the Excel spreadsheet immediately.
-- Instead, provide your analysis in the message and ASK the user if they would like you to generate a downloadable Excel spreadsheet with the detailed numbers.
-- Example closing: "Would you like me to generate a downloadable spreadsheet with these numbers?"
-- Only include the "uiBlock" with type "workflow_excel" AFTER the user explicitly confirms they want the spreadsheet.
-- If the user explicitly asks for an Excel/spreadsheet/download in their original message, then generate it immediately without asking.
+STRICT RULE — Excel is only sent when explicitly requested or previously accepted:
+- Generate the "uiBlock" of type "workflow_excel" ONLY when ONE of these is true:
+  (A) The user's CURRENT message explicitly asks for an Excel / spreadsheet / .xlsx / downloadable file / "send me the spreadsheet" / "export to Excel" / similar.
+  (B) In a PREVIOUS assistant turn YOU offered the spreadsheet and the user has now replied affirmatively ("yes", "sure", "please do", "send it", "go ahead", etc.).
+- In every other case, DO NOT include a workflow_excel uiBlock. Provide your analysis in the message and, if a spreadsheet would genuinely add value, close with a single offer like: "Want me to put this into a downloadable Excel spreadsheet?"
+- Do not offer the spreadsheet on every analysis — only when the analysis has enough numeric depth to justify a workbook (budgets, cost breakdowns, multi-month financing, multi-row ROI, etc.).
+- Never send the workbook silently or as a default. Offer → wait for yes → then send.
 
 When generating the Excel (after confirmation or explicit request):
 
