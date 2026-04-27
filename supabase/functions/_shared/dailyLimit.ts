@@ -3,6 +3,17 @@ import { corsHeaders } from './cors.ts';
 
 const DAILY_FREE_LIMIT = 3;
 
+/**
+ * Master switch. Set to `true` to re-enforce the daily AI limit shared between
+ * the main app and the Chrome extension. While `false`, every authenticated
+ * AND unauthenticated request is allowed and no quota is consumed.
+ *
+ * When re-enabling, the frontend already handles 401 (`auth_required`) and
+ * 429 (`limitReached: true`) — including the Premium upgrade CTA in the
+ * extension popup. Re-enable here and limits resume working app-wide.
+ */
+const LIMITS_ENABLED = false;
+
 export interface DailyLimitResult {
   allowed: boolean;
   response?: Response;
@@ -22,6 +33,12 @@ export interface DailyLimitResult {
  * - Free user at/over limit → returns 429 { limitReached: true }.
  */
 export async function enforceDailyLimit(req: Request): Promise<DailyLimitResult> {
+  // Limits temporarily disabled during testing period.
+  // Flip LIMITS_ENABLED to true above to re-enforce.
+  if (!LIMITS_ENABLED) {
+    return { allowed: true, isAuthenticated: true, tier: 'unlimited' };
+  }
+
   const authHeader = req.headers.get('Authorization');
 
   if (!authHeader) {
