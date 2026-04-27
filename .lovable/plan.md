@@ -1,88 +1,49 @@
-## Goal
+## Problema
 
-When the AI's reply contains numeric calculations (loan snapshot, affordability, mortgage breakdown, ROI, etc.), the chat should render them like the screenshots:
+O agente continua enviando planilhas Excel automaticamente, mesmo sem solicitação do usuário. A causa está no prompt do `supabase/functions/ai-chat/index.ts`, onde a regra "Offer-and-Accept" (linhas 1411–1418) é **contradita por três instruções logo abaixo** que o modelo está obedecendo preferencialmente:
 
-- A bold title with a small icon
-- A clean 2-column **Label → Value** table with thin horizontal dividers
-- An optional callout block (gray side-bar) underneath for the key takeaway
+1. **Linha 1430**: `"To trigger Excel generation, include a 'uiBlock' field..."` — frase imperativa que parece um padrão default.
+2. **Linha 1459**: `"Also generate Excel for: 'can I afford', 'how much house', 'buying power', 'monthly payment for', 'mortgage for'."` — força Excel para qualquer pergunta de affordability/mortgage, **anulando** a regra "offer-and-accept".
+3. **Linha 1461**: `"Always include uiBlock alongside your conversational message."` — diz literalmente para sempre incluir o uiBlock, contradizendo a regra estrita.
 
-This is achieved by (A) telling the AI to format calculation summaries with a specific markdown pattern, and (B) rendering that markdown properly in the chat UI.
+Sobre as tabelas numéricas: a regra `NUMERIC SUMMARY FORMAT` está presente nos dois prompts e o renderer (`chatMarkdownComponents` + `remark-gfm`) está corretamente cabeado nos três pontos (`Chats.tsx`, `ConversationPanel.tsx`, `ChatComparisonPanel.tsx`). Os logs confirmam que `remark-gfm` está ativo. Os cálculos *devem* já estar vindo em tabela — exceto quando o modelo decide enviar Excel no lugar (que é exatamente o bug acima). Resolver o Excel também destrava o uso correto da tabela markdown.
 
----
+## O que muda
 
-## What changes
+### `supabase/functions/ai-chat/index.ts` — prompt do `workflow_excel`
 
-### 1. Render markdown tables and blockquotes (frontend)
+Reescrever o bloco WORKFLOW EXCEL (linhas ~1411–1461) para eliminar TODAS as contradições:
 
-Currently `src/pages/Chats.tsx` and `src/components/ConversationPanel.tsx` use `react-markdown` **without `remark-gfm`**, so any markdown table the AI sends is ignored. We will:
+- Remover a linha `Also generate Excel for: "can I afford", "how much house", ...`
+- Remover a linha `Always include uiBlock alongside your conversational message.`
+- Reescrever `To trigger Excel generation...` como **condicional**: `"ONLY when the offer-and-accept condition is met, include a uiBlock..."`
+- Adicionar topo do bloco em caixa alta:
+  ```
+  DEFAULT BEHAVIOR: DO NOT include any uiBlock of type "workflow_excel".
+  ONLY include it when (A) the user's CURRENT message explicitly asks for an Excel/spreadsheet/.xlsx/download, OR (B) the user just replied "yes/sure/please" to YOUR previous offer.
+  For affordability, mortgage, buying power, monthly payment questions: answer with the NUMERIC SUMMARY FORMAT (markdown table), then optionally end with: "Want me to put this into a downloadable Excel spreadsheet?" Do NOT attach the workbook unless they accept.
+  ```
+- Manter os exemplos de schema do `uiBlock` apenas como referência de estrutura, prefixados por `"When (and only when) the conditions above are met, the uiBlock format is:"`.
 
-- Add `remark-gfm` to `react-markdown` in both components.
-- Add styled renderers for `table`, `thead`, `tbody`, `tr`, `th`, `td` that match the screenshot:
-  - Full-width table, no outer border
-  - Thin `border-t border-border` between rows
-  - Label left-aligned (muted-foreground), value right-aligned (foreground, semibold for currency)
-  - Comfortable vertical padding (`py-3`)
-- Add a styled `blockquote` renderer for the callout: left border (`border-l-4 border-muted`), padded, slightly muted background, used for the "PMI is not required..." style note.
-- Keep the existing `a`, `p`, `ul`, `li` overrides; the new `ul/li` rule should only apply to bullets that are NOT inside a table.
+### Reforço cruzado com o formato numérico
 
-Same changes applied to `ConversationPanel.tsx` and `ChatComparisonPanel.tsx` so the look is consistent everywhere markdown is rendered.
+Adicionar uma frase explícita no bloco do Excel ligando-o ao formato de tabela:
 
-No new component is created — we lean on markdown + tailwind styling, matching the project's "non-destructive, incremental additions" rule.
+> "Calculations belong in a markdown table inside the message (see NUMERIC SUMMARY FORMAT). The Excel workbook is a separate, opt-in deliverable — never a replacement for the in-message table."
 
-### 2. Teach the AI to use this format (backend, prompts only)
+Isso força o agente a sempre apresentar o cálculo na tabela do chat e tratar o Excel como extra opcional.
 
-Update the system prompts in `supabase/functions/ai-chat/index.ts` and `supabase/functions/perplexity-chat/index.ts` (general/L2/L3 branches) to add a "NUMERIC SUMMARY FORMAT" rule:
+### Arquivos tocados
 
-> When your answer includes a set of related numeric figures (loan snapshot, affordability breakdown, mortgage P&I, monthly cost stack, ROI summary, etc.), present them as a markdown table with two columns: **Label** and **Value**. Title the block with a bold heading on the line above (e.g. `**Your Loan Snapshot**`). After the table, if there's a key takeaway, put it in a `>` blockquote on its own line.
+- `supabase/functions/ai-chat/index.ts` — reescrita do bloco WORKFLOW EXCEL (~50 linhas).
+- Memória `mem://funcionalidades/geracao-de-excel-de-workflow` — atualizar para registrar que a regra "offer-and-accept" tem precedência sobre QUALQUER gatilho por palavra-chave (afford/mortgage/etc.).
 
-Concrete example shipped in the prompt:
+### Deploy
 
-```
-**Your Loan Snapshot**
+- Redeployar apenas a edge function `ai-chat`.
 
-| Label | Value |
-|---|---|
-| Home Price | $1,000,000 |
-| Down Payment | $200,000 (20%) |
-| Loan Amount | $800,000 |
-| Rate (30yr fixed, VA ~Apr 2026) | ~6.75% APR |
-| Est. Monthly P&I | ~$5,190 |
+## Fora de escopo
 
-> PMI is not required — your 20% down clears that threshold. That's a meaningful saving (~$200–$300/mo that other buyers at lower down payments carry).
-```
-
-Rules added to the prompt:
-- Use this format whenever there are 3+ related numeric rows. Below 3, inline prose is fine.
-- Always 2 columns only (Label, Value). Never invent extra columns.
-- Currency stays formatted with `$` and commas. Use `~` for estimates, exactly like the example.
-- No emojis in the table itself; the bold title above the table may use one only if it adds clarity (the screenshots use a small house/coin glyph).
-- Keep this consistent with the existing **Decision-First** rule: the verdict/answer comes first, then the table, then the callout.
-
-### 3. Memory
-
-Add a short memory note documenting the contract so future prompt edits don't drift:
-
-`mem://ui/numeric-summary-table-format` — "Numeric breakdowns render as a 2-col markdown table (Label | Value) with a bold title above and an optional `>` blockquote takeaway below. Frontend renders with remark-gfm + custom table/blockquote styling in Chats.tsx, ConversationPanel.tsx, ChatComparisonPanel.tsx."
-
-Update the index.md memories list to reference it.
-
----
-
-## Out of scope
-
-- No new uiBlock / no new React component for calculations. Markdown is enough and keeps the AI in control.
-- No change to the existing `workflow_excel` / portal-links offer-and-accept rules.
-- No change to the calculator pages or `InlineCalculator`.
-- TextToSpeech sanitization already strips markdown punctuation; tables will be read as plain text — acceptable, no change needed.
-
----
-
-## Files touched
-
-- `src/pages/Chats.tsx` — add `remark-gfm`, table/blockquote renderers.
-- `src/components/ConversationPanel.tsx` — same.
-- `src/components/chat/ChatComparisonPanel.tsx` — same.
-- `package.json` — add `remark-gfm` dependency.
-- `supabase/functions/ai-chat/index.ts` — add NUMERIC SUMMARY FORMAT block to the general system prompt.
-- `supabase/functions/perplexity-chat/index.ts` — add the same block to the general/L3 branch system prompt.
-- `mem://ui/numeric-summary-table-format` (new) and `mem://index.md` (add reference).
+- Não tocar em `perplexity-chat` (já está correto, sem regras conflitantes de Excel).
+- Não alterar `markdownComponents.tsx`, `ChatComparisonPanel.tsx`, `ConversationPanel.tsx`, `Chats.tsx` ou o `WorkflowExcelBlock.tsx` — a renderização de tabela e Excel já está correta.
+- Não mudar o schema do `uiBlock` nem o tipo `WorkflowExcelBlock`.
