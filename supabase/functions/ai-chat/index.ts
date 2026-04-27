@@ -1409,15 +1409,25 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 
 ---
 WORKFLOW EXCEL GENERATION:
-STRICT RULE — Excel is only sent when explicitly requested or previously accepted:
-- Generate the "uiBlock" of type "workflow_excel" ONLY when ONE of these is true:
-  (A) The user's CURRENT message explicitly asks for an Excel / spreadsheet / .xlsx / downloadable file / "send me the spreadsheet" / "export to Excel" / similar.
-  (B) In a PREVIOUS assistant turn YOU offered the spreadsheet and the user has now replied affirmatively ("yes", "sure", "please do", "send it", "go ahead", etc.).
-- In every other case, DO NOT include a workflow_excel uiBlock. Provide your analysis in the message and, if a spreadsheet would genuinely add value, close with a single offer like: "Want me to put this into a downloadable Excel spreadsheet?"
-- Do not offer the spreadsheet on every analysis — only when the analysis has enough numeric depth to justify a workbook (budgets, cost breakdowns, multi-month financing, multi-row ROI, etc.).
-- Never send the workbook silently or as a default. Offer → wait for yes → then send.
 
-When generating the Excel (after confirmation or explicit request):
+## DEFAULT BEHAVIOR — DO NOT SEND EXCEL
+By default, your response MUST NOT include any \`uiBlock\` of type \`workflow_excel\`. The workbook is opt-in and never a default deliverable.
+
+## WHEN TO INCLUDE THE workflow_excel uiBlock (the ONLY two cases)
+Only include the \`workflow_excel\` uiBlock when ONE of these is unambiguously true:
+  (A) The user's CURRENT message explicitly asks for an Excel / spreadsheet / .xlsx / downloadable file / "send me the spreadsheet" / "export to Excel" / "download" / similar.
+  (B) In your PREVIOUS assistant turn YOU offered the spreadsheet AND the user's CURRENT message is an affirmative reply ("yes", "sure", "please do", "send it", "go ahead", "ok", etc.).
+
+In every other case — including affordability, mortgage, "can I afford", "how much house", buying power, monthly payment, ROI, renovation, and ALL other numeric questions — you MUST:
+  1. Answer with the in-message numeric breakdown using the NUMERIC SUMMARY FORMAT (markdown table). Calculations belong in the message, NOT in a workbook by default.
+  2. Optionally end with a single offer line if a workbook would genuinely add value: "Want me to put this into a downloadable Excel spreadsheet?"
+  3. Do NOT attach the workbook in the same turn as the offer. Wait for the user to accept on the next turn.
+
+Calculations belong in a markdown table inside the message (see NUMERIC SUMMARY FORMAT). The Excel workbook is a separate, opt-in deliverable — never a replacement for the in-message table.
+
+Keyword presence (afford, mortgage, buying power, monthly payment, etc.) does NOT override this rule. The offer-and-accept condition takes precedence over any keyword trigger.
+
+## EXCEL CONTENT REQUIREMENTS (only when conditions A or B above are met)
 
 **CRITICAL: EVERY CELL MUST HAVE A NUMERIC VALUE.**
 - NEVER leave cost/value columns empty or with placeholder text like "Fill in" or "Not Specified". EVERY cost cell MUST contain a realistic estimated number.
@@ -1427,7 +1437,7 @@ When generating the Excel (after confirmation or explicit request):
 - Percentages should be strings like "6.50%" in the cell.
 - If conversation history contains a prior analysis with numbers, extract ALL those numbers into cells.
 
-To trigger Excel generation, include a "uiBlock" field with type "workflow_excel" in your JSON response:
+When (and only when) conditions A or B above are met, include a "uiBlock" field with type "workflow_excel" in your JSON response:
 {
   "message": "Here is your detailed spreadsheet with all the numbers.",
   "uiBlock": {
@@ -1455,10 +1465,7 @@ To trigger Excel generation, include a "uiBlock" field with type "workflow_excel
 6. For affordability: Income, Debts, Max Mortgage, Monthly Payment, Buying Power — all filled
 7. For investment: Purchase Price, Expenses, Rental Income, Cash Flow, Cap Rate, ROI
 8. Summary sheet with grand totals and key metrics
-
-Also generate Excel for: "can I afford", "how much house", "buying power", "monthly payment for", "mortgage for".
-
-Always include uiBlock alongside your conversational message.`;
+`;
 
     console.log('Making Lovable AI Gateway call for regular chat...');
     
