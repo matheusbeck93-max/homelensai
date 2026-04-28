@@ -31,6 +31,8 @@ export interface CreditPrecheckResult {
   isAuthenticated: boolean;
   creditsRemaining?: number;
   enforced: boolean;
+  functionName?: string;
+  requestId?: string;
 }
 
 export interface TokenUsage {
@@ -51,6 +53,53 @@ function getServiceClient() {
   return createClient(supabaseUrl, serviceKey);
 }
 
+function inferFunctionName(req: Request): string {
+  try {
+    const path = new URL(req.url).pathname;
+    const parts = path.split('/').filter(Boolean);
+    // Edge function URLs look like /functions/v1/<name>
+    return parts[parts.length - 1] || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+/** Best-effort write to ai_credit_ledger. Never throws. */
+async function writeLedger(entry: {
+  userId: string;
+  functionName: string;
+  eventType: 'precheck' | 'deduct' | 'reset' | 'block';
+  creditsCharged?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  balanceBefore?: number;
+  balanceAfter?: number;
+  model?: string;
+  requestId?: string;
+  note?: string;
+}) {
+  try {
+    const supabase = getServiceClient();
+    await supabase.from('ai_credit_ledger').insert({
+      user_id: entry.userId,
+      function_name: entry.functionName,
+      event_type: entry.eventType,
+      credits_charged: entry.creditsCharged ?? 0,
+      prompt_tokens: entry.promptTokens ?? null,
+      completion_tokens: entry.completionTokens ?? null,
+      total_tokens: entry.totalTokens ?? null,
+      balance_before: entry.balanceBefore ?? null,
+      balance_after: entry.balanceAfter ?? null,
+      model: entry.model ?? null,
+      request_id: entry.requestId ?? null,
+      note: entry.note ?? null,
+    });
+  } catch (err) {
+    console.error('[aiCredits] ledger write failed', err);
+  }
+}
+
 /**
  * Run BEFORE calling the model. Verifies the user has at least 1 credit left.
  * - Unauthenticated → 401 (no quota consumed).
@@ -60,12 +109,22 @@ function getServiceClient() {
  */
 export async function precheckAiCredits(req: Request): Promise<CreditPrecheckResult> {
   const authHeader = req.headers.get('Authorization');
+  const functionName = inferFunctionName(req);
+  const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID();
 
   if (!authHeader) {
+    console.log(JSON.stringify({
+      scope: 'aiCredits.precheck',
+      functionName,
+      requestId,
+      result: 'unauthenticated',
+    }));
     return {
       allowed: false,
       isAuthenticated: false,
       enforced: CREDITS_ENFORCED,
+      functionName,
+      requestId,
       response: new Response(
         JSON.stringify({
           error: 'auth_required',
@@ -80,10 +139,18 @@ export async function precheckAiCredits(req: Request): Promise<CreditPrecheckRes
   const token = authHeader.replace('Bearer ', '');
   const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
   if (userErr || !user) {
+    console.log(JSON.stringify({
+      scope: 'aiCredits.precheck',
+      functionName,
+      requestId,
+      result: 'invalid_token',
+    }));
     return {
       allowed: false,
       isAuthenticated: false,
       enforced: CREDITS_ENFORCED,
+      functionName,
+      requestId,
       response: new Response(
         JSON.stringify({
           error: 'auth_required',
@@ -103,25 +170,62 @@ export async function precheckAiCredits(req: Request): Promise<CreditPrecheckRes
   const tier = (profile?.subscription_status || 'free') as 'free' | 'premium';
 
   if (tier === 'premium') {
-    return { allowed: true, userId: user.id, tier: 'premium', isAuthenticated: true, enforced: CREDITS_ENFORCED };
+    console.log(JSON.stringify({
+      scope: 'aiCredits.precheck',
+      functionName,
+      requestId,
+      userId: user.id,
+      tier: 'premium',
+      result: 'allowed_unlimited',
+    }));
+    return { allowed: true, userId: user.id, tier: 'premium', isAuthenticated: true, enforced: CREDITS_ENFORCED, functionName, requestId };
   }
 
   // Free tier — daily reset (UTC date).
   const today = new Date().toISOString().split('T')[0];
   const lastReset = (profile as any)?.ai_credits_last_reset as string | undefined;
   let usedToday = (profile as any)?.ai_credits_used_today ?? 0;
+  let didReset = false;
 
   if (lastReset !== today) {
     usedToday = 0;
+    didReset = true;
     await supabase
       .from('profiles')
       .update({ ai_credits_used_today: 0, ai_credits_last_reset: today })
       .eq('id', user.id);
+    await writeLedger({
+      userId: user.id,
+      functionName,
+      eventType: 'reset',
+      balanceBefore: DAILY_FREE_CREDITS,
+      balanceAfter: DAILY_FREE_CREDITS,
+      requestId,
+      note: `daily reset (prev=${lastReset ?? 'null'} -> ${today})`,
+    });
   }
 
   const remaining = Math.max(0, DAILY_FREE_CREDITS - usedToday);
 
   if (remaining <= 0 && CREDITS_ENFORCED) {
+    console.log(JSON.stringify({
+      scope: 'aiCredits.precheck',
+      functionName,
+      requestId,
+      userId: user.id,
+      tier: 'free',
+      result: 'blocked_exhausted',
+      remaining: 0,
+    }));
+    await writeLedger({
+      userId: user.id,
+      functionName,
+      eventType: 'block',
+      balanceBefore: 0,
+      balanceAfter: 0,
+      requestId,
+      note: 'daily limit reached',
+    });
     return {
       allowed: false,
       isAuthenticated: true,
@@ -129,6 +233,8 @@ export async function precheckAiCredits(req: Request): Promise<CreditPrecheckRes
       tier: 'free',
       enforced: true,
       creditsRemaining: 0,
+      functionName,
+      requestId,
       response: new Response(
         JSON.stringify({
           error: 'ai_credits_exhausted',
@@ -141,6 +247,26 @@ export async function precheckAiCredits(req: Request): Promise<CreditPrecheckRes
     };
   }
 
+  console.log(JSON.stringify({
+    scope: 'aiCredits.precheck',
+    functionName,
+    requestId,
+    userId: user.id,
+    tier: 'free',
+    result: 'allowed',
+    remaining,
+    didReset,
+  }));
+  await writeLedger({
+    userId: user.id,
+    functionName,
+    eventType: 'precheck',
+    balanceBefore: remaining,
+    balanceAfter: remaining,
+    requestId,
+    note: didReset ? 'after daily reset' : undefined,
+  });
+
   return {
     allowed: true,
     userId: user.id,
@@ -148,6 +274,8 @@ export async function precheckAiCredits(req: Request): Promise<CreditPrecheckRes
     isAuthenticated: true,
     enforced: CREDITS_ENFORCED,
     creditsRemaining: remaining,
+    functionName,
+    requestId,
   };
 }
 
@@ -160,6 +288,7 @@ export async function precheckAiCredits(req: Request): Promise<CreditPrecheckRes
 export async function deductAiCredits(
   precheck: CreditPrecheckResult,
   usage: TokenUsage | undefined | null,
+  meta?: { model?: string },
 ): Promise<{ chargedCredits: number; remaining: number | null }> {
   if (!precheck.userId || precheck.tier === 'premium') {
     return { chargedCredits: 0, remaining: null };
@@ -189,9 +318,41 @@ export async function deductAiCredits(
       .update({ ai_credits_used_today: newUsed, ai_credits_last_reset: today })
       .eq('id', precheck.userId);
 
+    const balanceBefore = Math.max(0, DAILY_FREE_CREDITS - baseUsed);
+    const balanceAfter = Math.max(0, DAILY_FREE_CREDITS - newUsed);
+
+    console.log(JSON.stringify({
+      scope: 'aiCredits.deduct',
+      functionName: precheck.functionName,
+      requestId: precheck.requestId,
+      userId: precheck.userId,
+      tier: precheck.tier,
+      promptTokens: usage?.prompt_tokens,
+      completionTokens: usage?.completion_tokens,
+      totalTokens,
+      creditsCharged: credits,
+      balanceBefore,
+      balanceAfter,
+      model: meta?.model,
+    }));
+
+    await writeLedger({
+      userId: precheck.userId,
+      functionName: precheck.functionName ?? 'unknown',
+      eventType: 'deduct',
+      creditsCharged: credits,
+      promptTokens: usage?.prompt_tokens,
+      completionTokens: usage?.completion_tokens,
+      totalTokens: totalTokens || 0,
+      balanceBefore,
+      balanceAfter,
+      model: meta?.model,
+      requestId: precheck.requestId,
+    });
+
     return {
       chargedCredits: credits,
-      remaining: Math.max(0, DAILY_FREE_CREDITS - newUsed),
+      remaining: balanceAfter,
     };
   } catch (err) {
     console.error('[aiCredits] deduct failed', err);
