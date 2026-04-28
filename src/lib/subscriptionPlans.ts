@@ -88,14 +88,14 @@ export const PREMIUM_ANNUAL_PLAN: SubscriptionPlan = {
   name: 'Premium',
   tier: 'premium',
   subtitle: 'Unlock full investment power',
-  price: '$4.48',
-  priceMonthly: 4.48,
+  price: '$8.97',
+  priceMonthly: 8.97,
   pricePeriod: '/mo',
   stripePriceId: 'price_annual_placeholder', // Replace with actual Stripe price ID
-  stripeProductId: 'prod_TU8ZtwtkutHhh5',
+  stripeProductId: 'prod_UQ1dLeJR4B3NZH',
   ctaLabel: 'Upgrade to Premium',
   ctaVariant: 'default',
-  headerNote: 'Billed annually ($53.70/year)',
+  headerNote: 'Billed annually ($107.64/year)',
   features: [
     'Chat personalized to your preferences',
     'Unlimited property analysis via link',
