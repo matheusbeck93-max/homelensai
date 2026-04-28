@@ -6,6 +6,7 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { enforceDailyLimit } from '../_shared/dailyLimit.ts';
+import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 
 const log = createLogger('perplexity-chat');
 
@@ -52,11 +53,10 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
-    // Enforce daily AI limit (shared across app + extension via profiles.daily_analysis_count).
-    // Premium = unlimited. Free = 3/day. Unauthenticated = 401 (no quota consumed).
-    const limitResult = await enforceDailyLimit(req);
-    if (!limitResult.allowed) {
-      return limitResult.response!;
+    // AI Credits pre-check. Free=100/day, Premium=unlimited.
+    const creditCheck = await precheckAiCredits(req);
+    if (!creditCheck.allowed) {
+      return creditCheck.response!;
     }
 
     const body = await req.json();
