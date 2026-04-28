@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_credit_ledger: {
+        Row: {
+          balance_after: number | null
+          balance_before: number | null
+          completion_tokens: number | null
+          created_at: string
+          credits_charged: number
+          event_type: string
+          function_name: string
+          id: string
+          model: string | null
+          note: string | null
+          prompt_tokens: number | null
+          request_id: string | null
+          total_tokens: number | null
+          user_id: string
+        }
+        Insert: {
+          balance_after?: number | null
+          balance_before?: number | null
+          completion_tokens?: number | null
+          created_at?: string
+          credits_charged?: number
+          event_type: string
+          function_name: string
+          id?: string
+          model?: string | null
+          note?: string | null
+          prompt_tokens?: number | null
+          request_id?: string | null
+          total_tokens?: number | null
+          user_id: string
+        }
+        Update: {
+          balance_after?: number | null
+          balance_before?: number | null
+          completion_tokens?: number | null
+          created_at?: string
+          credits_charged?: number
+          event_type?: string
+          function_name?: string
+          id?: string
+          model?: string | null
+          note?: string | null
+          prompt_tokens?: number | null
+          request_id?: string | null
+          total_tokens?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       alert_events: {
         Row: {
           created_at: string
