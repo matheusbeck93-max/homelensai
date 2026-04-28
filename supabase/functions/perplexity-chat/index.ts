@@ -553,7 +553,7 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
       body: JSON.stringify({
         model: 'sonar',
         messages,
-        max_tokens: 2000,
+        max_tokens: maxOutputTokensFor(creditCheck.tier) ?? 2000,
         temperature: 0.2,
         return_citations: true,
         search_recency_filter: 'week',
@@ -569,6 +569,7 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     const citations = data.citations || [];
+    await deductAiCredits(creditCheck, data.usage);
 
     console.log(`[perplexity-chat] Response received, citations: ${citations.length}`);
 
