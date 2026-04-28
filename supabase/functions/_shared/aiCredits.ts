@@ -21,7 +21,7 @@ export const MAX_CREDITS_PER_REQUEST = 20;
 const TOKENS_PER_CREDIT = 100;
 
 /** Master switch — flip to true to enforce credit limits app-wide. */
-const CREDITS_ENFORCED = false;
+const CREDITS_ENFORCED = true;
 
 export interface CreditPrecheckResult {
   allowed: boolean;
