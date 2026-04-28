@@ -4,6 +4,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { enforceDailyLimit } from '../_shared/dailyLimit.ts';
+import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 
 const log = createLogger('ai-chat');
 
@@ -45,11 +46,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Enforce daily AI limit (shared across app + extension via profiles.daily_analysis_count).
-    // Premium = unlimited. Free = 3/day. Unauthenticated = 401 (no quota consumed).
-    const limitResult = await enforceDailyLimit(req);
-    if (!limitResult.allowed) {
-      return limitResult.response!;
+    // AI Credits pre-check (token-based, daily reset).
+    // Free = 100 credits/day. Premium = unlimited. Unauthenticated = 401.
+    // While CREDITS_ENFORCED is false, never blocks; usage is still recorded for observability.
+    const creditCheck = await precheckAiCredits(req);
+    if (!creditCheck.allowed) {
+      return creditCheck.response!;
     }
 
     // Parse and validate request body
