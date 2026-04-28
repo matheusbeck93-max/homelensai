@@ -698,6 +698,7 @@ CRITICAL:
             { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}` },
             { role: 'user', content: analysisPrompt }
           ],
+          max_tokens: maxOutputTokensFor(creditCheck.tier),
         }),
       });
 
@@ -715,7 +716,7 @@ CRITICAL:
 
       const aiData = await aiResponse.json();
       const analysis = aiData.choices[0].message.content;
-      
+      await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis generated successfully');
       
       // Return as regular chat response with properties metadata
