@@ -1,49 +1,108 @@
-## Problema
+## Problema encontrado
 
-O agente continua enviando planilhas Excel automaticamente, mesmo sem solicitação do usuário. A causa está no prompt do `supabase/functions/ai-chat/index.ts`, onde a regra "Offer-and-Accept" (linhas 1411–1418) é **contradita por três instruções logo abaixo** que o modelo está obedecendo preferencialmente:
+O prompt do agente já foi corrigido, mas ainda existe uma segunda automação no frontend (`src/pages/Chats.tsx`) que ignora essa regra:
 
-1. **Linha 1430**: `"To trigger Excel generation, include a 'uiBlock' field..."` — frase imperativa que parece um padrão default.
-2. **Linha 1459**: `"Also generate Excel for: 'can I afford', 'how much house', 'buying power', 'monthly payment for', 'mortgage for'."` — força Excel para qualquer pergunta de affordability/mortgage, **anulando** a regra "offer-and-accept".
-3. **Linha 1461**: `"Always include uiBlock alongside your conversational message."` — diz literalmente para sempre incluir o uiBlock, contradizendo a regra estrita.
+- A função `isWorkflowRequest()` trata perguntas como `can I afford`, `buying power`, `monthly payment`, `mortgage`, `ROI`, `down payment`, etc. como gatilhos de Excel.
+- Depois da resposta normal do agente, o frontend faz uma segunda chamada para `ai-chat` pedindo literalmente: `generate a detailed Excel spreadsheet with a workflow_excel uiBlock`.
+- Por isso o Excel continua sendo enviado automaticamente mesmo quando o usuário só pediu uma simulação/cálculo.
 
-Sobre as tabelas numéricas: a regra `NUMERIC SUMMARY FORMAT` está presente nos dois prompts e o renderer (`chatMarkdownComponents` + `remark-gfm`) está corretamente cabeado nos três pontos (`Chats.tsx`, `ConversationPanel.tsx`, `ChatComparisonPanel.tsx`). Os logs confirmam que `remark-gfm` está ativo. Os cálculos *devem* já estar vindo em tabela — exceto quando o modelo decide enviar Excel no lugar (que é exatamente o bug acima). Resolver o Excel também destrava o uso correto da tabela markdown.
+## Ajuste proposto
 
-## O que muda
+### 1. Separar “cálculo que merece oferta” de “pedido explícito de Excel”
 
-### `supabase/functions/ai-chat/index.ts` — prompt do `workflow_excel`
+Em `src/pages/Chats.tsx`, substituir a lógica atual por duas intenções diferentes:
 
-Reescrever o bloco WORKFLOW EXCEL (linhas ~1411–1461) para eliminar TODAS as contradições:
+- `isExplicitExcelRequest(text)`: verdadeiro apenas quando o usuário pede claramente Excel/planilha/download/exportação, por exemplo:
+  - “send me the spreadsheet”
+  - “export to Excel”
+  - “generate an xlsx”
+  - “download this”
+  - “crie uma planilha”
 
-- Remover a linha `Also generate Excel for: "can I afford", "how much house", ...`
-- Remover a linha `Always include uiBlock alongside your conversational message.`
-- Reescrever `To trigger Excel generation...` como **condicional**: `"ONLY when the offer-and-accept condition is met, include a uiBlock..."`
-- Adicionar topo do bloco em caixa alta:
-  ```
-  DEFAULT BEHAVIOR: DO NOT include any uiBlock of type "workflow_excel".
-  ONLY include it when (A) the user's CURRENT message explicitly asks for an Excel/spreadsheet/.xlsx/download, OR (B) the user just replied "yes/sure/please" to YOUR previous offer.
-  For affordability, mortgage, buying power, monthly payment questions: answer with the NUMERIC SUMMARY FORMAT (markdown table), then optionally end with: "Want me to put this into a downloadable Excel spreadsheet?" Do NOT attach the workbook unless they accept.
-  ```
-- Manter os exemplos de schema do `uiBlock` apenas como referência de estrutura, prefixados por `"When (and only when) the conditions above are met, the uiBlock format is:"`.
+- `shouldOfferExcel(text)`: verdadeiro para simulações e cenários complexos em que o agente deve oferecer a planilha, mas não enviar:
+  - buying power
+  - affordability / can I afford
+  - mortgage / monthly payment
+  - ROI, cash flow, cap rate
+  - renovation / remodel / flip budget
+  - amortization / financing plan
+  - closing costs / down payment scenarios
 
-### Reforço cruzado com o formato numérico
+### 2. Remover a geração automática por palavra-chave
 
-Adicionar uma frase explícita no bloco do Excel ligando-o ao formato de tabela:
+Remover o bloco atual:
 
-> "Calculations belong in a markdown table inside the message (see NUMERIC SUMMARY FORMAT). The Excel workbook is a separate, opt-in deliverable — never a replacement for the in-message table."
+```text
+if (isWorkflowRequest(cleanedMessage)) {
+  ... generate a detailed Excel spreadsheet with a workflow_excel uiBlock ...
+}
+```
 
-Isso força o agente a sempre apresentar o cálculo na tabela do chat e tratar o Excel como extra opcional.
+Esse bloco é a causa direta do envio automático.
 
-### Arquivos tocados
+### 3. Gerar Excel somente quando houver solicitação/aceite
 
-- `supabase/functions/ai-chat/index.ts` — reescrita do bloco WORKFLOW EXCEL (~50 linhas).
-- Memória `mem://funcionalidades/geracao-de-excel-de-workflow` — atualizar para registrar que a regra "offer-and-accept" tem precedência sobre QUALQUER gatilho por palavra-chave (afford/mortgage/etc.).
+Criar uma função de controle que permite o Excel apenas quando:
 
-### Deploy
+- O usuário pediu explicitamente Excel/planilha/download no texto atual; ou
+- A mensagem anterior do agente ofereceu a planilha e o usuário respondeu afirmativamente (`yes`, `sure`, `please`, `go ahead`, `send it`, `sim`, `pode`, `envie`, etc.).
 
-- Redeployar apenas a edge function `ai-chat`.
+Fluxo esperado:
+
+```text
+Usuário: Can I afford a $700k house with $180k income?
+Agente: resposta com tabela markdown + oferta: “Want me to put this into a downloadable Excel spreadsheet?”
+Usuário: yes
+Agente: agora envia o Excel
+```
+
+### 4. Garantir que cálculos venham em tabela no chat
+
+Manter a resposta principal vindo do `perplexity-chat`, que já tem a regra `NUMERIC SUMMARY FORMAT`.
+
+No frontend, quando `shouldOfferExcel(cleanedMessage)` for verdadeiro e a resposta ainda não tiver uma oferta de planilha, acrescentar ao fim da mensagem:
+
+```text
+Want me to put this into a downloadable Excel spreadsheet?
+```
+
+Assim o comportamento fica determinístico:
+
+- Simulação/cálculo: resposta em tabela no chat + oferta opcional.
+- Aceite/pedido explícito: gera e mostra o bloco Excel.
+
+### 5. Ajustar a chamada de geração de Excel
+
+Quando o Excel for permitido, a chamada para `ai-chat` será mantida, mas com contexto seguro:
+
+- Enviar a mensagem do usuário atual.
+- Enviar a análise anterior quando existir.
+- Pedir `workflow_excel` apenas porque a condição de opt-in já foi atendida.
+- Não disparar essa chamada para cálculos comuns sem aceite.
+
+### 6. Atualizar memória da funcionalidade
+
+Atualizar `mem://funcionalidades/geracao-de-excel-de-workflow` para registrar:
+
+- Frontend não pode auto-gerar Excel por keyword.
+- Keywords de cálculo apenas autorizam oferta, não envio.
+- Excel só é enviado por solicitação explícita ou aceite a uma oferta anterior.
+- Cálculos devem aparecer primeiro como tabela markdown no chat.
+
+## Arquivos a alterar
+
+- `src/pages/Chats.tsx`
+  - substituir `isWorkflowRequest`
+  - remover geração automática por keyword
+  - adicionar detecção de pedido explícito/aceite
+  - adicionar oferta controlada em respostas de cálculo
+
+- `.lovable/memory/funcionalidades/geracao-de-excel-de-workflow`
+  - documentar a regra final da funcionalidade
 
 ## Fora de escopo
 
-- Não tocar em `perplexity-chat` (já está correto, sem regras conflitantes de Excel).
-- Não alterar `markdownComponents.tsx`, `ChatComparisonPanel.tsx`, `ConversationPanel.tsx`, `Chats.tsx` ou o `WorkflowExcelBlock.tsx` — a renderização de tabela e Excel já está correta.
-- Não mudar o schema do `uiBlock` nem o tipo `WorkflowExcelBlock`.
+- Não alterar banco de dados.
+- Não alterar componentes visuais de Excel.
+- Não alterar o renderer de markdown/tabelas, pois já está conectado com `remark-gfm`.
+- Não mexer nos limites diários ou assinatura.

@@ -95,11 +95,26 @@ function extractUrl(text: string): string | null {
   return urlMatch ? urlMatch[0] : null;
 }
 
-// Detect if a message is requesting a workflow/budget/plan (Excel generation)
-function isWorkflowRequest(text: string): boolean {
-  const patterns = /(budget|orçamento|plan\b|plano|breakdown|estimate|estimativa|cost breakdown|renovation|financing plan|amortization|roi\b|spreadsheet|planilha|create a .*(plan|budget|estimate)|give me a breakdown|what would it cost|calculate the|build a .*(plan|budget)|can i afford|afford a (house|home|property|condo)|buying power|quanto custa|posso comprar|affordability|how much (house|home|can i|do i need)|what can i (buy|afford)|monthly payment|mortgage for|investment analysis|cash flow|rental income|what('s| is) the roi|renovation cost|rehab cost|remodel cost|flip analysis|what would .* cost|how much would .* cost|down payment|closing cost)/i;
+// User explicitly asks for an Excel/spreadsheet/download
+function isExplicitExcelRequest(text: string): boolean {
+  const patterns = /(excel|spreadsheet|planilha|xlsx|workbook|export(?:\s+to|\s+as)?\s+(?:excel|spreadsheet)|download(?:able)?(?:\s+(?:file|excel|spreadsheet))?|send (?:me )?the (?:spreadsheet|excel|file)|generate (?:an? )?(?:excel|xlsx|spreadsheet)|baixa(?:r)? (?:a )?planilha|crie? uma planilha|me envie a planilha|envia(?:r)? (?:a )?planilha)/i;
   return patterns.test(text);
 }
+
+// Calculation/scenario topics where the agent should OFFER a spreadsheet (not auto-send)
+function shouldOfferExcel(text: string): boolean {
+  const patterns = /(can i afford|afford a (house|home|property|condo)|affordability|how much (house|home|can i|do i need)|what can i (buy|afford)|buying power|monthly payment|mortgage for|amortization|financing plan|investment analysis|cash flow|cap rate|roi\b|rental income|renovation|remodel|rehab|flip analysis|down payment|closing cost|cost breakdown|budget|quanto custa|posso comprar)/i;
+  return patterns.test(text);
+}
+
+// User affirmatively accepts a previous offer
+function isAffirmativeReply(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (t.length > 60) return false;
+  return /^(yes|yeah|yep|yup|sure|please|please do|ok|okay|go ahead|do it|send it|send me|generate it|generate|export it|let'?s do it|sounds good|pode|sim|envia|envie|manda|pode mandar|pode enviar|claro)\b[\s.!]*$/i.test(t);
+}
+
+const EXCEL_OFFER_LINE = "Want me to put this into a downloadable Excel spreadsheet?";
 
 export default function Chats() {
   const { toast } = useToast();
@@ -289,16 +304,36 @@ export default function Chats() {
         }
       }
 
-      // Secondary call to ai-chat for Excel workflow generation
+      // Excel generation: ONLY when user explicitly requests OR accepts a previous offer.
       const perplexityResponse = data?.message || '';
-      if (isWorkflowRequest(cleanedMessage)) {
+
+      // Find the most recent assistant message BEFORE this turn (state still pre-update)
+      const lastAssistantBefore = [...messages].reverse().find(m => m.role === 'assistant');
+      const previousOfferedExcel = !!lastAssistantBefore?.content && /downloadable Excel spreadsheet|spreadsheet\?|planilha\?/i.test(lastAssistantBefore.content);
+
+      const userExplicitlyAsked = isExplicitExcelRequest(cleanedMessage);
+      const userAcceptedOffer = previousOfferedExcel && isAffirmativeReply(cleanedMessage);
+      const allowExcel = userExplicitlyAsked || userAcceptedOffer;
+
+      // For calculation/scenario topics, append a single offer line if the agent didn't already offer.
+      if (!allowExcel && shouldOfferExcel(cleanedMessage) && !/spreadsheet\?|planilha\?/i.test(cleanContent)) {
+        const withOffer = `${cleanContent.trimEnd()}\n\n${EXCEL_OFFER_LINE}`;
+        assistantMessage.content = withOffer;
+        setMessages((prev) => prev.map(m => m.id === assistantMessage.id ? { ...m, content: withOffer } : m));
+        if (user && conversationId) {
+          // Re-save with offer appended (best-effort; non-blocking)
+          saveMessage({ ...assistantMessage, content: withOffer }, conversationId);
+        }
+      }
+
+      if (allowExcel) {
         try {
           const { data: excelData, error: excelError } = await supabase.functions.invoke('ai-chat', {
             body: {
               messages: [
-                { role: 'user', content: cleanedMessage },
+                { role: 'user', content: lastAssistantBefore?.content ? `Prior context to use for the workbook:\n\n${lastAssistantBefore.content}` : cleanedMessage },
                 { role: 'assistant', content: perplexityResponse },
-                { role: 'user', content: `Based on the analysis above, generate a detailed Excel spreadsheet with a workflow_excel uiBlock. Include ALL numbers, values, costs, and data points mentioned. If specific numbers were not available in the analysis, YOU MUST estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. NEVER leave cost cells empty — always fill with estimated values. Every row must have numeric values in cost/value columns.` }
+                { role: 'user', content: `The user has explicitly opted in to receiving the Excel workbook. Generate a detailed Excel spreadsheet with a workflow_excel uiBlock based on the analysis above. Include ALL numbers, values, costs, and data points mentioned. If specific numbers were not available, estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. NEVER leave cost cells empty — always fill with estimated values. Every row must have numeric values in cost/value columns.` }
               ],
               conversationMode: true
             }
