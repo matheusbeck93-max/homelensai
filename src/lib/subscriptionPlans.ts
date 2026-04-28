@@ -113,7 +113,6 @@ export const PREMIUM_ANNUAL_PLAN: SubscriptionPlan = {
     'Investment Score via extension',
     'Investor Calculator — Simple & Advanced',
     'AI Insights on calculators',
-    'Unlimited extension analysis',
     'Priority support',
   ],
   billingPeriod: 'annual',
