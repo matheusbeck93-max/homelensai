@@ -169,7 +169,7 @@ RULES:
         body: JSON.stringify({
           model: 'sonar',
           messages,
-          max_tokens: 2000,
+          max_tokens: maxOutputTokensFor(creditCheck.tier) ?? 2000,
           temperature: 0.3,
         }),
       });
@@ -182,6 +182,7 @@ RULES:
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || '';
+      await deductAiCredits(creditCheck, data.usage);
 
       return new Response(
         JSON.stringify({
