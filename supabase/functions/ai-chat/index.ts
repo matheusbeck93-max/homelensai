@@ -298,6 +298,7 @@ CRITICAL:
             ...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
             { role: 'user', content: analysisPrompt }
           ],
+          max_tokens: maxOutputTokensFor(creditCheck.tier),
         }),
       });
 
@@ -315,7 +316,7 @@ CRITICAL:
 
       const aiData = await aiResponse.json();
       const analysis = aiData.choices[0].message.content;
-      
+      await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis with client data generated successfully');
       
       return new Response(
