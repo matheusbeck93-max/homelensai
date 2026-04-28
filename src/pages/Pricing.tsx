@@ -212,7 +212,7 @@ export default function Pricing() {
                 </div>
 
                 <p className="text-xs text-muted-foreground mt-1">
-                  {billingPeriod === 'annual' ? 'Billed annually ($53.70/year)' : premiumPlan.headerNote}
+                  {billingPeriod === 'annual' ? 'Billed annually ($107.64/year)' : premiumPlan.headerNote}
                 </p>
               </CardHeader>
 

@@ -350,6 +350,8 @@ export type Database = {
       profiles: {
         Row: {
           about_me: string | null
+          ai_credits_last_reset: string
+          ai_credits_used_today: number
           alert_email_enabled: boolean | null
           alert_price_drops: boolean | null
           alert_status_changes: boolean | null
@@ -395,6 +397,8 @@ export type Database = {
         }
         Insert: {
           about_me?: string | null
+          ai_credits_last_reset?: string
+          ai_credits_used_today?: number
           alert_email_enabled?: boolean | null
           alert_price_drops?: boolean | null
           alert_status_changes?: boolean | null
@@ -440,6 +444,8 @@ export type Database = {
         }
         Update: {
           about_me?: string | null
+          ai_credits_last_reset?: string
+          ai_credits_used_today?: number
           alert_email_enabled?: boolean | null
           alert_price_drops?: boolean | null
           alert_status_changes?: boolean | null

@@ -4,6 +4,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { enforceDailyLimit } from '../_shared/dailyLimit.ts';
+import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 
 const log = createLogger('ai-chat');
 
@@ -45,11 +46,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Enforce daily AI limit (shared across app + extension via profiles.daily_analysis_count).
-    // Premium = unlimited. Free = 3/day. Unauthenticated = 401 (no quota consumed).
-    const limitResult = await enforceDailyLimit(req);
-    if (!limitResult.allowed) {
-      return limitResult.response!;
+    // AI Credits pre-check (token-based, daily reset).
+    // Free = 100 credits/day. Premium = unlimited. Unauthenticated = 401.
+    // While CREDITS_ENFORCED is false, never blocks; usage is still recorded for observability.
+    const creditCheck = await precheckAiCredits(req);
+    if (!creditCheck.allowed) {
+      return creditCheck.response!;
     }
 
     // Parse and validate request body
@@ -296,6 +298,7 @@ CRITICAL:
             ...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
             { role: 'user', content: analysisPrompt }
           ],
+          max_tokens: maxOutputTokensFor(creditCheck.tier),
         }),
       });
 
@@ -313,7 +316,7 @@ CRITICAL:
 
       const aiData = await aiResponse.json();
       const analysis = aiData.choices[0].message.content;
-      
+      await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis with client data generated successfully');
       
       return new Response(
@@ -695,6 +698,7 @@ CRITICAL:
             { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}` },
             { role: 'user', content: analysisPrompt }
           ],
+          max_tokens: maxOutputTokensFor(creditCheck.tier),
         }),
       });
 
@@ -712,7 +716,7 @@ CRITICAL:
 
       const aiData = await aiResponse.json();
       const analysis = aiData.choices[0].message.content;
-      
+      await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis generated successfully');
       
       // Return as regular chat response with properties metadata
@@ -1517,6 +1521,10 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
       requestBody.tool_choice = 'auto';
     }
 
+    // Cap output tokens for FREE users to keep credit usage predictable.
+    const maxOut = maxOutputTokensFor(creditCheck.tier);
+    if (maxOut) requestBody.max_tokens = maxOut;
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -1539,7 +1547,8 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     }
 
     const data = await response.json();
-    
+    await deductAiCredits(creditCheck, data.usage);
+
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       console.error('Unexpected AI response format:', JSON.stringify(data));
       throw new Error('Invalid response format from AI Gateway');
