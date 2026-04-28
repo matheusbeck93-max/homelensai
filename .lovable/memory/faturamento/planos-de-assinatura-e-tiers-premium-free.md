@@ -5,9 +5,9 @@ type: feature
 ---
 Two tiers: Free ($0) and Premium ($4.97/mo). Free users get 3 AI analyses/day; Premium is unlimited.
 
-**Current status: limits TEMPORARILY DISABLED** during testing period.
-Master switch lives in `supabase/functions/_shared/dailyLimit.ts` → `const LIMITS_ENABLED = false`.
-Flip to `true` to re-enforce — no other code change needed. Frontend/extension already handle 401 and 429 responses (including the Premium upgrade CTA).
+**Current status:**
+- AI Credits (`_shared/aiCredits.ts` → `CREDITS_ENFORCED`): **ENABLED** (true). 100 credits/day for free, unlimited for premium.
+- Daily analysis count (`_shared/dailyLimit.ts` → `LIMITS_ENABLED`): currently **false** (3/day legacy limit not enforced).
 
 The daily quota is **server-enforced** and **shared between the main app and the Chrome extension** via `profiles.daily_analysis_count` + `profiles.daily_analysis_last_reset`.
 
