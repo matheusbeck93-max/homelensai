@@ -91,8 +91,8 @@ export const PREMIUM_ANNUAL_PLAN: SubscriptionPlan = {
   price: '$8.97',
   priceMonthly: 8.97,
   pricePeriod: '/mo',
-  stripePriceId: 'price_annual_placeholder', // Replace with actual Stripe price ID
-  stripeProductId: 'prod_UQ1dLeJR4B3NZH',
+  stripePriceId: 'price_1TRBp9DNPbNbmEcl7t7mpIet',
+  stripeProductId: 'prod_UQ1sm391KbecJk',
   ctaLabel: 'Upgrade to Premium',
   ctaVariant: 'default',
   headerNote: 'Billed annually ($107.64/year)',
