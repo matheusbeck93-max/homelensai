@@ -1521,6 +1521,10 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
       requestBody.tool_choice = 'auto';
     }
 
+    // Cap output tokens for FREE users to keep credit usage predictable.
+    const maxOut = maxOutputTokensFor(creditCheck.tier);
+    if (maxOut) requestBody.max_tokens = maxOut;
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -1543,7 +1547,8 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     }
 
     const data = await response.json();
-    
+    await deductAiCredits(creditCheck, data.usage);
+
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
       console.error('Unexpected AI response format:', JSON.stringify(data));
       throw new Error('Invalid response format from AI Gateway');
