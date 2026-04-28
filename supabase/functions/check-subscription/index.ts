@@ -7,9 +7,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const log = createLogger('check-subscription');
 
-// Product ID to tier mapping
+// Product ID to tier mapping. Keep in sync with src/lib/subscriptionPlans.ts.
 const PRODUCT_TIER_MAP: Record<string, string> = {
-  "prod_TU8ZtwtkutHhh5": "premium"
+  "prod_TU8ZtwtkutHhh5": "premium",     // legacy product
+  "prod_UQ1dLeJR4B3NZH": "premium",     // Premium monthly ($9.97/mo)
+  "prod_UQ1sm391KbecJk": "premium",     // Premium annual  ($107.64/yr)
 };
 
 Deno.serve(async (req) => {
