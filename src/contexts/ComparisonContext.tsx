@@ -109,7 +109,29 @@ export function ComparisonProvider({ children }: { children: React.ReactNode }) 
 export function useComparison() {
   const context = useContext(ComparisonContext);
   if (context === undefined) {
-    throw new Error('useComparison must be used within a ComparisonProvider');
+    // During Vite HMR the context module may be replaced while child
+    // components still reference the old context object, briefly yielding
+    // undefined. Returning a safe no-op shape avoids a hard crash and
+    // simply renders nothing for the floating bar until the next paint.
+    if (import.meta.env.DEV) {
+      console.warn('[useComparison] used outside provider — returning safe defaults (likely HMR).');
+    }
+    return {
+      selectedProperties: [],
+      addToComparison: () => {},
+      removeFromComparison: () => {},
+      clearComparison: () => {},
+      isSelected: () => false,
+      isInComparison: () => false,
+      canAddMore: false,
+      maxProperties: 2,
+    } satisfies ComparisonContextType;
   }
   return context;
+}
+
+// Tell Vite this module is HMR-safe; re-mounting children will pick up the
+// fresh provider on the next render instead of throwing.
+if (import.meta.hot) {
+  import.meta.hot.accept();
 }
