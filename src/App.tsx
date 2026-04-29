@@ -22,26 +22,46 @@ function lazyWithRetry<T extends ComponentType<any>>(
 ) {
   return lazy(async () => {
     const RELOAD_KEY = "homelens:chunk-reload";
-    try {
-      return await factory();
-    } catch (err: any) {
+    const isChunkError = (err: any) => {
       const msg = String(err?.message || err);
-      const isChunkError =
+      return (
         /Failed to fetch dynamically imported module/i.test(msg) ||
         /Importing a module script failed/i.test(msg) ||
         /ChunkLoadError/i.test(msg) ||
-        /Loading chunk \d+ failed/i.test(msg);
-      if (isChunkError && typeof window !== "undefined") {
-        const already = sessionStorage.getItem(RELOAD_KEY);
-        if (!already) {
-          sessionStorage.setItem(RELOAD_KEY, "1");
-          window.location.reload();
-          // Return a never-resolving promise so Suspense holds until reload kicks in.
-          return new Promise(() => {}) as any;
+        /Loading chunk \d+ failed/i.test(msg) ||
+        /dynamically imported module/i.test(msg)
+      );
+    };
+
+    // Try up to 3 times with small backoff to absorb transient network blips
+    // (mobile flakiness, brief CDN propagation gaps, etc.) BEFORE we resort
+    // to a hard page reload.
+    let lastErr: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await factory();
+      } catch (err) {
+        lastErr = err;
+        if (!isChunkError(err)) throw err;
+        // small exponential backoff: 200ms, 600ms
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 200 * Math.pow(3, attempt)));
         }
       }
-      throw err;
     }
+
+    // All in-tab retries failed → likely a stale bundle after a deploy.
+    // Force exactly one full page reload to grab the new index.html + chunks.
+    if (typeof window !== "undefined") {
+      const already = sessionStorage.getItem(RELOAD_KEY);
+      if (!already) {
+        sessionStorage.setItem(RELOAD_KEY, "1");
+        window.location.reload();
+        // Hold Suspense until the reload kicks in.
+        return new Promise(() => {}) as any;
+      }
+    }
+    throw lastErr;
   });
 }
 
