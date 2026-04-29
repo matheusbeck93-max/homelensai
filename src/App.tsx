@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,29 +15,59 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 
-// Lazy loaded routes (non-critical)
-const PropertyDetail = lazy(() => import("./pages/PropertyDetail"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Settings = lazy(() => import("./pages/Settings"));
-const SavedSearches = lazy(() => import("./pages/SavedSearches"));
-const Calculators = lazy(() => import("./pages/Calculators"));
-const Investor = lazy(() => import("./pages/Investor"));
+// Wrap dynamic imports so a stale chunk reference (after a new deploy) auto-recovers
+// by forcing one fresh reload instead of crashing the ErrorBoundary.
+function lazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    const RELOAD_KEY = "homelens:chunk-reload";
+    try {
+      return await factory();
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      const isChunkError =
+        /Failed to fetch dynamically imported module/i.test(msg) ||
+        /Importing a module script failed/i.test(msg) ||
+        /ChunkLoadError/i.test(msg) ||
+        /Loading chunk \d+ failed/i.test(msg);
+      if (isChunkError && typeof window !== "undefined") {
+        const already = sessionStorage.getItem(RELOAD_KEY);
+        if (!already) {
+          sessionStorage.setItem(RELOAD_KEY, "1");
+          window.location.reload();
+          // Return a never-resolving promise so Suspense holds until reload kicks in.
+          return new Promise(() => {}) as any;
+        }
+      }
+      throw err;
+    }
+  });
+}
 
-const Pricing = lazy(() => import("./pages/Pricing"));
-const Portfolio = lazy(() => import("./pages/Portfolio"));
-const Console = lazy(() => import("./pages/Console"));
-const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
-const Compare = lazy(() => import("./pages/Compare"));
-const Chats = lazy(() => import("./pages/Chats"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const TermsOfService = lazy(() => import("./pages/TermsOfService"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
-const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
-const AccessibilityPage = lazy(() => import("./pages/Accessibility"));
-const FairHousing = lazy(() => import("./pages/FairHousing"));
-const CCPANotice = lazy(() => import("./pages/CCPANotice"));
-const DMCAPolicy = lazy(() => import("./pages/DMCAPolicy"));
-const DoNotSell = lazy(() => import("./pages/DoNotSell"));
+// Lazy loaded routes (non-critical)
+const PropertyDetail = lazyWithRetry(() => import("./pages/PropertyDetail"));
+const Profile = lazyWithRetry(() => import("./pages/Profile"));
+const Settings = lazyWithRetry(() => import("./pages/Settings"));
+const SavedSearches = lazyWithRetry(() => import("./pages/SavedSearches"));
+const Calculators = lazyWithRetry(() => import("./pages/Calculators"));
+const Investor = lazyWithRetry(() => import("./pages/Investor"));
+
+const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
+const Portfolio = lazyWithRetry(() => import("./pages/Portfolio"));
+const Console = lazyWithRetry(() => import("./pages/Console"));
+const ProfileSetup = lazyWithRetry(() => import("./pages/ProfileSetup"));
+const Compare = lazyWithRetry(() => import("./pages/Compare"));
+const Chats = lazyWithRetry(() => import("./pages/Chats"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
+const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
+const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
+const CookiePolicy = lazyWithRetry(() => import("./pages/CookiePolicy"));
+const AccessibilityPage = lazyWithRetry(() => import("./pages/Accessibility"));
+const FairHousing = lazyWithRetry(() => import("./pages/FairHousing"));
+const CCPANotice = lazyWithRetry(() => import("./pages/CCPANotice"));
+const DMCAPolicy = lazyWithRetry(() => import("./pages/DMCAPolicy"));
+const DoNotSell = lazyWithRetry(() => import("./pages/DoNotSell"));
 
 const queryClient = new QueryClient();
 

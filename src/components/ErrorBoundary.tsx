@@ -24,7 +24,23 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
+    // Stale chunk after a new deploy → force one reload instead of showing the error UI.
+    const msg = String(error?.message || '');
+    const isChunkError =
+      /Failed to fetch dynamically imported module/i.test(msg) ||
+      /Importing a module script failed/i.test(msg) ||
+      /ChunkLoadError/i.test(msg) ||
+      /Loading chunk \d+ failed/i.test(msg);
+    if (isChunkError && typeof window !== 'undefined') {
+      const RELOAD_KEY = 'homelens:chunk-reload';
+      if (!sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, '1');
+        window.location.reload();
+        return;
+      }
+    }
+
     // Send to Sentry if available (dynamic import to avoid breaking React)
     if (import.meta.env.PROD) {
       import('@sentry/react').then((Sentry) => {
