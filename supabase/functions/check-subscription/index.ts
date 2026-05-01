@@ -9,9 +9,8 @@ const log = createLogger('check-subscription');
 
 // Product ID to tier mapping. Keep in sync with src/lib/subscriptionPlans.ts.
 const PRODUCT_TIER_MAP: Record<string, string> = {
-  "prod_TU8ZtwtkutHhh5": "premium",     // legacy product
-  "prod_UQ1dLeJR4B3NZH": "premium",     // Premium monthly ($9.97/mo)
-  "prod_UQ1sm391KbecJk": "premium",     // Premium annual  ($107.64/yr)
+  "prod_URFGRoGQyqiWSq": "premium",     // Premium monthly ($9.97/mo)
+  "prod_URFGwmCiEV7RY9": "premium",     // Premium annual  ($107.64/yr)
 };
 
 Deno.serve(async (req) => {
