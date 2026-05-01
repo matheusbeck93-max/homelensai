@@ -82,6 +82,7 @@ const Chats = lazyWithRetry(() => import("./pages/Chats"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
+const ExtensionPrivacy = lazyWithRetry(() => import("./pages/ExtensionPrivacy"));
 const CookiePolicy = lazyWithRetry(() => import("./pages/CookiePolicy"));
 const AccessibilityPage = lazyWithRetry(() => import("./pages/Accessibility"));
 const FairHousing = lazyWithRetry(() => import("./pages/FairHousing"));
@@ -129,6 +130,7 @@ function App() {
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/extension-privacy" element={<ExtensionPrivacy />} />
                   <Route path="/cookies" element={<CookiePolicy />} />
                   <Route path="/accessibility" element={<AccessibilityPage />} />
                   <Route path="/fair-housing" element={<FairHousing />} />
