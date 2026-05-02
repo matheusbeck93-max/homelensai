@@ -36,6 +36,7 @@ interface UserProfile {
   property_types?: string[];
   must_have_features?: string[];
   onboarding_completed?: boolean;
+  subscription_status?: string;
 }
 
 interface PropertyContext {
@@ -452,8 +453,84 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
 // ══════════════════════════════════════
 // Message Bubble with Share
 // ══════════════════════════════════════
-function MessageBubble({ msg }: { msg: Message }) {
+function MessageBubble({
+  msg,
+  session,
+  propertyUrl,
+  propertyAddress,
+  isPremium,
+  onUpgradeNeeded,
+}: {
+  msg: Message;
+  session?: Session;
+  propertyUrl?: string | null;
+  propertyAddress?: string | null;
+  isPremium?: boolean;
+  onUpgradeNeeded?: () => void;
+}) {
   const [shareOpen, setShareOpen] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'duplicate' | 'error'>('idle');
+
+  const parsedScore = (() => {
+    if (msg.role !== 'assistant') return null;
+    const m = msg.content.match(/^MATCH_SCORE:\s*([\d.]+)\/10/i);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    return Number.isFinite(n) ? n : null;
+  })();
+  const showSave = msg.role === 'assistant' && parsedScore != null && !!session;
+
+  const handleSave = async () => {
+    if (!session) return;
+    if (!isPremium) {
+      onUpgradeNeeded?.();
+      return;
+    }
+    setSaveState('saving');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/save-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          propertyUrl: propertyUrl || null,
+          propertyAddress: propertyAddress || null,
+          analysisSummary: msg.content,
+          investmentScore: parsedScore != null ? Math.round(parsedScore * 10) : null,
+          scoreLabel:
+            parsedScore != null
+              ? parsedScore >= 8
+                ? 'Excellent Match'
+                : parsedScore >= 6
+                ? 'Good Match'
+                : parsedScore >= 4
+                ? 'Fair Match'
+                : 'Poor Match'
+              : null,
+          source: 'extension',
+        }),
+      });
+      if (res.status === 403) {
+        onUpgradeNeeded?.();
+        setSaveState('idle');
+        return;
+      }
+      if (res.status === 409) {
+        setSaveState('duplicate');
+        return;
+      }
+      if (!res.ok) {
+        setSaveState('error');
+        return;
+      }
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  };
 
   return (
     <div className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
@@ -476,6 +553,47 @@ function MessageBubble({ msg }: { msg: Message }) {
           >
             Upgrade to Premium
           </button>
+        )}
+        {showSave && (
+          <div style={{ marginTop: 10 }}>
+            {saveState === 'saved' || saveState === 'duplicate' ? (
+              <div style={{ fontSize: 12, color: '#22c55e' }}>
+                {saveState === 'saved'
+                  ? 'Analysis saved to your HomeLens account'
+                  : 'Already saved in your HomeLens account'}
+                <a
+                  href="https://homelensais.com/saved-analyses"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ marginLeft: 8, color: '#6B8DB5', textDecoration: 'underline' }}
+                >
+                  View all saved analyses →
+                </a>
+              </div>
+            ) : (
+              <button
+                onClick={handleSave}
+                disabled={saveState === 'saving'}
+                style={{
+                  padding: '6px 12px',
+                  background: '#1E2D3D',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  cursor: saveState === 'saving' ? 'default' : 'pointer',
+                }}
+              >
+                {saveState === 'saving' ? 'Saving...' : 'Save Analysis'}
+              </button>
+            )}
+            {saveState === 'error' && (
+              <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>
+                Couldn't save. Please try again.
+              </div>
+            )}
+          </div>
         )}
       </div>
       {msg.role === 'assistant' && !msg.upgradeCta && (
@@ -988,7 +1106,15 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         )}
 
         {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} />
+          <MessageBubble
+            key={i}
+            msg={msg}
+            session={session}
+            propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
+            propertyAddress={activeProperty?.address || null}
+            isPremium={userProfile?.subscription_status === 'premium'}
+            onUpgradeNeeded={() => window.open('https://homelensai.com/pricing', '_blank')}
+          />
         ))}
 
         {loading && (

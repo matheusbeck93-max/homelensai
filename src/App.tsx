@@ -70,6 +70,7 @@ const PropertyDetail = lazyWithRetry(() => import("./pages/PropertyDetail"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Settings = lazyWithRetry(() => import("./pages/Settings"));
 const SavedSearches = lazyWithRetry(() => import("./pages/SavedSearches"));
+const SavedAnalyses = lazyWithRetry(() => import("./pages/SavedAnalyses"));
 const Calculators = lazyWithRetry(() => import("./pages/Calculators"));
 const Investor = lazyWithRetry(() => import("./pages/Investor"));
 
@@ -118,6 +119,7 @@ function App() {
                   <Route path="/chat" element={<Navigate to="/chats" replace />} />
                   <Route path="/console" element={<ProtectedRoute><Console /></ProtectedRoute>} />
                   <Route path="/saved-searches" element={<ProtectedRoute><SavedSearches /></ProtectedRoute>} />
+                  <Route path="/saved-analyses" element={<ProtectedRoute><SavedAnalyses /></ProtectedRoute>} />
                   <Route path="/calculators" element={<Calculators />} />
                   <Route path="/investor" element={<Investor />} />
                   

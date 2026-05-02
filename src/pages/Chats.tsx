@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText, Image as ImageIcon } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
+import { SaveAnalysisButton } from "@/components/chat/SaveAnalysisButton";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
@@ -592,7 +593,27 @@ export default function Chats() {
                           Add to Comparison
                         </Button>
                     }
-                      
+
+                      {/* Save Analysis Button — only on real property analyses (MATCH_SCORE present) */}
+                      {message.metadata?.matchScore != null && (
+                        <SaveAnalysisButton
+                          analysis={{
+                            propertyUrl: analysisUrl ?? null,
+                            propertyAddress:
+                              (message.metadata as any)?.analyzedProperty?.address ?? null,
+                            propertyPrice: null,
+                            analysisSummary: message.content,
+                            investmentScore: Math.round(
+                              message.metadata.matchScore * 10,
+                            ),
+                            scoreLabel: getScoreLabel(message.metadata.matchScore),
+                            keyMetrics:
+                              (message.metadata as any)?.analyzedProperty ?? null,
+                            source: "app",
+                          }}
+                        />
+                      )}
+
                       {/* Property Links - Card Style Only */}
                       {message.links && message.links.length > 0 &&
                     <div className="mt-4 grid gap-3">

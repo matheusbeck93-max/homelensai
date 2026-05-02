@@ -738,6 +738,54 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_analyses: {
+        Row: {
+          analysis_summary: string
+          created_at: string
+          id: string
+          investment_score: number | null
+          key_metrics: Json | null
+          notes: string | null
+          property_address: string | null
+          property_price: number | null
+          property_url: string | null
+          score_label: string | null
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_summary: string
+          created_at?: string
+          id?: string
+          investment_score?: number | null
+          key_metrics?: Json | null
+          notes?: string | null
+          property_address?: string | null
+          property_price?: number | null
+          property_url?: string | null
+          score_label?: string | null
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_summary?: string
+          created_at?: string
+          id?: string
+          investment_score?: number | null
+          key_metrics?: Json | null
+          notes?: string | null
+          property_address?: string | null
+          property_price?: number | null
+          property_url?: string | null
+          score_label?: string | null
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_calculations: {
         Row: {
           calculation_type: string
