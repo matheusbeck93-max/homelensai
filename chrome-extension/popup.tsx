@@ -1106,7 +1106,15 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         )}
 
         {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} />
+          <MessageBubble
+            key={i}
+            msg={msg}
+            session={session}
+            propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
+            propertyAddress={activeProperty?.address || null}
+            isPremium={userProfile?.subscription_status === 'premium'}
+            onUpgradeNeeded={() => window.open('https://homelensai.com/pricing', '_blank')}
+          />
         ))}
 
         {loading && (
