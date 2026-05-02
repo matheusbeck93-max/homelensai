@@ -47,26 +47,27 @@ export function SaveAnalysisButton({ analysis }: Props) {
     const result = await saveAnalysis(analysis);
     setSaving(false);
 
-    if (result.ok) {
+    if (result.ok === true) {
       setSavedNow(true);
       toast({
         title: "Analysis saved",
         description: "Available in Saved Analyses.",
       });
+      return;
+    }
+    const failure = result as Extract<typeof result, { ok: false }>;
+    if (failure.error === "premium_required") {
+      setShowUpgrade(true);
+    } else if (failure.error === "already_saved") {
+      setSavedNow(true);
+    } else if (failure.error === "unauthorized") {
+      navigate("/auth");
     } else {
-      if (result.error === "premium_required") {
-        setShowUpgrade(true);
-      } else if (result.error === "already_saved") {
-        setSavedNow(true);
-      } else if (result.error === "unauthorized") {
-        navigate("/auth");
-      } else {
-        toast({
-          title: "Couldn't save analysis",
-          description: result.message || "Please try again.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Couldn't save analysis",
+        description: failure.message || "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
