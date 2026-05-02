@@ -1,4 +1,5 @@
 import { handleCors } from '../_shared/cors.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
     if (profile?.subscription_status !== 'premium') {
       return new Response(
         JSON.stringify({ error: 'premium_required' }),
-        { status: 403, headers: { 'Content-Type': 'application/json', ...(await import('../_shared/cors.ts')).corsHeaders } },
+        { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
 
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
       if (existing) {
         return new Response(
           JSON.stringify({ error: 'already_saved', id: existing.id }),
-          { status: 409, headers: { 'Content-Type': 'application/json', ...(await import('../_shared/cors.ts')).corsHeaders } },
+          { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
         );
       }
     }
