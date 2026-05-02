@@ -36,6 +36,7 @@ interface UserProfile {
   property_types?: string[];
   must_have_features?: string[];
   onboarding_completed?: boolean;
+  subscription_status?: string;
 }
 
 interface PropertyContext {
