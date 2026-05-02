@@ -53,18 +53,20 @@ export function SaveAnalysisButton({ analysis }: Props) {
         title: "Analysis saved",
         description: "Available in Saved Analyses.",
       });
-    } else if (result.error === "premium_required") {
-      setShowUpgrade(true);
-    } else if (result.error === "already_saved") {
-      setSavedNow(true);
-    } else if (result.error === "unauthorized") {
-      navigate("/auth");
     } else {
-      toast({
-        title: "Couldn't save analysis",
-        description: result.message || "Please try again.",
-        variant: "destructive",
-      });
+      if (result.error === "premium_required") {
+        setShowUpgrade(true);
+      } else if (result.error === "already_saved") {
+        setSavedNow(true);
+      } else if (result.error === "unauthorized") {
+        navigate("/auth");
+      } else {
+        toast({
+          title: "Couldn't save analysis",
+          description: result.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
