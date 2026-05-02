@@ -1,108 +1,92 @@
-## Problema encontrado
+# HomeLens — End-to-End Blueprint Report
 
-O prompt do agente já foi corrigido, mas ainda existe uma segunda automação no frontend (`src/pages/Chats.tsx`) que ignora essa regra:
+## Goal
 
-- A função `isWorkflowRequest()` trata perguntas como `can I afford`, `buying power`, `monthly payment`, `mortgage`, `ROI`, `down payment`, etc. como gatilhos de Excel.
-- Depois da resposta normal do agente, o frontend faz uma segunda chamada para `ai-chat` pedindo literalmente: `generate a detailed Excel spreadsheet with a workflow_excel uiBlock`.
-- Por isso o Excel continua sendo enviado automaticamente mesmo quando o usuário só pediu uma simulação/cálculo.
+Produce a single comprehensive **Markdown report** (`HomeLens-Blueprint.md`) downloadable from `/mnt/documents/`, designed to be uploaded into your Claude coworker account as project context. Markdown is the best format for LLM ingestion (clean structure, no binary noise, easy to chunk).
 
-## Ajuste proposto
+## Deliverable Format
 
-### 1. Separar “cálculo que merece oferta” de “pedido explícito de Excel”
+- **File:** `/mnt/documents/HomeLens-Blueprint.md` (~30–50 KB)
+- **Companion:** `/mnt/documents/HomeLens-Blueprint.pdf` (human-readable version) — optional second file for visual review
 
-Em `src/pages/Chats.tsx`, substituir a lógica atual por duas intenções diferentes:
+Ask if you'd also like the PDF, or just the .md.
 
-- `isExplicitExcelRequest(text)`: verdadeiro apenas quando o usuário pede claramente Excel/planilha/download/exportação, por exemplo:
-  - “send me the spreadsheet”
-  - “export to Excel”
-  - “generate an xlsx”
-  - “download this”
-  - “crie uma planilha”
+## Report Structure (sections)
 
-- `shouldOfferExcel(text)`: verdadeiro para simulações e cenários complexos em que o agente deve oferecer a planilha, mas não enviar:
-  - buying power
-  - affordability / can I afford
-  - mortgage / monthly payment
-  - ROI, cash flow, cap rate
-  - renovation / remodel / flip budget
-  - amortization / financing plan
-  - closing costs / down payment scenarios
+1. **Executive Summary** — Vision, slogan, target users, value prop
+2. **Tech Stack** — React 18 + Vite + TS, Tailwind, shadcn-ui, Lovable Cloud (Supabase), Lovable AI Gateway
+3. **Brand & Design System** — Color palette (steel blue `#6B8DB5`, dark `#2C3E55`), typography, header standards, mobile UX rules
+4. **Frontend Architecture**
+   - Route map (all 24 pages: Index, Auth, Chats, Console, Investor, Calculators, Pricing, PropertyDetail, Portfolio, Compare, ProfileSetup, ExtensionPrivacy, legal pages, etc.)
+   - Key components by domain (chat, console, portfolio, subscription, ui-blocks, property)
+   - Hooks (useSubscription, useAiCredits, usePropertySearch, useSavedChats, useTypingPlaceholder)
+   - State management (TanStack Query, ComparisonContext)
+   - PWA configuration
+5. **Backend — Edge Functions** (all 31 functions catalogued):
+   - AI: `ai-chat`, `ai-analyze`, `ai-search`, `ai-build-search-spec`, `perplexity-chat`, `property-assistant`, `neighborhood-personality`, `neighborhood-insights`, `compare-properties-ai`, `calculator-insights`, `ai-suggest-location`, `ai-analyze-property`
+   - Property data: `search-listings` (Zillow), `fetch-property` (Firecrawl fallback), `enrich-property`, `market-snapshot`, `market-trends`, `get-state-tax-data`
+   - Subscription: `create-checkout`, `check-subscription`, `customer-portal`, `manage-subscription`
+   - Media/Voice: `elevenlabs-tts`, `realtime-token`, `generate-image`, `generate-property-pdf`
+   - Alerts: `check-property-alerts`, `send-weekly-picks`, `investment-projections`
+   - Utils: `get-mapbox-token`
+   - For each: purpose, inputs, JWT verification status, secrets used
+6. **Database Schema** — All 22 tables documented with columns, RLS policies, relationships
+7. **AI Architecture**
+   - Hybrid model strategy (Gemini 2.5 Flash via Lovable AI Gateway as primary, Perplexity for real-time)
+   - Decision-First communication style rules
+   - Match Score contract (`MATCH_SCORE: X/10`)
+   - UIBlock rendering pipeline (structured JSON → React)
+   - Workflow Excel generation
+   - Personalization activation logic
+8. **External APIs & Connectors**
+   - **Lovable AI Gateway** (Gemini, GPT-5 family) — primary
+   - **Perplexity** (connector) — real-time search
+   - **ElevenLabs** (connector) — TTS voice "Eric"
+   - **Zillow via RapidAPI** — property listings
+   - **Firecrawl** — markdown scraping fallback
+   - **RentCast** — property insights
+   - **Census API** — demographics
+   - **Mapbox** — maps
+   - **Resend** — email alerts
+   - **Stripe** — payments
+   - **Sentry** — error monitoring
+9. **Stripe / Subscriptions**
+   - Tiers: Free ($0), Premium ($4.97)
+   - Currency display logic (USD always; "Real" only appears in Stripe Checkout for BR-located cards)
+   - Feature gates (Portfolio Builder, AI credits, weekly picks, alerts)
+   - Edge functions: checkout, check-subscription, customer-portal, manage-subscription
+10. **Chrome Extension** (`chrome-extension/`)
+    - Manifest V3, Vite (popup) + esbuild IIFE (background/content)
+    - Listing detection logic (confidence scoring on real estate portals)
+    - Visual identity (white house outline, dark `#1E2D3D` injected button)
+    - Dual route strategy (Perplexity vs ai-chat)
+    - Session isolation (per-site `chrome.storage.session`)
+    - Build & publishing workflow (.github/workflows/build-extension.yml)
+11. **Security Posture**
+    - RLS on every user-owned table (`auth.uid()` enforcement)
+    - Secrets management (no hardcoded keys, all via Lovable Cloud)
+    - PWA OAuth fallback denylist
+    - Sentry data masking
+    - Backend hardening (structured logs, `current_setting()` SQL)
+12. **Key Business Logic & Formulas**
+    - Match Score thresholds (Green ≥8, Yellow ≥5, Red <5)
+    - Fair Price Indicator (vs Zestimate)
+    - Investor Calculator (Simple vs Advanced, automatic PMI, separate state/fed gains)
+    - Search cache (15min TTL, stale-while-revalidate)
+13. **File-Level Map** — Tree of important paths with one-line descriptions
+14. **Glossary & Memory Index** — All `.lovable/memory/` rules summarized
+15. **Known Constraints & Removed Features** — No Favorites, no Saved Searches, English only, US Real Estate only
 
-### 2. Remover a geração automática por palavra-chave
+## Process
 
-Remover o bloco atual:
+1. Read remaining key files in parallel: `src/App.tsx` (routes), `chrome-extension/manifest.json`, `src/lib/subscriptionPlans.ts`, edge function index files, `tailwind.config.ts`, `src/index.css`, all `.lovable/memory/*` files
+2. Generate `HomeLens-Blueprint.md` via a single write script
+3. Verify file size + section completeness
+4. Emit `<lov-artifact>` for download
 
-```text
-if (isWorkflowRequest(cleanedMessage)) {
-  ... generate a detailed Excel spreadsheet with a workflow_excel uiBlock ...
-}
-```
+## Notes
 
-Esse bloco é a causa direta do envio automático.
-
-### 3. Gerar Excel somente quando houver solicitação/aceite
-
-Criar uma função de controle que permite o Excel apenas quando:
-
-- O usuário pediu explicitamente Excel/planilha/download no texto atual; ou
-- A mensagem anterior do agente ofereceu a planilha e o usuário respondeu afirmativamente (`yes`, `sure`, `please`, `go ahead`, `send it`, `sim`, `pode`, `envie`, etc.).
-
-Fluxo esperado:
-
-```text
-Usuário: Can I afford a $700k house with $180k income?
-Agente: resposta com tabela markdown + oferta: “Want me to put this into a downloadable Excel spreadsheet?”
-Usuário: yes
-Agente: agora envia o Excel
-```
-
-### 4. Garantir que cálculos venham em tabela no chat
-
-Manter a resposta principal vindo do `perplexity-chat`, que já tem a regra `NUMERIC SUMMARY FORMAT`.
-
-No frontend, quando `shouldOfferExcel(cleanedMessage)` for verdadeiro e a resposta ainda não tiver uma oferta de planilha, acrescentar ao fim da mensagem:
-
-```text
-Want me to put this into a downloadable Excel spreadsheet?
-```
-
-Assim o comportamento fica determinístico:
-
-- Simulação/cálculo: resposta em tabela no chat + oferta opcional.
-- Aceite/pedido explícito: gera e mostra o bloco Excel.
-
-### 5. Ajustar a chamada de geração de Excel
-
-Quando o Excel for permitido, a chamada para `ai-chat` será mantida, mas com contexto seguro:
-
-- Enviar a mensagem do usuário atual.
-- Enviar a análise anterior quando existir.
-- Pedir `workflow_excel` apenas porque a condição de opt-in já foi atendida.
-- Não disparar essa chamada para cálculos comuns sem aceite.
-
-### 6. Atualizar memória da funcionalidade
-
-Atualizar `mem://funcionalidades/geracao-de-excel-de-workflow` para registrar:
-
-- Frontend não pode auto-gerar Excel por keyword.
-- Keywords de cálculo apenas autorizam oferta, não envio.
-- Excel só é enviado por solicitação explícita ou aceite a uma oferta anterior.
-- Cálculos devem aparecer primeiro como tabela markdown no chat.
-
-## Arquivos a alterar
-
-- `src/pages/Chats.tsx`
-  - substituir `isWorkflowRequest`
-  - remover geração automática por keyword
-  - adicionar detecção de pedido explícito/aceite
-  - adicionar oferta controlada em respostas de cálculo
-
-- `.lovable/memory/funcionalidades/geracao-de-excel-de-workflow`
-  - documentar a regra final da funcionalidade
-
-## Fora de escopo
-
-- Não alterar banco de dados.
-- Não alterar componentes visuais de Excel.
-- Não alterar o renderer de markdown/tabelas, pois já está conectado com `remark-gfm`.
-- Não mexer nos limites diários ou assinatura.
+- **No code changes** to the app itself — this is purely a documentation export
+- Output is **LLM-optimized** (clear headings, tables, fenced code blocks, no emojis in headings, consistent depth)
+- I will **not** include secret values, only secret names
+- Estimated time: single message after approval
