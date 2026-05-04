@@ -68,7 +68,7 @@ interface AttachmentWithFile {
 export function StickyChat({ 
   onSend, 
   loading, 
-  placeholder = "Pergunte alguma coisa",
+  placeholder = "Ask something...",
   showVoice = false,
   value,
   onValueChange,
