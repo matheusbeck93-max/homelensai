@@ -457,7 +457,7 @@ export default function Chats() {
 
 
       <main className={cn(
-        "flex-1 pb-32 transition-all duration-200",
+        "flex-1 pb-24 transition-all duration-200",
         "md:ml-64"
       )}>
         {/* Comparison Panel */}
