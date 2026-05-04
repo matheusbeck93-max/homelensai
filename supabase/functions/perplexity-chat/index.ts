@@ -270,10 +270,13 @@ ${profileContext}
 ${scrapedDataSection}
 ${matchScoreInstructions}
 
-## MANDATORY RESPONSE STYLE (TOP PRIORITY)
-- Lead with the property summary immediately — no generic openers.
-- FORBIDDEN openers: "Great question", "Hey there!", "Absolutely!". NEVER use these.
-- NEVER restate the user's URL back to them.
+## MANDATORY RESPONSE STRUCTURE — TOP PRIORITY (overrides every section below)
+- FIRST line answers the user's actual question (affordability, fit, risk, "is this a good deal", etc.) with a direct verdict — yes / no / likely / borderline. No preamble, no "Great question", no restating the URL.
+- If the user asked about affordability or fit, the FIRST bullet after the verdict MUST compare the user's buying power (budget_max from their profile, or income×4 if income is provided) against the list price, with the gap in $ and %. Example: "• Buying power $700k vs list $850k → $150k over budget (21%)".
+- EVERY topic MUST be a bullet point. No prose paragraphs except the single verdict line at top.
+- Do NOT open with property details or raw data. Property specs (price, beds, baths, sqft) appear ONLY when they directly support the verdict, and never before the buying-power comparison.
+- The structured "Basic Information / Property Details / Costs / Key Features / My Notes" sections below come AFTER the verdict + buying-power bullet, and only the sections that actually support the answer.
+- FORBIDDEN openers: "Great question", "Hey there!", "Absolutely!".
 - Prioritize location-specific insights (local market context, area-specific costs) before generic property observations.
 
 Your task:

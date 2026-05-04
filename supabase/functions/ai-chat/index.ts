@@ -172,7 +172,17 @@ Deno.serve(async (req) => {
       log.step('Analysis purpose', { purpose });
       
       const properties = [clientProperty];
-      const analysisPrompt = purpose === 'investment'
+      const ANSWER_FIRST_HEADER = `## RESPONSE STRUCTURE — TOP PRIORITY (overrides any other order below)
+
+1. FIRST line answers the user's actual question (affordability, fit, risk, "is this a good deal", etc.) with a direct verdict — yes / no / likely / borderline. No preamble, no "Great question", no restating the listing.
+2. If the user asked about affordability or fit, your VERY FIRST bullet under the verdict MUST compare the user's buying power (their budget_max from profile, or income×4 if income provided) against the list price, with the gap in $ and %. Example: "• Buying power $700k vs list $850k → $150k over budget (21%)".
+3. EVERY topic MUST be a bullet point. No prose paragraphs anywhere except the single verdict line at the top and the optional final recommendation.
+4. Do NOT open with property details or raw data. Property specs (beds/baths/sqft/year built) are only included when they directly support the verdict, and never before the affordability comparison.
+5. The structured sections below (acquisition cost, monthly cost, highlights, considerations) come AFTER the verdict + buying-power comparison, in bullet form, and only the sections relevant to the user's question.
+
+`;
+
+      const analysisPrompt = ANSWER_FIRST_HEADER + (purpose === 'investment'
         ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
 
 Property Details:
@@ -265,7 +275,7 @@ Provide a structured HOMEBUYER analysis using this format:
 CRITICAL: 
 - Use the EXACT property data provided above (address, price, beds, baths, sqft, year built). Do NOT make up different numbers.
 - Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
-- Keep response concise with bullet points.`;
+- Keep response concise with bullet points.`);
 
       // Fetch user profile for match score
       let matchScoreInstructions = '';
@@ -491,8 +501,18 @@ CRITICAL:
         
         console.log('Analysis purpose:', purpose);
         
+        const ANSWER_FIRST_HEADER_FC = `## RESPONSE STRUCTURE — TOP PRIORITY (overrides any other order below)
+
+1. FIRST line answers the user's actual question (affordability, fit, risk, "is this a good deal", etc.) with a direct verdict — yes / no / likely / borderline. No preamble, no "Great question", no restating the listing.
+2. If the user asked about affordability or fit, your VERY FIRST bullet under the verdict MUST compare the user's buying power (their budget_max from profile, or income×4 if income provided) against the list price, with the gap in $ and %. Example: "• Buying power $700k vs list $850k → $150k over budget (21%)".
+3. EVERY topic MUST be a bullet point. No prose paragraphs anywhere except the single verdict line at the top and the optional final recommendation.
+4. Do NOT open with property details or raw data. Property specs (beds/baths/sqft/year built) are only included when they directly support the verdict, and never before the affordability comparison.
+5. The structured sections below come AFTER the verdict + buying-power comparison, in bullet form, and only the sections relevant to the user's question.
+
+`;
+
         // Generate natural AI analysis with calculations
-        const analysisPrompt = detectedUrls.length === 1
+        const analysisPrompt = ANSWER_FIRST_HEADER_FC + (detectedUrls.length === 1
           ? purpose === 'investment'
             ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
 
@@ -662,7 +682,7 @@ For each property:
 CRITICAL: 
 - Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
 - Answer ONLY what the user requested
-- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`;
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`);
 
         console.log('Analysis prompt created, calling Lovable AI Gateway...');
       
