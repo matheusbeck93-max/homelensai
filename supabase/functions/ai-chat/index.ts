@@ -682,7 +682,7 @@ For each property:
 CRITICAL: 
 - Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
 - Answer ONLY what the user requested
-- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`;
+- If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`);
 
         console.log('Analysis prompt created, calling Lovable AI Gateway...');
       
