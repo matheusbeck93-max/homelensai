@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText, Image as ImageIcon } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import { SaveAnalysisButton } from "@/components/chat/SaveAnalysisButton";
+import { MessageActions } from "@/components/chat/MessageActions";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
@@ -148,6 +149,28 @@ export default function Chats() {
   const [showComparison, setShowComparison] = useState(false);
   const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState<string | null>(null);
   const [userPrimaryGoal, setUserPrimaryGoal] = useState<string | null>(null);
+  const [pendingInput, setPendingInput] = useState<string>("");
+  // Edit a previously-sent user message:
+  // - Remove that user message and the assistant reply that immediately followed it (if any)
+  // - Populate the input with the original text so the user can adjust and re-submit
+  // - On re-submit, the normal send flow re-runs the query, replacing the prior assistant response
+  const handleEditUserMessage = useCallback((messageId: string) => {
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === messageId);
+      if (idx === -1) return prev;
+      const target = prev[idx];
+      // Drop the user message and any assistant messages immediately after it (until next user msg)
+      let dropUntil = idx + 1;
+      while (dropUntil < prev.length && prev[dropUntil].role === "assistant") {
+        dropUntil += 1;
+      }
+      const next = [...prev.slice(0, idx), ...prev.slice(dropUntil)];
+      // Populate the input outside this updater
+      queueMicrotask(() => setPendingInput(target.content));
+      return next;
+    });
+  }, [setMessages]);
+
 
   // Load user's primary goal for contextual AI
   useEffect(() => {
@@ -519,11 +542,18 @@ export default function Chats() {
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
 
                 <div
-                  className={`max-w-[85%] rounded-lg px-4 py-3 ${
+                  className={`relative group/bubble max-w-[85%] rounded-lg px-4 py-3 ${
                   message.role === 'user' ?
                   'bg-primary text-primary-foreground' :
                   'bg-muted'}`
                   }>
+                  {message.role === 'user' && message.content && (
+                    <MessageActions
+                      text={message.content}
+                      side="right"
+                      onEdit={() => handleEditUserMessage(message.id)}
+                    />
+                  )}
 
                   {/* Attachment badges for user messages */}
                   {message.role === 'user' && message.attachments && message.attachments.length > 0 && (
@@ -672,8 +702,10 @@ export default function Chats() {
         <StickyChat
           onSend={handleSendMessage}
           loading={loading}
-          placeholder="Ask something..."
-          showVoice={true} />
+          placeholder="Pergunte alguma coisa"
+          showVoice={true}
+          value={pendingInput}
+          onValueChange={setPendingInput} />
 
       </div>
     </div>);
