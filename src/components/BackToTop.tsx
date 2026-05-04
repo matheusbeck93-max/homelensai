@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function BackToTop() {
   const [isVisible, setIsVisible] = useState(false);
+  const { pathname } = useLocation();
+  // Hide on chat page — the floating button overlaps the chat input area.
+  const hideOnRoute = pathname.startsWith("/chats");
 
   useEffect(() => {
     const toggleVisibility = () => {
@@ -31,7 +35,7 @@ export function BackToTop() {
 
   return (
     <>
-      {isVisible && (
+      {isVisible && !hideOnRoute && (
         <Button
           onClick={scrollToTop}
           size="icon"
