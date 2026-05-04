@@ -234,8 +234,13 @@ export function StickyChat({
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t z-50 pb-safe transition-colors ${isDragging ? 'ring-2 ring-primary ring-inset bg-primary/5' : ''}`}
+      className={`fixed bottom-0 left-0 right-0 z-50 pb-safe pointer-events-none transition-colors ${isDragging ? 'bg-primary/5' : ''}`}
     >
+      {/* Soft fade so messages dissolve into the input area instead of hitting a hard border */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-8 h-8 bg-gradient-to-b from-transparent to-background"
+      />
       {isDragging && (
         <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm z-10 pointer-events-none rounded">
           <div className="flex flex-col items-center gap-2 text-primary">
@@ -244,7 +249,7 @@ export function StickyChat({
           </div>
         </div>
       )}
-      <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+      <div className="w-full max-w-3xl mx-auto px-4 pb-3 pt-1 pointer-events-auto bg-background">
         {/* Attachments preview */}
         {attachments.length > 0 && (
           <div className="mb-2 space-y-1.5">
@@ -280,7 +285,7 @@ export function StickyChat({
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-1.5 sm:gap-2 bg-muted/60 border border-border rounded-3xl shadow-sm px-2 py-1.5 sm:px-2.5 sm:py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background transition-all"
+          className="flex items-end gap-1.5 sm:gap-2 bg-muted/50 rounded-3xl px-2 py-1.5 sm:px-2.5 sm:py-2 focus-within:bg-muted/70 transition-colors"
         >
           <input
             ref={fileInputRef}
