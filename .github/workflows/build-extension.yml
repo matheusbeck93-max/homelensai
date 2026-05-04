@@ -38,27 +38,23 @@ jobs:
           echo "✅ Build output verified:"
           ls -la chrome-extension/dist/
 
-      - name: Create ZIP package
-        run: |
-          cd chrome-extension/dist
-          zip -r ../../homelens-extension.zip .
-          echo "✅ ZIP created successfully"
-          ls -lh ../../homelens-extension.zip
-
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
           name: homelens-extension
-          path: homelens-extension.zip
+          path: chrome-extension/dist/
           retention-days: 30
 
       - name: Build summary
         run: |
           echo "## ✅ HomeLens Extension — Build concluído" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Como instalar no Chrome:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Clique em **Actions** no repositório, abra este workflow" >> $GITHUB_STEP_SUMMARY
-          echo "2. Na seção **Artifacts**, baixe **homelens-extension** e descompacte o ZIP" >> $GITHUB_STEP_SUMMARY
-          echo "3. Abra **chrome://extensions**, ative **Developer Mode**, clique **Load unpacked** e selecione a pasta descompactada" >> $GITHUB_STEP_SUMMARY
+          echo "### Como instalar no Chrome (modo Developer):" >> $GITHUB_STEP_SUMMARY
+          echo "1. Em **Actions**, abra este workflow e baixe o artifact **homelens-extension** (vem como ZIP)." >> $GITHUB_STEP_SUMMARY
+          echo "2. Descompacte o ZIP — \`manifest.json\` deve estar na raiz." >> $GITHUB_STEP_SUMMARY
+          echo "3. Em **chrome://extensions**, ative **Developer Mode**, clique em **Load unpacked** e selecione a pasta." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Como subir na Chrome Web Store:" >> $GITHUB_STEP_SUMMARY
+          echo "- O ZIP baixado do artifact já está pronto para upload (\`manifest.json\` na raiz)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> A extensão ficará disponível para download por 30 dias." >> $GITHUB_STEP_SUMMARY
