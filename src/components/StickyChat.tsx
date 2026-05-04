@@ -285,7 +285,7 @@ export function StickyChat({
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-1.5 sm:gap-[8px] bg-muted/50 border border-border/60 rounded-3xl px-[10px] sm:px-[11px] py-1.5 sm:py-2 focus-within:bg-muted/70 focus-within:border-border transition-colors w-full mx-auto"
+          className="flex items-end gap-1.5 sm:gap-[8px] bg-muted/50 border border-border/60 rounded-3xl px-[10px] sm:px-[11px] py-1.5 sm:py-2 focus-within:bg-muted/70 focus-within:border-border transition-colors w-full mx-[116px]"
         >
           <input
             ref={fileInputRef}
