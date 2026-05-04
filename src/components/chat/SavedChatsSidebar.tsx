@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +32,9 @@ import {
   Save,
   Pencil,
   Check,
-  X
+  X,
+  Settings,
+  User as UserIcon
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -69,6 +73,7 @@ export function SavedChatsSidebar({
   onClearAllConversations,
   onLogin
 }: SavedChatsSidebarProps) {
+  const navigate = useNavigate();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
@@ -246,7 +251,7 @@ export function SavedChatsSidebar({
               </p>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
               <div className="p-2 space-y-1">
                 {conversations.map((conversation) => (
                   <div
@@ -309,6 +314,39 @@ export function SavedChatsSidebar({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* User Profile (sticky bottom) */}
+          {user && (
+            <div className="mt-auto border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <button
+                type="button"
+                onClick={() => navigate("/console")}
+                className="w-full flex items-center gap-3 px-3 py-3 hover:bg-accent transition-colors text-left"
+                title="Account & settings"
+              >
+                <Avatar className="h-9 w-9 shrink-0">
+                  <AvatarImage
+                    src={user.user_metadata?.avatar_url}
+                    alt={user.user_metadata?.full_name || user.email}
+                  />
+                  <AvatarFallback>
+                    {(user.user_metadata?.full_name || user.email || "U")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {user.user_metadata?.full_name || user.email?.split("@")[0]}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user.email}
+                  </p>
+                </div>
+                <Settings className="h-4 w-4 text-muted-foreground shrink-0" />
+              </button>
             </div>
           )}
         </div>
