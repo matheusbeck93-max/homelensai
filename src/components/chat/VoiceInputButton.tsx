@@ -27,9 +27,10 @@ interface SpeechRecognitionInstance extends EventTarget {
 interface VoiceInputButtonProps {
   onTranscript: (text: string) => void;
   disabled?: boolean;
+  compact?: boolean;
 }
 
-export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonProps) {
+export function VoiceInputButton({ onTranscript, disabled, compact = true }: VoiceInputButtonProps) {
   const { toast } = useToast();
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
@@ -122,17 +123,21 @@ export function VoiceInputButton({ onTranscript, disabled }: VoiceInputButtonPro
   return (
     <Button
       type="button"
-      variant={isListening ? "destructive" : "outline"}
+      variant={isListening ? "destructive" : "ghost"}
       size="icon"
       onClick={toggleListening}
       disabled={disabled}
-      className="h-[44px] w-[44px] sm:h-[52px] sm:w-[52px] md:h-[60px] md:w-[60px] flex-shrink-0"
+      className={
+        compact
+          ? "h-9 w-9 sm:h-10 sm:w-10 rounded-full flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-background"
+          : "h-[44px] w-[44px] sm:h-[52px] sm:w-[52px] md:h-[60px] md:w-[60px] flex-shrink-0"
+      }
       title={isListening ? "Stop listening" : "Voice input"}
     >
       {isListening ? (
-        <MicOff className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 animate-pulse" />
+        <MicOff className="h-4 w-4 sm:h-5 sm:w-5 animate-pulse" />
       ) : (
-        <Mic className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+        <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
       )}
     </Button>
   );

@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, Sparkles, Plus, X, FileText, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Sparkles, Plus, X, FileText, Image as ImageIcon, AlertTriangle, AudioLines } from "lucide-react";
 import { VoiceInputButton } from "@/components/chat/VoiceInputButton";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,6 +29,10 @@ interface StickyChatProps {
   loading?: boolean;
   placeholder?: string;
   showVoice?: boolean;
+  /** External value to populate the input (e.g., when editing a previous user message). */
+  value?: string;
+  /** Notify parent when the user clears/edits the controlled value. */
+  onValueChange?: (value: string) => void;
 }
 
 function getFileIcon(mimeType: string) {
@@ -64,23 +68,45 @@ interface AttachmentWithFile {
 export function StickyChat({ 
   onSend, 
   loading, 
-  placeholder = "Ask something",
-  showVoice = false
+  placeholder = "Pergunte alguma coisa",
+  showVoice = false,
+  value,
+  onValueChange,
 }: StickyChatProps) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<AttachmentWithFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounter = useRef(0);
   const { toast } = useToast();
+
+  // Allow parent to inject text (e.g., when editing a prior user message)
+  useEffect(() => {
+    if (typeof value === "string" && value !== input) {
+      setInput(value);
+      // Focus textarea so user can immediately edit
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+        const len = value.length;
+        textareaRef.current?.setSelectionRange(len, len);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  const updateInput = (next: string) => {
+    setInput(next);
+    onValueChange?.(next);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && attachments.length === 0) || loading) return;
     const chatAttachments = attachments.map(a => a.attachment);
     onSend(input.trim(), chatAttachments.length > 0 ? chatAttachments : undefined);
-    setInput("");
+    updateInput("");
     setAttachments([]);
   };
 
@@ -92,7 +118,7 @@ export function StickyChat({
   };
 
   const handleVoiceTranscript = (transcript: string) => {
-    setInput(transcript);
+    updateInput(transcript);
   };
 
   const handleFileClick = () => {
@@ -218,7 +244,7 @@ export function StickyChat({
           </div>
         </div>
       )}
-      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-3">
+      <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
         {/* Attachments preview */}
         {attachments.length > 0 && (
           <div className="mb-2 space-y-1.5">
@@ -252,7 +278,10 @@ export function StickyChat({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex gap-1.5 sm:gap-2">
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-end gap-1.5 sm:gap-2 bg-muted/60 border border-border rounded-3xl shadow-sm px-2 py-1.5 sm:px-2.5 sm:py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background transition-all"
+        >
           <input
             ref={fileInputRef}
             type="file"
@@ -267,37 +296,45 @@ export function StickyChat({
             size="icon"
             onClick={handleFileClick}
             disabled={loading || attachments.length >= MAX_FILES}
-            className="h-[44px] w-[44px] sm:h-[52px] sm:w-[52px] md:h-[60px] md:w-[60px] flex-shrink-0"
-            title={`Upload files (${attachments.length}/${MAX_FILES})`}
+            className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-background"
+            title={`Add attachment (${attachments.length}/${MAX_FILES})`}
+            aria-label="Add attachment"
           >
-            <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Plus className="h-5 w-5" />
           </Button>
 
           <Textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => updateInput(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder={attachments.length > 0 ? "Ask a question about these files..." : placeholder}
             disabled={loading}
-            className="min-h-[44px] sm:min-h-[52px] md:min-h-[60px] max-h-[80px] sm:max-h-[100px] md:max-h-[120px] resize-none text-xs sm:text-sm md:text-base"
-            rows={2}
+            className="flex-1 min-h-[40px] sm:min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 py-2 text-sm sm:text-base placeholder:text-muted-foreground/70"
+            rows={1}
           />
+
           {showVoice && (
-            <VoiceInputButton 
-              onTranscript={handleVoiceTranscript}
-              disabled={loading}
-            />
+            <div className="flex-shrink-0">
+              <VoiceInputButton
+                onTranscript={handleVoiceTranscript}
+                disabled={loading}
+              />
+            </div>
           )}
-          <Button 
+
+          <Button
             type="submit"
             disabled={loading || (!input.trim() && attachments.length === 0)}
             size="icon"
-            className="h-[44px] w-[44px] sm:h-[52px] sm:w-[52px] md:h-[60px] md:w-[60px] flex-shrink-0"
+            className="h-9 w-9 sm:h-10 sm:w-10 rounded-full flex-shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+            aria-label="Send message"
+            title="Send"
           >
             {loading ? (
-              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 animate-pulse" />
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 animate-pulse" />
             ) : (
-              <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+              <AudioLines className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
           </Button>
         </form>
