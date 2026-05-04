@@ -16,7 +16,7 @@ export default function DoNotSell() {
         </Button>
 
         <h1 className="text-4xl font-bold mb-2">Do Not Sell or Share My Personal Information</h1>
-        <p className="text-sm text-muted-foreground mb-8">Effective Date: 02/13/2026 · Homelens.ai LLC</p>
+        <p className="text-sm text-muted-foreground mb-8">Effective Date: 05/04/2026 · Homelens.ai LLC</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
           <section>
@@ -40,7 +40,7 @@ export default function DoNotSell() {
             <p className="text-muted-foreground">If you would like to exercise your right to opt out, you may:</p>
             <ul className="list-disc pl-6 text-muted-foreground space-y-1">
               <li>Enable the Global Privacy Control (GPC) signal in your browser.</li>
-              <li>Email us at: privacy@homelens.ai with the subject line "Do Not Sell or Share My Information."</li>
+              <li>Email us at: <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a> with the subject line "Do Not Sell or Share My Information."</li>
             </ul>
           </section>
 
@@ -51,7 +51,7 @@ export default function DoNotSell() {
 
           <section>
             <h2 className="text-xl font-semibold">Contact Information</h2>
-            <p className="text-muted-foreground">Homelens.ai LLC · Virginia · privacy@homelens.ai</p>
+            <p className="text-muted-foreground">Homelens.ai LLC · Virginia · <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a></p>
           </section>
         </div>
       </div>

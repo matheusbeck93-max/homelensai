@@ -16,7 +16,7 @@ export default function Accessibility() {
         </Button>
 
         <h1 className="text-4xl font-bold mb-2">Accessibility Statement</h1>
-        <p className="text-sm text-muted-foreground mb-8">Effective Date: 02/13/2026 · Homelens.ai LLC</p>
+        <p className="text-sm text-muted-foreground mb-8">Effective Date: 05/04/2026 · Homelens.ai LLC</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
           <section>
@@ -61,7 +61,7 @@ export default function Accessibility() {
 
           <section>
             <h2 className="text-xl font-semibold">9. Contact</h2>
-            <p className="text-muted-foreground">For accessibility concerns, please contact us at accessibility@homelens.ai</p>
+            <p className="text-muted-foreground">For accessibility concerns, please contact us at <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a>.</p>
           </section>
         </div>
       </div>

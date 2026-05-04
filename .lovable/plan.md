@@ -1,82 +1,93 @@
-Saved Analyses — Implementation Plan (confirmed)
+## Atualização dos Documentos Legais
 
-## Confirmed decisions
+Atualizar os 9 documentos legais do sistema para refletir as funcionalidades reais, padronizar contato e adicionar seções obrigatórias de compliance.
 
-1. **Score scale:** store `investment_score` as **0–100** (MATCH_SCORE × 10).
-2. **Save button gate:** only renders on assistant messages with a parsed `MATCH_SCORE` (real property analyses) — never on generic chat replies or multi-property carousels.
+### Decisões confirmadas
+- **Email único de contato:** `h2@homelens-ai.com` em todos os documentos (substitui `dmca@`, `privacy@`, `support@`, `accessibility@`, `legal@`, e variações de domínio `@homelens.ai` / `@homelensais.com`)
+- **Premium:** $9.97 (corrigido de $4.97)
+- **Subprocessadores nomeados** na Privacy Policy
+- **Effective Date:** 05/04/2026 (data de hoje)
 
-## Database (migration)
+---
 
-`public.saved_analyses` — fields per spec, with these refinements:
+### 1. Padronização global (todos os 9 documentos + Footer)
 
-- `investment_score INTEGER` storing 0–100.
-- 4 separate RLS policies (SELECT/INSERT/UPDATE/DELETE) using `auth.uid() = user_id`.
-- Partial unique index `(user_id, property_url) WHERE property_url IS NOT NULL` to enforce no-duplicate-by-URL.
-- `updated_at` trigger reusing existing `update_updated_at_column()`.
+Substituir todos os emails existentes por `h2@homelens-ai.com`:
+- `dmca@homelens.ai` / `dmca@homelensais.com`
+- `privacy@homelens.ai` / `privacy@homelensais.com`
+- `support@homelens.ai` / `support@homelensais.com`
+- `accessibility@homelens.ai`
+- `legal@homelens.ai`
+- Qualquer outra variação encontrada
 
-## Edge function — `supabase/functions/save-analysis/index.ts`
+Atualizar **Effective Date** de "02/13/2026" para "05/04/2026" em todos os documentos.
 
-- POST, validates JWT in code, shared `corsHeaders`, pinned esm.sh deps, structured logging.
-- Zod validation of body. `investmentScore` accepted as 0–100 integer.
-- Loads `profiles.subscription_status` → if not `premium`, return 403 `{ error: 'premium_required' }`.
-- Duplicate check by `(user_id, property_url)` → 409 `{ error: 'already_saved' }`.
-- Inserts row → returns `{ success: true, id }`.
+---
 
-## Hook — `src/hooks/useSavedAnalyses.ts`
+### 2. `TermsOfService.tsx`
+- Adicionar seção **"Contact Us"** com `h2@homelens-ai.com`
+- Adicionar seção **"Subscription, Billing & Refunds"**:
+  - Plano Free ($0) e Premium ($9.97/mês)
+  - Renovação automática mensal
+  - Cancelamento a qualquer momento (acesso até o fim do ciclo)
+  - Política de reembolso (sem reembolso pró-rata; reembolso total em até 7 dias se nenhum recurso premium foi usado)
+  - Pagamento processado por Stripe
+- Adicionar menção a recursos: **Saved Analyses, Investor Calculator, Chrome Extension, Voice Input/TTS, AI Chat**
+- Adicionar **Acceptable Use** (não automatizar scraping, não revender output da IA, não usar para discriminação habitacional)
 
-`fetchSavedAnalyses`, `saveAnalysis` (via `supabase.functions.invoke('save-analysis')`), `deleteAnalysis`, `updateNote`. Loading/error state, optimistic delete + note updates.
+### 3. `PrivacyPolicy.tsx`
+- Adicionar seção **"Subprocessors"** listando:
+  - **Lovable Cloud (Supabase)** — banco de dados, autenticação, storage
+  - **Google AI (Gemini via Lovable AI Gateway)** — processamento de chat
+  - **Perplexity** — buscas em tempo real e dados de mercado
+  - **ElevenLabs** — síntese de voz (TTS)
+  - **Stripe** — processamento de pagamentos
+  - **Firecrawl** — extração de dados de listagens
+  - **RapidAPI / Zillow56** — dados de imóveis
+  - **Mapbox** — mapas
+  - **Sentry** — monitoramento de erros
+- Adicionar seção **"Voice Data"**: input de voz transcrito, áudio TTS efêmero (não armazenado)
+- Adicionar seção **"File Attachments"**: PDFs e imagens em chat (até 5 arquivos, 10MB), processados pela IA, não retidos após sessão
+- Adicionar **"Chat Prompts"**: prompts enviados a Google/Perplexity, conteúdo do imóvel também
+- Atualizar contato para `h2@homelens-ai.com`
 
-## Save button — `src/components/chat/SaveAnalysisButton.tsx`
+### 4. `CookiePolicy.tsx`
+- Adicionar seção **"Contact Us"** com `h2@homelens-ai.com`
+- Listar cookies específicos:
+  - **Essenciais:** `sb-*` (autenticação Supabase), `theme` (preferência de tema), `cookie-consent` (banner)
+  - **Analytics:** Sentry (monitoramento de erros)
+  - **Sessão:** `chrome.storage.session` (extensão Chrome)
+- Esclarecer que NÃO usamos cookies de publicidade ou tracking de terceiros
 
-- Props: `{ analysis, source: 'app' }`.
-- States: idle (Bookmark + "Save Analysis"), loading (spinner), saved (BookmarkCheck + "Saved", green, disabled), free (opens upgrade modal / routes to `/pricing`).
-- Pre-checks saved status via cached hook list.
-- Mounted in `src/pages/Chats.tsx` only when the assistant message contains a parsed `MATCH_SCORE`. Score persisted as `match × 10`.
+### 5. `CCPA.tsx`
+- Adicionar **dados de voz** nas categorias sensíveis
+- Listar **subprocessadores reais** (alinhado à Privacy Policy)
+- Atualizar contato para `h2@homelens-ai.com`
 
-## Page — `src/pages/SavedAnalyses.tsx` (route `/saved-analyses`, Protected + lazy)
+### 6. `DoNotSell.tsx`, `DMCAPolicy.tsx`, `FairHousing.tsx`, `Accessibility.tsx`, `ExtensionPrivacy.tsx`
+- Substituir email de contato por `h2@homelens-ai.com`
+- Atualizar Effective Date
+- `ExtensionPrivacy.tsx`: confirmar que menciona session isolation (`chrome.storage.session`) e ausência de tracking entre sites
 
-- Header: title, subtitle, count, sort (Newest / Highest score), search by address/URL.
-- Cards: source pill (App/Extension), saved date, three-dot menu (Add note / Delete), score circle (green ≥80, yellow ≥50, red <50 — mapping the existing Match Score thresholds to 0–100), up to 4 metric chips (Cap Rate, Cash-on-Cash, Net Cash Flow, DSCR), 3-line summary + Read more, footer (View Full Analysis dialog, Open Property, inline editable note).
-- Dialog: full markdown summary, all metrics, score, editable note, Open URL, Delete.
-- Empty state: Bookmark icon + copy + "Go to Chat" → `/chats`.
-- Free state: header renders, body shows lock card + "Upgrade to Premium" → `/pricing`.
+### 7. Footer / componentes que exibem email
+- Verificar se há email hardcoded no Footer ou em outras páginas (Contact, About) e substituir por `h2@homelens-ai.com`
 
-## Navigation & console
+---
 
-- Add "Saved Analyses" entry in `Navigation.tsx` (desktop + mobile drawer), between Chats and Calculators. Visible to all logged-in users (free sees gated state).
-- `OverviewPanel.tsx`: add a Saved Analyses summary card with count + link.
+### Arquivos a editar
+- `src/pages/legal/TermsOfService.tsx`
+- `src/pages/legal/PrivacyPolicy.tsx`
+- `src/pages/legal/CookiePolicy.tsx`
+- `src/pages/legal/CCPA.tsx`
+- `src/pages/legal/DoNotSell.tsx`
+- `src/pages/legal/DMCAPolicy.tsx`
+- `src/pages/legal/FairHousing.tsx`
+- `src/pages/legal/Accessibility.tsx`
+- `src/pages/legal/ExtensionPrivacy.tsx`
+- `src/components/Footer.tsx` (se aplicável)
+- Eventuais outros pontos com email hardcoded (verificar via busca global)
 
-## Chrome extension — `chrome-extension/popup.tsx`
-
-- After a property-analysis response in `ChatScreen`, render Save button (dark `#1E2D3D`, matching brand).
-- Reuses `homelens_session.access_token` from `chrome.storage.local`.
-- POSTs to `${SUPABASE_URL}/functions/v1/save-analysis` with `source: 'extension'` and active tab URL/title.
-- Success → inline "Analysis saved to your HomeLens account" + "View all saved analyses →" opens `https://homelensais.com/saved-analyses`.
-- 403 → upgrade message linking to `/pricing`. 409 → "Already saved" + view-all link.
-- No other extension logic touched.
-
-## Memory updates
-
-- Add new memory file documenting Saved Analyses (Premium feature, score scale 0–100, gated by MATCH_SCORE, app + extension sources).
-- Update `mem://index.md` Core to clarify: "Saved **Analyses** is allowed and distinct from the removed Favorites/Saved Searches."
-
-## Files to create
-
-- `supabase/migrations/<ts>_saved_analyses.sql`
-- `supabase/functions/save-analysis/index.ts`
-- `src/hooks/useSavedAnalyses.ts`
-- `src/components/chat/SaveAnalysisButton.tsx`
-- `src/pages/SavedAnalyses.tsx`
-
-## Files to edit (minimal)
-
-- `src/App.tsx` — lazy route `/saved-analyses` under `ProtectedRoute`.
-- `src/components/Navigation.tsx` — nav item (desktop + mobile).
-- `src/pages/Chats.tsx` — render `<SaveAnalysisButton>` below assistant messages with MATCH_SCORE.
-- `src/components/console/OverviewPanel.tsx` — Saved Analyses card.
-- `chrome-extension/popup.tsx` — Save button + confirmation UI.
-- `.lovable/memory/index.md` + new memory file.
-
-## Out of scope
-
-No changes to AI prompts, chat logic, UIBlock renderers, calculators, auth, other edge functions, Stripe, or new dependencies.
+### Fora do escopo
+- Tradução para outros idiomas (mantém inglês conforme regra do projeto)
+- Mudanças visuais nos documentos (apenas conteúdo)
+- Aprovação jurídica formal (recomendo revisão por advogado antes de publicar)

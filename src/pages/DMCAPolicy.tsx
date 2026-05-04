@@ -16,7 +16,7 @@ export default function DMCAPolicy() {
         </Button>
 
         <h1 className="text-4xl font-bold mb-2">DMCA Policy</h1>
-        <p className="text-sm text-muted-foreground mb-8">Effective Date: 02/13/2026 · Homelens.ai LLC</p>
+        <p className="text-sm text-muted-foreground mb-8">Effective Date: 05/04/2026 · Homelens.ai LLC</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
           <section>
@@ -40,7 +40,7 @@ export default function DMCAPolicy() {
           <section>
             <h2 className="text-xl font-semibold">3. DMCA Agent</h2>
             <p className="text-muted-foreground">All DMCA notices should be sent to:</p>
-            <p className="text-muted-foreground">Homelens.ai LLC<br />Attn: DMCA Agent<br />Email: dmca@homelens.ai</p>
+            <p className="text-muted-foreground">Homelens.ai LLC<br />Attn: DMCA Agent<br />Email: <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a></p>
           </section>
 
           <section>

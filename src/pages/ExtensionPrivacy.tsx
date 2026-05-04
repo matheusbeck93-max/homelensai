@@ -17,7 +17,7 @@ export default function ExtensionPrivacy() {
 
         <h1 className="text-4xl font-bold mb-2">Chrome Extension Privacy Policy</h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Effective Date: 05/01/2026 · HomeLens — AI Real Estate Advisor
+          Effective Date: 05/04/2026 · HomeLens — AI Real Estate Advisor
         </p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
@@ -132,8 +132,8 @@ export default function ExtensionPrivacy() {
             <h2 className="text-xl font-semibold">9. Contact</h2>
             <p className="text-muted-foreground">
               Questions about this policy? Email{" "}
-              <a href="mailto:support@homelensais.com" className="text-primary underline">
-                support@homelensais.com
+              <a href="mailto:h2@homelens-ai.com" className="text-primary underline">
+                h2@homelens-ai.com
               </a>
               .
             </p>
