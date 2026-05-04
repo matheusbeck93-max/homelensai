@@ -224,7 +224,7 @@ function AnalysisCard({
   );
 }
 
-export default function SavedAnalyses() {
+export function SavedAnalysesContent({ showHeader = true }: { showHeader?: boolean } = {}) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isPremium, loading: subLoading } = useSubscription();
@@ -273,9 +273,8 @@ export default function SavedAnalyses() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-12 max-w-5xl">
+    <div>
+      {showHeader && (
         <header className="mb-8">
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Bookmark className="h-7 w-7 text-primary" />
@@ -285,6 +284,7 @@ export default function SavedAnalyses() {
             Your investment due diligence history
           </p>
         </header>
+      )}
 
         {!subLoading && !isPremium ? (
           <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
@@ -448,6 +448,16 @@ export default function SavedAnalyses() {
             )}
           </DialogContent>
         </Dialog>
+    </div>
+  );
+}
+
+export default function SavedAnalyses() {
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <main className="container mx-auto px-4 pt-24 pb-12 max-w-5xl">
+        <SavedAnalysesContent />
       </main>
     </div>
   );

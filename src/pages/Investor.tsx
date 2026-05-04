@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { HomeLensInvestorCalculator } from "@/components/ui-blocks/HomeLensInvestorCalculator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calculator as CalculatorIcon, Bookmark } from "lucide-react";
+import { SavedAnalysesContent } from "@/pages/SavedAnalyses";
 
 export default function Investor() {
   const navigate = useNavigate();
@@ -42,24 +45,43 @@ export default function Investor() {
           </p>
         </div>
 
-        <HomeLensInvestorCalculator
-          title="HomeLens Investor Calculator"
-          inputs={{
-            price: 0,
-            downPct: 20,
-            ratePct: 7.0,
-            years: 30,
-            rentMonthly: 0,
-            vacancyPct: 5,
-            taxPct: 1.0,
-            insuranceAnnual: 1200,
-            repairsPct: 5,
-            capexPct: 7,
-            managementPct: 10,
-            hoaMonthly: 0,
-            closingCosts: 0,
-          }}
-        />
+        <Tabs defaultValue="calculator" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="calculator" className="gap-2">
+              <CalculatorIcon className="h-4 w-4" />
+              Calculator
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="gap-2">
+              <Bookmark className="h-4 w-4" />
+              Saved Analyses
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calculator">
+            <HomeLensInvestorCalculator
+              title="HomeLens Investor Calculator"
+              inputs={{
+                price: 0,
+                downPct: 20,
+                ratePct: 7.0,
+                years: 30,
+                rentMonthly: 0,
+                vacancyPct: 5,
+                taxPct: 1.0,
+                insuranceAnnual: 1200,
+                repairsPct: 5,
+                capexPct: 7,
+                managementPct: 10,
+                hoaMonthly: 0,
+                closingCosts: 0,
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="saved">
+            <SavedAnalysesContent showHeader={false} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
