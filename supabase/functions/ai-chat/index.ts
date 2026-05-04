@@ -176,9 +176,10 @@ Deno.serve(async (req) => {
 
 1. FIRST line answers the user's actual question (affordability, fit, risk, "is this a good deal", etc.) with a direct verdict — yes / no / likely / borderline. No preamble, no "Great question", no restating the listing.
 2. If the user asked about affordability or fit, your VERY FIRST bullet under the verdict MUST compare the user's buying power (their budget_max from profile, or income×4 if income provided) against the list price, with the gap in $ and %. Example: "• Buying power $700k vs list $850k → $150k over budget (21%)".
-3. EVERY topic MUST be a bullet point. No prose paragraphs anywhere except the single verdict line at the top and the optional final recommendation.
-4. Do NOT open with property details or raw data. Property specs (beds/baths/sqft/year built) are only included when they directly support the verdict, and never before the affordability comparison.
-5. The structured sections below (acquisition cost, monthly cost, highlights, considerations) come AFTER the verdict + buying-power comparison, in bullet form, and only the sections relevant to the user's question.
+3. AFFORDABILITY TABLE: For affordability or purchase-power questions, after the verdict (and optionally the buying-power bullet), include a simple 2-column markdown table (Label | Value) with 2–4 rows max comparing the most decision-relevant pairs: buying power vs list price, monthly budget vs estimated monthly cost. Use $ + commas, ~ for estimates. Skip property specs (beds/baths/sqft/year built) inside the table. Do NOT use tables for simple factual questions — only for affordability / financial comparison / decision clarity.
+4. STRUCTURE ONLY WHEN IT HELPS: Simple factual questions = 1–3 sentences, no sections, no bullets. Medium/complex answers = short sections + bullets only when there are 3+ distinct points. One idea per bullet. Do not over-structure.
+5. Do NOT open with property details or raw data. Property specs are only included when they directly support the verdict, and never before the affordability comparison/table.
+6. AVOID generic sections like "Basic Information" / "Property Details" unless the user explicitly asked for them. Sections like acquisition cost, monthly cost, highlights, considerations come AFTER the verdict + (table if relevant), and only the ones actually relevant to the question.
 
 `;
 
@@ -505,9 +506,10 @@ CRITICAL:
 
 1. FIRST line answers the user's actual question (affordability, fit, risk, "is this a good deal", etc.) with a direct verdict — yes / no / likely / borderline. No preamble, no "Great question", no restating the listing.
 2. If the user asked about affordability or fit, your VERY FIRST bullet under the verdict MUST compare the user's buying power (their budget_max from profile, or income×4 if income provided) against the list price, with the gap in $ and %. Example: "• Buying power $700k vs list $850k → $150k over budget (21%)".
-3. EVERY topic MUST be a bullet point. No prose paragraphs anywhere except the single verdict line at the top and the optional final recommendation.
-4. Do NOT open with property details or raw data. Property specs (beds/baths/sqft/year built) are only included when they directly support the verdict, and never before the affordability comparison.
-5. The structured sections below come AFTER the verdict + buying-power comparison, in bullet form, and only the sections relevant to the user's question.
+3. AFFORDABILITY TABLE: For affordability or purchase-power questions, after the verdict (and optionally the buying-power bullet), include a simple 2-column markdown table (Label | Value) with 2–4 rows max comparing the most decision-relevant pairs: buying power vs list price, monthly budget vs estimated monthly cost. Use $ + commas, ~ for estimates. Skip property specs (beds/baths/sqft/year built) inside the table. Do NOT use tables for simple factual questions — only for affordability / financial comparison / decision clarity.
+4. STRUCTURE ONLY WHEN IT HELPS: Simple factual questions = 1–3 sentences, no sections, no bullets. Medium/complex answers = short sections + bullets only when there are 3+ distinct points. One idea per bullet. Do not over-structure.
+5. Do NOT open with property details or raw data. Property specs are only included when they directly support the verdict, and never before the affordability comparison/table.
+6. AVOID generic sections like "Basic Information" / "Property Details" unless the user explicitly asked for them. The structured sections below come AFTER the verdict + (table if relevant), and only the ones relevant to the user's question.
 
 `;
 
