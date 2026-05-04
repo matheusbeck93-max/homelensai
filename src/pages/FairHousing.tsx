@@ -16,7 +16,7 @@ export default function FairHousing() {
         </Button>
 
         <h1 className="text-4xl font-bold mb-2">Fair Housing Statement</h1>
-        <p className="text-sm text-muted-foreground mb-8">Homelens.ai LLC</p>
+        <p className="text-sm text-muted-foreground mb-8">Effective Date: 05/04/2026 · Homelens.ai LLC</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
           <section>
@@ -31,7 +31,7 @@ export default function FairHousing() {
 
           <section>
             <h2 className="text-xl font-semibold">AI & Fair Housing</h2>
-            <p className="text-muted-foreground">Our AI systems are designed to provide unbiased property search results and analysis. We actively monitor and audit our algorithms to prevent discriminatory outcomes. If you believe any output or feature of our Platform violates fair housing principles, please report it immediately to fairhousing@homelens.ai.</p>
+            <p className="text-muted-foreground">Our AI systems are designed to provide unbiased property search results and analysis. We actively monitor and audit our algorithms to prevent discriminatory outcomes. If you believe any output or feature of our Platform violates fair housing principles, please report it immediately to <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a>.</p>
           </section>
 
           <section>

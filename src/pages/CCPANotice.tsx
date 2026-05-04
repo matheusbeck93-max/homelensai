@@ -16,7 +16,7 @@ export default function CCPANotice() {
         </Button>
 
         <h1 className="text-4xl font-bold mb-2">California Privacy Notice (CCPA/CPRA)</h1>
-        <p className="text-sm text-muted-foreground mb-8">Effective Date: 02/13/2026 · Homelens.ai LLC</p>
+        <p className="text-sm text-muted-foreground mb-8">Effective Date: 05/04/2026 · Homelens.ai LLC</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
           <section>
@@ -34,6 +34,7 @@ export default function CCPANotice() {
               <li><strong>Internet or Network Activity:</strong> Browsing history, interaction data, clickstream data.</li>
               <li><strong>Geolocation Data:</strong> Approximate location based on IP address.</li>
               <li><strong>Inferences:</strong> Profiles generated from the above categories reflecting preferences and characteristics.</li>
+              <li><strong>Sensory Data (Sensitive):</strong> Voice input audio (transcribed and discarded) when you use voice features, and file/image attachments you upload to the AI chat.</li>
             </ul>
           </section>
 
@@ -49,7 +50,7 @@ export default function CCPANotice() {
 
           <section>
             <h2 className="text-xl font-semibold">5. Categories of Third Parties</h2>
-            <p className="text-muted-foreground">We may disclose personal information to: cloud service providers, analytics vendors, MLS partners, legal authorities, and business partners for service delivery.</p>
+            <p className="text-muted-foreground">We may disclose personal information to the following categories of third parties: Lovable Cloud (Supabase) for hosting and database; Google AI (Gemini) and Perplexity for AI processing; ElevenLabs for voice synthesis; Stripe for payment processing; Firecrawl, RapidAPI/Zillow56 for property data; Mapbox for maps; Sentry for error monitoring; and legal authorities when required by law.</p>
           </section>
 
           <section>
@@ -72,7 +73,7 @@ export default function CCPANotice() {
 
           <section>
             <h2 className="text-xl font-semibold">8. How to Exercise Your Rights</h2>
-            <p className="text-muted-foreground">You may submit a verifiable consumer request by emailing privacy@homelens.ai. We will verify your identity before processing your request. We will respond within 45 days of receiving your request, with a possible 45-day extension if reasonably necessary.</p>
+            <p className="text-muted-foreground">You may submit a verifiable consumer request by emailing <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a>. We will verify your identity before processing your request. We will respond within 45 days of receiving your request, with a possible 45-day extension if reasonably necessary.</p>
           </section>
 
           <section>
@@ -87,7 +88,7 @@ export default function CCPANotice() {
 
           <section>
             <h2 className="text-xl font-semibold">11. Contact Information</h2>
-            <p className="text-muted-foreground">Homelens.ai LLC · Virginia · privacy@homelens.ai</p>
+            <p className="text-muted-foreground">Homelens.ai LLC · Virginia · <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a></p>
           </section>
         </div>
       </div>

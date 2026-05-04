@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
         </Button>
 
         <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
-        <p className="text-sm text-muted-foreground mb-8">Effective Date: 02/13/2026 · Homelens.ai LLC</p>
+        <p className="text-sm text-muted-foreground mb-8">Effective Date: 05/04/2026 · Homelens.ai LLC</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
           <section>
@@ -31,6 +31,9 @@ export default function PrivacyPolicy() {
             <p className="text-muted-foreground"><strong>Commercial Information:</strong> Property preferences, search behavior.</p>
             <p className="text-muted-foreground"><strong>Internet Activity:</strong> Browsing history, interaction data, clickstream data.</p>
             <p className="text-muted-foreground"><strong>Geolocation Data:</strong> Approximate location.</p>
+            <p className="text-muted-foreground"><strong>Chat Content:</strong> Text prompts, voice input transcripts, and file/image attachments (PDF, JPG, PNG, WEBP, HEIC; up to 5 files of 10MB each per message) you submit to the AI assistant.</p>
+            <p className="text-muted-foreground"><strong>Voice Data:</strong> When you use voice input, audio is transcribed to text and processed; synthesized voice (TTS) audio is generated on demand and not stored on our servers beyond delivery.</p>
+            <p className="text-muted-foreground"><strong>Saved Analyses:</strong> Property analyses you choose to save (Premium feature), including property details and AI-generated match scores.</p>
           </section>
 
           <section>
@@ -50,12 +53,29 @@ export default function PrivacyPolicy() {
 
           <section>
             <h2 className="text-xl font-semibold">6. Sharing of Information</h2>
-            <p className="text-muted-foreground">We may share data with cloud providers, analytics vendors, MLS partners, credit reporting agencies (if integrated), and legal authorities. We do not sell personal information unless disclosed and permitted.</p>
+            <p className="text-muted-foreground">We may share data with infrastructure and processing subprocessors (listed below), MLS and real estate data partners, and legal authorities when required. We do not sell personal information.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold">6a. Subprocessors</h2>
+            <p className="text-muted-foreground">We rely on the following third-party providers to operate the Platform. Each is bound by contractual confidentiality and data-protection obligations:</p>
+            <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+              <li><strong>Lovable Cloud (Supabase):</strong> Database, authentication, file storage, edge functions.</li>
+              <li><strong>Google AI (Gemini, via Lovable AI Gateway):</strong> Primary AI model for chat, property analysis, and image/file understanding.</li>
+              <li><strong>Perplexity:</strong> Real-time web search for market data, neighborhood insights, and current information.</li>
+              <li><strong>ElevenLabs:</strong> Text-to-speech voice synthesis when voice output is enabled.</li>
+              <li><strong>Stripe:</strong> Payment processing for Premium subscriptions.</li>
+              <li><strong>Firecrawl:</strong> Web scraping fallback for extracting property listing details.</li>
+              <li><strong>RapidAPI / Zillow56:</strong> Property listing and Zestimate data.</li>
+              <li><strong>Mapbox:</strong> Map rendering and geographic visualizations.</li>
+              <li><strong>Sentry:</strong> Error monitoring and performance tracking (with PII masking).</li>
+            </ul>
+            <p className="text-muted-foreground">Chat prompts, including any text you type, voice transcripts, file/image attachments, and property details, are sent to Google AI and/or Perplexity strictly to generate the response you request. We do not authorize these providers to use your content to train their models.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold">7. Consumer Rights</h2>
-            <p className="text-muted-foreground">Residents of CA, CO, VA, TX, FL, NY may have rights to access, correction, deletion, opt-out of sale/sharing, and limit sensitive data processing. Requests may be submitted at: privacy@homelens.ai</p>
+            <p className="text-muted-foreground">Residents of CA, CO, VA, TX, FL, NY may have rights to access, correction, deletion, opt-out of sale/sharing, and limit sensitive data processing. Requests may be submitted at: <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a>.</p>
           </section>
 
           <section>
@@ -80,7 +100,7 @@ export default function PrivacyPolicy() {
 
           <section>
             <h2 className="text-xl font-semibold">12. Contact Information</h2>
-            <p className="text-muted-foreground">Homelens.ai LLC · Virginia · privacy@homelens.ai</p>
+            <p className="text-muted-foreground">Homelens.ai LLC · Virginia · <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a></p>
           </section>
         </div>
       </div>

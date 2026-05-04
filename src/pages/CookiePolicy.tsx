@@ -16,7 +16,7 @@ export default function CookiePolicy() {
         </Button>
 
         <h1 className="text-4xl font-bold mb-2">Cookie Policy</h1>
-        <p className="text-sm text-muted-foreground mb-8">Effective Date: 02/13/2026 · Homelens.ai LLC</p>
+        <p className="text-sm text-muted-foreground mb-8">Effective Date: 05/04/2026 · Homelens.ai LLC</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6">
           <section>
@@ -26,10 +26,19 @@ export default function CookiePolicy() {
 
           <section>
             <h2 className="text-xl font-semibold">Types of Cookies We Use</h2>
-            <p className="text-muted-foreground"><strong>Essential Cookies:</strong> Required for the Platform to function. These include authentication tokens, session identifiers, and security cookies. They cannot be disabled.</p>
-            <p className="text-muted-foreground"><strong>Functional Cookies:</strong> Enable enhanced functionality and personalization, such as remembering your search preferences, theme settings, and language preferences.</p>
-            <p className="text-muted-foreground"><strong>Analytics Cookies:</strong> Help us understand how visitors interact with the Platform by collecting information about pages visited, time spent, and navigation paths. We use this data to improve the Platform.</p>
-            <p className="text-muted-foreground"><strong>Advertising Cookies:</strong> May be used to deliver relevant advertisements and measure the effectiveness of marketing campaigns. These cookies may be set by third-party advertising partners.</p>
+            <p className="text-muted-foreground"><strong>Essential (cannot be disabled):</strong></p>
+            <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+              <li><code className="px-1 bg-muted rounded">sb-*</code> — authentication and session tokens (Lovable Cloud / Supabase).</li>
+              <li><code className="px-1 bg-muted rounded">homelens_cookie_consent</code> — stores your cookie banner choice.</li>
+            </ul>
+            <p className="text-muted-foreground"><strong>Functional (local storage):</strong></p>
+            <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+              <li><code className="px-1 bg-muted rounded">theme</code> — your dark/light mode preference.</li>
+              <li><code className="px-1 bg-muted rounded">homelens_*</code> keys — featured-home cache, comparison list, investor calculator mode, and chunk-reload safety flag.</li>
+            </ul>
+            <p className="text-muted-foreground"><strong>Analytics & error monitoring:</strong> Sentry stores a small client identifier to deduplicate error reports. PII is masked.</p>
+            <p className="text-muted-foreground"><strong>Chrome Extension session storage:</strong> The HomeLens Chrome Extension uses <code className="px-1 bg-muted rounded">chrome.storage.session</code> to keep per-site chat history that is automatically cleared when you close the browser.</p>
+            <p className="text-muted-foreground"><strong>We do NOT use:</strong> advertising cookies, cross-site tracking pixels, or third-party marketing cookies.</p>
           </section>
 
           <section>
@@ -39,7 +48,7 @@ export default function CookiePolicy() {
 
           <section>
             <h2 className="text-xl font-semibold">Third-Party Trackers</h2>
-            <p className="text-muted-foreground">We may use third-party analytics and advertising services that place their own cookies on your device. These third parties have their own privacy policies governing the use of such cookies.</p>
+            <p className="text-muted-foreground">The only third-party services that may set client-side identifiers are Sentry (error monitoring) and Stripe (only on payment pages, for fraud prevention). We do not use third-party advertising trackers.</p>
           </section>
 
           <section>
@@ -50,6 +59,11 @@ export default function CookiePolicy() {
           <section>
             <h2 className="text-xl font-semibold">Global Privacy Control (GPC)</h2>
             <p className="text-muted-foreground">We recognize and honor the Global Privacy Control (GPC) signal as required under California law. When we detect a GPC signal from your browser, we will treat it as a valid opt-out request for the sale or sharing of your personal information.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold">Contact</h2>
+            <p className="text-muted-foreground">Questions about cookies? Contact us at <a href="mailto:h2@homelens-ai.com" className="text-primary underline">h2@homelens-ai.com</a>.</p>
           </section>
         </div>
       </div>
