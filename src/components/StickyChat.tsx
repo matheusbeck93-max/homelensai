@@ -68,7 +68,7 @@ interface AttachmentWithFile {
 export function StickyChat({ 
   onSend, 
   loading, 
-  placeholder = "Pergunte alguma coisa",
+  placeholder = "Ask something...",
   showVoice = false,
   value,
   onValueChange,
@@ -285,7 +285,7 @@ export function StickyChat({
 
         <form
           onSubmit={handleSubmit}
-          className="flex items-end gap-1.5 sm:gap-2 bg-muted/50 rounded-3xl px-2 py-1.5 sm:px-2.5 sm:py-2 focus-within:bg-muted/70 transition-colors"
+          className="flex items-end gap-1.5 sm:gap-2 bg-muted/50 border border-border/60 rounded-3xl px-2 py-1.5 sm:px-2.5 sm:py-2 focus-within:bg-muted/70 focus-within:border-border transition-colors"
         >
           <input
             ref={fileInputRef}

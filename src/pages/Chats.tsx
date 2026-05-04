@@ -698,16 +698,13 @@ export default function Chats() {
         </div>
       </main>
 
-      <div className={cn("transition-all duration-200", "md:ml-64")}>
-        <StickyChat
-          onSend={handleSendMessage}
-          loading={loading}
-          placeholder="Pergunte alguma coisa"
-          showVoice={true}
-          value={pendingInput}
-          onValueChange={setPendingInput} />
-
-      </div>
+      <StickyChat
+        onSend={handleSendMessage}
+        loading={loading}
+        placeholder="Ask something..."
+        showVoice={true}
+        value={pendingInput}
+        onValueChange={setPendingInput} />
     </div>);
 
 }
