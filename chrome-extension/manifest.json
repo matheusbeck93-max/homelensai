@@ -3,7 +3,7 @@
   "name": "HomeLens — AI Real Estate Advisor",
   "version": "1.0.0",
   "description": "AI-powered real estate analysis on any property listing. Works on Zillow, Redfin, Realtor.com and hundreds of other listing sites.",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["activeTab", "storage"],
   "host_permissions": ["https://*/*"],
   "action": {
     "default_popup": "popup.html",
