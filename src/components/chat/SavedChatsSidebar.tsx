@@ -188,6 +188,15 @@ export function SavedChatsSidebar({
         {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
       </Button>
 
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 top-16 bg-background/60 backdrop-blur-sm z-20 md:hidden"
+          onClick={onToggle}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
       <div className={cn(
         "fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-background border-r z-30 transition-transform duration-200",
