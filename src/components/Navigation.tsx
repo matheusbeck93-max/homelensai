@@ -7,7 +7,6 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sheet,
   SheetContent,
@@ -19,7 +18,19 @@ import {
 export function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
+  // Collapse desktop nav into hamburger below `lg` (1024px) so tablets don't
+  // get a cropped/overflowing toolbar.
+  const [isCompact, setIsCompact] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth < 1024 : false
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 1023px)");
+    const onChange = () => setIsCompact(window.innerWidth < 1024);
+    mql.addEventListener("change", onChange);
+    onChange();
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  const isMobile = isCompact;
   const [user, setUser] = useState<any>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { tier, loading: subscriptionLoading } = useSubscription();
