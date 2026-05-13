@@ -480,13 +480,13 @@ export default function Chats() {
 
         {/* Empty State */}
         {messages.length === 0 && !loading && !loadingHistory &&
-        <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
-            <MessageSquare className="h-16 w-16 text-muted-foreground/50 mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Real Estate Assistant</h1>
-            <p className="text-muted-foreground text-center max-w-md mb-6">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 sm:px-6 py-8">
+            <MessageSquare className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground/50 mb-4" />
+            <h1 className="text-xl sm:text-2xl font-bold mb-2 text-center">Real Estate Assistant</h1>
+            <p className="text-sm sm:text-base text-muted-foreground text-center max-w-md mb-6">
               Search for properties or paste a listing URL for instant analysis. I'll provide factual information only.
             </p>
-            <div className="grid gap-3 w-full max-w-md">
+            <div className="grid gap-3 w-full max-w-md sm:max-w-2xl sm:grid-cols-2">
               <Card className="p-4">
                 <p className="text-sm font-medium">Search for homes</p>
                 <p className="text-xs text-muted-foreground">3-bedroom homes in Phoenix under $500k with pool</p>
@@ -529,7 +529,7 @@ export default function Chats() {
         }
 
         {/* Messages */}
-        <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4">
           {messages.map((message) => {
             const messageUrl = message.role === 'user' ? extractUrl(message.content) : null;
             const isAnalysis = message.role === 'assistant' && (
