@@ -1,0 +1,23 @@
+# HomeLens
+
+> AI-powered real estate advisor for US home buyers and investors. Analyze any property listing, understand neighborhood and market data, and run investment numbers before making the biggest financial decision of your life.
+
+HomeLens combines a conversational AI assistant, property analysis from major US listing portals (Zillow, Redfin), neighborhood and school insights, and professional-grade investor calculators (mortgage, buying power, BRRRR, cash-on-cash, IRR) into a single tool. A Chrome extension brings the same analysis directly onto property listing pages.
+
+## Pages
+
+- [Home](/): Search US properties and chat with the AI real estate advisor.
+- [Calculators](/calculators): Buying power and mortgage calculators with AI insights.
+- [Investor Calculator](/investor): Professional investment analysis (cash flow, ROI, IRR, tax-aware).
+- [Compare Properties](/compare): Side-by-side comparison of saved properties.
+- [Pricing](/pricing): Free and Premium plan details.
+- [Sign in](/auth): Account login and signup.
+
+## Optional
+
+- [Privacy Policy](/privacy)
+- [Terms of Service](/terms)
+- [Chrome Extension Privacy](/extension-privacy)
+- [Cookie Policy](/cookies)
+- [Fair Housing](/fair-housing)
+- [Accessibility](/accessibility)
