@@ -1687,9 +1687,8 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     }
   } catch (error) {
     console.error('Error in ai-chat:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Unable to process chat request. Please try again.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
