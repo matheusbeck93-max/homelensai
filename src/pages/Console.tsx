@@ -90,23 +90,23 @@ export default function Console() {
             <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-5 gap-1">
               <TabsTrigger value="overview" className="gap-2 flex-shrink-0">
                 <LayoutDashboard className="h-4 w-4" />
-                <span className="hidden sm:inline">Overview</span>
+                <span>Overview</span>
               </TabsTrigger>
               <TabsTrigger value="preferences" className="gap-2 flex-shrink-0">
                 <SlidersHorizontal className="h-4 w-4" />
-                <span className="hidden sm:inline">Preferences</span>
+                <span>Preferences</span>
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2 flex-shrink-0">
                 <CreditCard className="h-4 w-4" />
-                <span className="hidden sm:inline">Plan</span>
+                <span>Plan</span>
               </TabsTrigger>
               <TabsTrigger value="account" className="gap-2 flex-shrink-0">
                 <Settings className="h-4 w-4" />
-                <span className="hidden sm:inline">Account</span>
+                <span>Account</span>
               </TabsTrigger>
               <TabsTrigger value="seo" className="gap-2 flex-shrink-0">
                 <Search className="h-4 w-4" />
-                <span className="hidden sm:inline">SEO</span>
+                <span>SEO</span>
               </TabsTrigger>
             </TabsList>
           </div>
