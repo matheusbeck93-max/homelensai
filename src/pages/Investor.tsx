@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { HomeLensInvestorCalculator } from "@/components/ui-blocks/HomeLensInvestorCalculator";
@@ -35,6 +36,17 @@ export default function Investor() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Investor Calculator — Cash Flow, ROI & IRR | HomeLens</title>
+        <meta name="description" content="Professional real estate investor calculator. Run cash flow, cap rate, cash-on-cash, IRR, and tax-aware projections on any US rental property." />
+        <link rel="canonical" href="https://homelensais.com/investor" />
+        <meta property="og:title" content="Investor Calculator — Cash Flow, ROI & IRR | HomeLens" />
+        <meta property="og:description" content="Run cash flow, cap rate, cash-on-cash, IRR, and tax-aware projections on any US rental property." />
+        <meta property="og:url" content="https://homelensais.com/investor" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Investor Calculator — Cash Flow, ROI & IRR | HomeLens" />
+        <meta name="twitter:description" content="Run cash flow, cap rate, cash-on-cash, IRR, and tax-aware projections on any US rental property." />
+      </Helmet>
       <Navigation />
       
       <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">

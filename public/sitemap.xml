@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://homelensais.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://homelensais.com/calculators</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://homelensais.com/investor</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://homelensais.com/pricing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://homelensais.com/compare</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://homelensais.com/auth</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://homelensais.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/extension-privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/cookies</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/accessibility</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/fair-housing</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/ccpa</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/dmca</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/do-not-sell</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>

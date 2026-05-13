@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -176,6 +177,31 @@ export default function PropertyDetail() {
 
   return (
     <div className="min-h-screen bg-background">
+      {property && (() => {
+        const priceStr = property.price ? `$${Number(property.price).toLocaleString()}` : "";
+        const addr = [property.address, property.city, property.state].filter(Boolean).join(", ");
+        const rawTitle = `${addr}${priceStr ? ` — ${priceStr}` : ""} | HomeLens`;
+        const title = rawTitle.length > 60 ? `${addr.slice(0, 50)} | HomeLens` : rawTitle;
+        const beds = property.bedrooms ? `${property.bedrooms} bd` : "";
+        const baths = property.bathrooms ? `${property.bathrooms} ba` : "";
+        const sqft = property.living_area ? `${Number(property.living_area).toLocaleString()} sqft` : "";
+        const specs = [beds, baths, sqft].filter(Boolean).join(" · ");
+        const desc = `${addr}${priceStr ? ` listed at ${priceStr}` : ""}${specs ? `. ${specs}` : ""}. AI investment analysis, neighborhood data, and market insights on HomeLens.`;
+        const url = `https://homelensais.com/property/${id}`;
+        return (
+          <Helmet>
+            <title>{title}</title>
+            <meta name="description" content={desc.slice(0, 160)} />
+            <link rel="canonical" href={url} />
+            <meta property="og:title" content={title} />
+            <meta property="og:description" content={desc.slice(0, 160)} />
+            <meta property="og:url" content={url} />
+            <meta property="og:type" content="article" />
+            <meta name="twitter:title" content={title} />
+            <meta name="twitter:description" content={desc.slice(0, 160)} />
+          </Helmet>
+        );
+      })()}
       <div className="container mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button
           variant="ghost"

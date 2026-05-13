@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -217,6 +218,17 @@ export default function Calculators() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Mortgage & Buying Power Calculators | HomeLens</title>
+        <meta name="description" content="Calculate your home buying power and monthly mortgage payments with taxes, insurance, PMI, and HOA. Free AI-powered calculators for US home buyers." />
+        <link rel="canonical" href="https://homelensais.com/calculators" />
+        <meta property="og:title" content="Mortgage & Buying Power Calculators | HomeLens" />
+        <meta property="og:description" content="Calculate buying power and mortgage payments with taxes, PMI, HOA. Free AI-powered tools for US home buyers." />
+        <meta property="og:url" content="https://homelensais.com/calculators" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content="Mortgage & Buying Power Calculators | HomeLens" />
+        <meta name="twitter:description" content="Calculate buying power and mortgage payments with taxes, PMI, HOA. Free AI-powered tools for US home buyers." />
+      </Helmet>
       <Navigation />
       
       <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">
