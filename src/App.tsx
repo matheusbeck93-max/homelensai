@@ -112,6 +112,7 @@ function App() {
             <Sonner />
             <BrowserRouter>
               <Suspense fallback={<PageLoader />}>
+                <main>
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/property/:id" element={<PropertyDetail />} />
@@ -141,6 +142,7 @@ function App() {
                   <Route path="/do-not-sell" element={<DoNotSell />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                </main>
               </Suspense>
               <ComparisonFloatingBar />
               <BackToTop />
