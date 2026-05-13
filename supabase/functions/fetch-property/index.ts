@@ -116,6 +116,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ propertyData });
   } catch (error) {
     log.error('Error:', error);
-    return errorResponse(getErrorMessage(error));
+    return errorResponse('Unable to fetch property data.', 500);
   }
 });
