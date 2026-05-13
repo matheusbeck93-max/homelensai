@@ -521,12 +521,8 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Fatal error:', error);
-    const err = error as Error;
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        details: err.message 
-      }),
+      JSON.stringify({ error: 'Unable to complete search. Please try again.' }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
