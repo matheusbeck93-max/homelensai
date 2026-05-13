@@ -1,8 +1,13 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { handleCors } from '../_shared/cors.ts';
-import { jsonResponse, errorResponse } from '../_shared/responses.ts';
+import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { requireEnv } from '../_shared/env.ts';
-import { getErrorMessage } from '../_shared/errors.ts';
+import { z } from 'https://esm.sh/zod@3.23.8';
+
+const RequestSchema = z.object({
+  instructions: z.string().max(2000).optional(),
+  voice: z.enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']).default('alloy'),
+}).strict();
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
@@ -10,7 +15,12 @@ Deno.serve(async (req) => {
 
   try {
     const OPENAI_API_KEY = requireEnv('OPENAI_API_KEY');
-    const { instructions, voice = "alloy" } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const parsed = RequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationError('Invalid request body', parsed.error.flatten().fieldErrors);
+    }
+    const { instructions, voice } = parsed.data;
 
     // Request an ephemeral token from OpenAI
     const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
@@ -29,7 +39,10 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI realtime session error:', response.status, errorText);
-      throw new Error(`Failed to create realtime session: ${errorText}`);
+      if (response.status === 429) {
+        return errorResponse('Rate limit exceeded. Please try again later.', 429);
+      }
+      return errorResponse('Voice service temporarily unavailable.', 502);
     }
 
     const data = await response.json();
@@ -38,6 +51,6 @@ Deno.serve(async (req) => {
     return jsonResponse(data);
   } catch (error) {
     console.error("Error in realtime-token:", error);
-    return errorResponse(getErrorMessage(error));
+    return errorResponse('Unable to create voice session.', 500);
   }
 });
