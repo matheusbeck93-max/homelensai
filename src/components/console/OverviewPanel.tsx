@@ -9,11 +9,11 @@ import { SavedCalculatorsPanel } from "@/components/console/SavedCalculatorsPane
 import { AiCreditsCard } from "@/components/console/AiCreditsCard";
 
 const GOAL_LABELS: Record<string, string> = {
-  buying: "Comprar imóvel para moradia",
-  renting: "Alugar imóvel",
-  investing: "Investir em imóveis",
-  trends: "Acompanhar tendências de mercado",
-  incentives: "Buscar incentivos fiscais/financeiros",
+  buy_home: "Buy a home to live in",
+  rent: "Rent a property",
+  invest: "Invest in real estate",
+  market_trends: "Track market trends",
+  tax_incentives: "Find tax & financial incentives",
 };
 
 export function OverviewPanel() {
