@@ -5,12 +5,11 @@ import { Navigation } from "@/components/Navigation";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal, Search } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal } from "lucide-react";
 import { OverviewPanel } from "@/components/console/OverviewPanel";
 import { SubscriptionPanel } from "@/components/console/SubscriptionPanel";
 import { AccountPreferencesPanel } from "@/components/console/AccountPreferencesPanel";
 import { PreferencesPanel } from "@/components/console/PreferencesPanel";
-import { SeoInsightsPanel } from "@/components/console/SeoInsightsPanel";
 
 export default function Console() {
   const navigate = useNavigate();
@@ -87,7 +86,7 @@ export default function Console() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="overflow-x-auto mb-8 -mx-4 px-4">
-            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-5 gap-1">
+            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-4 gap-1">
               <TabsTrigger value="overview" className="gap-2 flex-shrink-0">
                 <LayoutDashboard className="h-4 w-4" />
                 <span>Overview</span>
@@ -103,10 +102,6 @@ export default function Console() {
               <TabsTrigger value="account" className="gap-2 flex-shrink-0">
                 <Settings className="h-4 w-4" />
                 <span>Account</span>
-              </TabsTrigger>
-              <TabsTrigger value="seo" className="gap-2 flex-shrink-0">
-                <Search className="h-4 w-4" />
-                <span>SEO</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -125,10 +120,6 @@ export default function Console() {
 
           <TabsContent value="account">
             <AccountPreferencesPanel />
-          </TabsContent>
-
-          <TabsContent value="seo">
-            <SeoInsightsPanel />
           </TabsContent>
         </Tabs>
       </div>
