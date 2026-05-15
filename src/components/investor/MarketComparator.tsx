@@ -48,9 +48,11 @@ const inputSchema = z.object({
 });
 
 const LOADING_STEPS = [
+  "Fetching market data...",
   "Analyzing market pricing...",
   "Comparing rental yields...",
   "Evaluating risk levels...",
+  "Synthesizing verdict...",
 ];
 
 const GOAL_LABEL: Record<Goal, string> = {
