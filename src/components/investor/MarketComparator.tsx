@@ -15,6 +15,7 @@ import { Loader2, Plus, X, MessageSquare, TrendingUp, DollarSign, Target } from 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
+import { US_STATES, getCitiesForState } from "@/data/usStatesCities";
 
 type Goal = "cash_flow" | "appreciation" | "hybrid";
 type Horizon = "short" | "mid" | "long";
@@ -139,7 +140,8 @@ export function MarketComparator() {
   const [horizon, setHorizon] = useState<Horizon>("mid");
   const [risk, setRisk] = useState<Risk>("medium");
   const [markets, setMarkets] = useState<string[]>(["Tampa, FL", "Charlotte, NC"]);
-  const [marketDraft, setMarketDraft] = useState<string>("");
+  const [stateDraft, setStateDraft] = useState<string>("");
+  const [cityDraft, setCityDraft] = useState<string>("");
 
   const [loading, setLoading] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -155,19 +157,21 @@ export function MarketComparator() {
     return () => clearInterval(id);
   }, [loading]);
 
+  const cityOptions = useMemo(() => getCitiesForState(stateDraft), [stateDraft]);
+
   const addMarket = () => {
-    const v = marketDraft.trim();
-    if (!v) return;
+    if (!stateDraft || !cityDraft) return;
     if (markets.length >= 4) {
       toast({ title: "Limit reached", description: "Compare up to 4 markets." });
       return;
     }
+    const v = `${cityDraft}, ${stateDraft}`;
     if (markets.some((m) => m.toLowerCase() === v.toLowerCase())) {
-      setMarketDraft("");
+      setCityDraft("");
       return;
     }
     setMarkets([...markets, v]);
-    setMarketDraft("");
+    setCityDraft("");
   };
 
   const removeMarket = (i: number) => {
@@ -303,28 +307,63 @@ export function MarketComparator() {
                 </Badge>
               ))}
             </div>
-            <div className="flex gap-2">
-              <Input
-                value={marketDraft}
-                onChange={(e) => setMarketDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addMarket();
-                  }
-                }}
-                placeholder="e.g., Indianapolis, IN"
-                disabled={markets.length >= 4}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addMarket}
-                disabled={!marketDraft.trim() || markets.length >= 4}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">State</Label>
+                <Select
+                  value={stateDraft}
+                  onValueChange={(v) => {
+                    setStateDraft(v);
+                    setCityDraft("");
+                  }}
+                  disabled={markets.length >= 4}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {US_STATES.map((s) => (
+                      <SelectItem key={s.code} value={s.code}>
+                        {s.name} ({s.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">City</Label>
+                <Select
+                  value={cityDraft}
+                  onValueChange={setCityDraft}
+                  disabled={!stateDraft || markets.length >= 4}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={stateDraft ? "Select city" : "Select state first"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {cityOptions.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addMarket}
+                  disabled={!stateDraft || !cityDraft || markets.length >= 4}
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Pick a state, then choose a city. Compare up to 4 markets.
+            </p>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
