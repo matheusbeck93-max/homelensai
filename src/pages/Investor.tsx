@@ -5,8 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
 import { HomeLensInvestorCalculator } from "@/components/ui-blocks/HomeLensInvestorCalculator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator as CalculatorIcon, Bookmark } from "lucide-react";
+import { Calculator as CalculatorIcon, Bookmark, Scale } from "lucide-react";
 import { SavedAnalysesContent } from "@/pages/SavedAnalyses";
+import { MarketComparator } from "@/components/investor/MarketComparator";
 
 export default function Investor() {
   const navigate = useNavigate();
@@ -63,6 +64,10 @@ export default function Investor() {
               <CalculatorIcon className="h-4 w-4" />
               Calculator
             </TabsTrigger>
+            <TabsTrigger value="comparator" className="gap-2">
+              <Scale className="h-4 w-4" />
+              Market Comparator
+            </TabsTrigger>
             <TabsTrigger value="saved" className="gap-2">
               <Bookmark className="h-4 w-4" />
               Saved Analyses
@@ -88,6 +93,10 @@ export default function Investor() {
                 closingCosts: 0,
               }}
             />
+          </TabsContent>
+
+          <TabsContent value="comparator">
+            <MarketComparator />
           </TabsContent>
 
           <TabsContent value="saved">
