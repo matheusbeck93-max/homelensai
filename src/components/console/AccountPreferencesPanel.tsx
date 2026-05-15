@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Save, Trash2, AlertTriangle } from "lucide-react";
+import { User, Mail, Save, Trash2, AlertTriangle, Lock } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   AlertDialog,
@@ -24,6 +24,9 @@ export function AccountPreferencesPanel() {
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -74,6 +77,29 @@ export function AccountPreferencesPanel() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      toast({ title: "Error", description: "Password must be at least 8 characters", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+    setPasswordLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast({ title: "Success", description: "Password updated successfully" });
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Account Info */}
@@ -102,6 +128,48 @@ export function AccountPreferencesPanel() {
             <Save className="mr-2 h-4 w-4" />
             Save
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Change Password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Change Password
+          </CardTitle>
+          <CardDescription>Update the password used to sign in</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="newPassword">New Password</Label>
+            <Input
+              id="newPassword"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm New Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repeat new password"
+              autoComplete="new-password"
+            />
+          </div>
+          <Button onClick={handleChangePassword} disabled={passwordLoading || !newPassword || !confirmPassword}>
+            <Save className="mr-2 h-4 w-4" />
+            Update Password
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            If you signed in with Google, setting a password lets you also sign in with email.
+          </p>
         </CardContent>
       </Card>
 
