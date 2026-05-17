@@ -286,19 +286,16 @@ CRITICAL:
 - Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
 - Keep response concise with bullet points.`);
 
-      // Fetch user profile for match score
+      // [ai-chat-branch] EXTENSION path: client-provided DOM-extracted property
+      console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'extension', hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode }));
+
+      // Fetch user profile for match score (memoized per request)
       let matchScoreInstructions = '';
-      if (authHeader) {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-          if (profile && profile.onboarding_completed) {
-            matchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${profile.budget_min || 0} - $${profile.budget_max || 'unlimited'}\n- Preferred cities: ${profile.preferred_cities?.join(', ') || 'any'}\n- Property types: ${profile.property_types?.join(', ') || 'any'}\n- Has children: ${profile.has_children ? 'Yes' : 'No'}\n- Safety priority: ${profile.safety_priority || 'medium'}\n- Risk level: ${profile.risk_level || 'moderate'}\nAfter the score line, continue with the analysis.`;
-          }
+      {
+        const { profile } = await loadProfile(req);
+        if (profile && (profile as any).onboarding_completed) {
+          const p: any = profile;
+          matchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\nAfter the score line, continue with the analysis.`;
         }
       }
 
