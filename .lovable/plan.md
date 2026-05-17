@@ -64,3 +64,38 @@ Apply the 10 doc patches from Phase 1 (P2 set):
 - Trigger a URL_ANALYSIS with a property URL: confirm `[ai-chat-branch] branch=firecrawl` log fires, scrape returns markdown, and `MATCH_SCORE: X/10` prefix is present in the response.
 - Trigger an ai-chat call with a 40-message history: confirm sanitized payload is ≤ 30 turns and alternates user/assistant.
 - Default chat path through perplexity-chat still works (no regression from renames).
+
+---
+
+## Phase 1 Cleanup — Completion Notes (Applied)
+
+### Implementation status
+
+1. **ai-chat Firecrawl loop → shared `scrapeProperty`.** The inline `fetch('https://api.firecrawl.dev/v1/scrape', ...)` loop and local `FIRECRAWL_API_KEY` env read in `supabase/functions/ai-chat/index.ts` were replaced with `scrapeProperty(url)`. On `scrape.markdown === null` the function returns a degraded property stub flagged `scrapeFailed: true` and uses `SCRAPE_FAILED_NOTE` as the description, so callers can still render a card and the AI can tell the user the page could not be read directly. The `[ai-chat-branch] branch=firecrawl` log marker stays for the 7-day traffic study.
+2. **`sanitizeHistory` wired in ai-chat.** `sanitizeHistory(messages.slice(0, -1), { maxTurns: 30, enforceAlternation: true })` is invoked before the Gateway call at line ~304; the result replaces the raw `messages.slice(0, -1).map(...)` spread. The current user turn is still appended explicitly.
+3. **Chats.tsx renames.** Already canonical — the body key is `conversationHistory` for both backends; no stale `history` / `chatHistory` fields found. No further changes required.
+
+### Doc deltas (architecture contract)
+
+1. **`dailyLimit.ts` removed.** AI credits (`deductAiCredits` + `creditCheck.tier`) are the sole rate-limiter for both `ai-chat` and `perplexity-chat`. Any UI copy referencing a "daily limit" should be reviewed by product.
+2. **New `_shared/` modules.**
+   - `urlDetection.ts` — single source of truth for the supported portal whitelist; exports `isPropertyUrl`, `extractFirstPropertyUrl`, and `isValidPortalSearchUrl`.
+   - `profileLoader.ts` — per-request memoized profile fetch using `WeakMap<Request, Promise<profile>>`. One DB hit per request even across multiple call sites.
+   - `conversationHistory.ts` — `sanitizeHistory({ maxTurns, enforceAlternation })`. `enforceAlternation: true` for Perplexity, optional for Gemini.
+   - `scrapeProperty.ts` — Firecrawl markdown scrape with one bounded retry (25s timeout, 8k char cap). Returns `{ markdown: null, source: 'none', reason }` on failure. Pair with the exported `SCRAPE_FAILED_NOTE` constant for user-facing degradation copy.
+3. **Personalization fallback (section 8).** `profile.buyer_type` values outside the three keys (`first-time-buyer`, `investor`, `regular-buyer`) silently coerce to `regular-buyer` via the forgiving fallback at ai-chat line 1369. The branch is live; the cast is intentional and acts as the default tone for unknown buyer types.
+4. **Known-value guards.** `KNOWN_PROFILES` (ai-chat) and `KNOWN_GOALS` (perplexity-chat) emit a structured warning log when an unrecognized value is received, so drift between the DB enum and the prompt maps is observable without breaking runtime behavior.
+5. **CRITICAL FORMATTING RULES.** The old "use emojis / 💰 section headers" mandate in the ai-chat general prompt is removed. Both backends now share the same contract: no mandatory emoji, no mandatory bullets, structure only when it improves scanability (≥3 supporting points), decision-first verdict in the first line. Mirrors the perplexity GENERAL prompt 1:1.
+6. **Branch-marker logs.** `[ai-chat-branch]` and `[perplexity-branch]` structured logs identify which dispatch path served each request (`firecrawl`, `client-data`, `general`, `search`, `url-analysis`). Intended for a 7-day traffic study; do not remove without coordinating with the eng lead.
+7. **URL detection.** Both backends now import `isPropertyUrl` / `extractFirstPropertyUrl` from `_shared/urlDetection.ts`. The portal whitelist (Zillow, Redfin, Realtor, Trulia, Homes, Compass, etc.) lives there only.
+8. **Property scraping.** All property-URL scrapes route through `_shared/scrapeProperty.ts`. Direct calls to `https://api.firecrawl.dev/v1/scrape` in either backend are a regression; the only remaining direct Firecrawl callsite is the dedicated `fetch-property` edge function (unchanged).
+9. **History sanitization.** All Gateway and Perplexity calls now wrap conversation history with `sanitizeHistory(...)`. `maxTurns: 30` for ai-chat (Gemini permissive), strict alternation enforced for perplexity-chat.
+10. **P0-4 Phase 2/3 hold.** Deletion of the ai-chat general prompt is explicitly OUT OF SCOPE until the 7-day branch-marker study confirms zero non-listing traffic on ai-chat AND a Chrome extension audit confirms the listing-URL path does not depend on the general prompt's regional NLP.
+
+### Verification (post-apply)
+
+- `grep -n "api.firecrawl.dev" supabase/functions/ai-chat/index.ts` → 0 hits.
+- `grep -n "sanitizeHistory(" supabase/functions/ai-chat/index.ts` → 1+ hits.
+- `grep -rn "dailyLimit" supabase/functions src` → 0 hits.
+- History payload to Gateway is now bounded to 30 turns and alternation-clean.
+- Phase 2 gates (G1 match-score retry, G2 Excel full context, G3 citations) and Phase 3 deletion remain queued.
