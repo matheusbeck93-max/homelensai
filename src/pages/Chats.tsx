@@ -335,12 +335,41 @@ export default function Chats() {
       if (error) throw error;
 
       const rawMessage = data?.message || 'I could not process that request.';
-      const { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+      let { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+      const citations: string[] = Array.isArray(data?.citations) ? data.citations : [];
+
+      // G1 — Match score retry: if this looks like a URL analysis and the score
+      // is missing on the first response, fire ONE lightweight retry asking the
+      // model for just the score line. We don't replace the prose, only enrich
+      // the metadata. Per-conversation guard prevents double-billing.
+      const flakyKey = conversationId || 'no-conv';
+      if (extractedUrl && matchScore === null && !matchScoreRetriedRef.current.has(flakyKey)) {
+        matchScoreRetriedRef.current.add(flakyKey);
+        try {
+          const { data: retryData } = await supabase.functions.invoke('perplexity-chat', {
+            body: {
+              query: `For the property at ${extractedUrl}, output ONLY a single line: "MATCH_SCORE: X/10" where X is a number 0–10 (decimals like 7.5 allowed) rating how well it matches my profile. No other text.`,
+              conversationHistory: [],
+              userGoal: userPrimaryGoal,
+            },
+          });
+          const retryParsed = parseMatchScore(retryData?.message || '');
+          if (retryParsed.score !== null) {
+            matchScore = retryParsed.score;
+            console.log('[match-score-retry] recovered', { score: matchScore });
+          }
+        } catch (e) {
+          console.warn('[match-score-retry] failed (non-blocking):', e);
+        }
+      }
+
+      // G3 — Render Perplexity citations as Unicode superscript markdown links.
+      const renderedContent = applyCitations(cleanContent, citations);
 
       const assistantMessage: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
-        content: cleanContent,
+        content: renderedContent,
         links: data?.links || [],
         createdAt: new Date().toISOString(),
         metadata: matchScore !== null ? { matchScore } : undefined
@@ -386,14 +415,21 @@ export default function Chats() {
 
       if (allowExcel) {
         try {
+          // G2 — Pass the full conversation, user profile signal, and an
+          // explicit `intent` so ai-chat can build a context-aware workbook
+          // instead of operating on a 3-message synthetic stub.
+          const fullHistory = [
+            ...messages.map((m) => ({ role: m.role, content: m.content })),
+            { role: 'user' as const, content: cleanedMessage },
+            { role: 'assistant' as const, content: perplexityResponse },
+            { role: 'user' as const, content: `The user has explicitly opted in to receiving the Excel workbook. Generate a detailed Excel spreadsheet with a workflow_excel uiBlock based on the full conversation above. Include ALL numbers, values, costs, and data points mentioned. If specific numbers were not available, estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. NEVER leave cost cells empty — always fill with estimated values. Every row must have numeric values in cost/value columns.` },
+          ];
           const { data: excelData, error: excelError } = await supabase.functions.invoke('ai-chat', {
             body: {
-              messages: [
-                { role: 'user', content: lastAssistantBefore?.content ? `Prior context to use for the workbook:\n\n${lastAssistantBefore.content}` : cleanedMessage },
-                { role: 'assistant', content: perplexityResponse },
-                { role: 'user', content: `The user has explicitly opted in to receiving the Excel workbook. Generate a detailed Excel spreadsheet with a workflow_excel uiBlock based on the analysis above. Include ALL numbers, values, costs, and data points mentioned. If specific numbers were not available, estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. NEVER leave cost cells empty — always fill with estimated values. Every row must have numeric values in cost/value columns.` }
-              ],
-              conversationMode: true
+              messages: fullHistory,
+              conversationMode: true,
+              userGoal: userPrimaryGoal,
+              intent: 'excel_generation',
             }
           });
 
