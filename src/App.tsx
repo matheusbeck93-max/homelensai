@@ -90,6 +90,7 @@ const FairHousing = lazyWithRetry(() => import("./pages/FairHousing"));
 const CCPANotice = lazyWithRetry(() => import("./pages/CCPANotice"));
 const DMCAPolicy = lazyWithRetry(() => import("./pages/DMCAPolicy"));
 const DoNotSell = lazyWithRetry(() => import("./pages/DoNotSell"));
+const AdminTelemetry = lazyWithRetry(() => import("./pages/AdminTelemetry"));
 
 const queryClient = new QueryClient();
 
@@ -140,6 +141,7 @@ function App() {
                   <Route path="/ccpa" element={<CCPANotice />} />
                   <Route path="/dmca" element={<DMCAPolicy />} />
                   <Route path="/do-not-sell" element={<DoNotSell />} />
+                  <Route path="/admin/telemetry" element={<AdminTelemetry />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 </main>
