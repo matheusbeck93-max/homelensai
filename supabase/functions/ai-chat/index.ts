@@ -842,7 +842,7 @@ CRITICAL:
         prefs.push(`🚿 Min Bathrooms: ${profileSource.min_bathrooms}`);
       }
       if (profileSource.must_have_features && profileSource.must_have_features.length > 0) {
-        prefs.push(`✅ Must-Have Features: ${profileSource.must_have_features.join(', ')}`);
+        prefs.push(`Must-Have Features: ${profileSource.must_have_features.join(', ')}`);
       }
       if (profileSource.has_children) {
         prefs.push(`👨‍👩‍👧‍👦 Has Children: Yes`);
@@ -1312,12 +1312,12 @@ Direct. Knowledgeable. Honest about uncertainty. Never condescending, never vagu
    }
    
    **NEVER DO THIS:**
-   ❌ Including JSON in message: "Search params: {\"location\": ...}"
-   ❌ Describing filters: "I'll search for 3 beds, $900k max in Arlington"
-   
+   - Including JSON in message: "Search params: {\"location\": ...}"
+   - Describing filters: "I'll search for 3 beds, $900k max in Arlington"
+
    **ALWAYS DO THIS:**
-   ✅ Clean message + searchParams in separate field
-   ✅ "I'll show you matching properties." + searchParams object
+   - Clean message + searchParams in separate field
+   - "I'll show you matching properties." + searchParams object
 
 11. **EVERY SEARCH MUST RETURN SEARCH PARAMS**
    - ANY time you decide to search for properties, you MUST include searchParams in your JSON response
