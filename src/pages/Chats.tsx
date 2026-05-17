@@ -22,15 +22,49 @@ import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 
-// ── Match Score parser ──
+// ── Match Score parser (tolerant) ──
+// Strict: prefix at line start. Tolerant: same pattern anywhere in first 300 chars.
+// Last-ditch: a bare "X/10" near words like "score|match|fit|rating" in first 300 chars.
 function parseMatchScore(content: string): { score: number | null; cleanContent: string } {
-  const match = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
-  if (match) {
-    const score = parseFloat(match[1]);
-    const cleanContent = content.slice(match[0].length).trim();
-    return { score: Number.isFinite(score) ? score : null, cleanContent };
+  const strict = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
+  if (strict) {
+    const score = parseFloat(strict[1]);
+    return { score: Number.isFinite(score) ? score : null, cleanContent: content.slice(strict[0].length).trim() };
+  }
+  const head = content.slice(0, 300);
+  const labeled = head.match(/MATCH[\s_-]?SCORE\s*[:=]?\s*([\d.]+)\s*\/\s*10/i);
+  if (labeled) {
+    const score = parseFloat(labeled[1]);
+    if (Number.isFinite(score)) {
+      // Strip just the matched snippet; keep the rest intact.
+      const cleanContent = content.replace(labeled[0], '').trim();
+      return { score, cleanContent };
+    }
+  }
+  const fuzzy = head.match(/\b([\d.]+)\s*\/\s*10\b[^.\n]{0,40}\b(score|match|fit|rating)\b/i)
+              || head.match(/\b(score|match|fit|rating)\b[^.\n]{0,40}\b([\d.]+)\s*\/\s*10\b/i);
+  if (fuzzy) {
+    const raw = fuzzy[1].match(/[\d.]+/) ? fuzzy[1] : fuzzy[2];
+    const score = parseFloat(raw);
+    if (Number.isFinite(score) && score >= 0 && score <= 10) {
+      return { score, cleanContent: content };
+    }
   }
   return { score: null, cleanContent: content };
+}
+
+// ── Render Perplexity citations as Unicode superscript markdown links ──
+const SUP_DIGITS = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'];
+function toSuperscript(n: number): string {
+  return String(n).split('').map((d) => SUP_DIGITS[parseInt(d, 10)] || d).join('');
+}
+function applyCitations(content: string, citations: string[] | undefined): string {
+  if (!citations || citations.length === 0) return content;
+  return content.replace(/\[(\d+)\]/g, (full, ns) => {
+    const n = parseInt(ns, 10);
+    const url = citations[n - 1];
+    return url ? `[${toSuperscript(n)}](${url})` : full;
+  });
 }
 
 function getScoreColor(score: number): string {
@@ -116,7 +150,7 @@ function isAffirmativeReply(text: string): boolean {
   return /^(yes|yeah|yep|yup|sure|please|please do|ok|okay|go ahead|do it|send it|send me|generate it|generate|export it|let'?s do it|sounds good|pode|sim|envia|envie|manda|pode mandar|pode enviar|claro)\b[\s.!]*$/i.test(t);
 }
 
-const EXCEL_OFFER_LINE = "Want me to put this into a downloadable Excel spreadsheet?";
+const EXCEL_OFFER_LINE = "Want me to put this into a downloadable Excel spreadsheet? (Generating it uses a bit more AI credit since I'll re-read the full thread for accuracy.)";
 
 export default function Chats() {
   const { toast } = useToast();
