@@ -282,7 +282,7 @@ RULES:
 - Extract ONLY what's in scraped content or publicly known
 - If unavailable, state "Not listed"
 - No speculation, no emojis, no invented data
-- Do NOT include citation numbers like [1], [2]`;
+- When you reference a source, include its citation number inline as [1], [2], etc. — they will be rendered as clickable superscripts.`;
     } else if (isSearch) {
       // Search Mode
       systemPrompt = `You are a friendly and helpful U.S. real estate assistant, here to help users find their perfect property.
@@ -424,7 +424,8 @@ No appreciation guarantees. No specific legal advice. No simulated credit decisi
 - Bold for the single most important number/conclusion per section.
 - Bullets for 3+ parallel items. Each bullet on its own line. Max 1 level of nesting.
 - L1 = 2–5 sentences, no structure. L2 = 1 short paragraph + optional single table or 3-bullet list. L3 = full structured response. L4 = one clarifying question only.
-- No emojis, no marketing language. No citation numbers like [1], [2].
+- No emojis, no marketing language.
+- When you reference a fact from a source, include its citation number inline as [1], [2], etc. — they will be rendered as clickable superscript links.
 
 ## NUMERIC SUMMARY FORMAT (CRITICAL)
 When your answer includes 3+ related numeric figures (loan snapshot, affordability, monthly cost stack, ROI, closing costs, etc.), present them as a 2-column markdown table titled with a bold heading on the line above. Optionally follow with a \`>\` blockquote for the key takeaway.
@@ -566,6 +567,7 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
     return new Response(
       JSON.stringify({
         message: content,
+        citations,
         links: validatedLinks.slice(0, 3), // Max 3 links (1 per site)
         mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
       }),

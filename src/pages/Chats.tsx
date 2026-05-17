@@ -22,15 +22,49 @@ import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 
-// ── Match Score parser ──
+// ── Match Score parser (tolerant) ──
+// Strict: prefix at line start. Tolerant: same pattern anywhere in first 300 chars.
+// Last-ditch: a bare "X/10" near words like "score|match|fit|rating" in first 300 chars.
 function parseMatchScore(content: string): { score: number | null; cleanContent: string } {
-  const match = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
-  if (match) {
-    const score = parseFloat(match[1]);
-    const cleanContent = content.slice(match[0].length).trim();
-    return { score: Number.isFinite(score) ? score : null, cleanContent };
+  const strict = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
+  if (strict) {
+    const score = parseFloat(strict[1]);
+    return { score: Number.isFinite(score) ? score : null, cleanContent: content.slice(strict[0].length).trim() };
+  }
+  const head = content.slice(0, 300);
+  const labeled = head.match(/MATCH[\s_-]?SCORE\s*[:=]?\s*([\d.]+)\s*\/\s*10/i);
+  if (labeled) {
+    const score = parseFloat(labeled[1]);
+    if (Number.isFinite(score)) {
+      // Strip just the matched snippet; keep the rest intact.
+      const cleanContent = content.replace(labeled[0], '').trim();
+      return { score, cleanContent };
+    }
+  }
+  const fuzzy = head.match(/\b([\d.]+)\s*\/\s*10\b[^.\n]{0,40}\b(score|match|fit|rating)\b/i)
+              || head.match(/\b(score|match|fit|rating)\b[^.\n]{0,40}\b([\d.]+)\s*\/\s*10\b/i);
+  if (fuzzy) {
+    const raw = fuzzy[1].match(/[\d.]+/) ? fuzzy[1] : fuzzy[2];
+    const score = parseFloat(raw);
+    if (Number.isFinite(score) && score >= 0 && score <= 10) {
+      return { score, cleanContent: content };
+    }
   }
   return { score: null, cleanContent: content };
+}
+
+// ── Render Perplexity citations as Unicode superscript markdown links ──
+const SUP_DIGITS = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'];
+function toSuperscript(n: number): string {
+  return String(n).split('').map((d) => SUP_DIGITS[parseInt(d, 10)] || d).join('');
+}
+function applyCitations(content: string, citations: string[] | undefined): string {
+  if (!citations || citations.length === 0) return content;
+  return content.replace(/\[(\d+)\]/g, (full, ns) => {
+    const n = parseInt(ns, 10);
+    const url = citations[n - 1];
+    return url ? `[${toSuperscript(n)}](${url})` : full;
+  });
 }
 
 function getScoreColor(score: number): string {
@@ -116,7 +150,7 @@ function isAffirmativeReply(text: string): boolean {
   return /^(yes|yeah|yep|yup|sure|please|please do|ok|okay|go ahead|do it|send it|send me|generate it|generate|export it|let'?s do it|sounds good|pode|sim|envia|envie|manda|pode mandar|pode enviar|claro)\b[\s.!]*$/i.test(t);
 }
 
-const EXCEL_OFFER_LINE = "Want me to put this into a downloadable Excel spreadsheet?";
+const EXCEL_OFFER_LINE = "Want me to put this into a downloadable Excel spreadsheet? (Generating it uses a bit more AI credit since I'll re-read the full thread for accuracy.)";
 
 export default function Chats() {
   const { toast } = useToast();
@@ -124,6 +158,9 @@ export default function Chats() {
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialMessageProcessed = useRef(false);
+  // Per-conversation guard: only retry the match-score extraction once per chat
+  // to avoid double-billing on repeated misses.
+  const matchScoreRetriedRef = useRef<Set<string>>(new Set());
 
   // Saved chats hook
   const {
@@ -301,12 +338,41 @@ export default function Chats() {
       if (error) throw error;
 
       const rawMessage = data?.message || 'I could not process that request.';
-      const { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+      let { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+      const citations: string[] = Array.isArray(data?.citations) ? data.citations : [];
+
+      // G1 — Match score retry: if this looks like a URL analysis and the score
+      // is missing on the first response, fire ONE lightweight retry asking the
+      // model for just the score line. We don't replace the prose, only enrich
+      // the metadata. Per-conversation guard prevents double-billing.
+      const flakyKey = conversationId || 'no-conv';
+      if (extractedUrl && matchScore === null && !matchScoreRetriedRef.current.has(flakyKey)) {
+        matchScoreRetriedRef.current.add(flakyKey);
+        try {
+          const { data: retryData } = await supabase.functions.invoke('perplexity-chat', {
+            body: {
+              query: `For the property at ${extractedUrl}, output ONLY a single line: "MATCH_SCORE: X/10" where X is a number 0–10 (decimals like 7.5 allowed) rating how well it matches my profile. No other text.`,
+              conversationHistory: [],
+              userGoal: userPrimaryGoal,
+            },
+          });
+          const retryParsed = parseMatchScore(retryData?.message || '');
+          if (retryParsed.score !== null) {
+            matchScore = retryParsed.score;
+            console.log('[match-score-retry] recovered', { score: matchScore });
+          }
+        } catch (e) {
+          console.warn('[match-score-retry] failed (non-blocking):', e);
+        }
+      }
+
+      // G3 — Render Perplexity citations as Unicode superscript markdown links.
+      const renderedContent = applyCitations(cleanContent, citations);
 
       const assistantMessage: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
-        content: cleanContent,
+        content: renderedContent,
         links: data?.links || [],
         createdAt: new Date().toISOString(),
         metadata: matchScore !== null ? { matchScore } : undefined
@@ -352,14 +418,21 @@ export default function Chats() {
 
       if (allowExcel) {
         try {
+          // G2 — Pass the full conversation, user profile signal, and an
+          // explicit `intent` so ai-chat can build a context-aware workbook
+          // instead of operating on a 3-message synthetic stub.
+          const fullHistory = [
+            ...messages.map((m) => ({ role: m.role, content: m.content })),
+            { role: 'user' as const, content: cleanedMessage },
+            { role: 'assistant' as const, content: perplexityResponse },
+            { role: 'user' as const, content: `The user has explicitly opted in to receiving the Excel workbook. Generate a detailed Excel spreadsheet with a workflow_excel uiBlock based on the full conversation above. Include ALL numbers, values, costs, and data points mentioned. If specific numbers were not available, estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. NEVER leave cost cells empty — always fill with estimated values. Every row must have numeric values in cost/value columns.` },
+          ];
           const { data: excelData, error: excelError } = await supabase.functions.invoke('ai-chat', {
             body: {
-              messages: [
-                { role: 'user', content: lastAssistantBefore?.content ? `Prior context to use for the workbook:\n\n${lastAssistantBefore.content}` : cleanedMessage },
-                { role: 'assistant', content: perplexityResponse },
-                { role: 'user', content: `The user has explicitly opted in to receiving the Excel workbook. Generate a detailed Excel spreadsheet with a workflow_excel uiBlock based on the analysis above. Include ALL numbers, values, costs, and data points mentioned. If specific numbers were not available, estimate realistic values based on typical U.S. market data for the described scenario, region, and property type. NEVER leave cost cells empty — always fill with estimated values. Every row must have numeric values in cost/value columns.` }
-              ],
-              conversationMode: true
+              messages: fullHistory,
+              conversationMode: true,
+              userGoal: userPrimaryGoal,
+              intent: 'excel_generation',
             }
           });
 
