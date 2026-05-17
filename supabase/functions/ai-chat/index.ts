@@ -358,16 +358,17 @@ CRITICAL:
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      // [ai-chat-branch] FIRECRAWL path: pasted property URL(s) without DOM data
+      console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'firecrawl', urlCount: detectedUrls.length, hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode }));
       console.log('Triggering property analysis mode (Firecrawl)');
-      
-      // Fetch real property data from URLs using Firecrawl
+
+      // Fetch real property data from URLs using the shared scraper (Firecrawl + retry + graceful note)
       const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-      
       if (!FIRECRAWL_API_KEY) {
         console.error('FIRECRAWL_API_KEY not configured');
         return new Response(
-          JSON.stringify({ 
-            response: 'I detected property URLs, but I need Firecrawl API key configured to fetch real data. Please configure it to enable property analysis.'
+          JSON.stringify({
+            response: `I detected property URLs but couldn't fetch the page directly (Firecrawl is not configured). ${SCRAPE_FAILED_NOTE}`,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
