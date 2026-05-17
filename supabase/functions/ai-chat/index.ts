@@ -780,6 +780,27 @@ CRITICAL:
         hadProse: !!choice.content,
       }));
 
+      // Persist telemetry (fire-and-forget; admin-only dashboard reads this).
+      try {
+        const telemetryUrl = Deno.env.get('SUPABASE_URL');
+        const telemetryKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (telemetryUrl && telemetryKey) {
+          const telemetryClient = createClient(telemetryUrl, telemetryKey);
+          telemetryClient.from('tool_call_telemetry').insert({
+            branch: 'firecrawl',
+            tool_call_emitted: !!structuredMatchScore,
+            tool_call_count: toolCalls.length,
+            had_prose: !!choice.content,
+            model: 'google/gemini-2.5-flash',
+            match_score: structuredMatchScore ? structuredMatchScore.score : null,
+          }).then(({ error }) => {
+            if (error) console.warn('[ai-chat-tool-call] telemetry insert failed', error.message);
+          });
+        }
+      } catch (e) {
+        console.warn('[ai-chat-tool-call] telemetry insert threw', e);
+      }
+
       await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis generated successfully');
       
