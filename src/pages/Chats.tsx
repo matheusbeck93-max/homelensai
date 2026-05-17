@@ -158,6 +158,9 @@ export default function Chats() {
   const location = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialMessageProcessed = useRef(false);
+  // Per-conversation guard: only retry the match-score extraction once per chat
+  // to avoid double-billing on repeated misses.
+  const matchScoreRetriedRef = useRef<Set<string>>(new Set());
 
   // Saved chats hook
   const {
