@@ -300,7 +300,7 @@ CRITICAL:
       }
 
       log.step('Calling AI Gateway with client property data');
-      
+      const sanitizedHistory = sanitizeHistory(messages.slice(0, -1), { maxTurns: 30, enforceAlternation: true });
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -311,7 +311,7 @@ CRITICAL:
           model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}` },
-            ...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
+            ...sanitizedHistory,
             { role: 'user', content: analysisPrompt }
           ],
           max_tokens: maxOutputTokensFor(creditCheck.tier),
@@ -362,43 +362,34 @@ CRITICAL:
       console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'firecrawl', urlCount: detectedUrls.length, hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode }));
       console.log('Triggering property analysis mode (Firecrawl)');
 
-      // Fetch real property data from URLs using the shared scraper (Firecrawl + retry + graceful note)
-      const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-      if (!FIRECRAWL_API_KEY) {
-        console.error('FIRECRAWL_API_KEY not configured');
-        return new Response(
-          JSON.stringify({
-            response: `I detected property URLs but couldn't fetch the page directly (Firecrawl is not configured). ${SCRAPE_FAILED_NOTE}`,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
+      // Fetch real property data from URLs via the shared scraper
+      // (Firecrawl + bounded retry + graceful degradation note).
       const propertyPromises = detectedUrls.slice(0, 4).map(async (url: string, index: number) => {
         try {
           console.log(`Fetching property data from: ${url}`);
-          
-          // Use Firecrawl to scrape the URL
-          const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              url: url,
-              formats: ['markdown', 'html']
-            })
-          });
-          
-          if (!firecrawlResponse.ok) {
-            throw new Error(`Firecrawl failed: ${firecrawlResponse.status}`);
+
+          const scrape = await scrapeProperty(url);
+          if (!scrape.markdown) {
+            console.warn(`[ai-chat] scrapeProperty failed for ${url}: ${scrape.reason}`);
+            return {
+              id: `url-${index + 1}`,
+              address: `Property ${index + 1}`,
+              city: 'Unknown',
+              state: 'XX',
+              zip: '00000',
+              price: 0,
+              beds: 0,
+              baths: 0,
+              sqft: 0,
+              image_urls: [`https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800`],
+              description: SCRAPE_FAILED_NOTE,
+              condition: 'active',
+              status: 'active',
+              externalLink: url,
+              scrapeFailed: true,
+            };
           }
-          
-          const firecrawlData = await firecrawlResponse.json();
-          const html = firecrawlData.data?.html || '';
-          const markdown = firecrawlData.data?.markdown || '';
-          const content = html || markdown;
+          const content = scrape.markdown;
           
           // Parse property data
           let propertyData: any = {
