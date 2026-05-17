@@ -456,40 +456,11 @@ Direct. Knowledgeable. Honest about uncertainty. Never condescending, never vagu
 SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mortgages, market trends, property tax, first-time buyer programs, real estate law basics, personal finance tied to real estate, renovation costs tied to investment. Off-topic → one-sentence warm redirect with a concrete real estate offer.`;
     }
 
-    // Build conversation messages
-    // Filter empty messages and ensure strict alternating user/assistant roles
-    const filteredHistory = conversationHistory
-      .filter(m => m.content && m.content.trim().length > 0)
-      .slice(-10);
-    
-    // Deduplicate consecutive same-role messages to satisfy Perplexity's alternation requirement
-    const dedupedHistory: { role: string; content: string }[] = [];
-    for (const m of filteredHistory) {
-      if (dedupedHistory.length > 0 && dedupedHistory[dedupedHistory.length - 1].role === m.role) {
-        // Merge consecutive same-role messages
-        dedupedHistory[dedupedHistory.length - 1].content += '\n\n' + m.content;
-      } else {
-        dedupedHistory.push({ role: m.role, content: m.content });
-      }
-    }
-
-    // Ensure history starts with 'user' and strictly alternates user/assistant
-    const sanitizedHistory: { role: string; content: string }[] = [];
-    for (const m of dedupedHistory) {
-      const expectedRole = sanitizedHistory.length % 2 === 0 ? 'user' : 'assistant';
-      if (m.role === expectedRole) {
-        sanitizedHistory.push(m);
-      } else if (sanitizedHistory.length === 0 && m.role === 'assistant') {
-        // Skip assistant messages at the start (must begin with user)
-        continue;
-      } else {
-        // Role mismatch - merge into previous or skip
-        if (sanitizedHistory.length > 0 && sanitizedHistory[sanitizedHistory.length - 1].role === m.role) {
-          sanitizedHistory[sanitizedHistory.length - 1].content += '\n\n' + m.content;
-        }
-        // Otherwise skip to maintain alternation
-      }
-    }
+    // Shared sanitizer: last 10 turns, strict alternation starting with user (Perplexity requirement).
+    const sanitizedHistory = sanitizeHistory(conversationHistory, {
+      maxTurns: 10,
+      enforceAlternation: true,
+    });
 
     // Build final messages array
     const messages: { role: string; content: string }[] = [
@@ -585,10 +556,17 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
       }
     }
 
+    // Drop portal links that fail shape validation. If ALL fail, omit `links`
+    // entirely rather than emit broken clicks to the UI.
+    const validatedLinks = extractedLinks.filter((l) => isValidPortalSearchUrl(l.url));
+    if (extractedLinks.length > 0 && validatedLinks.length === 0) {
+      console.warn('[perplexity-chat] All extracted portal URLs failed validation; dropping links');
+    }
+
     return new Response(
       JSON.stringify({
         message: content,
-        links: extractedLinks.slice(0, 3), // Max 3 links (1 per site)
+        links: validatedLinks.slice(0, 3), // Max 3 links (1 per site)
         mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
