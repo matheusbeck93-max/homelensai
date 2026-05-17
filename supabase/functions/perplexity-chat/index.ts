@@ -197,66 +197,32 @@ RULES:
     
     if (isUrl) {
       // URL Analysis Mode - scrape the URL first with Firecrawl for accurate data
-      const urlMatch = query.match(/https?:\/\/[^\s]+/i);
-      const propertyUrl = urlMatch ? urlMatch[0].replace(/[.,;:!?]+$/, '') : '';
+      const propertyUrl = extractFirstPropertyUrl(query) ?? '';
       let scrapedContent = '';
-      
+      let scrapeFailed = false;
+
       if (propertyUrl) {
-        const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-        if (FIRECRAWL_API_KEY) {
-          try {
-            console.log(`[perplexity-chat] Scraping URL with Firecrawl: ${propertyUrl}`);
-            const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                url: propertyUrl,
-                formats: ['markdown'],
-                onlyMainContent: true,
-                waitFor: 5000,
-              }),
-            });
-            
-            if (scrapeResponse.ok) {
-              const scrapeData = await scrapeResponse.json();
-              const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
-              if (markdown) {
-                scrapedContent = markdown.substring(0, 8000);
-                console.log(`[perplexity-chat] Firecrawl scraped ${scrapedContent.length} chars`);
-              }
-            } else {
-              console.error(`[perplexity-chat] Firecrawl error: ${scrapeResponse.status}`);
-            }
-          } catch (scrapeError) {
-            console.error('[perplexity-chat] Firecrawl scrape failed:', scrapeError);
-          }
+        const result = await scrapeProperty(propertyUrl);
+        if (result.markdown) {
+          scrapedContent = result.markdown;
+          console.log(`[perplexity-chat] Scraped ${scrapedContent.length} chars via ${result.source}`);
+        } else {
+          scrapeFailed = true;
+          console.warn(`[perplexity-chat] Scrape failed: ${result.reason}`);
         }
       }
-      
+
       const scrapedDataSection = scrapedContent 
         ? `\n\nSCRAPED PAGE CONTENT (use this as your PRIMARY data source - these are the actual values from the listing page):\n---\n${scrapedContent}\n---\n`
-        : '';
+        : (scrapeFailed ? `\n\n${SCRAPE_FAILED_NOTE}\n` : '');
 
-      // Build match score instructions from profile
+      // Build match score instructions from profile (memoized; same fetch as above)
       let matchScoreInstructions = '';
-      if (authHeader) {
-        try {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-          const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          const msSupabase = createClient(supabaseUrl, supabaseKey);
-          const msToken = authHeader.replace('Bearer ', '');
-          const { data: { user: msUser } } = await msSupabase.auth.getUser(msToken);
-          if (msUser) {
-            const { data: msProfile } = await msSupabase.from('profiles').select('*').eq('id', msUser.id).single();
-            if (msProfile && msProfile.onboarding_completed) {
-              matchScoreInstructions = `\n\nIMPORTANT - MATCH SCORE: You MUST start your response with EXACTLY this format on the first line: "MATCH_SCORE: X/10" where X is a number from 0 to 10 rating how well this property matches the user's profile:\n- Budget: $${msProfile.budget_min || 0} - $${msProfile.budget_max || 'unlimited'}\n- Preferred cities: ${msProfile.preferred_cities?.join(', ') || 'any'}\n- Property types: ${msProfile.property_types?.join(', ') || 'any'}\n- Has children: ${msProfile.has_children ? 'Yes' : 'No'}\n- Safety priority: ${msProfile.safety_priority || 'medium'}\n- Risk level: ${msProfile.risk_level || 'moderate'}\n- Min bedrooms: ${msProfile.min_bedrooms || 'any'}\n- Min bathrooms: ${msProfile.min_bathrooms || 'any'}\n- Must-have features: ${msProfile.must_have_features?.join(', ') || 'none'}\nAfter the MATCH_SCORE line, add ONE blank line, then continue with your analysis.\n`;
-            }
-          }
-        } catch (msErr) {
-          console.error('[perplexity-chat] Error fetching profile for match score:', msErr);
+      {
+        const { profile: msProfile } = await loadProfile(req);
+        if (msProfile && (msProfile as any).onboarding_completed) {
+          const p: any = msProfile;
+          matchScoreInstructions = `\n\nIMPORTANT - MATCH SCORE: You MUST start your response with EXACTLY this format on the first line: "MATCH_SCORE: X/10" where X is a number from 0 to 10 rating how well this property matches the user's profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\n- Min bedrooms: ${p.min_bedrooms || 'any'}\n- Min bathrooms: ${p.min_bathrooms || 'any'}\n- Must-have features: ${p.must_have_features?.join(', ') || 'none'}\nAfter the MATCH_SCORE line, add ONE blank line, then continue with your analysis.\n`;
         }
       }
 
