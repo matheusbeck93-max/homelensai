@@ -30,6 +30,8 @@ export function TextToSpeechButton({ text, className }: TextToSpeechButtonProps)
 
   const cleanTextForSpeech = (raw: string): string => {
     return raw
+      .replace(/\[\d+\]/g, '')           // strip [1], [2] citation markers
+      .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, '')      // strip unicode superscript citations
       .replace(/\[?\d+\]?/g, '')
       .replace(/[*#_~`>|]/g, '')
       .replace(/!\[.*?\]\(.*?\)/g, '')
