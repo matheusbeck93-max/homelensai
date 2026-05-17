@@ -1,12 +1,20 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createLogger } from '../_shared/logging.ts';
-import { enforceDailyLimit } from '../_shared/dailyLimit.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
+import { loadProfile } from '../_shared/profileLoader.ts';
+import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
+import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 
 const log = createLogger('ai-chat');
+
+// Known buyer_type values supported by `profileInstructions` below.
+// Unknown values silently coerce to 'regular-buyer' — keep this list in sync
+// with the database `buyer_type` enum and the `profileInstructions` map.
+const KNOWN_PROFILES = ['investor', 'first-time-buyer', 'regular-buyer'] as const;
+type KnownProfile = typeof KNOWN_PROFILES[number];
 
 // Attachment security constants
 const ALLOWED_MIME_TYPES = [
@@ -111,11 +119,10 @@ Deno.serve(async (req) => {
 
     // In conversation mode, check if this is a property search request
     const lastUserMessage = messages[messages.length - 1]?.content || '';
-    
-    // Detect property URLs
-    const urlRegex = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|homes)\.com\/[^\s]+)/gi;
-    const detectedUrls = lastUserMessage.match(urlRegex) || [];
-    
+
+    // Detect property URLs via shared whitelist (matches perplexity-chat).
+    const detectedUrls = extractAllPropertyUrls(lastUserMessage);
+
     log.step('URL detection', { count: detectedUrls.length });
     
     // In conversation mode, let AI handle property search queries naturally
