@@ -99,3 +99,25 @@ Apply the 10 doc patches from Phase 1 (P2 set):
 - `grep -rn "dailyLimit" supabase/functions src` → 0 hits.
 - History payload to Gateway is now bounded to 30 turns and alternation-clean.
 - Phase 2 gates (G1 match-score retry, G2 Excel full context, G3 citations) and Phase 3 deletion remain queued.
+
+---
+
+## Phase 2 — Gates Applied (G1, G2, G3)
+
+### G1 — Match score retry + tolerant parsing
+- `parseMatchScore` (Chats.tsx) now has three layers: strict anchored prefix → labeled match anywhere in first 300 chars → fuzzy "X/10 near score|match|fit|rating".
+- One retry per conversation: when `extractedUrl` is present and no score is parsed on the first turn, fire a single short `perplexity-chat` call asking for only the `MATCH_SCORE: X/10` line. Score is merged into the original message's metadata; prose is unchanged. `matchScoreRetriedRef` (per-conversation Set) prevents double-billing.
+
+### G2 — Excel generation full context + cost hint
+- Excel opt-in call now sends the entire `messages` array plus the current turn plus the structured Excel directive (4 turns of history minimum). Body also includes `userGoal` and `intent: 'excel_generation'`.
+- `EXCEL_OFFER_LINE` updated with a transparent cost hint so users aren't surprised by the higher credit usage.
+
+### G3 — Inline `[N]` citations as superscript links
+- `perplexity-chat`: removed the "No citation numbers like [1], [2]" rules in both URL_ANALYSIS and GENERAL prompts; added explicit "use [1], [2] inline" guidance. Response payload now includes `citations: string[]` alongside `message` and `links`.
+- `Chats.tsx`: `applyCitations(content, citations)` rewrites `[N]` into markdown links with Unicode superscript text (`⁰¹²³…`) pointing at the citation URL. ReactMarkdown renders them as clickable superscript-style links with the existing `chatMarkdownComponents` styling.
+- `TextToSpeechButton.cleanTextForSpeech`: strips both `[N]` ASCII and Unicode superscript digits before sending to ElevenLabs.
+
+### Verification
+- Property URL with profile → expect MATCH_SCORE prefix; if missing, log line `[match-score-retry] recovered { score: ... }` and badge still renders.
+- Excel opt-in → ai-chat receives `messages.length >= 4` plus `intent: 'excel_generation'`.
+- Perplexity general/search response containing `[1]` → renders as superscript link to `citations[0]`; TTS reads cleanly without "one", "two".
