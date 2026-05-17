@@ -3,10 +3,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createLogger } from '../_shared/logging.ts';
-import { enforceDailyLimit } from '../_shared/dailyLimit.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
+import { loadProfile } from '../_shared/profileLoader.ts';
+import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
+import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 
 const log = createLogger('ai-chat');
+
+// Known buyer_type values supported by `profileInstructions` below.
+// Unknown values silently coerce to 'regular-buyer' — keep this list in sync
+// with the database `buyer_type` enum and the `profileInstructions` map.
+const KNOWN_PROFILES = ['investor', 'first-time-buyer', 'regular-buyer'] as const;
+type KnownProfile = typeof KNOWN_PROFILES[number];
 
 // Attachment security constants
 const ALLOWED_MIME_TYPES = [
@@ -111,11 +120,10 @@ Deno.serve(async (req) => {
 
     // In conversation mode, check if this is a property search request
     const lastUserMessage = messages[messages.length - 1]?.content || '';
-    
-    // Detect property URLs
-    const urlRegex = /(https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|homes)\.com\/[^\s]+)/gi;
-    const detectedUrls = lastUserMessage.match(urlRegex) || [];
-    
+
+    // Detect property URLs via shared whitelist (matches perplexity-chat).
+    const detectedUrls = extractAllPropertyUrls(lastUserMessage);
+
     log.step('URL detection', { count: detectedUrls.length });
     
     // In conversation mode, let AI handle property search queries naturally
@@ -278,19 +286,16 @@ CRITICAL:
 - Show ONLY final calculated numbers. DO NOT show formulas or calculation steps.
 - Keep response concise with bullet points.`);
 
-      // Fetch user profile for match score
+      // [ai-chat-branch] EXTENSION path: client-provided DOM-extracted property
+      console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'extension', hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode }));
+
+      // Fetch user profile for match score (memoized per request)
       let matchScoreInstructions = '';
-      if (authHeader) {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-          if (profile && profile.onboarding_completed) {
-            matchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${profile.budget_min || 0} - $${profile.budget_max || 'unlimited'}\n- Preferred cities: ${profile.preferred_cities?.join(', ') || 'any'}\n- Property types: ${profile.property_types?.join(', ') || 'any'}\n- Has children: ${profile.has_children ? 'Yes' : 'No'}\n- Safety priority: ${profile.safety_priority || 'medium'}\n- Risk level: ${profile.risk_level || 'moderate'}\nAfter the score line, continue with the analysis.`;
-          }
+      {
+        const { profile } = await loadProfile(req);
+        if (profile && (profile as any).onboarding_completed) {
+          const p: any = profile;
+          matchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\nAfter the score line, continue with the analysis.`;
         }
       }
 
@@ -353,16 +358,17 @@ CRITICAL:
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      // [ai-chat-branch] FIRECRAWL path: pasted property URL(s) without DOM data
+      console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'firecrawl', urlCount: detectedUrls.length, hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode }));
       console.log('Triggering property analysis mode (Firecrawl)');
-      
-      // Fetch real property data from URLs using Firecrawl
+
+      // Fetch real property data from URLs using the shared scraper (Firecrawl + retry + graceful note)
       const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-      
       if (!FIRECRAWL_API_KEY) {
         console.error('FIRECRAWL_API_KEY not configured');
         return new Response(
-          JSON.stringify({ 
-            response: 'I detected property URLs, but I need Firecrawl API key configured to fetch real data. Please configure it to enable property analysis.'
+          JSON.stringify({
+            response: `I detected property URLs but couldn't fetch the page directly (Firecrawl is not configured). ${SCRAPE_FAILED_NOTE}`,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -688,23 +694,13 @@ CRITICAL:
 
         console.log('Analysis prompt created, calling Lovable AI Gateway...');
       
-      // Fetch user profile for match score (Firecrawl path)
+      // Fetch user profile for match score (Firecrawl path) — memoized per request
       let firecrawlMatchScoreInstructions = '';
-      if (authHeader) {
-        try {
-          const fcSupabaseUrl = Deno.env.get('SUPABASE_URL')!;
-          const fcSupabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          const fcSupabase = createClient(fcSupabaseUrl, fcSupabaseKey);
-          const fcToken = authHeader.replace('Bearer ', '');
-          const { data: { user: fcUser } } = await fcSupabase.auth.getUser(fcToken);
-          if (fcUser) {
-            const { data: fcProfile } = await fcSupabase.from('profiles').select('*').eq('id', fcUser.id).single();
-            if (fcProfile && fcProfile.onboarding_completed) {
-              firecrawlMatchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${fcProfile.budget_min || 0} - $${fcProfile.budget_max || 'unlimited'}\n- Preferred cities: ${fcProfile.preferred_cities?.join(', ') || 'any'}\n- Property types: ${fcProfile.property_types?.join(', ') || 'any'}\n- Has children: ${fcProfile.has_children ? 'Yes' : 'No'}\n- Safety priority: ${fcProfile.safety_priority || 'medium'}\n- Risk level: ${fcProfile.risk_level || 'moderate'}\n- Min bedrooms: ${fcProfile.min_bedrooms || 'any'}\n- Min bathrooms: ${fcProfile.min_bathrooms || 'any'}\n- Must-have features: ${fcProfile.must_have_features?.join(', ') || 'none'}\nAfter the score line, continue with the analysis.`;
-            }
-          }
-        } catch (profileErr) {
-          console.error('Error fetching profile for match score (Firecrawl path):', profileErr);
+      {
+        const { profile: fcProfile } = await loadProfile(req);
+        if (fcProfile && (fcProfile as any).onboarding_completed) {
+          const p: any = fcProfile;
+          firecrawlMatchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\n- Min bedrooms: ${p.min_bedrooms || 'any'}\n- Min bathrooms: ${p.min_bathrooms || 'any'}\n- Must-have features: ${p.must_have_features?.join(', ') || 'none'}\nAfter the score line, continue with the analysis.`;
         }
       }
 
@@ -773,28 +769,25 @@ CRITICAL:
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch fresh user profile from database if authenticated
+    // [ai-chat-branch] GENERAL path (DEPRECATED — see plan Phase 2/3).
+    // Most users hit perplexity-chat for default chat; this branch only runs
+    // for attachments / Excel / fallback. Branch markers logged for 7-day study.
+    console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'general', hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode, hasPropertyData: !!propertyData }));
+
+    // Fetch fresh user profile (memoized per request).
     let userProfile = clientProfile;
-    let fullProfile: any = null;
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) {
-          fullProfile = profile;
-          if (!userProfile) {
-            userProfile = profile.buyer_type || 'regular-buyer';
-          }
-        }
-      }
+    const { profile: fullProfile } = await loadProfile(req);
+    if (fullProfile && !userProfile) {
+      userProfile = (fullProfile as any).buyer_type || 'regular-buyer';
     }
+
+    // Warn on unknown buyer_type so silent fallback to regular-buyer is observable.
+    if (userProfile && !(KNOWN_PROFILES as readonly string[]).includes(userProfile as string)) {
+      console.warn(`[ai-chat] Unknown userProfile "${userProfile}" — falling back to regular-buyer. Add to profileInstructions if intentional. Known: ${KNOWN_PROFILES.join(', ')}`);
+    }
+    const resolvedProfileKey: KnownProfile = (KNOWN_PROFILES as readonly string[]).includes(userProfile as string)
+      ? (userProfile as KnownProfile)
+      : 'regular-buyer';
 
     const { data: programs } = await supabase.from('programs').select('*').limit(5);
     const { data: rates } = await supabase.from('rates').select('*').limit(5);
@@ -849,7 +842,7 @@ CRITICAL:
         prefs.push(`🚿 Min Bathrooms: ${profileSource.min_bathrooms}`);
       }
       if (profileSource.must_have_features && profileSource.must_have_features.length > 0) {
-        prefs.push(`✅ Must-Have Features: ${profileSource.must_have_features.join(', ')}`);
+        prefs.push(`Must-Have Features: ${profileSource.must_have_features.join(', ')}`);
       }
       if (profileSource.has_children) {
         prefs.push(`👨‍👩‍👧‍👦 Has Children: Yes`);
@@ -1157,15 +1150,15 @@ Direct. Knowledgeable. Honest about uncertainty. Never condescending, never vagu
      * baths_min: 0 (any bathrooms)
      * prop_type: "any"
    - CLEAR locations that can trigger immediate search:
-     * "Arlington, VA" ✅
-     * "Miami" or "Miami, FL" ✅
-     * "90210" (ZIP code) ✅
-     * "DMV area" ✅ (use Arlington, VA or Silver Spring, MD)
-     * "Bay Area" ✅ (use San Francisco, CA or Oakland, CA)
+     * "Arlington, VA" (yes)
+     * "Miami" or "Miami, FL" (yes)
+     * "90210" (ZIP code — yes)
+     * "DMV area" (yes — use Arlington, VA or Silver Spring, MD)
+     * "Bay Area" (yes — use San Francisco, CA or Oakland, CA)
    - AMBIGUOUS locations that require clarification:
-     * "somewhere in Virginia" ❌ → Ask: "Which area of Virginia?"
-     * "up north" ❌ → Ask: "Which city or state are you interested in?"
-     * "the coast" ❌ → Ask: "Which coastal area?"
+     * "somewhere in Virginia" (no) → Ask: "Which area of Virginia?"
+     * "up north" (no) → Ask: "Which city or state are you interested in?"
+     * "the coast" (no) → Ask: "Which coastal area?"
    - Example: "Show me homes in Arlington, VA" → IMMEDIATELY trigger search with defaults
    - Example: "Find houses in the DMV" → IMMEDIATELY trigger search with "Arlington, VA" and mention "Showing results from the DC metro area (Arlington, Alexandria, and nearby)"
 
@@ -1319,12 +1312,12 @@ Direct. Knowledgeable. Honest about uncertainty. Never condescending, never vagu
    }
    
    **NEVER DO THIS:**
-   ❌ Including JSON in message: "Search params: {\"location\": ...}"
-   ❌ Describing filters: "I'll search for 3 beds, $900k max in Arlington"
-   
+   - Including JSON in message: "Search params: {\"location\": ...}"
+   - Describing filters: "I'll search for 3 beds, $900k max in Arlington"
+
    **ALWAYS DO THIS:**
-   ✅ Clean message + searchParams in separate field
-   ✅ "I'll show you matching properties." + searchParams object
+   - Clean message + searchParams in separate field
+   - "I'll show you matching properties." + searchParams object
 
 11. **EVERY SEARCH MUST RETURN SEARCH PARAMS**
    - ANY time you decide to search for properties, you MUST include searchParams in your JSON response
@@ -1366,7 +1359,7 @@ Direct. Knowledgeable. Honest about uncertainty. Never condescending, never vagu
 ${contextInfo}
 ${propertyContext}
 
-${profileInstructions[userProfile as keyof typeof profileInstructions] || profileInstructions['regular-buyer']}
+${profileInstructions[resolvedProfileKey]}
 
 **MARKET & FINANCIAL INTELLIGENCE**:
 You are THE definitive real estate market and financial expert. You MUST:
@@ -1416,16 +1409,15 @@ If above 8, highlight why this is an excellent match.
 ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image. Analyze it thoroughly for:\n- Property condition and quality\n- Visible features and upgrades\n- Estimated renovation needs\n- Market appeal and positioning\n' : ''}
 
 **CRITICAL FORMATTING RULES:**
-- Always respond in American English
-- Use markdown formatting for ALL links: [text](url)
-- Use current 2025 market data and trends
-- Average mortgage rate: 6.8% (30-year fixed)
-- Format responses with emojis for visual clarity
-- Use bullet points with emojis for better readability
-- Structure information in clear sections with headers
-- **NEVER show raw mathematical formulas** (like "$500,000 * 0.20 = $100,000")
-- Only show final calculated results in clean format (like "Down Payment: $100,000")
-- **NEVER include JSON objects, arrays, or structured data inside your "message" text**
+- Always respond in American English.
+- Use markdown formatting for ALL links: [text](url).
+- Use current 2025 market data and trends. Average mortgage rate: 6.8% (30-year fixed).
+- No emojis or decorative Unicode glyphs anywhere in the response.
+- Prose by default. Use a bullet list only when the user explicitly asks for one or the answer is genuinely a parallel-structured list (3+ items, no narrative connecting them).
+- No decorative section headers. Structure should flow from the content, not from formatting scaffolding. Reserve `##` headers for Level 3 decision-oriented answers only.
+- Lead with the verdict in the first sentence. Forbidden openers: "Great question", "Great news", "Absolutely!", "Sure!", "Of course!", "Based on...", "I'd be happy to...".
+- **NEVER show raw mathematical formulas** (like "$500,000 * 0.20 = $100,000"). Only show final calculated results in clean format.
+- **NEVER include JSON objects, arrays, or structured data inside your "message" text.**
 
 **REMEMBER:**
 - Parse user intent and trigger property searches yourself - never tell them to use the search bar
