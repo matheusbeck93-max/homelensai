@@ -769,28 +769,25 @@ CRITICAL:
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch fresh user profile from database if authenticated
+    // [ai-chat-branch] GENERAL path (DEPRECATED — see plan Phase 2/3).
+    // Most users hit perplexity-chat for default chat; this branch only runs
+    // for attachments / Excel / fallback. Branch markers logged for 7-day study.
+    console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'general', hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode, hasPropertyData: !!propertyData }));
+
+    // Fetch fresh user profile (memoized per request).
     let userProfile = clientProfile;
-    let fullProfile: any = null;
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile) {
-          fullProfile = profile;
-          if (!userProfile) {
-            userProfile = profile.buyer_type || 'regular-buyer';
-          }
-        }
-      }
+    const { profile: fullProfile } = await loadProfile(req);
+    if (fullProfile && !userProfile) {
+      userProfile = (fullProfile as any).buyer_type || 'regular-buyer';
     }
+
+    // Warn on unknown buyer_type so silent fallback to regular-buyer is observable.
+    if (userProfile && !(KNOWN_PROFILES as readonly string[]).includes(userProfile as string)) {
+      console.warn(`[ai-chat] Unknown userProfile "${userProfile}" — falling back to regular-buyer. Add to profileInstructions if intentional. Known: ${KNOWN_PROFILES.join(', ')}`);
+    }
+    const resolvedProfileKey: KnownProfile = (KNOWN_PROFILES as readonly string[]).includes(userProfile as string)
+      ? (userProfile as KnownProfile)
+      : 'regular-buyer';
 
     const { data: programs } = await supabase.from('programs').select('*').limit(5);
     const { data: rates } = await supabase.from('rates').select('*').limit(5);
