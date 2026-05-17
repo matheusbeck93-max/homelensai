@@ -1,12 +1,19 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
-import { enforceDailyLimit } from '../_shared/dailyLimit.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
+import { loadProfile } from '../_shared/profileLoader.ts';
+import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import {
+  isPropertyUrl as isPropertyUrlShared,
+  containsPropertyUrl,
+  extractFirstPropertyUrl,
+  isValidPortalSearchUrl,
+} from '../_shared/urlDetection.ts';
+import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 
 const log = createLogger('perplexity-chat');
 
@@ -27,14 +34,11 @@ const GOAL_CONTEXTS: Record<string, string> = {
   market_trends: `The user's primary goal is to TRACK MARKET TRENDS. Prioritize: market data, price trends, inventory levels, days on market, interest rate impacts, seasonal patterns. Provide data-driven analysis with comparisons and forecasts.`,
   tax_incentives: `The user's primary goal is to FIND TAX AND FINANCIAL INCENTIVES. Prioritize: first-time buyer programs, tax credits, down payment assistance, FHA/VA/USDA loans, state-specific grants, energy efficiency incentives. Highlight eligibility requirements and application processes.`,
 };
+const KNOWN_GOALS = Object.keys(GOAL_CONTEXTS);
 
-// Detect if the query is a property search or URL analysis
+/** True if query text contains any known real estate listing URL. */
 function isPropertyUrl(text: string): boolean {
-  const urlPatterns = [
-    /https?:\/\/(?:www\.)?(zillow|realtor|redfin|trulia|homes|century21|coldwellbanker|compass|sothebysrealty|berkshirehathaway)\.com/i,
-    /https?:\/\/[^\s]+(?:property|listing|home|house)/i,
-  ];
-  return urlPatterns.some(p => p.test(text));
+  return containsPropertyUrl(text);
 }
 
 function isPropertySearch(text: string): boolean {
@@ -67,22 +71,18 @@ Deno.serve(async (req) => {
     }
 
     const { query, conversationHistory = [], insightOrigin, userGoal } = validation.data;
+    if (userGoal && !KNOWN_GOALS.includes(userGoal)) {
+      console.warn(`[perplexity-chat] Unknown userGoal "${userGoal}" — no goal paragraph injected. Add to GOAL_CONTEXTS if intentional. Known: ${KNOWN_GOALS.join(', ')}`);
+    }
     const goalContext = userGoal && GOAL_CONTEXTS[userGoal] ? `\n\nUSER PROFILE CONTEXT:\n${GOAL_CONTEXTS[userGoal]}\nAdapt your tone, priorities, examples, and recommendations accordingly.\n` : '';
 
-    // Fetch full user profile for personalization
+    // Fetch full user profile for personalization (memoized per request).
     let profileContext = '';
     const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-          if (profile) {
-            const p = profile as any;
+    {
+      const { profile } = await loadProfile(req);
+      if (profile) {
+        const p = profile as any;
             const parts: string[] = [];
             if (p.budget_min && p.budget_max) parts.push(`Budget: $${p.budget_min.toLocaleString()}-$${p.budget_max.toLocaleString()}`);
             if (p.buyer_type) parts.push(`Buyer type: ${p.buyer_type}`);
@@ -106,10 +106,6 @@ Deno.serve(async (req) => {
             if (parts.length > 0) {
               profileContext = `\n\nFULL USER PROFILE:\n${parts.join('\n')}\nPersonalize your response based on these preferences. If user has children, emphasize school quality. If investor, focus on ROI metrics.\n`;
             }
-          }
-        }
-      } catch (profileErr) {
-        console.error('[perplexity-chat] Error fetching profile:', profileErr);
       }
     }
 
