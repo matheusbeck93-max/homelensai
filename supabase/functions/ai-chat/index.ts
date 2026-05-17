@@ -695,6 +695,28 @@ CRITICAL:
         }
       }
 
+      // P1-3 Step B: expose a structured submit_match_score tool alongside the
+      // existing MATCH_SCORE: X/10 prose prefix. tool_choice stays 'auto' so the
+      // model still produces the human-facing prose; if it ALSO emits the tool
+      // call we prefer that structured score over the brittle regex parse.
+      const matchScoreTool = firecrawlMatchScoreInstructions
+        ? [{
+            type: 'function',
+            function: {
+              name: 'submit_match_score',
+              description: 'Submit a structured 0-10 match score for this property vs. the buyer profile. Call this IN ADDITION to writing the prose analysis (do not skip the prose).',
+              parameters: {
+                type: 'object',
+                properties: {
+                  score: { type: 'number', minimum: 0, maximum: 10, description: 'Match quality, 0 (poor) to 10 (perfect). Decimals allowed.' },
+                  rationale: { type: 'string', description: 'One-sentence justification (max 140 chars).' },
+                },
+                required: ['score', 'rationale'],
+              },
+            },
+          }]
+        : undefined;
+
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -708,6 +730,7 @@ CRITICAL:
             { role: 'user', content: analysisPrompt }
           ],
           max_tokens: maxOutputTokensFor(creditCheck.tier),
+          ...(matchScoreTool ? { tools: matchScoreTool, tool_choice: 'auto' } : {}),
         }),
       });
 
@@ -724,7 +747,39 @@ CRITICAL:
       }
 
       const aiData = await aiResponse.json();
-      const analysis = aiData.choices[0].message.content;
+      const choice = aiData.choices?.[0]?.message ?? {};
+      let analysis: string = choice.content ?? '';
+
+      // Extract structured match score from tool call if present.
+      let structuredMatchScore: { score: number; rationale: string } | null = null;
+      const toolCalls = choice.tool_calls ?? [];
+      for (const tc of toolCalls) {
+        if (tc?.function?.name === 'submit_match_score') {
+          try {
+            const args = JSON.parse(tc.function.arguments || '{}');
+            if (typeof args.score === 'number' && args.score >= 0 && args.score <= 10) {
+              structuredMatchScore = { score: args.score, rationale: String(args.rationale || '') };
+            }
+          } catch (e) {
+            console.warn('[ai-chat] submit_match_score args parse failed', e);
+          }
+        }
+      }
+
+      // If the model returned ONLY a tool call (no prose), synthesize a minimal
+      // prefix so the existing client-side parser still surfaces the score.
+      if (!analysis && structuredMatchScore) {
+        analysis = `MATCH_SCORE: ${structuredMatchScore.score}/10\n\n${structuredMatchScore.rationale}`;
+      }
+
+      console.log(JSON.stringify({
+        marker: '[ai-chat-tool-call]',
+        branch: 'firecrawl',
+        toolCallEmitted: !!structuredMatchScore,
+        toolCallCount: toolCalls.length,
+        hadProse: !!choice.content,
+      }));
+
       await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis generated successfully');
       
@@ -734,7 +789,8 @@ CRITICAL:
         JSON.stringify({ 
           response: analysis,
           properties: properties, // Include properties for calculator option
-          hasProperties: true
+          hasProperties: true,
+          ...(structuredMatchScore ? { matchScore: structuredMatchScore } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
