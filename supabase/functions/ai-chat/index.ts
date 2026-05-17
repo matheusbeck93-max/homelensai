@@ -1461,7 +1461,7 @@ ${hasImage ? '\n**IMAGE ANALYSIS MODE**: The user has uploaded a property image.
 - Use current 2025 market data and trends. Average mortgage rate: 6.8% (30-year fixed).
 - No emojis or decorative Unicode glyphs anywhere in the response.
 - Prose by default. Use a bullet list only when the user explicitly asks for one or the answer is genuinely a parallel-structured list (3+ items, no narrative connecting them).
-- No decorative section headers. Structure should flow from the content, not from formatting scaffolding. Reserve `##` headers for Level 3 decision-oriented answers only.
+- No decorative section headers. Structure should flow from the content, not from formatting scaffolding. Reserve \`##\` headers for Level 3 decision-oriented answers only.
 - Lead with the verdict in the first sentence. Forbidden openers: "Great question", "Great news", "Absolutely!", "Sure!", "Of course!", "Based on...", "I'd be happy to...".
 - **NEVER show raw mathematical formulas** (like "$500,000 * 0.20 = $100,000"). Only show final calculated results in clean format.
 - **NEVER include JSON objects, arrays, or structured data inside your "message" text.**
