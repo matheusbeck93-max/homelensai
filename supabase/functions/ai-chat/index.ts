@@ -300,7 +300,7 @@ CRITICAL:
       }
 
       log.step('Calling AI Gateway with client property data');
-      
+      const sanitizedHistory = sanitizeHistory(messages.slice(0, -1), { maxTurns: 30, enforceAlternation: true });
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -311,7 +311,7 @@ CRITICAL:
           model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}` },
-            ...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
+            ...sanitizedHistory,
             { role: 'user', content: analysisPrompt }
           ],
           max_tokens: maxOutputTokensFor(creditCheck.tier),
