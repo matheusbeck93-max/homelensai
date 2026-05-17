@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Home } from "lucide-react";
+import { Home, Sparkles, Calculator, ShieldCheck, TrendingUp } from "lucide-react";
 import { signUpSchema, signInSchema } from "@/lib/validation";
 import { z } from "zod";
 import { lovable } from "@/integrations/lovable";
@@ -143,15 +143,59 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-accent/10 p-4 flex items-center justify-center">
+      <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-8 items-center">
+        <aside className="hidden lg:flex flex-col gap-6 px-2">
+          <div className="flex items-center gap-2">
+            <Home className="h-7 w-7 text-primary" aria-hidden="true" />
+            <span className="text-xl font-semibold text-foreground">HomeLens AI</span>
+          </div>
+          <h1 className="text-3xl xl:text-4xl font-bold leading-tight text-foreground">
+            Big decisions deserve the full picture.
+          </h1>
+          <p className="text-base text-muted-foreground">
+            Free AI copilot for US home buyers and investors. Paste any Zillow, Redfin, or Realtor listing — get an instant match score, fair-price read, and neighborhood intel.
+          </p>
+          <ul className="space-y-4 mt-2">
+            <li className="flex gap-3">
+              <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-medium text-foreground">Instant match score</p>
+                <p className="text-sm text-muted-foreground">0–10 fit rating based on your goals, budget, and target cities.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <TrendingUp className="h-5 w-5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-medium text-foreground">Fair-price + neighborhood signals</p>
+                <p className="text-sm text-muted-foreground">Live taxes, flood risk, schools, and price vs. Zestimate in one view.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <Calculator className="h-5 w-5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-medium text-foreground">Investor-grade calculators</p>
+                <p className="text-sm text-muted-foreground">Mortgage, cash flow, cap rate, and rehab math built in.</p>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <ShieldCheck className="h-5 w-5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-medium text-foreground">Free to start</p>
+                <p className="text-sm text-muted-foreground">No credit card. Premium ($4.97) unlocks saved analyses and history.</p>
+              </div>
+            </li>
+          </ul>
+        </aside>
+
+      <Card className="w-full max-w-md mx-auto lg:mx-0">
         <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-4">
-            <Home className="h-10 w-10 text-primary" />
+          <div className="flex items-center justify-center mb-4 lg:hidden">
+            <Home className="h-10 w-10 text-primary" aria-hidden="true" />
           </div>
           <CardTitle className="text-2xl text-center">Welcome to HomeLens</CardTitle>
           <CardDescription className="text-center">
-            Your AI-powered real estate copilot
+            Sign in or create a free account to start analyzing listings.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -254,6 +298,7 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
