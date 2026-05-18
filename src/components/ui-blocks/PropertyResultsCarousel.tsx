@@ -135,46 +135,58 @@ export const PropertyResultsCarousel: React.FC<PropertyResultsCarouselProps> = (
             el.style.backgroundSize = 'cover';
             el.style.cursor = 'pointer';
 
+            // Build popup with DOM APIs (not innerHTML) so untrusted property
+            // fields (address, id) from Perplexity / scraping / extension data
+            // cannot inject HTML. See homelens_xss_propertypopup_fix_prompt.md.
             const popupDiv = document.createElement('div');
             popupDiv.style.padding = '8px';
             popupDiv.style.minWidth = '200px';
-            popupDiv.innerHTML = `
-              <p style="font-weight: bold; margin-bottom: 4px;">${formatCurrency(property.price || 0)}</p>
-              <p style="font-size: 12px; margin-bottom: 4px;">${property.address}</p>
-              <p style="font-size: 11px; color: #666; margin-bottom: 8px;">${property.beds || 0} bed • ${property.baths || 0} bath • ${property.sqft?.toLocaleString() || 0} sqft</p>
-              <button 
-                id="analyze-btn-${property.id}"
-                style="
-                  width: 100%;
-                  padding: 6px 12px;
-                  background: hsl(var(--primary));
-                  color: white;
-                  border: none;
-                  border-radius: 6px;
-                  font-size: 12px;
-                  font-weight: 500;
-                  cursor: pointer;
-                  transition: opacity 0.2s;
-                "
-                onmouseover="this.style.opacity='0.9'"
-                onmouseout="this.style.opacity='1'"
-              >
-                Analyze Property
-              </button>
-            `;
 
-            const popup = new mapboxgl.Popup({ offset: 25 })
-              .setDOMContent(popupDiv);
+            const priceP = document.createElement('p');
+            priceP.style.cssText = 'font-weight: bold; margin-bottom: 4px;';
+            priceP.textContent = formatCurrency(property.price || 0);
+            popupDiv.appendChild(priceP);
 
-            popup.on('open', () => {
-              const analyzeBtn = document.getElementById(`analyze-btn-${property.id}`);
-              if (analyzeBtn && onAnalyze) {
-                analyzeBtn.addEventListener('click', () => {
-                  onAnalyze(property);
-                  popup.remove();
-                });
-              }
+            const addrP = document.createElement('p');
+            addrP.style.cssText = 'font-size: 12px; margin-bottom: 4px;';
+            addrP.textContent = property.address ?? '';
+            popupDiv.appendChild(addrP);
+
+            const metaP = document.createElement('p');
+            metaP.style.cssText = 'font-size: 11px; color: #666; margin-bottom: 8px;';
+            const beds = typeof property.beds === 'number' ? property.beds : 0;
+            const baths = typeof property.baths === 'number' ? property.baths : 0;
+            const sqftStr =
+              typeof property.sqft === 'number' ? property.sqft.toLocaleString() : '0';
+            metaP.textContent = `${beds} bed \u2022 ${baths} bath \u2022 ${sqftStr} sqft`;
+            popupDiv.appendChild(metaP);
+
+            const analyzeBtn = document.createElement('button');
+            // Sanitize property.id before using it in a DOM id (prevents attribute
+            // breakout if id contains quotes / angle brackets).
+            const safeId = String(property.id).replace(/[^a-zA-Z0-9_-]/g, '');
+            analyzeBtn.id = `analyze-btn-${safeId}`;
+            analyzeBtn.textContent = 'Analyze Property';
+            analyzeBtn.style.cssText =
+              'width: 100%; padding: 6px 12px; background: hsl(var(--primary)); ' +
+              'color: white; border: none; border-radius: 6px; font-size: 12px; ' +
+              'font-weight: 500; cursor: pointer; transition: opacity 0.2s;';
+            analyzeBtn.addEventListener('mouseenter', () => {
+              analyzeBtn.style.opacity = '0.9';
             });
+            analyzeBtn.addEventListener('mouseleave', () => {
+              analyzeBtn.style.opacity = '1';
+            });
+
+            const popup = new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupDiv);
+
+            if (onAnalyze) {
+              analyzeBtn.addEventListener('click', () => {
+                onAnalyze(property);
+                popup.remove();
+              });
+            }
+            popupDiv.appendChild(analyzeBtn);
 
             new mapboxgl.Marker(el)
               .setLngLat([property.lng, property.lat])

@@ -107,15 +107,23 @@ export function PropertyMap({ address, city, state, zip, insights }: PropertyMap
       propertyMarker.style.justifyContent = "center";
       propertyMarker.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`;
 
+      // Build popup with DOM APIs (not setHTML) so untrusted address
+      // strings cannot inject HTML. See homelens_xss_propertypopup_fix_prompt.md.
+      const popupContent = document.createElement('div');
+      popupContent.style.padding = '8px';
+      const popupTitle = document.createElement('h3');
+      popupTitle.style.cssText = 'font-weight: bold; margin-bottom: 4px;';
+      popupTitle.textContent = 'Property Location';
+      const popupAddr = document.createElement('p');
+      popupAddr.style.fontSize = '12px';
+      popupAddr.textContent = address;
+      popupContent.appendChild(popupTitle);
+      popupContent.appendChild(popupAddr);
+
       new mapboxgl.Marker(propertyMarker)
         .setLngLat(coordinates)
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<div style="padding: 8px;">
-              <h3 style="font-weight: bold; margin-bottom: 4px;">Property Location</h3>
-              <p style="font-size: 12px;">${address}</p>
-            </div>`
-          )
+          new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupContent)
         )
         .addTo(map.current);
 
