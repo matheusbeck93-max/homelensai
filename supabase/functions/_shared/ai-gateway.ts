@@ -27,6 +27,16 @@ export interface AiRequestOptions {
 
 export interface AiCompletionResult {
   message: string;
+  /**
+   * Token usage from the upstream model. Required for `deductAiCredits()`
+   * — callers that don't deduct usage will under-charge (the credits
+   * helper falls back to the 1-credit floor).
+   */
+  usage: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
   toolCalls?: Array<{
     name: string;
     arguments: Record<string, any>;
@@ -85,6 +95,11 @@ export async function callAiGateway(
 
   const result: AiCompletionResult = {
     message: choice.message.content || '',
+    usage: {
+      prompt_tokens: data.usage?.prompt_tokens,
+      completion_tokens: data.usage?.completion_tokens,
+      total_tokens: data.usage?.total_tokens,
+    },
     raw: data,
   };
 

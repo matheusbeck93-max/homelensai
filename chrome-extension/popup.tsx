@@ -16,8 +16,58 @@ interface Message {
 
 interface Session {
   access_token: string;
+  /**
+   * Refresh token from the Supabase auth response. Used by
+   * refreshAccessTokenIfNeeded() to renew expired access tokens
+   * silently instead of forcing the user to sign in again every hour.
+   */
+  refresh_token?: string;
+  /** Unix-seconds expiry of access_token (Supabase 'expires_at'). */
+  expires_at?: number;
   email: string;
   user_id?: string;
+}
+
+/**
+ * If the cached session's access token is within 5 minutes of expiry (or
+ * already expired), exchange the refresh_token for a new access_token.
+ * Returns the freshest available session, or null if the refresh failed
+ * (in which case the caller should treat the user as signed out).
+ *
+ * This was added because the original login flow stored only access_token
+ * and ignored refresh_token / expires_at — users got 401s every hour and
+ * had to re-enter their password. See homelens_chrome_extension_fix_prompt.md P0-2.
+ */
+async function refreshAccessTokenIfNeeded(session: Session): Promise<Session | null> {
+  const now = Math.floor(Date.now() / 1000);
+  // No expiry recorded (legacy session pre-fix) — assume valid and let the
+  // server reject if not. The next successful login will populate expires_at.
+  if (!session.expires_at) return session;
+  // More than 5 minutes of life left — use as-is.
+  if (session.expires_at - now > 300) return session;
+  // No refresh token (legacy session) — cannot refresh; caller must prompt re-login.
+  if (!session.refresh_token) return null;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ refresh_token: session.refresh_token }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const refreshed: Session = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token ?? session.refresh_token,
+      expires_at: data.expires_at,
+      email: session.email,
+      user_id: session.user_id,
+    };
+    chrome.storage.local.set({ homelens_session: refreshed });
+    return refreshed;
+  } catch {
+    return null;
+  }
 }
 
 interface UserProfile {
@@ -398,7 +448,13 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
       }
 
       const data = await res.json();
-      const session: Session = { access_token: data.access_token, email, user_id: data.user?.id };
+      const session: Session = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: data.expires_at,
+        email,
+        user_id: data.user?.id,
+      };
       chrome.storage.local.set({ homelens_session: session });
       onLogin(session);
     } catch (err: any) {
@@ -538,7 +594,7 @@ function MessageBubble({
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
         {msg.upgradeCta && (
           <button
-            onClick={() => window.open('https://homelensai.com/pricing', '_blank')}
+            onClick={() => window.open('https://homelens.ai/pricing', '_blank')}
             style={{
               marginTop: '10px',
               padding: '8px 14px',
@@ -562,7 +618,7 @@ function MessageBubble({
                   ? 'Analysis saved to your HomeLens account'
                   : 'Already saved in your HomeLens account'}
                 <a
-                  href="https://homelensais.com/saved-analyses"
+                  href="https://homelens.ai/saved-analyses"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ marginLeft: 8, color: '#6B8DB5', textDecoration: 'underline' }}
@@ -763,13 +819,18 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setLoading(true);
     setMatchScore(null);
 
+    // Refresh access_token if near expiry (handles the case where the popup
+    // is left open for >1 hour mid-session). If refresh fails the user gets
+    // the existing 'Please sign in' error path below.
+    const activeSession = (await refreshAccessTokenIfNeeded(session)) ?? session;
+
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/perplexity-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${activeSession.access_token}`,
         },
         body: JSON.stringify({
           query,
@@ -826,6 +887,9 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setLoading(true);
     setMatchScore(null);
 
+    // Refresh access_token if near expiry (see callPerplexityChat note).
+    const activeSession = (await refreshAccessTokenIfNeeded(session)) ?? session;
+
     const requestBody: Record<string, unknown> = {
       messages: apiMessages,
       conversationMode: true,
@@ -847,7 +911,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         headers: {
           'Content-Type': 'application/json',
           apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${activeSession.access_token}`,
         },
         body: JSON.stringify(requestBody),
       });
@@ -1113,7 +1177,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
             propertyAddress={activeProperty?.address || null}
             isPremium={userProfile?.subscription_status === 'premium'}
-            onUpgradeNeeded={() => window.open('https://homelensai.com/pricing', '_blank')}
+            onUpgradeNeeded={() => window.open('https://homelens.ai/pricing', '_blank')}
           />
         ))}
 
@@ -1161,9 +1225,22 @@ function App() {
   useEffect(() => {
     chrome.storage.local.get('homelens_session', (result) => {
       if (result.homelens_session?.access_token) {
-        setSession(result.homelens_session);
+        // Refresh if the cached access_token is near expiry. Falls back to
+        // the cached session if it has no expires_at recorded (legacy
+        // sessions pre-refresh-token-fix). Returns null on refresh failure
+        // — in that case clear storage and re-prompt for login.
+        refreshAccessTokenIfNeeded(result.homelens_session).then((fresh) => {
+          if (fresh) {
+            setSession(fresh);
+          } else {
+            chrome.storage.local.remove(['homelens_session']);
+            setSession(null);
+          }
+          setChecking(false);
+        });
+      } else {
+        setChecking(false);
       }
-      setChecking(false);
     });
   }, []);
 

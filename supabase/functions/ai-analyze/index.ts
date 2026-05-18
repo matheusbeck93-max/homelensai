@@ -7,20 +7,23 @@ import { z } from 'https://esm.sh/zod@3.23.8';
 const sanitize = (s: unknown, max = 200) =>
   String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, max);
 
+// Strict schema — no .passthrough(). Unknown fields are dropped so a
+// future prompt change that interpolates a new field cannot accidentally
+// pull in attacker-supplied data. See homelens_ai_analyze_fix_prompt.md P0-2.
 const PropertySchema = z.object({
   address: z.string().max(300).optional(),
   city: z.string().max(120).optional(),
   state: z.string().max(60).optional(),
-  price: z.number().finite().nonnegative().optional(),
-  beds: z.number().finite().nonnegative().optional(),
-  baths: z.number().finite().nonnegative().optional(),
-  sqft: z.number().finite().nonnegative().optional(),
+  price: z.number().finite().nonnegative().max(1_000_000_000).optional(),
+  beds: z.number().finite().nonnegative().max(100).optional(),
+  baths: z.number().finite().nonnegative().max(100).optional(),
+  sqft: z.number().finite().nonnegative().max(1_000_000).optional(),
   condition: z.string().max(120).optional(),
-  year_built: z.number().int().optional(),
-  arv: z.number().finite().optional(),
-  rehab_cost: z.number().finite().optional(),
-  roi_percent: z.number().finite().optional(),
-}).passthrough();
+  year_built: z.number().int().min(1700).max(2100).optional(),
+  arv: z.number().finite().nonnegative().max(1_000_000_000).optional(),
+  rehab_cost: z.number().finite().nonnegative().max(10_000_000).optional(),
+  roi_percent: z.number().finite().min(-100).max(1000).optional(),
+});
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);

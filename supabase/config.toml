@@ -1,18 +1,9 @@
 project_id = "yckcdxtatwolzilboahx"
 
-[functions.market-snapshot]
-verify_jwt = false
-
 [functions.enrich-property]
 verify_jwt = false
 
 [functions.ai-search]
-verify_jwt = false
-
-[functions.ai-build-search-spec]
-verify_jwt = false
-
-[functions.ai-analyze-property]
 verify_jwt = false
 
 [functions.ai-analyze]
@@ -41,9 +32,6 @@ verify_jwt = false
 
 [functions.neighborhood-insights]
 verify_jwt = false
-
-[functions.compare-properties]
-verify_jwt = true
 
 [functions.compare-properties-ai]
 verify_jwt = true
@@ -78,9 +66,6 @@ verify_jwt = true
 [functions.get-mapbox-token]
 verify_jwt = false
 
-[functions.ai-suggest-location]
-verify_jwt = false
-
 [functions.market-trends]
 verify_jwt = false
 
@@ -88,4 +73,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.elevenlabs-tts]
+verify_jwt = false
+
+[functions.stripe-webhook]
 verify_jwt = false

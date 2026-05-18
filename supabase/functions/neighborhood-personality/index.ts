@@ -3,12 +3,16 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
   try {
+    const credits = await precheckAiCredits(req, 'neighborhood-personality');
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { address, city, state, zip } = await req.json();
 
     const systemPrompt = `You are a neighborhood expert who creates engaging, human-readable neighborhood personality profiles. 

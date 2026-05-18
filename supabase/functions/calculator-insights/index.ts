@@ -3,12 +3,20 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
   try {
+    // Auth + credits in one call. Rejects unauthenticated callers with 401.
+    // Previously calculator-insights was JWT-protected at the Supabase gateway
+    // but didn't consume credits — free users got unlimited per-property AI
+    // analyses. See homelens_public_endpoints_fix_prompt.md P0-5.
+    const credits = await precheckAiCredits(req, 'calculator-insights');
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { buyingPower, mortgage } = await req.json();
 
     const prompt = `You are a U.S. real estate and mortgage advisor. Analyze the following financial data and provide clear, actionable insights. You can analyze each calculator independently OR provide a combined assessment if both are filled.
@@ -92,6 +100,8 @@ Response style:
 
     if ('error' in aiResult) return aiResult.error;
 
+
+    await deductAiCredits(credits, aiResult.result.usage);
     return jsonResponse({ insights: aiResult.result.message });
   } catch (error) {
     console.error('Error in calculator-insights function:', error);

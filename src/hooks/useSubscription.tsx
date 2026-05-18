@@ -3,10 +3,27 @@ import { supabase } from "@/integrations/supabase/client";
 import type { SubscriptionTier } from "@/lib/subscriptionPlans";
 import { hasFeatureAccess, type FeatureKey } from "@/lib/subscriptionPlans";
 
-// Cache duration: 5 minutes
-const CACHE_DURATION = 5 * 60 * 1000;
-let lastCheckTime = 0;
-let cachedTier: SubscriptionTier | null = null;
+
+const VALID_TIERS: ReadonlySet<SubscriptionTier> = new Set(['free', 'premium']);
+
+/**
+ * Validate that a value read from profiles.subscription_status is one of the
+ * known tiers. If not (typo, stale value, future product mismatch), fall back
+ * to 'free' rather than coercing through TypeScript's erased types into an
+ * undefined-behavior tier. See homelens_subscription_billing_fix_prompt.md P1-3.
+ */
+function validateTier(raw: unknown): SubscriptionTier {
+  if (typeof raw === 'string' && VALID_TIERS.has(raw as SubscriptionTier)) {
+    return raw as SubscriptionTier;
+  }
+  return 'free';
+}
+
+// Cache duration: 60 seconds (tightened from 5 minutes).
+// Per-user keyed cache prevents leaks across sign-out/sign-in cycles on the
+// same tab. See homelens_subscription_billing_fix_prompt.md P1-4.
+const CACHE_DURATION = 60 * 1000;
+const cachedTierByUser = new Map<string, { tier: SubscriptionTier; timestamp: number }>();
 
 export function useSubscription() {
   const [tier, setTier] = useState<SubscriptionTier>('free');
@@ -25,8 +42,7 @@ export function useSubscription() {
         setTier('free');
         setUserId(null);
         setLoading(false);
-        cachedTier = null;
-        lastCheckTime = 0;
+        cachedTierByUser.clear();
       }
     });
 
@@ -70,7 +86,7 @@ export function useSubscription() {
         console.error('Error loading subscription:', error);
         setTier('free');
       } else if (data) {
-        setTier((data.subscription_status as SubscriptionTier) || 'free');
+        setTier(validateTier(data.subscription_status));
       } else {
         setTier('free');
       }
@@ -89,11 +105,17 @@ export function useSubscription() {
       return;
     }
 
-    // Use cached result if available and fresh
+    // Use per-user cached result if available and fresh
     const now = Date.now();
-    if (cachedTier && (now - lastCheckTime) < CACHE_DURATION) {
-      
-      setTier(cachedTier);
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (!currentUser) {
+      checkInProgress.current = false;
+      return;
+    }
+    const cached = cachedTierByUser.get(currentUser.id);
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      setTier(cached.tier);
+      checkInProgress.current = false;
       return;
     }
 
@@ -108,11 +130,9 @@ export function useSubscription() {
       }
 
       if (data?.tier) {
-        const newTier = data.tier as SubscriptionTier;
-        
+        const newTier = validateTier(data.tier);
         setTier(newTier);
-        cachedTier = newTier;
-        lastCheckTime = now;
+        cachedTierByUser.set(currentUser.id, { tier: newTier, timestamp: now });
       }
     } catch (error) {
       console.error('Error in checkStripeSubscription:', error);
