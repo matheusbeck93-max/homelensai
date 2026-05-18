@@ -57,3 +57,39 @@ the Stripe dashboard. Track as a follow-up:
 
 Without the webhook, subscription state is stale by up to the
 `useSubscription` polling interval (currently 5 min).
+
+## Cron auth secret (NEW — this branch)
+
+This branch adds `requireCronAuth()` to `check-property-alerts` and
+`send-weekly-picks`. Without the secret being set, those functions
+will return 500 for every invocation (including the legitimate cron
+trigger). Setup steps:
+
+1. Generate a secret and set it in Supabase:
+   ```bash
+   supabase secrets set CRON_SHARED_SECRET=$(openssl rand -hex 32)
+   ```
+
+2. Set the same value as a Postgres setting so pg_cron can read it:
+   ```sql
+   -- Run as a superuser in the Supabase SQL editor.
+   alter database postgres set "app.settings.cron_secret" to '<same value>';
+   ```
+
+3. Update the existing cron job definitions in
+   `src/lib/alertsSetup.sql` and `src/lib/weeklyPicksCron.sql` to
+   include the header:
+   ```sql
+   net.http_post(
+     url := current_setting('app.settings.supabase_url') || '/functions/v1/check-property-alerts',
+     headers := jsonb_build_object(
+       'Content-Type', 'application/json',
+       'X-Cron-Secret', current_setting('app.settings.cron_secret')
+     )
+   );
+   ```
+
+4. Re-run the cron schedule SQL to register the updated invocation.
+
+Verify with `select cron.run_now('check-property-alerts');` — should
+succeed. Curl the function URL without the header — should 401.
