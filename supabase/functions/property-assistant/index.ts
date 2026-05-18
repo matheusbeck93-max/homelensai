@@ -5,6 +5,7 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage, handleAiGatewayError } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 const log = createLogger('property-assistant');
 
@@ -166,7 +167,12 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
+
+    // AI call below — gate on credits. Property-search branch above does not
+    // touch the model, so it skips credit accounting intentionally.
+    const credits = await precheckAiCredits(req);
+    if (!credits.allowed && credits.response) return credits.response;
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -218,6 +224,7 @@ Universal rules:
     }
 
     const aiData = await response.json();
+    await deductAiCredits(credits, aiData?.usage);
     const assistantResponse = aiData.choices[0].message.content;
 
     return new Response(
