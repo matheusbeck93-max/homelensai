@@ -2,6 +2,7 @@
 import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
 
 const sanitize = (s: unknown, max = 200) =>
@@ -30,6 +31,9 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const credits = await precheckAiCredits(req);
+    if (!credits.allowed && credits.response) return credits.response;
+
     const body = await req.json().catch(() => ({}));
     const parsed = PropertySchema.safeParse(body?.property);
     if (!parsed.success) {
@@ -75,6 +79,8 @@ Response style:
     ]);
 
     if ('error' in aiResult) return aiResult.error;
+
+    await deductAiCredits(credits, aiResult.result.usage);
 
     return jsonResponse({ analysis: aiResult.result.message });
   } catch (error) {

@@ -3,6 +3,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 const RequestSchema = z.object({
   instructions: z.string().max(2000).optional(),
@@ -14,6 +15,11 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    // Realtime tokens unlock expensive downstream usage; charge a flat
+    // ~5 credits per token issuance.
+    const credits = await precheckAiCredits(req);
+    if (!credits.allowed && credits.response) return credits.response;
+
     const OPENAI_API_KEY = requireEnv('OPENAI_API_KEY');
     const body = await req.json().catch(() => ({}));
     const parsed = RequestSchema.safeParse(body);
@@ -46,6 +52,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
+    await deductAiCredits(credits, { total_tokens: 500 });
     console.log("Realtime session created successfully");
 
     return jsonResponse(data);

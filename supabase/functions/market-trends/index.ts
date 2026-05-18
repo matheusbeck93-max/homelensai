@@ -124,6 +124,8 @@ Respond ONLY with valid JSON, no markdown or explanation.`;
     const perplexityData = await perplexityResponse.json();
     log.info('Perplexity response received');
 
+    await deductAiCredits(credits, perplexityData?.usage);
+
     const content = perplexityData.choices?.[0]?.message?.content || '';
     const citations = perplexityData.citations || [];
 

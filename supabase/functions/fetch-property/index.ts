@@ -4,6 +4,7 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 const log = createLogger('fetch-property');
 
@@ -12,6 +13,11 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    // Firecrawl bills per scrape; meter at a flat ~3 credits since there is
+    // no token usage object on the response.
+    const credits = await precheckAiCredits(req);
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { url } = await req.json();
     const FIRECRAWL_API_KEY = requireEnv('FIRECRAWL_API_KEY');
     
@@ -100,6 +106,8 @@ Deno.serve(async (req) => {
     if (lotMatch) propertyData.lotSize = parseInt(lotMatch[1].replace(/,/g, ''));
     
     log.step('Extracted property data');
+
+    await deductAiCredits(credits, { total_tokens: 300 });
     
     // Set defaults for missing data
     propertyData.address = propertyData.address || 'Property Address';

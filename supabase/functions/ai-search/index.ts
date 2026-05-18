@@ -5,6 +5,7 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage, handleAiGatewayError } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 const log = createLogger('ai-search');
 
@@ -13,6 +14,9 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const credits = await precheckAiCredits(req);
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { query, categories } = await req.json();
     const LOVABLE_API_KEY = requireEnv('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
@@ -110,6 +114,7 @@ If user profile preferences exist and user query doesn't specify certain filters
     }
 
     const aiData = await aiResponse.json();
+    await deductAiCredits(credits, aiData?.usage);
     let content = aiData.choices[0].message.content;
     content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
