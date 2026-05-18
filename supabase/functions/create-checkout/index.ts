@@ -4,6 +4,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { getOrCacheStripeCustomerId, cacheStripeCustomerId } from '../_shared/stripeCustomer.ts';
 
 const log = createLogger('create-checkout');
 
@@ -13,7 +14,8 @@ Deno.serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
   );
 
   try {
@@ -37,11 +39,9 @@ Deno.serve(async (req) => {
     log.step("User authenticated", { userId: user.id });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
-    
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
+
+    let customerId = await getOrCacheStripeCustomerId(supabaseClient, stripe, user.id, user.email);
+    if (customerId) {
       log.step("Existing customer found", { customerId });
     } else {
       log.step("No existing customer, will create in checkout");
@@ -57,6 +57,13 @@ Deno.serve(async (req) => {
       cancel_url: `${origin}/pricing?checkout=canceled`,
     });
     log.step("Checkout session created", { sessionId: session.id });
+
+    // If Stripe created a new customer during checkout, cache it on the profile.
+    if (!customerId && session.customer) {
+      const newId = typeof session.customer === 'string' ? session.customer : session.customer.id;
+      await cacheStripeCustomerId(supabaseClient, user.id, newId);
+      log.step("Cached new Stripe customer", { customerId: newId });
+    }
 
     return jsonResponse({ url: session.url });
   } catch (error) {
