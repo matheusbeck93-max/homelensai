@@ -15,6 +15,7 @@ import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import { SaveAnalysisButton } from "@/components/chat/SaveAnalysisButton";
 import { MessageActions } from "@/components/chat/MessageActions";
+import { SourcesFooter } from "@/components/chat/SourcesFooter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
