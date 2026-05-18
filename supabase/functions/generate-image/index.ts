@@ -3,12 +3,18 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
   try {
+    // Image generation is expensive; charge a flat ~5 credits per call since
+    // the Gemini image endpoint does not return a token usage object.
+    const credits = await precheckAiCredits(req);
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { prompt, size = "1024x1024", quality = "standard" } = await req.json();
     const LOVABLE_API_KEY = requireEnv('LOVABLE_API_KEY');
 
@@ -48,6 +54,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
+    await deductAiCredits(credits, { total_tokens: 500 });
     const content = data.choices?.[0]?.message?.content || '';
     
     // Extract base64 image data if present in the response
