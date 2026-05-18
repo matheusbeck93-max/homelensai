@@ -23,6 +23,38 @@ interface MarkerConfig {
   description?: string;
 }
 
+
+/**
+ * Build a POI popup body with DOM APIs (textContent escapes by default).
+ * Prevents XSS where insights.* fields come from Perplexity/neighborhood-insights
+ * and may contain HTML. See homelens_xss_propertypopup_fix_prompt.md P0-3.
+ */
+function buildPoiPopup(opts: { title: string; subtitle?: string; meta?: string }): HTMLElement {
+  const div = document.createElement('div');
+  div.style.padding = '8px';
+
+  const h4 = document.createElement('h4');
+  h4.style.fontWeight = 'bold';
+  h4.textContent = opts.title;
+  div.appendChild(h4);
+
+  if (opts.subtitle) {
+    const p1 = document.createElement('p');
+    p1.style.cssText = 'font-size: 12px; margin: 4px 0;';
+    p1.textContent = opts.subtitle;
+    div.appendChild(p1);
+  }
+
+  if (opts.meta) {
+    const p2 = document.createElement('p');
+    p2.style.cssText = 'font-size: 11px; color: #666;';
+    p2.textContent = opts.meta;
+    div.appendChild(p2);
+  }
+
+  return div;
+}
+
 export function PropertyMap({ address, city, state, zip, insights }: PropertyMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -221,12 +253,12 @@ export function PropertyMap({ address, city, state, zip, insights }: PropertyMap
       new mapboxgl.Marker(el)
         .setLngLat(coords)
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<div style="padding: 8px;">
-              <h4 style="font-weight: bold;">${school.name}</h4>
-              <p style="font-size: 12px; margin: 4px 0;">Rating: ${school.rating}/10</p>
-              <p style="font-size: 11px; color: #666;">${school.distance.toFixed(1)} mi • ${school.grades}</p>
-            </div>`
+          new mapboxgl.Popup({ offset: 25 }).setDOMContent(
+            buildPoiPopup({
+              title: school.name,
+              subtitle: `Rating: ${school.rating}/10`,
+              meta: `${school.distance.toFixed(1)} mi \u2022 ${school.grades}`,
+            })
           )
         )
         .addTo(mapInstance);
@@ -241,12 +273,12 @@ export function PropertyMap({ address, city, state, zip, insights }: PropertyMap
       new mapboxgl.Marker(el)
         .setLngLat(coords)
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<div style="padding: 8px;">
-              <h4 style="font-weight: bold;">${amenity.name}</h4>
-              <p style="font-size: 12px;">${amenity.type}</p>
-              <p style="font-size: 11px; color: #666;">${amenity.distance.toFixed(1)} mi away</p>
-            </div>`
+          new mapboxgl.Popup({ offset: 25 }).setDOMContent(
+            buildPoiPopup({
+              title: amenity.name,
+              subtitle: amenity.type,
+              meta: `${amenity.distance.toFixed(1)} mi away`,
+            })
           )
         )
         .addTo(mapInstance);
@@ -261,12 +293,12 @@ export function PropertyMap({ address, city, state, zip, insights }: PropertyMap
       new mapboxgl.Marker(el)
         .setLngLat(coords)
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<div style="padding: 8px;">
-              <h4 style="font-weight: bold;">${amenity.name}</h4>
-              <p style="font-size: 12px;">${amenity.type}</p>
-              <p style="font-size: 11px; color: #666;">${amenity.distance.toFixed(1)} mi away</p>
-            </div>`
+          new mapboxgl.Popup({ offset: 25 }).setDOMContent(
+            buildPoiPopup({
+              title: amenity.name,
+              subtitle: amenity.type,
+              meta: `${amenity.distance.toFixed(1)} mi away`,
+            })
           )
         )
         .addTo(mapInstance);
@@ -281,12 +313,12 @@ export function PropertyMap({ address, city, state, zip, insights }: PropertyMap
       new mapboxgl.Marker(el)
         .setLngLat(coords)
         .setPopup(
-          new mapboxgl.Popup({ offset: 25 }).setHTML(
-            `<div style="padding: 8px;">
-              <h4 style="font-weight: bold;">${amenity.name}</h4>
-              <p style="font-size: 12px;">${amenity.type}</p>
-              <p style="font-size: 11px; color: #666;">${amenity.distance.toFixed(1)} mi away</p>
-            </div>`
+          new mapboxgl.Popup({ offset: 25 }).setDOMContent(
+            buildPoiPopup({
+              title: amenity.name,
+              subtitle: amenity.type,
+              meta: `${amenity.distance.toFixed(1)} mi away`,
+            })
           )
         )
         .addTo(mapInstance);
