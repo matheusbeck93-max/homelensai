@@ -2,23 +2,46 @@ import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+
+// Cap text at the ElevenLabs streaming endpoint's effective limit. Reject
+// anything longer instead of silently truncating (the old behavior was
+// .substring(0, 5000) which let callers stuff in 100KB and just lost
+// the rest).
+const MAX_TTS_CHARS = 5000;
+
+// Roughly 200 chars per credit. Adjust against ElevenLabs pricing; this maps
+// chars -> the totalTokens field that deductAiCredits expects (the credit
+// helper rounds up at 100 tokens/credit, capping at 20 credits/request).
+function charsToFakeTokens(chars: number): number {
+  return Math.min(chars / 2, 2000);
+}
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
   try {
-    const { text, voiceId } = await req.json();
-    const ELEVENLABS_API_KEY = requireEnv('ELEVENLABS_API_KEY');
+    // Auth + credits in one call. Rejects unauthenticated with 401.
+    // Previously this function had NO auth and NO rate limiting — anyone
+    // could POST { text: '...' } and burn HomeLens's ElevenLabs API quota.
+    // See homelens_public_endpoints_fix_prompt.md P0-2.
+    const credits = await precheckAiCredits(req, 'elevenlabs-tts');
+    if (!credits.allowed && credits.response) return credits.response;
 
-    if (!text || text.trim().length === 0) {
+    const { text, voiceId } = await req.json();
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return validationError('Text is required');
     }
+    if (text.length > MAX_TTS_CHARS) {
+      return validationError(`Text exceeds ${MAX_TTS_CHARS} character limit`);
+    }
 
-    // Default to Eric voice
-    const selectedVoice = voiceId || 'cjVigY5qzO86Huf0OWal';
+    const ELEVENLABS_API_KEY = requireEnv('ELEVENLABS_API_KEY');
+    const selectedVoice = (typeof voiceId === 'string' && voiceId.length <= 100)
+      ? voiceId
+      : 'cjVigY5qzO86Huf0OWal'; // Eric voice (default)
 
-    // Use streaming endpoint + turbo model for faster time-to-first-audio
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice}/stream?output_format=mp3_22050_32`,
       {
@@ -28,7 +51,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: text.substring(0, 5000),
+          text,
           model_id: 'eleven_turbo_v2_5',
           voice_settings: {
             stability: 0.5,
@@ -47,7 +70,10 @@ Deno.serve(async (req) => {
       throw new Error(`ElevenLabs API failed: ${response.status}`);
     }
 
-    // Stream the audio back directly
+    // Deduct credits based on character count (ElevenLabs bills by chars
+    // not tokens, so we map to the totalTokens field at a fixed ratio).
+    await deductAiCredits(credits, { total_tokens: charsToFakeTokens(text.length) });
+
     return new Response(response.body, {
       headers: {
         ...corsHeaders,
