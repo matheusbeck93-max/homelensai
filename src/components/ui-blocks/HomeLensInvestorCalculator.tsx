@@ -738,8 +738,19 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
               <Button size="sm" variant={inputs.investorProfile === 'primary' ? 'default' : 'outline'} onClick={() => update('investorProfile', 'primary')}>Primary Residence</Button>
               <Button size="sm" variant={inputs.investorProfile === 'investment' ? 'default' : 'outline'} onClick={() => update('investorProfile', 'investment')}>Investment</Button>
             </div>
-            {inputs.investorProfile === 'primary' && inputs.holdingPeriod >= 2 && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">$250k capital gains exemption applies (single filer)</p>
+            {inputs.investorProfile === 'primary' && (
+              <div className="mt-2 space-y-1">
+                <Label className="text-xs">Filing Status<InfoTip text="§121 primary-residence exclusion: $250k for single filers, $500k for married filing jointly. Requires you to have owned and used the home as your primary residence for 2 of the last 5 years." /></Label>
+                <div className="flex gap-2">
+                  <Button size="sm" variant={inputs.filingStatus === 'single' ? 'default' : 'outline'} onClick={() => update('filingStatus', 'single')}>Single</Button>
+                  <Button size="sm" variant={inputs.filingStatus === 'mfj' ? 'default' : 'outline'} onClick={() => update('filingStatus', 'mfj')}>Married (Joint)</Button>
+                </div>
+                {inputs.holdingPeriod >= 2 && (
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    {inputs.filingStatus === 'mfj' ? '$500k' : '$250k'} capital gains exemption applies
+                  </p>
+                )}
+              </div>
             )}
           </div>
           {inputs.investorProfile === 'investment' && (
