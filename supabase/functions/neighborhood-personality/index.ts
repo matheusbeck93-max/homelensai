@@ -54,6 +54,8 @@ Keep it conversational, authentic, and engaging. Use specific examples when poss
 
     if ('error' in aiResult) return aiResult.error;
 
+    await deductAiCredits(credits, aiResult.result.usage);
+
     console.log('Neighborhood personality generated successfully');
     return jsonResponse({ personality: aiResult.result.message });
 
