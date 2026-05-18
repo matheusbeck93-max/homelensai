@@ -6,6 +6,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { fetchWithTimeout } from '../_shared/http.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 const log = createLogger('get-state-tax-data');
 
@@ -41,6 +42,9 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const credits = await precheckAiCredits(req, 'get-state-tax-data');
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { state } = await req.json();
     if (!state) return validationError('State is required');
 

@@ -125,3 +125,29 @@ Setup steps:
    polling interval from 5 minutes to a Realtime postgres-changes
    subscription on the profiles row. See the subscription fix prompt
    P0-2 "Tighten useSubscription polling" section for the code.
+
+## AI credits follow-up (NEW — this branch only handles the precheck side)
+
+This branch adds `precheckAiCredits` to:
+  - elevenlabs-tts (with character-based deduction)
+  - calculator-insights (with token-based deduction)
+  - neighborhood-personality, market-trends, neighborhood-insights,
+    get-state-tax-data (precheck only — see note below)
+
+The precheck-only functions still need `deductAiCredits` wired at their
+respective AI-call completion points. Without that, every call falls
+through to the `MIN_CREDITS_PER_REQUEST = 1` floor regardless of actual
+token consumption — under-charges for expensive calls but still meters.
+
+Adding accurate deduction requires per-function knowledge of where the
+LLM response is built (the functions use a mix of `callAiGateway` and
+direct Perplexity `fetch`). Track as a small follow-up. The
+homelens_public_endpoints_fix_prompt.md P0-5 section has the canonical
+pattern.
+
+Other LLM-using functions still NOT enforced (track as follow-up):
+  - ai-analyze (audit P0-1, will need precheckAiCredits)
+  - ai-search, property-assistant, compare-properties-ai
+  - generate-image, investment-projections, fetch-property
+  - realtime-token (special — flat-rate charge for token issuance,
+    not per-token)

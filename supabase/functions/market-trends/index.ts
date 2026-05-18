@@ -2,6 +2,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const log = createLogger('market-trends');
@@ -28,6 +29,9 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const credits = await precheckAiCredits(req, 'market-trends');
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { location, force_refresh = false } = await req.json();
 
     if (!location || typeof location !== 'string') {

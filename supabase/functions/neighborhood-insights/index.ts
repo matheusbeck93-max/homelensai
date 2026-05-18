@@ -2,6 +2,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 const log = createLogger('neighborhood-insights');
 
@@ -60,6 +61,9 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const credits = await precheckAiCredits(req, 'neighborhood-insights');
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { address, city, state, zip } = await req.json();
     const location = `${address}, ${city}, ${state} ${zip}`;
 
