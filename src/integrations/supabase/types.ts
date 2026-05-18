@@ -437,6 +437,7 @@ export type Database = {
           property_types: string[] | null
           risk_level: string | null
           safety_priority: string | null
+          stripe_customer_id: string | null
           subscription_cancel_at: string | null
           subscription_renews_at: string | null
           subscription_status: string | null
@@ -484,6 +485,7 @@ export type Database = {
           property_types?: string[] | null
           risk_level?: string | null
           safety_priority?: string | null
+          stripe_customer_id?: string | null
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
@@ -531,6 +533,7 @@ export type Database = {
           property_types?: string[] | null
           risk_level?: string | null
           safety_priority?: string | null
+          stripe_customer_id?: string | null
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
