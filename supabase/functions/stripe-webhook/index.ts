@@ -77,16 +77,11 @@ Deno.serve(async (req) => {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = sub.customer as string;
         const productId = sub.items.data[0]?.price.product as string;
-        const userEmail = await getCustomerEmail(stripe, customerId);
-        if (!userEmail) {
-          log.warn('No email for customer', { customerId });
-          break;
-        }
         const tier = sub.status === 'active'
           ? (PRODUCT_TIER_MAP[productId] ?? 'free')
           : 'free';
         const periodEnd = new Date(sub.current_period_end * 1000).toISOString();
-        await updateProfileByEmail(supabase, userEmail, {
+        await updateProfileByCustomerId(supabase, stripe, customerId, {
           subscription_status: tier,
           subscription_renews_at: sub.cancel_at_period_end ? null : periodEnd,
           subscription_cancel_at: sub.cancel_at_period_end ? periodEnd : null,
@@ -96,9 +91,7 @@ Deno.serve(async (req) => {
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = sub.customer as string;
-        const userEmail = await getCustomerEmail(stripe, customerId);
-        if (!userEmail) break;
-        await updateProfileByEmail(supabase, userEmail, {
+        await updateProfileByCustomerId(supabase, stripe, customerId, {
           subscription_status: 'free',
           subscription_renews_at: null,
           subscription_cancel_at: null,
@@ -131,6 +124,33 @@ async function getCustomerEmail(stripe: Stripe, customerId: string): Promise<str
   const customer = await stripe.customers.retrieve(customerId);
   if (customer.deleted) return null;
   return (customer as Stripe.Customer).email ?? null;
+}
+
+async function updateProfileByCustomerId(
+  supabase: ReturnType<typeof createClient>,
+  stripe: Stripe,
+  customerId: string,
+  fields: Record<string, unknown>
+) {
+  // Fast path: profile already cached the Stripe customer ID.
+  const { data: byId } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
+  if (byId?.id) {
+    const { error } = await supabase.from('profiles').update(fields).eq('id', byId.id);
+    if (error) console.error('profile update failed', error);
+    return;
+  }
+
+  // Fallback: resolve by email, then backfill stripe_customer_id.
+  const email = await getCustomerEmail(stripe, customerId);
+  if (!email) {
+    console.warn('No email for customer', customerId);
+    return;
+  }
+  await updateProfileByEmail(supabase, email, { ...fields, stripe_customer_id: customerId });
 }
 
 async function updateProfileByEmail(
