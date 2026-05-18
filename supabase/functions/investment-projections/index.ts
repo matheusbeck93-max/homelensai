@@ -2,12 +2,16 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
+import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
   try {
+    const credits = await precheckAiCredits(req);
+    if (!credits.allowed && credits.response) return credits.response;
+
     const { property, portfolioData, years = 20 } = await req.json();
 
     if (!property || !portfolioData) {
@@ -78,6 +82,8 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
     );
 
     if ('error' in aiResult) return aiResult.error;
+
+    await deductAiCredits(credits, aiResult.result.usage);
 
     let projectionsText = aiResult.result.message.trim();
     
