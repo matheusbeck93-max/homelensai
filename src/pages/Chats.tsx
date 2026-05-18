@@ -678,7 +678,12 @@ export default function Chats() {
 
                         {message.content.replace(/\[\d+\]/g, '')}
                       </ReactMarkdown>
-                      
+
+                      {/* 2.5C — Collapsed Sources footer for grounded responses */}
+                      {message.role === 'assistant' && message.citations && message.citations.length > 0 && (
+                        <SourcesFooter citations={message.citations} />
+                      )}
+
                       {/* Listen to response */}
                       {message.content && (
                         <div className="flex justify-end mt-1">
