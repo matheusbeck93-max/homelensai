@@ -98,6 +98,8 @@ Deno.serve(async (req) => {
     const pData = await pResponse.json();
     const content = pData.choices?.[0]?.message?.content || '';
 
+    await deductAiCredits(credits, pData?.usage);
+
     const rateMatch = content.match(/RATE:\s*(\d+\.?\d*)%?/i);
     const sourceMatch = content.match(/SOURCE:\s*(.+?)(?:\n|$)/i);
 
