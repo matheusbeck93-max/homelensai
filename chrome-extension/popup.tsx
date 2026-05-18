@@ -16,8 +16,58 @@ interface Message {
 
 interface Session {
   access_token: string;
+  /**
+   * Refresh token from the Supabase auth response. Used by
+   * refreshAccessTokenIfNeeded() to renew expired access tokens
+   * silently instead of forcing the user to sign in again every hour.
+   */
+  refresh_token?: string;
+  /** Unix-seconds expiry of access_token (Supabase 'expires_at'). */
+  expires_at?: number;
   email: string;
   user_id?: string;
+}
+
+/**
+ * If the cached session's access token is within 5 minutes of expiry (or
+ * already expired), exchange the refresh_token for a new access_token.
+ * Returns the freshest available session, or null if the refresh failed
+ * (in which case the caller should treat the user as signed out).
+ *
+ * This was added because the original login flow stored only access_token
+ * and ignored refresh_token / expires_at — users got 401s every hour and
+ * had to re-enter their password. See homelens_chrome_extension_fix_prompt.md P0-2.
+ */
+async function refreshAccessTokenIfNeeded(session: Session): Promise<Session | null> {
+  const now = Math.floor(Date.now() / 1000);
+  // No expiry recorded (legacy session pre-fix) — assume valid and let the
+  // server reject if not. The next successful login will populate expires_at.
+  if (!session.expires_at) return session;
+  // More than 5 minutes of life left — use as-is.
+  if (session.expires_at - now > 300) return session;
+  // No refresh token (legacy session) — cannot refresh; caller must prompt re-login.
+  if (!session.refresh_token) return null;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ refresh_token: session.refresh_token }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const refreshed: Session = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token ?? session.refresh_token,
+      expires_at: data.expires_at,
+      email: session.email,
+      user_id: session.user_id,
+    };
+    chrome.storage.local.set({ homelens_session: refreshed });
+    return refreshed;
+  } catch {
+    return null;
+  }
 }
 
 interface UserProfile {
@@ -398,7 +448,13 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
       }
 
       const data = await res.json();
-      const session: Session = { access_token: data.access_token, email, user_id: data.user?.id };
+      const session: Session = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: data.expires_at,
+        email,
+        user_id: data.user?.id,
+      };
       chrome.storage.local.set({ homelens_session: session });
       onLogin(session);
     } catch (err: any) {
