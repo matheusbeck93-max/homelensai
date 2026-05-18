@@ -4,6 +4,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { getOrCacheStripeCustomerId } from '../_shared/stripeCustomer.ts';
 
 const log = createLogger('customer-portal');
 
@@ -34,11 +35,10 @@ Deno.serve(async (req) => {
     log.step("User authenticated", { userId: user.id });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
+    const customerId = await getOrCacheStripeCustomerId(supabaseClient, stripe, user.id, user.email);
+    if (!customerId) {
       throw new Error("No Stripe customer found for this user");
     }
-    const customerId = customers.data[0].id;
     log.step("Found Stripe customer", { customerId });
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
