@@ -151,3 +151,28 @@ Other LLM-using functions still NOT enforced (track as follow-up):
   - generate-image, investment-projections, fetch-property
   - realtime-token (special — flat-rate charge for token issuance,
     not per-token)
+
+## CORS allowlist verification (NEW — this branch)
+
+`_shared/cors.ts` is now an allowlist instead of a wildcard. Before
+merging, verify the allowlist covers every legitimate origin:
+
+  - Production: homelens.ai (apex, www, app, staging)
+  - Preview deploys: any `*.lovable.app` / `*.lovable.dev` builds
+  - Local dev: localhost:5173 (Vite), localhost:3000, localhost:4173 (Vite preview)
+  - Chrome extension: chrome-extension://* (will be tightened to a
+    specific extension ID once you publish to the Chrome Web Store)
+
+If you use a different staging host (e.g., Vercel preview URLs,
+Cloudflare Pages), add it to `ALLOWED_ORIGIN_PATTERNS`. Origins not on
+the list fall back to `Access-Control-Allow-Origin: https://homelens.ai`
+— which prevents the cross-origin call from succeeding (cookie-bearing
+fetches are rejected when origin doesn't match what the response
+declares).
+
+The legacy `corsHeaders` constant now returns the safe default
+(homelens.ai) instead of `*`. Existing edge function call sites that
+use it continue to work for same-origin requests but reject cross-
+origin requests from non-homelens.ai pages. Migrate to
+`buildCorsHeaders(req)` for any function that should be callable from
+the Chrome extension or local dev.
