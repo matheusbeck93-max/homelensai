@@ -15,6 +15,7 @@ import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import { SaveAnalysisButton } from "@/components/chat/SaveAnalysisButton";
 import { MessageActions } from "@/components/chat/MessageActions";
+import { SourcesFooter } from "@/components/chat/SourcesFooter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
@@ -375,7 +376,9 @@ export default function Chats() {
         content: renderedContent,
         links: data?.links || [],
         createdAt: new Date().toISOString(),
-        metadata: matchScore !== null ? { matchScore } : undefined
+        metadata: matchScore !== null ? { matchScore } : undefined,
+        // 2.5C — Persist Perplexity grounding sources for the collapsed footer.
+        citations: citations.length > 0 ? citations : undefined,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -676,7 +679,12 @@ export default function Chats() {
 
                         {message.content.replace(/\[\d+\]/g, '')}
                       </ReactMarkdown>
-                      
+
+                      {/* 2.5C — Collapsed Sources footer for grounded responses */}
+                      {message.role === 'assistant' && message.citations && message.citations.length > 0 && (
+                        <SourcesFooter citations={message.citations} />
+                      )}
+
                       {/* Listen to response */}
                       {message.content && (
                         <div className="flex justify-end mt-1">
