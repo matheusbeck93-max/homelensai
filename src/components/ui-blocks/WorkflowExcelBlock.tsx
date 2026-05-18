@@ -10,6 +10,35 @@ interface WorkflowExcelBlockProps {
   block: WorkflowExcelBlockType;
 }
 
+
+/**
+ * Excel formula-injection mitigation. Cells starting with =, +, -, or @
+ * are interpreted as formulas by Excel. LLM-generated cells could
+ * contain such payloads (deliberately via prompt injection, or
+ * accidentally). Prepend an apostrophe to disable formula evaluation —
+ * Excel renders it as a literal string. See homelens_excel_workflow_fix_prompt.md P0-2.
+ */
+function sanitizeCellValue(v: string | number | undefined | null): string | number {
+  if (typeof v === 'number') return v;
+  const s = String(v ?? '');
+  if (/^[=+\-@]/.test(s)) return `'${s}`;
+  return s;
+}
+
+/**
+ * Sanitize an LLM-supplied filename. Strips path separators, special
+ * shell chars, and enforces the .xlsx extension. See P1-3.
+ */
+function sanitizeFilename(name: string | undefined): string {
+  let cleaned = String(name || 'workbook')
+    .replace(/[\/\\:*?"<>|]/g, '')
+    .replace(/\s+/g, '-')
+    .toLowerCase()
+    .slice(0, 80);
+  if (!cleaned.endsWith('.xlsx')) cleaned += '.xlsx';
+  return cleaned;
+}
+
 export const WorkflowExcelBlock: React.FC<WorkflowExcelBlockProps> = ({ block }) => {
   const [downloading, setDownloading] = useState(false);
 
@@ -17,15 +46,19 @@ export const WorkflowExcelBlock: React.FC<WorkflowExcelBlockProps> = ({ block })
     setDownloading(true);
     try {
       const wb = XLSX.utils.book_new();
+      const usedSheetNames = new Set<string>();
 
       for (const sheet of block.sheets) {
-        const data: (string | number)[][] = [sheet.headers, ...sheet.rows];
+        const data: (string | number)[][] = [
+          sheet.headers.map(sanitizeCellValue),
+          ...sheet.rows.map((row) => row.map(sanitizeCellValue)),
+        ];
 
         if (sheet.summaryRows && sheet.summaryRows.length > 0) {
           // Add empty row before summary
           data.push([]);
           for (const sr of sheet.summaryRows) {
-            data.push([sr.label, sr.value]);
+            data.push([sanitizeCellValue(sr.label), sanitizeCellValue(sr.value)]);
           }
         }
 
@@ -68,10 +101,19 @@ export const WorkflowExcelBlock: React.FC<WorkflowExcelBlockProps> = ({ block })
         });
         ws["!cols"] = colWidths;
 
-        XLSX.utils.book_append_sheet(wb, ws, sheet.name.substring(0, 31));
+        // Dedupe truncated sheet names so two long names with the same
+        // 31-char prefix don't silently collide. See P1-2.
+        let sheetName = sheet.name.substring(0, 31);
+        let counter = 1;
+        while (usedSheetNames.has(sheetName)) {
+          const suffix = ` (${++counter})`;
+          sheetName = sheet.name.substring(0, 31 - suffix.length) + suffix;
+        }
+        usedSheetNames.add(sheetName);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
 
-      XLSX.writeFile(wb, block.filename);
+      XLSX.writeFile(wb, sanitizeFilename(block.filename));
     } catch (err) {
       console.error("Error generating Excel:", err);
     } finally {
