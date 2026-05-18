@@ -538,7 +538,7 @@ function MessageBubble({
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
         {msg.upgradeCta && (
           <button
-            onClick={() => window.open('https://homelensai.com/pricing', '_blank')}
+            onClick={() => window.open('https://homelens.ai/pricing', '_blank')}
             style={{
               marginTop: '10px',
               padding: '8px 14px',
@@ -562,7 +562,7 @@ function MessageBubble({
                   ? 'Analysis saved to your HomeLens account'
                   : 'Already saved in your HomeLens account'}
                 <a
-                  href="https://homelensais.com/saved-analyses"
+                  href="https://homelens.ai/saved-analyses"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ marginLeft: 8, color: '#6B8DB5', textDecoration: 'underline' }}
@@ -1113,7 +1113,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
             propertyAddress={activeProperty?.address || null}
             isPremium={userProfile?.subscription_status === 'premium'}
-            onUpgradeNeeded={() => window.open('https://homelensai.com/pricing', '_blank')}
+            onUpgradeNeeded={() => window.open('https://homelens.ai/pricing', '_blank')}
           />
         ))}
 
