@@ -93,3 +93,35 @@ trigger). Setup steps:
 
 Verify with `select cron.run_now('check-property-alerts');` — should
 succeed. Curl the function URL without the header — should 401.
+
+## Stripe webhook setup (NEW — this branch)
+
+The `stripe-webhook` edge function is in this branch but is INERT until
+`STRIPE_WEBHOOK_SECRET` is set. With the secret missing the function
+returns 500 for every request, so it's safe to deploy without the
+external setup — it just doesn't do anything yet.
+
+Setup steps:
+
+1. Stripe dashboard → Developers → Webhooks → Add endpoint:
+   - URL: `https://<project>.supabase.co/functions/v1/stripe-webhook`
+   - Events to send: `customer.subscription.created`,
+     `customer.subscription.updated`, `customer.subscription.deleted`,
+     `invoice.payment_failed`, `checkout.session.completed`.
+   - Copy the signing secret (starts with `whsec_`).
+
+2. Set the secret in Supabase:
+   ```bash
+   supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
+   ```
+
+3. Test with the Stripe CLI:
+   ```bash
+   stripe trigger customer.subscription.deleted
+   ```
+   Verify the user's `profiles.subscription_status` flips to 'free'.
+
+4. After the webhook is live, consider tightening `useSubscription`'s
+   polling interval from 5 minutes to a Realtime postgres-changes
+   subscription on the profiles row. See the subscription fix prompt
+   P0-2 "Tighten useSubscription polling" section for the code.
