@@ -375,7 +375,9 @@ export default function Chats() {
         content: renderedContent,
         links: data?.links || [],
         createdAt: new Date().toISOString(),
-        metadata: matchScore !== null ? { matchScore } : undefined
+        metadata: matchScore !== null ? { matchScore } : undefined,
+        // 2.5C — Persist Perplexity grounding sources for the collapsed footer.
+        citations: citations.length > 0 ? citations : undefined,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
