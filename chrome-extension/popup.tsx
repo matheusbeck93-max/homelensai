@@ -819,13 +819,18 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setLoading(true);
     setMatchScore(null);
 
+    // Refresh access_token if near expiry (handles the case where the popup
+    // is left open for >1 hour mid-session). If refresh fails the user gets
+    // the existing 'Please sign in' error path below.
+    const activeSession = (await refreshAccessTokenIfNeeded(session)) ?? session;
+
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/perplexity-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${activeSession.access_token}`,
         },
         body: JSON.stringify({
           query,
@@ -882,6 +887,9 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setLoading(true);
     setMatchScore(null);
 
+    // Refresh access_token if near expiry (see callPerplexityChat note).
+    const activeSession = (await refreshAccessTokenIfNeeded(session)) ?? session;
+
     const requestBody: Record<string, unknown> = {
       messages: apiMessages,
       conversationMode: true,
@@ -903,7 +911,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         headers: {
           'Content-Type': 'application/json',
           apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${activeSession.access_token}`,
         },
         body: JSON.stringify(requestBody),
       });
@@ -1217,9 +1225,22 @@ function App() {
   useEffect(() => {
     chrome.storage.local.get('homelens_session', (result) => {
       if (result.homelens_session?.access_token) {
-        setSession(result.homelens_session);
+        // Refresh if the cached access_token is near expiry. Falls back to
+        // the cached session if it has no expires_at recorded (legacy
+        // sessions pre-refresh-token-fix). Returns null on refresh failure
+        // — in that case clear storage and re-prompt for login.
+        refreshAccessTokenIfNeeded(result.homelens_session).then((fresh) => {
+          if (fresh) {
+            setSession(fresh);
+          } else {
+            chrome.storage.local.remove(['homelens_session']);
+            setSession(null);
+          }
+          setChecking(false);
+        });
+      } else {
+        setChecking(false);
       }
-      setChecking(false);
     });
   }, []);
 
