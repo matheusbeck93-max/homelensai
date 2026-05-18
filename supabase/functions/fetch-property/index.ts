@@ -106,6 +106,8 @@ Deno.serve(async (req) => {
     if (lotMatch) propertyData.lotSize = parseInt(lotMatch[1].replace(/,/g, ''));
     
     log.step('Extracted property data');
+
+    await deductAiCredits(credits, { total_tokens: 300 });
     
     // Set defaults for missing data
     propertyData.address = propertyData.address || 'Property Address';
