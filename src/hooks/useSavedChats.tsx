@@ -15,6 +15,12 @@ export interface ChatMessage {
   attachments?: ChatMessageAttachment[];
   createdAt: string;
   metadata?: Record<string, any>;
+  /**
+   * 2.5C — Perplexity grounding sources. Rendered as a collapsed
+   * <details> footer below the answer; excluded from TTS sanitizer
+   * since it lives outside `content`.
+   */
+  citations?: string[];
 }
 
 interface PropertyLink {
