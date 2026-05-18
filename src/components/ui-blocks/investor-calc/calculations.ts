@@ -20,6 +20,21 @@ function getArmInitialYears(armPeriod: string): number {
   return parseInt(armPeriod.split('/')[0]) || 7;
 }
 
+
+/**
+ * Map a marginal income tax rate to the closest US federal LTCG bracket.
+ * 2024/2025 LTCG brackets: 0% / 15% / 20%. NIIT (3.8%) above ~$200k MAGI
+ * is NOT modeled — flag if added later. Heuristic mapping:
+ *   - marginal <= 12 -> LTCG 0%
+ *   - marginal >= 35 -> LTCG 20%
+ *   - else -> LTCG 15%
+ */
+function getLtcgRate(marginalTaxRate: number): number {
+  if (marginalTaxRate <= 12) return 0;
+  if (marginalTaxRate >= 35) return 20;
+  return 15;
+}
+
 export function computeResults(inputs: InvestorInputs): ComputedResults {
   const downPayment = inputs.price * (inputs.downPct / 100);
   const loanAmount = inputs.price - downPayment;
@@ -170,10 +185,19 @@ export function computeResults(inputs: InvestorInputs): ComputedResults {
 
   if (gain > 0) {
     let taxableGain = gain;
+    // §121 primary-residence exclusion: $250k single / $500k MFJ.
+    // Real §121 requires 2-of-5 years of both ownership AND use; we
+    // approximate with hold period. See homelens_investor_fix_prompt.md P0-3.
     if (inputs.investorProfile === 'primary' && hp >= 2) {
-      taxableGain = Math.max(0, gain - 250000);
+      const exclusionCap = inputs.filingStatus === 'mfj' ? 500_000 : 250_000;
+      taxableGain = Math.max(0, gain - exclusionCap);
     }
-    federalCapitalGainsTax = taxableGain * (inputs.marginalTaxRate / 100);
+    // For long-term capital gains (hp >= 1 year), federal tax uses LTCG
+    // brackets (0/15/20%), NOT the marginal income tax rate. Short-term
+    // (hp < 1) still uses marginal. See homelens_investor_fix_prompt.md P0-2.
+    const effectiveFederalRate =
+      hp >= 1 ? getLtcgRate(inputs.marginalTaxRate) : inputs.marginalTaxRate;
+    federalCapitalGainsTax = taxableGain * (effectiveFederalRate / 100);
     stateCapitalGainsTax = taxableGain * (stateCapGainsRate / 100);
   }
 

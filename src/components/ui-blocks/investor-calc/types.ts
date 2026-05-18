@@ -36,6 +36,7 @@ export interface InvestorInputs {
   investorProfile: 'primary' | 'investment';
   marginalTaxRate: number;
   appreciationPct: number;
+  filingStatus: 'single' | 'mfj';
 }
 
 export interface ComputedResults {
@@ -187,4 +188,5 @@ export const DEFAULT_INPUTS: InvestorInputs = {
   investorProfile: 'investment',
   marginalTaxRate: 20,
   appreciationPct: 3,
+  filingStatus: 'single',
 };

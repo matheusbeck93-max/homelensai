@@ -99,8 +99,12 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
 }) => {
   // ── Mode toggle ──
   const [calcMode, setCalcMode] = useState<'simple' | 'advanced'>(() => {
-    try { return (localStorage.getItem('homelens_investor_mode') as 'simple' | 'advanced') || 'simple'; }
-    catch { return 'simple'; }
+    try {
+      const stored = localStorage.getItem('homelens_investor_mode');
+      return stored === 'simple' || stored === 'advanced' ? stored : 'simple';
+    } catch {
+      return 'simple';
+    }
   });
 
   const handleModeChange = useCallback((mode: 'simple' | 'advanced') => {
@@ -128,7 +132,7 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
     hoaMonthly: Math.max(0, initialInputs.hoaMonthly),
     closingCostsDollar: Math.max(0, initialInputs.closingCosts),
     closingCostsMode: initialInputs.closingCosts > 0 ? 'dollar' : 'percent',
-    armExpectedRate: Math.max(0, initialInputs.ratePct) + 2,
+    armExpectedRate: Math.max(0, initialInputs.ratePct) + DEFAULT_INPUTS.armRateCap,  // Use the configured cap (default 2). Previously hardcoded +2 — produced correct default value but ignored user edits to armRateCap.
   }));
 
   // Down payment as dollar value
@@ -200,7 +204,7 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
     loanType: 'fixed',
     vacancyPct: 8,
     insuranceAnnual: inputs.price * 0.005,
-    repairsPct: inputs.rentMonthly > 0 ? (100 / inputs.rentMonthly) * 100 : 5,
+    repairsPct: 5,  // Flat 5% reserve. Previously `(100 / rent) * 100` — intended as $100/mo flat but stored in a percent field, producing 20% at $500 rent and 100% at $100 rent. Default $2000 rent coincidentally produced 5%, masking the bug.
     capexPct: 7,
     managementPct: 10,
     selfManaged: false,
@@ -213,7 +217,7 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
     closingCostsDollar: 0,
     sellingCostsPct: 6,
     investorProfile: 'investment',
-    marginalTaxRate: 15,
+    // marginalTaxRate intentionally omitted — inherits from DEFAULT_INPUTS (20). Previously pinned to 15 here, which silently changed projected after-tax returns when a user toggled between Simple and Advanced. See homelens_investor_fix_prompt.md P1-2.
     armPeriod: '7/1',
     armRateCap: 2,
     armExpectedRate: 9.0,
