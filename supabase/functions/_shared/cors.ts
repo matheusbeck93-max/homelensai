@@ -67,12 +67,22 @@ export function buildCorsHeaders(req: Request): Record<string, string> {
 }
 
 /**
- * Legacy static-header constant. Now returns a safe-default origin
- * (homelens.ai) instead of '*'. Existing edge function call sites can
- * continue to use this; migrate to buildCorsHeaders(req) when convenient.
+ * Legacy static-header constant used by existing edge functions for their
+ * actual JSON responses (preflight goes through buildCorsHeaders, which
+ * is origin-aware). Because preflight is already locked down to the
+ * allowlist above and every edge function requires a valid Supabase JWT
+ * (or signed webhook payload), the response itself can safely echo a
+ * wildcard origin. This is what unblocks calls from the Lovable preview
+ * host, lovable.app, lovable.dev, localhost, and chrome-extension://*
+ * without having to thread `req` through every response helper.
+ *
+ * Do NOT add `Access-Control-Allow-Credentials: true` alongside `*` —
+ * supabase-js calls run with credentials: 'omit' / 'same-origin' and
+ * pair fine with a wildcard. Cookie-bearing browser calls are not used
+ * by this project.
  */
 export const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': DEFAULT_SAFE_ORIGIN,
+  'Access-Control-Allow-Origin': '*',
   'Vary': 'Origin',
   'Access-Control-Allow-Headers': ALLOWED_HEADERS,
 };
