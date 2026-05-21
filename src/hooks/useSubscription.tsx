@@ -46,22 +46,31 @@ export function useSubscription() {
       }
     });
 
-    // Auto-refresh subscription every 5 minutes (reduced from 60 seconds)
-    const interval = setInterval(() => {
-      const checkAuth = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          checkStripeSubscription();
-        }
-      };
-      checkAuth();
-    }, 5 * 60 * 1000);
-
     return () => {
       subscription.unsubscribe();
-      clearInterval(interval);
     };
   }, []);
+
+  // Realtime: react to webhook-driven profile updates immediately instead of polling.
+  // Stripe webhook -> profiles row update -> postgres_changes -> setTier (~100ms).
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`profiles:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
+        (payload: any) => {
+          const newTier = validateTier(payload.new?.subscription_status);
+          setTier(newTier);
+          cachedTierByUser.set(userId, { tier: newTier, timestamp: Date.now() });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   const loadSubscription = async () => {
     try {
