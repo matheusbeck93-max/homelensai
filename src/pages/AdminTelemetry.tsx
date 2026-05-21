@@ -39,12 +39,14 @@ export default function AdminTelemetry() {
         navigate(`/auth?redirect=${encodeURIComponent('/admin/telemetry')}`, { replace: true });
         return;
       }
-      // Admin check via has_role RPC (RLS would also block, but this gives a clean message).
-      const { data: roleData, error: roleErr } = await supabase.rpc('has_role', {
-        _user_id: session.user.id,
-        _role: 'admin',
-      });
-      if (roleErr || !roleData) {
+      // Admin check via user_roles (RLS lets users see their own rows).
+      const { data: roleRows, error: roleErr } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      if (roleErr || !roleRows) {
         setIsAdmin(false);
         setLoading(false);
         return;
