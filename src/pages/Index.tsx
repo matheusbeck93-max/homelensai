@@ -21,6 +21,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
+import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 
 const faqJsonLd = {
