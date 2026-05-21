@@ -686,6 +686,9 @@ export default function Index() {
 
       }
 
+      {/* Pricing Section */}
+      {!hasStartedConversation && <PricingSection />}
+
       {/* FAQ Section */}
       {!hasStartedConversation &&
       <section className="py-16 px-4 bg-background">
