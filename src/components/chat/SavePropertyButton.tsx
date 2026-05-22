@@ -44,7 +44,9 @@ export function SavePropertyButton({
         title: "Saved",
         description: `${address} added to your Saved Properties.`,
       });
-    } else if (result.error === "already_saved") {
+      return;
+    }
+    if (result.error === "already_saved") {
       toast({ title: "Already saved", description: address });
     } else if (result.error === "unauthorized") {
       toast({
