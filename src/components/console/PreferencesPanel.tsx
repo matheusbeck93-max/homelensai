@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, DollarSign, TrendingUp, Users, CloudSun, Shield, Plus, X, MessageSquare, Save } from "lucide-react";
 import { PrimaryGoalSelector } from "@/components/console/PrimaryGoalSelector";
+import { CityAutocomplete } from "@/components/console/CityAutocomplete";
 
 const PERSONA_OPTIONS = [
   { value: "first_time_buyer", label: "First-time Buyer" },
@@ -81,7 +82,10 @@ export function PreferencesPanel({ embedded = false, onSave, showPrimaryGoal = t
   const [investmentStrategies, setInvestmentStrategies] = useState<string[]>([]);
   const [holdPeriod, setHoldPeriod] = useState("");
   const [financingPreferences, setFinancingPreferences] = useState<string[]>([]);
+  const [minBedrooms, setMinBedrooms] = useState("");
   const [minBathrooms, setMinBathrooms] = useState("");
+  const [minSqft, setMinSqft] = useState("");
+  const [maxSqft, setMaxSqft] = useState("");
   const [mustHaveFeatures, setMustHaveFeatures] = useState<string[]>([]);
   const [customFeature, setCustomFeature] = useState("");
   const [hasChildren, setHasChildren] = useState(false);
@@ -149,6 +153,9 @@ export function PreferencesPanel({ embedded = false, onSave, showPrimaryGoal = t
       }
 
       setMinBathrooms(p.min_bathrooms?.toString() || "");
+      setMinBedrooms(p.min_bedrooms?.toString() || "");
+      setMinSqft(p.min_sqft?.toString() || "");
+      setMaxSqft(p.max_sqft?.toString() || "");
       setMustHaveFeatures(p.must_have_features || []);
       setHasChildren(p.has_children || false);
       setChildrenAges(p.children_ages || []);
@@ -182,6 +189,9 @@ export function PreferencesPanel({ embedded = false, onSave, showPrimaryGoal = t
       financing_preference: financingPreferences[0] || null,
       financing_preferences: financingPreferences.length > 0 ? financingPreferences : null,
       min_bathrooms: minBathrooms ? parseInt(minBathrooms) : null,
+      min_bedrooms: minBedrooms ? parseInt(minBedrooms) : null,
+      min_sqft: minSqft ? parseInt(minSqft) : null,
+      max_sqft: maxSqft ? parseInt(maxSqft) : null,
       must_have_features: mustHaveFeatures.length > 0 ? mustHaveFeatures : null,
       has_children: hasChildren,
       children_ages: hasChildren && childrenAges.length > 0 ? childrenAges : null,
@@ -268,8 +278,13 @@ export function PreferencesPanel({ embedded = false, onSave, showPrimaryGoal = t
               <Label>Preferred Cities</Label>
               {cities.map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Input value={c.city} onChange={(e) => updateCity(i, "city", e.target.value)} placeholder="City (e.g., Austin)" className="flex-1" />
-                  <Input value={c.state} onChange={(e) => updateCity(i, "state", e.target.value)} placeholder="ST" maxLength={2} className="w-20" />
+                  <CityAutocomplete
+                    city={c.city}
+                    state={c.state}
+                    onChange={(city, state) => {
+                      setCities(prev => prev.map((cc, idx) => idx === i ? { city, state } : cc));
+                    }}
+                  />
                   {cities.length > 1 && (
                     <Button variant="ghost" size="icon" onClick={() => removeCity(i)} className="shrink-0">
                       <X className="h-4 w-4 text-muted-foreground" />
@@ -321,9 +336,26 @@ export function PreferencesPanel({ embedded = false, onSave, showPrimaryGoal = t
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="pref-minBaths">Min Bathrooms</Label>
-              <Input id="pref-minBaths" type="number" value={minBathrooms} onChange={(e) => setMinBathrooms(e.target.value)} placeholder="2" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pref-minBeds">Min Bedrooms</Label>
+                <Input id="pref-minBeds" type="number" min={0} value={minBedrooms} onChange={(e) => setMinBedrooms(e.target.value)} placeholder="3" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pref-minBaths">Min Bathrooms</Label>
+                <Input id="pref-minBaths" type="number" min={0} value={minBathrooms} onChange={(e) => setMinBathrooms(e.target.value)} placeholder="2" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pref-minSqft">Min Sqft</Label>
+                <Input id="pref-minSqft" type="number" min={0} value={minSqft} onChange={(e) => setMinSqft(e.target.value)} placeholder="1200" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pref-maxSqft">Max Sqft</Label>
+                <Input id="pref-maxSqft" type="number" min={0} value={maxSqft} onChange={(e) => setMaxSqft(e.target.value)} placeholder="3000" />
+              </div>
             </div>
           </CardContent>
         </Card>
