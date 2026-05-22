@@ -847,7 +847,7 @@ type Intent =
   | { kind: 'reset' }
   | { kind: 'back' }
   | { kind: 'skip' }
-  | { kind: 'edit'; key: string }
+  | { kind: 'edit'; key: string; valueText?: string }
   | { kind: 'custom_pref'; text: string }
   | { kind: 'answer' };
 
@@ -869,13 +869,26 @@ function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
     if (k === 'restart_all') return { kind: 'reset' };
     if (EDITABLE_KEYS.has(k)) return { kind: 'edit', key: k };
   }
-  const editMatch = low.match(/^(edit|change|update)\s+(?:my\s+)?(.+?)\b\.?$/);
+  // Natural language "change/edit/update <category> [to <value>]" — capture value too.
+  const editMatch = t.match(/^(edit|change|update|set)\s+(?:my\s+)?(.+)$/i);
   if (editMatch) {
-    const phrase = editMatch[2];
+    const rest = editMatch[2];
+    const restLow = rest.toLowerCase();
     for (const c of CATEGORY_KEYWORDS) {
-      if (c.words.some((w) => phrase.includes(w))) {
-        if (c.key === 'budget') return { kind: 'edit', key: 'budget' };
-        return { kind: 'edit', key: c.key };
+      if (c.words.some((w) => restLow.includes(w))) {
+        // Strip the category words + optional "to" / ":" to isolate the value.
+        let valueText = rest;
+        const sepMatch = valueText.match(/\b(?:to|:|=)\b\s*(.+)$/i);
+        if (sepMatch) valueText = sepMatch[1];
+        else {
+          // Drop the first matched category word
+          for (const w of c.words) {
+            const re = new RegExp(`\\b${w}\\w*\\b`, 'i');
+            if (re.test(valueText)) { valueText = valueText.replace(re, '').trim(); break; }
+          }
+        }
+        valueText = valueText.trim().replace(/^[,:;\s-]+/, '').trim();
+        return { kind: 'edit', key: c.key, valueText: valueText || undefined };
       }
     }
   }
@@ -996,7 +1009,33 @@ Deno.serve(async (req) => {
 
     if (intent.kind === 'edit') {
       const q = questionForKey(intent.key);
-      if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+      if (q) {
+        // If the user supplied the new value inline (e.g. "change cities to Tampa, FL"),
+        // try to parse + save it immediately instead of re-asking the question.
+        if (intent.valueText) {
+          const parsedInline = parseAnswerForQuestion(q, intent.valueText);
+          const sanitizedInline = sanitizeUpdates(parsedInline.updates);
+          if (Object.keys(sanitizedInline).length > 0) {
+            await supabase.from('profiles').update(sanitizedInline).eq('id', user.id);
+            const updated = { ...currentProfile, ...sanitizedInline } as ProfileRecord;
+            const fieldLabel = FRIENDLY_FIELD_LABEL[q.key] ?? q.key.replace(/_/g, ' ');
+            const noteSuffix = parsedInline.note ? ` ${parsedInline.note}` : '';
+            const resp = completionSummaryResponse(updated, Object.keys(sanitizedInline));
+            resp.assistant_message = `Updated your ${fieldLabel}.${noteSuffix}\n\n${resp.assistant_message}`;
+            return jsonResponse(resp, 200, req);
+          }
+          // Couldn't parse — show the question with a hint.
+          return jsonResponse(
+            questionResponseWithState(q, currentProfile, {
+              editing: true,
+              prefix: parsedInline.note ?? `I couldn't parse "${intent.valueText}".`,
+            }),
+            200,
+            req,
+          );
+        }
+        return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+      }
     }
 
     if (intent.kind === 'back' && priorState?.mode === 'onboarding') {
@@ -1138,7 +1177,18 @@ Deno.serve(async (req) => {
     const sanitized = sanitizeUpdates(parsed.updates);
 
     if (currentQuestion && Object.keys(sanitized).length === 0) {
-      const prefix = parsed.note ?? "I didn't catch that.";
+      let prefix = parsed.note ?? "I didn't catch that.";
+      // If the user typed a substantive sentence (not just one word) and we couldn't
+      // map it to the current question's choices, capture it as a free-form note so
+      // it isn't lost. Then re-ask the same question.
+      const trimmedInput = latestContent.trim();
+      const looksLikeFreeText = /\s/.test(trimmedInput) && trimmedInput.split(/\s+/).length >= 2;
+      if (looksLikeFreeText && currentQuestion.key !== 'about_me' && currentQuestion.key !== 'preferred_cities') {
+        const merged = appendAboutMe(currentProfile.about_me, trimmedInput);
+        await supabase.from('profiles').update({ about_me: merged }).eq('id', user.id);
+        (currentProfile as ProfileRecord).about_me = merged;
+        prefix = `Got it — I saved "${trimmedInput}" as a note. Now back to the question:`;
+      }
       return jsonResponse(
         questionResponseWithState(currentQuestion, currentProfile, {
           editing: editingMode,
