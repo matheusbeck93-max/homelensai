@@ -23,7 +23,7 @@ export type MarketSnapshot = {
 
 type MarketSnapshotCardProps = {
   snapshot: MarketSnapshot;
-  subscriptionStatus: "free" | "pro" | "premium";
+  subscriptionStatus: "free" | "buyer" | "investor";
   onUpgradeClick?: () => void;
 };
 
