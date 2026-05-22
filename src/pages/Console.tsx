@@ -5,11 +5,12 @@ import { Navigation } from "@/components/Navigation";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal, MessageSquare, ListChecks } from "lucide-react";
 import { OverviewPanel } from "@/components/console/OverviewPanel";
 import { SubscriptionPanel } from "@/components/console/SubscriptionPanel";
 import { AccountPreferencesPanel } from "@/components/console/AccountPreferencesPanel";
 import { PreferencesPanel } from "@/components/console/PreferencesPanel";
+import { PreferencesChat } from "@/components/console/PreferencesChat";
 
 export default function Console() {
   const navigate = useNavigate();
@@ -17,6 +18,15 @@ export default function Console() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const activeTab = searchParams.get("tab") || "overview";
+  const [prefsMode, setPrefsMode] = useState<"chat" | "form">(() => {
+    if (typeof window === "undefined") return "chat";
+    return (localStorage.getItem("preferencesMode") as "chat" | "form") || "chat";
+  });
+
+  const setPrefsModePersist = (mode: "chat" | "form") => {
+    setPrefsMode(mode);
+    try { localStorage.setItem("preferencesMode", mode); } catch {}
+  };
 
   useEffect(() => {
     checkAuth();
@@ -111,7 +121,31 @@ export default function Console() {
           </TabsContent>
 
           <TabsContent value="preferences">
-            <PreferencesPanel />
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <div className="inline-flex rounded-md border border-border p-0.5">
+                  <Button
+                    variant={prefsMode === "chat" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setPrefsModePersist("chat")}
+                    className="gap-1.5"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Chat
+                  </Button>
+                  <Button
+                    variant={prefsMode === "form" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setPrefsModePersist("form")}
+                    className="gap-1.5"
+                  >
+                    <ListChecks className="h-3.5 w-3.5" />
+                    Form
+                  </Button>
+                </div>
+              </div>
+              {prefsMode === "chat" ? <PreferencesChat /> : <PreferencesPanel />}
+            </div>
           </TabsContent>
 
           <TabsContent value="subscription">
