@@ -136,6 +136,12 @@ function extractUrl(text: string): string | null {
   return urlMatch ? urlMatch[0] : null;
 }
 
+// Pull a labeled field (e.g. "Address: 123 Main St") out of an assistant message
+function extractFieldFromContent(content: string, pattern: RegExp): string | undefined {
+  const m = content.match(pattern);
+  return m ? m[1].trim() : undefined;
+}
+
 // User explicitly asks for an Excel/spreadsheet/download
 function isExplicitExcelRequest(text: string): boolean {
   const patterns = /(excel|spreadsheet|planilha|xlsx|workbook|export(?:\s+to|\s+as)?\s+(?:excel|spreadsheet)|download(?:able)?(?:\s+(?:file|excel|spreadsheet))?|send (?:me )?the (?:spreadsheet|excel|file)|generate (?:an? )?(?:excel|xlsx|spreadsheet)|baixa(?:r)? (?:a )?planilha|crie? uma planilha|me envie a planilha|envia(?:r)? (?:a )?planilha)/i;
