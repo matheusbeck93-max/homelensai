@@ -825,6 +825,36 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_properties: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          property_address: string
+          property_url: string
+          state: string | null
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          property_address: string
+          property_url: string
+          state?: string | null
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          property_address?: string
+          property_url?: string
+          state?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_searches: {
         Row: {
           alert_enabled: boolean | null

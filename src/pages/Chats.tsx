@@ -7,6 +7,8 @@ import { StickyChat, ChatAttachment } from "@/components/StickyChat";
 import { SavedChatsSidebar } from "@/components/chat/SavedChatsSidebar";
 import { ChatComparisonPanel, AnalyzedProperty } from "@/components/chat/ChatComparisonPanel";
 import { useSavedChats, ChatMessage } from "@/hooks/useSavedChats";
+import { useSavedProperties } from "@/hooks/useSavedProperties";
+import { SavePropertyButton } from "@/components/chat/SavePropertyButton";
 import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -134,6 +136,12 @@ function extractUrl(text: string): string | null {
   return urlMatch ? urlMatch[0] : null;
 }
 
+// Pull a labeled field (e.g. "Address: 123 Main St") out of an assistant message
+function extractFieldFromContent(content: string, pattern: RegExp): string | undefined {
+  const m = content.match(pattern);
+  return m ? m[1].trim() : undefined;
+}
+
 // User explicitly asks for an Excel/spreadsheet/download
 function isExplicitExcelRequest(text: string): boolean {
   const patterns = /(excel|spreadsheet|planilha|xlsx|workbook|export(?:\s+to|\s+as)?\s+(?:excel|spreadsheet)|download(?:able)?(?:\s+(?:file|excel|spreadsheet))?|send (?:me )?the (?:spreadsheet|excel|file)|generate (?:an? )?(?:excel|xlsx|spreadsheet)|baixa(?:r)? (?:a )?planilha|crie? uma planilha|me envie a planilha|envia(?:r)? (?:a )?planilha)/i;
@@ -181,6 +189,14 @@ export default function Chats() {
     startNewChat,
     clearAllConversations
   } = useSavedChats();
+
+  // Saved Properties (bookmark shelf in sidebar)
+  const {
+    properties: savedProperties,
+    saveProperty,
+    deleteProperty,
+    isUrlSaved,
+  } = useSavedProperties(user);
 
   // Local state
   const [loading, setLoading] = useState(false);
@@ -541,7 +557,9 @@ export default function Chats() {
         onDeleteConversation={deleteConversation}
         onRenameConversation={renameConversation}
         onClearAllConversations={clearAllConversations}
-        onLogin={() => navigate('/auth')} />
+        onLogin={() => navigate('/auth')}
+        savedProperties={savedProperties}
+        onDeleteSavedProperty={deleteProperty} />
 
 
       <main className={cn(
@@ -736,6 +754,22 @@ export default function Chats() {
                           }}
                         />
                       )}
+
+                      {/* Save Property bookmark — sidebar shelf */}
+                      {user && analysisUrl && (() => {
+                        const ap = (message.metadata as any)?.analyzedProperty;
+                        const address: string | undefined =
+                          ap?.address || extractFieldFromContent(message.content, /Address:\s*([^\n]+)/i);
+                        if (!address) return null;
+                        return (
+                          <SavePropertyButton
+                            url={analysisUrl}
+                            address={address}
+                            isSaved={isUrlSaved(analysisUrl)}
+                            onSave={saveProperty}
+                          />
+                        );
+                      })()}
 
                       {/* Property Links - Card Style Only */}
                       {message.links && message.links.length > 0 &&

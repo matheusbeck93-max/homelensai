@@ -1,45 +1,54 @@
-## Root cause (confirmed)
 
-Checked your profile in the database:
+## What we're building
 
-- `subscription_status: free`
-- `ai_credits_used_today: 105` (cap is **100** for free tier)
-- `ai_credits_last_reset: 2026-05-22`
+A new "Saved Properties" section at the top of the left sidebar in `/chats` (above the chat history list), matching the **Collapsible premium shelf** direction you picked. Each saved item shows the property **address** (primary label) + city/state (subtle), opens the original listing URL on click, with a delete (×) action on hover. Collapsible header shows a count badge.
 
-So `perplexity-chat` is correctly returning **HTTP 429 `ai_credits_exhausted`**. That is the "non-2xx" the toast is showing. Nothing is broken in the function itself — you literally hit today's free limit (the Whole Foods question would have been request #106).
+A small **bookmark icon** appears on assistant chat messages that contain a property URL; clicking it saves that property to the shelf.
 
-There are two separate problems to fix.
+## UX flow
 
----
+1. In a chat, the AI returns a property analysis with a Zillow/Redfin/Trulia URL.
+2. User clicks the new **bookmark icon** next to "Add to Comparison" / "Save Analysis".
+3. The property (URL + address) is saved and appears in the sidebar shelf instantly.
+4. Clicking a shelf item opens the listing URL in a new tab. Hover reveals × to remove.
+5. The shelf collapses/expands with chevron; empty state shows a subtle hint.
 
-## Problem 1 — UX: generic "Edge Function returned a non-2xx" toast instead of the upgrade dialog
+Note: This is a lightweight bookmark feature (URL + address only), separate from the existing premium **Saved Analyses** (which stores the full AI analysis text + score). Available to all users (free + premium).
 
-`src/pages/Chats.tsx` already wires `parseEdgeError` + `isCreditsExhausted` to open `CreditsExhaustedDialog` on 429s, but the dialog isn't showing for you. Most likely `parseEdgeError` can't read `error.context` for this `FunctionsHttpError` (supabase-js v2.76 sometimes returns a body that's already consumed), so `isCreditsExhausted` returns false and we fall through to the generic toast.
+## Database
 
-**Fix:**
-1. Harden `src/lib/edgeErrors.ts` so it also looks at `error.status`, `error.statusCode`, `error.name === 'FunctionsHttpError'`, and the error message string ("non-2xx status code") combined with any cached `error.context.status`. Treat status 429 OR a body containing `ai_credits_exhausted` / `limitReached: true` as exhausted.
-2. In `Chats.tsx`, if `parsed.status` is unknown but `error.message` includes "non-2xx", do one extra fallback fetch directly to the function URL (with the same body and auth header) to read the JSON body, so the dialog can open reliably.
-3. Make the toast for unknown errors more user-friendly: "Something went wrong reaching the assistant. Please try again." instead of the raw SDK string.
+New table `public.saved_properties`:
 
-## Problem 2 — "HomeLens needs to answer that question" (credits)
+```
+- id uuid pk
+- user_id uuid (RLS: auth.uid() = user_id)
+- property_url text not null
+- property_address text not null
+- city text
+- state text
+- created_at timestamptz
+- unique (user_id, property_url)
+```
 
-You're locked out for the rest of today. There are three knobs; pick one (I'll wait for your choice before changing anything):
+RLS: users can select/insert/delete their own rows only.
 
-- **A. Reset your counter now** (one-time fix, no code change). Sets `ai_credits_used_today = 0` for your account so you can keep testing today. Other free users unaffected.
-- **B. Raise the free daily cap** in `supabase/functions/_shared/aiCredits.ts` (`DAILY_FREE_CREDITS`) from 100 → e.g. 200 or 300. Applies to all free users.
-- **C. Mark your own account as paid/unlimited** for testing (`subscription_status = 'paid'` on your profile). Cleanest for your own testing without changing product limits.
+## Files to create / change
 
-Default recommendation: **A + the UX fix in Problem 1.** That gets you unblocked now and prevents the next user from seeing the same confusing toast. We can revisit B/C later if free-tier limits are too tight in practice.
+**New**
+- `supabase/migrations/<ts>_saved_properties.sql` — table + RLS + unique index
+- `src/hooks/useSavedProperties.ts` — list/save/delete, mirrors `useSavedAnalyses` pattern
+- `src/components/chat/SavedPropertiesShelf.tsx` — the collapsible shelf UI (semantic tokens, not raw blue-600)
+- `src/components/chat/SavePropertyButton.tsx` — bookmark icon button shown on assistant messages with a property URL
 
----
+**Modified**
+- `src/pages/Chats.tsx` — mount `<SavedPropertiesShelf />` at top of left sidebar above the chat history list; pass save handler to message actions; extract first property URL + address from assistant messages to feed the Save button
 
-## Out of scope
-- No changes to `perplexity-chat` itself (it's behaving correctly).
-- No pricing/plan changes.
-- No changes to other consumers of `parseEdgeError`.
+## Design tokens
 
-## Verification
-- After the UX fix, simulate a 429 (e.g. call `perplexity-chat` with `ai_credits_used_today` already at 105) → `CreditsExhaustedDialog` opens, no generic toast.
-- After reset (option A): retry the Whole Foods question → assistant responds normally and `ai_credits_used_today` increments from 0.
+Use the existing HomeLens design system (steel blue `--primary`, `--muted`, `--border`, `--card`) rather than the raw `blue-600` / `slate-*` from the prototype, so it matches dark mode and the rest of the app.
 
-Which credit option (A, B, or C) do you want for Problem 2?
+## Non-goals
+
+- No price/photo/Zestimate snapshot at save time (keep lightweight; user wanted address as the reference).
+- Not gated behind Premium (it's a free bookmark, distinct from Saved Analyses).
+- No reordering / folders / tags in this pass.
