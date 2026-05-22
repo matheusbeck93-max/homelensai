@@ -1177,7 +1177,18 @@ Deno.serve(async (req) => {
     const sanitized = sanitizeUpdates(parsed.updates);
 
     if (currentQuestion && Object.keys(sanitized).length === 0) {
-      const prefix = parsed.note ?? "I didn't catch that.";
+      let prefix = parsed.note ?? "I didn't catch that.";
+      // If the user typed a substantive sentence (not just one word) and we couldn't
+      // map it to the current question's choices, capture it as a free-form note so
+      // it isn't lost. Then re-ask the same question.
+      const trimmedInput = latestContent.trim();
+      const looksLikeFreeText = /\s/.test(trimmedInput) && trimmedInput.split(/\s+/).length >= 2;
+      if (looksLikeFreeText && currentQuestion.key !== 'about_me' && currentQuestion.key !== 'preferred_cities') {
+        const merged = appendAboutMe(currentProfile.about_me, trimmedInput);
+        await supabase.from('profiles').update({ about_me: merged }).eq('id', user.id);
+        (currentProfile as ProfileRecord).about_me = merged;
+        prefix = `Got it — I saved "${trimmedInput}" as a note. Now back to the question:`;
+      }
       return jsonResponse(
         questionResponseWithState(currentQuestion, currentProfile, {
           editing: editingMode,
