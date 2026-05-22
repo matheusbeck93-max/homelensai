@@ -4,6 +4,7 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
+import { parseCityList } from '../_shared/usCities.ts';
 
 const log = createLogger('preferences-chat');
 
@@ -148,6 +149,17 @@ const SAFETY_CHOICES: Choice[] = [
 ];
 
 const SKIP_CHOICES: Choice[] = [{ label: 'Skip', value: 'skip' }];
+
+/** Navigation buttons surfaced on every onboarding question turn. */
+const NAV_CHOICES_FULL: Choice[] = [
+  { label: '← Back', value: 'nav:back' },
+  { label: 'Skip', value: 'nav:skip' },
+  { label: '↻ Reset all', value: 'nav:restart' },
+];
+const NAV_CHOICES_FIRST: Choice[] = [
+  { label: 'Skip', value: 'nav:skip' },
+  { label: '↻ Reset all', value: 'nav:restart' },
+];
 
 const EDIT_CATEGORY_CHOICES: Choice[] = [
   { label: 'Goal', value: 'edit:primary_goal' },
@@ -380,15 +392,20 @@ function finalAcknowledgementResponse() {
 function questionResponseWithState(
   question: Question,
   profile: ProfileRecord,
-  opts: { editing: boolean; prefix?: string },
+  opts: { editing: boolean; prefix?: string; questionIndex?: number },
 ) {
   const current = opts.editing ? formatCurrentValue(question.key, profile) : null;
   const lead = opts.prefix ? `${opts.prefix} ` : '';
   const ctx = current ? `Your current ${question.key.replace(/_/g, ' ')}: **${current}**.\n\n` : '';
-  const state = opts.editing ? encodeState({ mode: 'editing', key: question.key }) : encodeState({ mode: 'onboarding' });
+  const idx = opts.questionIndex ?? 0;
+  const state = opts.editing
+    ? encodeState({ mode: 'editing', key: question.key })
+    : encodeState({ mode: 'onboarding', key: question.key, idx });
+  const nav = opts.editing ? [] : (idx === 0 ? NAV_CHOICES_FIRST : NAV_CHOICES_FULL);
   return {
     assistant_message: `${lead}${ctx}${question.assistant_message}${state}`,
     choices: question.choices ?? [],
+    nav_choices: nav,
     multi_select: Boolean(question.multi_select),
     allow_text: question.allow_text !== false,
     done: false,
