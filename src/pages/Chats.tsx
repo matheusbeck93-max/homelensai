@@ -468,6 +468,11 @@ export default function Chats() {
       }
     } catch (error: any) {
       console.error('Chat error:', error);
+      const parsed = await parseEdgeError(error);
+      if (isCreditsExhausted(parsed)) {
+        setCreditsDialogOpen(true);
+        return;
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to send message",
