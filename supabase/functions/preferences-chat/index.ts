@@ -4,6 +4,7 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
+import { parseCityList } from '../_shared/usCities.ts';
 
 const log = createLogger('preferences-chat');
 
@@ -148,6 +149,17 @@ const SAFETY_CHOICES: Choice[] = [
 ];
 
 const SKIP_CHOICES: Choice[] = [{ label: 'Skip', value: 'skip' }];
+
+/** Navigation buttons surfaced on every onboarding question turn. */
+const NAV_CHOICES_FULL: Choice[] = [
+  { label: '← Back', value: 'nav:back' },
+  { label: 'Skip', value: 'nav:skip' },
+  { label: '↻ Reset all', value: 'nav:restart' },
+];
+const NAV_CHOICES_FIRST: Choice[] = [
+  { label: 'Skip', value: 'nav:skip' },
+  { label: '↻ Reset all', value: 'nav:restart' },
+];
 
 const EDIT_CATEGORY_CHOICES: Choice[] = [
   { label: 'Goal', value: 'edit:primary_goal' },
@@ -319,6 +331,7 @@ function editMenuResponse(prefix?: string) {
       `${prefix ? `${prefix} ` : ''}What would you like to update? Pick a category or just type what you'd like to change.` +
       encodeState({ mode: 'edit_menu' }),
     choices: EDIT_CATEGORY_CHOICES,
+    nav_choices: [] as Choice[],
     multi_select: false,
     allow_text: true,
     done: false,
@@ -349,14 +362,16 @@ function recapLines(profile: ProfileRecord): string[] {
 function completionSummaryResponse(profile: ProfileRecord, savedFields: string[]) {
   const recap = recapLines(profile);
   const body = [
-    "You're all set — your preferences are saved. You can change anything anytime.",
+    "All saved. Your preferences are ready.",
     recap.length ? `\n**Here's what I have:**\n${recap.join('\n')}` : '',
+    `\nYou can type things like "reset preferences", "edit budget", or add any note (e.g. "close to a Whole Foods").`,
   ]
     .filter(Boolean)
     .join('\n');
   return {
     assistant_message: `${body}${encodeState({ mode: 'completed_summary' })}`,
     choices: COMPLETION_CHOICES,
+    nav_choices: [] as Choice[],
     multi_select: false,
     allow_text: true,
     done: true,
@@ -367,9 +382,10 @@ function completionSummaryResponse(profile: ProfileRecord, savedFields: string[]
 function finalAcknowledgementResponse() {
   return {
     assistant_message:
-      "Great — I'll use these for your HomeLens experience. Reopen this chat anytime to tweak." +
+      `Got it — saved. Ask me anytime to "edit" or "reset", or add a new preference like "close to a Whole Foods".` +
       encodeState({ mode: 'closed' }),
     choices: [] as Choice[],
+    nav_choices: [] as Choice[],
     multi_select: false,
     allow_text: true,
     done: true,
@@ -380,15 +396,20 @@ function finalAcknowledgementResponse() {
 function questionResponseWithState(
   question: Question,
   profile: ProfileRecord,
-  opts: { editing: boolean; prefix?: string },
+  opts: { editing: boolean; prefix?: string; questionIndex?: number },
 ) {
   const current = opts.editing ? formatCurrentValue(question.key, profile) : null;
   const lead = opts.prefix ? `${opts.prefix} ` : '';
   const ctx = current ? `Your current ${question.key.replace(/_/g, ' ')}: **${current}**.\n\n` : '';
-  const state = opts.editing ? encodeState({ mode: 'editing', key: question.key }) : encodeState({ mode: 'onboarding' });
+  const idx = opts.questionIndex ?? 0;
+  const state = opts.editing
+    ? encodeState({ mode: 'editing', key: question.key })
+    : encodeState({ mode: 'onboarding', key: question.key, idx });
+  const nav = opts.editing ? [] : (idx === 0 ? NAV_CHOICES_FIRST : NAV_CHOICES_FULL);
   return {
     assistant_message: `${lead}${ctx}${question.assistant_message}${state}`,
     choices: question.choices ?? [],
+    nav_choices: nav,
     multi_select: Boolean(question.multi_select),
     allow_text: question.allow_text !== false,
     done: false,
@@ -651,20 +672,8 @@ function toKebab(value: string): string {
   return normalizeText(value).replace(/\s+/g, '-');
 }
 
-function parseCities(content: string): string[] {
-  const trimmed = content.trim();
-  if (!trimmed) return [];
-
-  const matches = [...trimmed.matchAll(/([A-Za-z][A-Za-z .'-]+?),?\s+([A-Z]{2})\b/g)];
-  if (matches.length > 0) {
-    return matches.map((m) => `${titleCase(m[1].trim())}, ${m[2].toUpperCase()}`);
-  }
-
-  return trimmed
-    .split(/;|\n|\band\b/i)
-    .map((v) => v.trim())
-    .filter(Boolean)
-    .map(titleCase);
+function parseCities(content: string): { accepted: string[]; rejected: string[] } {
+  return parseCityList(content);
 }
 
 function titleCase(value: string): string {
@@ -719,85 +728,191 @@ function parseFirstNumber(content: string, choices: Choice[]): number | null {
   return match ? Number(match[0]) : null;
 }
 
-function parseAnswerForQuestion(question: Question | null, content: string): Record<string, unknown> {
-  if (!question) return {};
+interface ParsedAnswer {
+  updates: Record<string, unknown>;
+  note?: string;
+}
+
+function parseAnswerForQuestion(question: Question | null, content: string): ParsedAnswer {
+  if (!question) return { updates: {} };
 
   switch (question.key) {
     case 'primary_goal': {
       const value = selectedValues(content, PRIMARY_GOAL_CHOICES)[0];
-      return value ? { primary_goal: value } : {};
+      return { updates: value ? { primary_goal: value } : {} };
     }
     case 'preferred_cities': {
-      const cities = parseCities(content);
-      return cities.length ? { preferred_cities: cities } : {};
+      const { accepted, rejected } = parseCities(content);
+      if (accepted.length) {
+        let note: string | undefined;
+        if (rejected.length) {
+          note = `I couldn't recognize: ${rejected.join(', ')}. I saved the rest.`;
+        }
+        return { updates: { preferred_cities: accepted }, note };
+      }
+      const note = rejected.length
+        ? `I couldn't recognize "${rejected.join(', ')}" as a US city or state. Try something like "Austin, TX" or "Florida".`
+        : `Please share at least one US city or state (e.g. "Austin, TX").`;
+      return { updates: {}, note };
     }
     case 'buyer_types': {
       const values = selectedValues(content, PERSONA_CHOICES);
-      return values.length ? { buyer_types: values } : {};
+      return { updates: values.length ? { buyer_types: values } : {} };
     }
     case 'budget':
-      return parseBudget(content);
+      return { updates: parseBudget(content) };
     case 'min_bedrooms': {
       const n = parseFirstNumber(content, BEDROOM_CHOICES);
-      return n ? { min_bedrooms: n } : {};
+      return { updates: n ? { min_bedrooms: n } : {} };
     }
     case 'min_bathrooms': {
       const n = parseFirstNumber(content, BATHROOM_CHOICES);
-      return n ? { min_bathrooms: n } : {};
+      return { updates: n ? { min_bathrooms: n } : {} };
     }
     case 'must_have_features': {
       const values = selectedValues(content, FEATURE_CHOICES);
-      if (values.includes('no_preference')) return { must_have_features: [] };
-      if (values.length) return { must_have_features: values.filter((v) => v !== 'no_preference') };
+      if (values.includes('no_preference')) return { updates: { must_have_features: [] } };
+      if (values.length) return { updates: { must_have_features: values.filter((v) => v !== 'no_preference') } };
       const custom = content
         .split(/[,;\n]|\band\b/i)
         .map(toKebab)
         .filter(Boolean);
-      return custom.length ? { must_have_features: custom } : {};
+      return { updates: custom.length ? { must_have_features: custom } : {} };
     }
     case 'investment_strategies': {
       const values = selectedValues(content, STRATEGY_CHOICES);
-      return values.length ? { investment_strategies: values } : {};
+      return { updates: values.length ? { investment_strategies: values } : {} };
     }
     case 'hold_period_years': {
       const n = parseFirstNumber(content, HOLD_PERIOD_CHOICES);
-      return n ? { hold_period_years: n } : {};
+      return { updates: n ? { hold_period_years: n } : {} };
     }
     case 'financing_preferences': {
       const values = selectedValues(content, FINANCING_CHOICES);
-      return values.length ? { financing_preferences: values } : {};
+      return { updates: values.length ? { financing_preferences: values } : {} };
     }
     case 'has_children': {
       const value = selectedValues(content, YES_NO_CHOICES)[0];
-      if (value === 'yes') return { has_children: true };
-      if (value === 'no') return { has_children: false, children_ages: [] };
-      return {};
+      if (value === 'yes') return { updates: { has_children: true } };
+      if (value === 'no') return { updates: { has_children: false, children_ages: [] } };
+      return { updates: {} };
     }
     case 'children_ages': {
       const values = selectedValues(content, CHILD_AGE_CHOICES);
-      return values.length ? { children_ages: values } : {};
+      return { updates: values.length ? { children_ages: values } : {} };
     }
     case 'climate_preference': {
       const value = selectedValues(content, CLIMATE_CHOICES)[0];
-      return value ? { climate_preference: value } : {};
+      return { updates: value ? { climate_preference: value } : {} };
     }
     case 'safety_priority': {
       const value = selectedValues(content, SAFETY_CHOICES)[0];
-      return value ? { safety_priority: value } : {};
+      return { updates: value ? { safety_priority: value } : {} };
     }
     case 'about_me': {
       const skip = selectedValues(content, SKIP_CHOICES)[0];
-      if (skip === 'skip') return { onboarding_completed: true };
-      return content.trim() ? { about_me: content.trim() } : {};
+      if (skip === 'skip') return { updates: { onboarding_completed: true } };
+      return { updates: content.trim() ? { about_me: content.trim() } : {} };
     }
     default:
-      return {};
+      return { updates: {} };
   }
 }
 
 function latestUserMessage(messages: Array<{ role: string; content: string }>): string | null {
   const latest = [...messages].reverse().find((m) => m?.role === 'user' && typeof m.content === 'string' && m.content.trim());
   return latest?.content.trim() ?? null;
+}
+
+/** Ordered list of question keys for back/forward navigation in onboarding. */
+const QUESTION_ORDER: string[] = [
+  'primary_goal',
+  'preferred_cities',
+  'buyer_types',
+  'budget',
+  'min_bedrooms',
+  'min_bathrooms',
+  'must_have_features',
+  'investment_strategies',
+  'hold_period_years',
+  'financing_preferences',
+  'has_children',
+  'children_ages',
+  'climate_preference',
+  'safety_priority',
+  'about_me',
+];
+
+type Intent =
+  | { kind: 'reset' }
+  | { kind: 'back' }
+  | { kind: 'skip' }
+  | { kind: 'edit'; key: string }
+  | { kind: 'custom_pref'; text: string }
+  | { kind: 'answer' };
+
+function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
+  const t = raw.trim();
+  const low = t.toLowerCase();
+  // Explicit nav buttons
+  if (t === 'nav:back' || /^(back|go back|previous|prev)\b\.?$/i.test(low)) return { kind: 'back' };
+  if (t === 'nav:skip' || /^skip\b\.?$/i.test(low)) return { kind: 'skip' };
+  if (
+    t === 'nav:restart' ||
+    /^(reset|restart|start over|clear all|wipe)( (everything|preferences|all|prefs))?\b\.?$/i.test(low) ||
+    /^reset preferences?\b/i.test(low) ||
+    /^restart preferences?\b/i.test(low)
+  ) return { kind: 'reset' };
+  // edit:<field> button or "edit <field>" / "change <field>" / "update <field>"
+  if (t.startsWith('edit:')) {
+    const k = t.slice(5);
+    if (k === 'restart_all') return { kind: 'reset' };
+    if (EDITABLE_KEYS.has(k)) return { kind: 'edit', key: k };
+  }
+  const editMatch = low.match(/^(edit|change|update)\s+(?:my\s+)?(.+?)\b\.?$/);
+  if (editMatch) {
+    const phrase = editMatch[2];
+    for (const c of CATEGORY_KEYWORDS) {
+      if (c.words.some((w) => phrase.includes(w))) {
+        if (c.key === 'budget') return { kind: 'edit', key: 'budget' };
+        return { kind: 'edit', key: c.key };
+      }
+    }
+  }
+  // Outside the questionnaire, treat any free text as a custom preference note.
+  if (!opts.inQuestionnaire) {
+    return { kind: 'custom_pref', text: t };
+  }
+  return { kind: 'answer' };
+}
+
+function appendAboutMe(existing: unknown, addition: string): string {
+  const prev = typeof existing === 'string' ? existing.trim() : '';
+  const add = addition.trim();
+  if (!add) return prev;
+  if (!prev) return add.slice(0, 2000);
+  return `${prev}; ${add}`.slice(0, 2000);
+}
+
+async function resetAllPreferences(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  currentProfile: ProfileRecord,
+) {
+  const reset: Record<string, unknown> = { onboarding_completed: false };
+  for (const key of EDITABLE_KEYS) {
+    if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
+    if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
+    reset[key] = null;
+  }
+  await supabase.from('profiles').update(reset).eq('id', userId);
+  return { ...currentProfile, ...reset } as ProfileRecord;
+}
+
+function indexOfKey(key: string | null | undefined): number {
+  if (!key) return 0;
+  const i = QUESTION_ORDER.indexOf(key);
+  return i < 0 ? 0 : i;
 }
 
 function responseForQuestion(question: Question, prefix?: string) {
@@ -845,16 +960,116 @@ Deno.serve(async (req) => {
     // No user message yet → opening turn.
     if (!latestContent) {
       if (isComplete) {
-        // Returning user with completed prefs → show a friendly saved summary with
-        // clear actions instead of dropping them straight into an edit menu.
         return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
       }
-      // Friendly welcome only when profile is brand new (very first question).
       const isFresh = !hasValue(currentProfile, 'primary_goal');
       const prefix = isFresh
-        ? "Welcome to HomeLens! I'll ask a few quick questions to personalize your experience — pick an option or type your own answer."
+        ? "Welcome! I'll ask a few quick questions to personalize HomeLens. Tap an option, type your answer, or say things like 'skip', 'back', 'reset', or 'edit budget' anytime."
         : undefined;
-      return jsonResponse(questionResponseWithState(onboardingQuestion, currentProfile, { editing: false, prefix }), 200, req);
+      const idx = indexOfKey(onboardingQuestion.key);
+      return jsonResponse(
+        questionResponseWithState(onboardingQuestion, currentProfile, { editing: false, prefix, questionIndex: idx }),
+        200,
+        req,
+      );
+    }
+
+    // Universal intent layer (back / skip / reset / edit / custom).
+    const inQuestionnaire = !isComplete && priorState?.mode !== 'completed_summary' && priorState?.mode !== 'closed';
+    const intent = detectIntent(latestContent, { inQuestionnaire });
+
+    if (intent.kind === 'reset') {
+      const fresh = await resetAllPreferences(supabase, user.id, currentProfile);
+      const q = nextQuestion(fresh);
+      if (q) {
+        return jsonResponse(
+          questionResponseWithState(q, fresh, {
+            editing: false,
+            prefix: "Starting fresh — your preferences are cleared.",
+            questionIndex: 0,
+          }),
+          200,
+          req,
+        );
+      }
+    }
+
+    if (intent.kind === 'edit') {
+      const q = questionForKey(intent.key);
+      if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+    }
+
+    if (intent.kind === 'back' && priorState?.mode === 'onboarding') {
+      const curKey = typeof priorState.key === 'string' ? priorState.key : null;
+      const curIdx = indexOfKey(curKey);
+      const prevIdx = Math.max(0, curIdx - 1);
+      const prevKey = QUESTION_ORDER[prevIdx];
+      const prevQ = questionForKey(prevKey);
+      if (prevQ) {
+        return jsonResponse(
+          questionResponseWithState(prevQ, currentProfile, {
+            editing: false,
+            prefix: 'Going back.',
+            questionIndex: prevIdx,
+          }),
+          200,
+          req,
+        );
+      }
+    }
+
+    if (intent.kind === 'skip' && priorState?.mode === 'onboarding') {
+      const curKey = typeof priorState.key === 'string' ? priorState.key : null;
+      const curIdx = indexOfKey(curKey);
+      const nextIdx = Math.min(QUESTION_ORDER.length - 1, curIdx + 1);
+      // Skip forward to the next *unanswered* question after this index.
+      const nextQ = nextQuestion(currentProfile);
+      if (nextQ && nextQ.key !== curKey) {
+        return jsonResponse(
+          questionResponseWithState(nextQ, currentProfile, {
+            editing: false,
+            prefix: 'Skipped.',
+            questionIndex: indexOfKey(nextQ.key),
+          }),
+          200,
+          req,
+        );
+      }
+      // Fall through to next-in-order if everything else is answered
+      const fallbackKey = QUESTION_ORDER[nextIdx];
+      const fallbackQ = questionForKey(fallbackKey);
+      if (fallbackQ && fallbackKey !== curKey) {
+        return jsonResponse(
+          questionResponseWithState(fallbackQ, currentProfile, {
+            editing: false,
+            prefix: 'Skipped.',
+            questionIndex: nextIdx,
+          }),
+          200,
+          req,
+        );
+      }
+    }
+
+    if (intent.kind === 'custom_pref') {
+      const merged = appendAboutMe(currentProfile.about_me, intent.text);
+      await supabase.from('profiles').update({ about_me: merged }).eq('id', user.id);
+      const updated = { ...currentProfile, about_me: merged };
+      return jsonResponse(
+        {
+          assistant_message:
+            `Added to your preferences: "${intent.text}".\n\nYou can keep adding notes, or say "edit budget", "reset preferences", etc.` +
+            encodeState({ mode: 'closed' }),
+          choices: COMPLETION_CHOICES,
+          nav_choices: [],
+          multi_select: false,
+          allow_text: true,
+          done: true,
+          saved_fields: ['about_me'],
+        },
+        200,
+        req,
+      );
     }
 
     // COMPLETION SUMMARY handling — user just saw the closing recap.
@@ -867,69 +1082,32 @@ Deno.serve(async (req) => {
       if (choice === 'complete:looks_good' || /^(ok(ay)?|thanks?|thank you|cool|great|sounds good|perfect|done)\b/i.test(trimmed)) {
         return jsonResponse(finalAcknowledgementResponse(), 200, req);
       }
-      if (choice === 'complete:restart' || /^restart|reset|start over/i.test(trimmed)) {
-        const reset: Record<string, unknown> = { onboarding_completed: false };
-        for (const key of EDITABLE_KEYS) {
-          if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
-          if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
-          reset[key] = null;
-        }
-        await supabase.from('profiles').update(reset).eq('id', user.id);
-        const freshProfile = { ...currentProfile, ...reset } as ProfileRecord;
-        const q = nextQuestion(freshProfile);
-        if (q) {
-          return jsonResponse(
-            questionResponseWithState(q, freshProfile, {
-              editing: false,
-              prefix: "Starting fresh — I'll walk you through every preference again.",
-            }),
-            200,
-            req,
-          );
-        }
-      }
       if (choice === 'complete:change') {
         return jsonResponse(editMenuResponse(), 200, req);
       }
-      // Free text → try to detect a specific category, else show the edit menu.
-      const detected = detectEditCategory(trimmed);
-      if (detected && detected !== 'restart_all') {
-        const q = questionForKey(detected);
-        if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
-      }
-      return jsonResponse(editMenuResponse(), 200, req);
+      // Any other free text → treat as custom preference note (already handled above
+      // via the universal intent layer when inQuestionnaire is false).
+      return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
     }
 
     // CLOSED state → any new message reopens the edit menu.
     if (priorState?.mode === 'closed') {
-      const detected = detectEditCategory(latestContent);
-      if (detected === 'restart_all') {
-        // fall through to edit_menu handler below by mutating priorState
-      } else if (detected) {
-        const q = questionForKey(detected);
-        if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
-      }
-      return jsonResponse(editMenuResponse(), 200, req);
+      // Reset/edit intents handled above. Anything else already routed to custom_pref.
+      return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
     }
 
     // EDIT MODE handling.
     if (priorState?.mode === 'edit_menu' || (isComplete && !priorState)) {
       const detected = detectEditCategory(latestContent);
       if (detected === 'restart_all') {
-        const reset: Record<string, unknown> = { onboarding_completed: false };
-        for (const key of EDITABLE_KEYS) {
-          if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
-          if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
-          reset[key] = null;
-        }
-        await supabase.from('profiles').update(reset).eq('id', user.id);
-        const freshProfile = { ...currentProfile, ...reset } as ProfileRecord;
+        const freshProfile = await resetAllPreferences(supabase, user.id, currentProfile);
         const q = nextQuestion(freshProfile);
         if (q) {
           return jsonResponse(
             questionResponseWithState(q, freshProfile, {
               editing: false,
-              prefix: "Starting fresh — I'll walk you through every preference again.",
+              prefix: "Starting fresh — your preferences are cleared.",
+              questionIndex: 0,
             }),
             200,
             req,
@@ -950,16 +1128,23 @@ Deno.serve(async (req) => {
     if (priorState?.mode === 'editing' && typeof priorState.key === 'string') {
       currentQuestion = questionForKey(priorState.key);
       editingMode = true;
+    } else if (priorState?.mode === 'onboarding' && typeof priorState.key === 'string') {
+      currentQuestion = questionForKey(priorState.key) ?? onboardingQuestion;
     } else {
       currentQuestion = onboardingQuestion;
     }
 
-    const rawUpdates = parseAnswerForQuestion(currentQuestion, latestContent);
-    const sanitized = sanitizeUpdates(rawUpdates);
+    const parsed = parseAnswerForQuestion(currentQuestion, latestContent);
+    const sanitized = sanitizeUpdates(parsed.updates);
 
     if (currentQuestion && Object.keys(sanitized).length === 0) {
+      const prefix = parsed.note ?? "I didn't catch that.";
       return jsonResponse(
-        questionResponseWithState(currentQuestion, currentProfile, { editing: editingMode, prefix: "I didn't catch that." }),
+        questionResponseWithState(currentQuestion, currentProfile, {
+          editing: editingMode,
+          prefix,
+          questionIndex: indexOfKey(currentQuestion.key),
+        }),
         200,
         req,
       );
@@ -1009,9 +1194,11 @@ Deno.serve(async (req) => {
       return jsonResponse(completionSummaryResponse(updatedProfile, savedFields), 200, req);
     }
 
+    const savedNote = parsed.note ? ` ${parsed.note}` : '';
     const response = questionResponseWithState(followingQuestion, updatedProfile, {
       editing: false,
-      prefix: savedFields.length ? 'Got it — saved.' : undefined,
+      prefix: savedFields.length ? `Saved.${savedNote}` : undefined,
+      questionIndex: indexOfKey(followingQuestion.key),
     });
     response.saved_fields = savedFields;
     return jsonResponse(response, 200, req);
