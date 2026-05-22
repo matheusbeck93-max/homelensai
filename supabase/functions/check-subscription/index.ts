@@ -8,10 +8,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const log = createLogger('check-subscription');
 
-// Product ID to tier mapping. Keep in sync with src/lib/subscriptionPlans.ts.
-const PRODUCT_TIER_MAP: Record<string, string> = {
-  "prod_URFGRoGQyqiWSq": "premium",     // Premium monthly ($9.97/mo)
-  "prod_URFGwmCiEV7RY9": "premium",     // Premium annual  ($107.64/yr)
+// Product ID to tier mapping. Keep in sync with src/lib/subscriptionPlans.ts
+// and supabase/functions/stripe-webhook/index.ts.
+const PRODUCT_TIER_MAP: Record<string, 'free' | 'buyer' | 'investor'> = {
+  "prod_URFGRoGQyqiWSq": "buyer",     // Buyer monthly ($9.97/mo) — formerly Premium
+  "prod_URFGwmCiEV7RY9": "buyer",     // Buyer annual  ($95.64/yr) — formerly Premium annual
+  "prod_UZ16G46hQlRRVD": "investor",  // Investor monthly ($24.97/mo)
+  "prod_UZ17Q3M67mTUP4": "investor",  // Investor annual  ($239.71/yr)
 };
 
 Deno.serve(async (req) => {

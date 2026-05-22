@@ -13,17 +13,18 @@ import type { PortfolioProperty } from "@/pages/Portfolio";
 export function InvestorPortfolioPanel() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { tier, isPremium, loading: subscriptionLoading } = useSubscription();
+  const { tier, hasAccess, loading: subscriptionLoading } = useSubscription();
+  const hasPortfolioAccess = hasAccess('PORTFOLIO_TRACKING');
   const [portfolio, setPortfolio] = useState<PortfolioProperty[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isPremium) {
+    if (hasPortfolioAccess) {
       loadPortfolio();
     } else {
       setLoading(false);
     }
-  }, [isPremium]);
+  }, [hasPortfolioAccess]);
 
   const loadPortfolio = async () => {
     try {

@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
         for (const favorite of favorites || []) {
           const profile = (favorite as any).profiles;
           
-          if (!profile.alert_email_enabled || (profile.subscription_status !== 'pro' && profile.subscription_status !== 'premium')) {
+          if (!profile.alert_email_enabled || profile.subscription_status === 'free') {
             continue;
           }
 

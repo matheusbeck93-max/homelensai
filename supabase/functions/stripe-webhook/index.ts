@@ -31,9 +31,11 @@ import { createLogger } from '../_shared/logging.ts';
 const log = createLogger('stripe-webhook');
 
 // Keep in sync with src/lib/subscriptionPlans.ts and check-subscription/index.ts.
-const PRODUCT_TIER_MAP: Record<string, 'free' | 'premium'> = {
-  'prod_URFGRoGQyqiWSq': 'premium', // Premium monthly
-  'prod_URFGwmCiEV7RY9': 'premium', // Premium annual
+const PRODUCT_TIER_MAP: Record<string, 'free' | 'buyer' | 'investor'> = {
+  'prod_URFGRoGQyqiWSq': 'buyer',    // Buyer monthly — formerly Premium
+  'prod_URFGwmCiEV7RY9': 'buyer',    // Buyer annual  — formerly Premium annual
+  'prod_UZ16G46hQlRRVD': 'investor', // Investor monthly
+  'prod_UZ17Q3M67mTUP4': 'investor', // Investor annual
 };
 
 Deno.serve(async (req) => {
