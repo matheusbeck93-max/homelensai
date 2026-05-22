@@ -39,7 +39,7 @@ export function SavePropertyButton({
       state: state ?? null,
     });
     setBusy(false);
-    if (result.ok) {
+    if (result.ok === true) {
       toast({
         title: "Saved",
         description: `${address} added to your Saved Properties.`,
