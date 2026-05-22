@@ -127,13 +127,11 @@ export function resolveLocationToken(raw: string): string[] {
     return [`${titled}, ${stateCode}`];
   }
 
-  // Bare state name or code → expand to top cities (cap 3)
-  if (low.length === 2) {
-    const st = STATE_BY_CODE.get(low.toUpperCase());
-    if (st) return st.cities.slice(0, 3).map((c) => `${c}, ${st.code}`);
-  }
-  const stByName = STATE_BY_NAME.get(low);
-  if (stByName) return stByName.cities.slice(0, 3).map((c) => `${c}, ${stByName.code}`);
+  // Bare state name or code → do NOT auto-expand. Require the user to name
+  // specific cities. Returning [] makes the caller mark this token as rejected
+  // so we can prompt for a concrete city.
+  if (low.length === 2 && STATE_BY_CODE.has(low.toUpperCase())) return [];
+  if (STATE_BY_NAME.has(low)) return [];
 
   // Bare city: search across index; if exactly one match, accept; if multiple, return all but cap 3
   const cityMatches = CITY_INDEX.filter((c) => norm(c.city) === low);
