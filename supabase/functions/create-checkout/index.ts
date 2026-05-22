@@ -48,14 +48,18 @@ Deno.serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      customer_email: customerId ? undefined : user.email,
+    const sessionParams: Record<string, unknown> = {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/pricing?checkout=canceled`,
-    });
+    };
+    if (customerId) {
+      sessionParams.customer = customerId;
+    } else {
+      sessionParams.customer_email = user.email;
+    }
+    const session = await stripe.checkout.sessions.create(sessionParams as any);
     log.step("Checkout session created", { sessionId: session.id });
 
     // If Stripe created a new customer during checkout, cache it on the profile.
