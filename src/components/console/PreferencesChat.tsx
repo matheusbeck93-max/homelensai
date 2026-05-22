@@ -103,6 +103,16 @@ const COMMAND_LABELS: Record<string, string> = {
 };
 
 const displayContent = (content: string) => COMMAND_LABELS[content] ?? content;
+const STATE_WORD_RE = /\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|district of columbia|AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/i;
+
+const cleanAboutMe = (value?: string | null) => {
+  if (!value) return value ?? null;
+  const parts = value
+    .split(";")
+    .map((part) => part.replace(/\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/gi, "").trim())
+    .filter((part) => part && !(STATE_WORD_RE.test(part) && (part.includes(",") || /\bcounty\b/i.test(part))));
+  return parts.join("; ").trim() || null;
+};
 
 function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) return null;
@@ -116,6 +126,7 @@ function SummaryRow({ label, value }: { label: string; value: React.ReactNode })
 
 function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
   if (!profile) return null;
+  const aboutMe = cleanAboutMe(profile.about_me);
   const budget =
     profile.budget_min || profile.budget_max
       ? `${money(profile.budget_min) ?? "—"} – ${money(profile.budget_max) ?? "—"}`
@@ -140,7 +151,7 @@ function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
     profile.has_children ||
     profile.climate_preference ||
     profile.safety_priority ||
-    profile.about_me;
+    aboutMe;
 
   return !hasAny ? (
     <p className="text-sm text-muted-foreground">Nothing saved yet — start chatting below.</p>
@@ -159,7 +170,7 @@ function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
       <SummaryRow label="Kids" value={profile.has_children ? (profile.children_ages?.map(pretty).join(", ") || "Yes") : null} />
       <SummaryRow label="Climate" value={profile.climate_preference ? pretty(profile.climate_preference) : null} />
       <SummaryRow label="Safety" value={profile.safety_priority ? pretty(profile.safety_priority) : null} />
-      <SummaryRow label="About me" value={profile.about_me} />
+      <SummaryRow label="About me" value={aboutMe} />
     </div>
   );
 }
