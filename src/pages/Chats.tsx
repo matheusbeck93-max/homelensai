@@ -473,9 +473,13 @@ export default function Chats() {
         setCreditsDialogOpen(true);
         return;
       }
+      const raw = String(error?.message || '');
+      const friendly = /non-2xx/i.test(raw) || !raw
+        ? "Something went wrong reaching the assistant. Please try again in a moment."
+        : raw;
       toast({
         title: "Error",
-        description: error.message || "Failed to send message",
+        description: friendly,
         variant: "destructive"
       });
     } finally {
