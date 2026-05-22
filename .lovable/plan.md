@@ -1,54 +1,48 @@
+## Problem
 
-## What we're building
+The preferences chat (`supabase/functions/preferences-chat/index.ts` + `src/components/console/PreferencesChat.tsx`) has two failure modes:
 
-A new "Saved Properties" section at the top of the left sidebar in `/chats` (above the chat history list), matching the **Collapsible premium shelf** direction you picked. Each saved item shows the property **address** (primary label) + city/state (subtle), opens the original listing URL on click, with a delete (×) action on hover. Collapsible header shows a count badge.
+1. **Returning user (profile complete)** — Any reply is met with the same line: *"Your preferences are already saved. You can modify them at any time."* There's no way to actually change anything. (Visible in the screenshot.)
+2. **No menu / no entry point** to pick what to edit; only a free-text box that goes nowhere.
 
-A small **bookmark icon** appears on assistant chat messages that contain a property URL; clicking it saves that property to the shelf.
+What the user wants: a Claude-style conversational flow where every step has **preset multiple-choice buttons + a free-text input** for arbitrary answers, both for first-time setup *and* for editing later.
 
-## UX flow
+## Solution
 
-1. In a chat, the AI returns a property analysis with a Zillow/Redfin/Trulia URL.
-2. User clicks the new **bookmark icon** next to "Add to Comparison" / "Save Analysis".
-3. The property (URL + address) is saved and appears in the sidebar shelf instantly.
-4. Clicking a shelf item opens the listing URL in a new tab. Hover reveals × to remove.
-5. The shelf collapses/expands with chevron; empty state shows a subtle hint.
+Keep the existing question bank and parsing logic — they're solid. Add an **edit mode** and a routing layer on top.
 
-Note: This is a lightweight bookmark feature (URL + address only), separate from the existing premium **Saved Analyses** (which stores the full AI analysis text + score). Available to all users (free + premium).
+### 1. Edge function (`preferences-chat/index.ts`)
 
-## Database
+- **New `EDIT_CATEGORY_CHOICES`** — one chip per editable preference (Goal, Cities, Persona, Budget, Bedrooms, Bathrooms, Features, Strategy, Hold period, Financing, Kids, Climate, Safety, About me) plus `Restart all preferences`.
+- **New question lookup by key** — `questionForKey(key)` reuses the same `Question` shape used today; lets us jump to a single question on demand.
+- **Track conversation state via the last assistant message** the client sends back. The server already receives the full `messages` array; tag each assistant turn with a hidden marker (e.g. trailing `\n<!--pc:{"mode":"edit_menu"}-->` or `pc:editing=budget`) so we can recover state without a DB column. Strip markers before showing.
+- **Routing in `Deno.serve`:**
+  - If `onboarding_completed` AND no in-progress edit → reply with `assistant_message: "Your preferences are saved. What would you like to update?"` + `choices: EDIT_CATEGORY_CHOICES` + `allow_text: true`. Free text is parsed against category keywords (budget, cities, etc.) to jump straight in.
+  - If user picks `restart_all` → set every preference field to `null` and `onboarding_completed = false`, then return the first onboarding question.
+  - If user picks a single category → return that category's question, prefilled prompt showing current value (e.g. *"Your current budget is $500k–$750k. What would you like instead?"*), with the same choices + free-text.
+  - On their next message → parse with existing `parseAnswerForQuestion`, save, then return to the edit menu (not the next onboarding question) with a "Saved — anything else?" prefix.
+- **First-time flow unchanged** — `nextQuestion(profile)` keeps walking the preset list until done. Add a friendlier opener for the very first question only when profile is empty: *"Welcome to HomeLens! I'll ask a few quick questions to personalize your experience — pick an option or type your own answer."*
 
-New table `public.saved_properties`:
+### 2. Client (`src/components/console/PreferencesChat.tsx`)
 
-```
-- id uuid pk
-- user_id uuid (RLS: auth.uid() = user_id)
-- property_url text not null
-- property_address text not null
-- city text
-- state text
-- created_at timestamptz
-- unique (user_id, property_url)
-```
+- Already renders `choices` + free-text input — no structural changes needed.
+- Strip the hidden `<!--pc:...-->` markers before rendering assistant messages.
+- When `done: true` arrives, still show the choices (don't hide them) so the edit menu remains interactive. The current code already does this via `canShowChoices`; just ensure the assistant turn includes `done: false` when it's the edit menu (only mark `done: true` after a save confirmation, never with choices).
+- Reset welcome opener: replace the hardcoded `INITIAL_TURN` with a call to the edge function on mount when no messages exist, so the server controls the opener (welcome vs. edit menu) based on `onboarding_completed`.
 
-RLS: users can select/insert/delete their own rows only.
+### 3. Files touched
 
-## Files to create / change
+- `supabase/functions/preferences-chat/index.ts` — edit mode, category routing, state markers, restart-all reset.
+- `src/components/console/PreferencesChat.tsx` — remove hardcoded initial turn, fetch opener from server, strip state markers.
 
-**New**
-- `supabase/migrations/<ts>_saved_properties.sql` — table + RLS + unique index
-- `src/hooks/useSavedProperties.ts` — list/save/delete, mirrors `useSavedAnalyses` pattern
-- `src/components/chat/SavedPropertiesShelf.tsx` — the collapsible shelf UI (semantic tokens, not raw blue-600)
-- `src/components/chat/SavePropertyButton.tsx` — bookmark icon button shown on assistant messages with a property URL
+### Non-goals
 
-**Modified**
-- `src/pages/Chats.tsx` — mount `<SavedPropertiesShelf />` at top of left sidebar above the chat history list; pass save handler to message actions; extract first property URL + address from assistant messages to feed the Save button
+- No DB schema change.
+- No new tables, no new edge function.
+- No change to property/chat features or to `nextQuestion`'s question order for first-time users.
 
-## Design tokens
+## Expected UX
 
-Use the existing HomeLens design system (steel blue `--primary`, `--muted`, `--border`, `--card`) rather than the raw `blue-600` / `slate-*` from the prototype, so it matches dark mode and the rest of the app.
+**First time:** Welcome message → goal chips → cities text → persona chips … → "All set! You can update anything anytime." + edit menu.
 
-## Non-goals
-
-- No price/photo/Zestimate snapshot at save time (keep lightweight; user wanted address as the reference).
-- Not gated behind Premium (it's a free bookmark, distinct from Saved Analyses).
-- No reordering / folders / tags in this pass.
+**Returning:** Edit menu chips (Goal · Cities · Budget · …) + "or type what you'd like to change". Pick "Budget" → "Your current budget is $500k–$750k. What would you like instead?" + budget chips + free text → save → "Saved. Anything else?" + edit menu.

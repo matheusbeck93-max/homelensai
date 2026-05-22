@@ -149,6 +149,175 @@ const SAFETY_CHOICES: Choice[] = [
 
 const SKIP_CHOICES: Choice[] = [{ label: 'Skip', value: 'skip' }];
 
+const EDIT_CATEGORY_CHOICES: Choice[] = [
+  { label: 'Goal', value: 'edit:primary_goal' },
+  { label: 'Cities', value: 'edit:preferred_cities' },
+  { label: 'Persona', value: 'edit:buyer_types' },
+  { label: 'Budget', value: 'edit:budget' },
+  { label: 'Bedrooms', value: 'edit:min_bedrooms' },
+  { label: 'Bathrooms', value: 'edit:min_bathrooms' },
+  { label: 'Features', value: 'edit:must_have_features' },
+  { label: 'Strategy', value: 'edit:investment_strategies' },
+  { label: 'Hold period', value: 'edit:hold_period_years' },
+  { label: 'Financing', value: 'edit:financing_preferences' },
+  { label: 'Kids', value: 'edit:has_children' },
+  { label: 'Climate', value: 'edit:climate_preference' },
+  { label: 'Safety', value: 'edit:safety_priority' },
+  { label: 'About me', value: 'edit:about_me' },
+  { label: 'Restart all preferences', value: 'edit:restart_all' },
+];
+
+const EDITABLE_KEYS = new Set(
+  EDIT_CATEGORY_CHOICES.map((c) => c.value.replace(/^edit:/, '')).filter((k) => k !== 'restart_all'),
+);
+
+const CATEGORY_KEYWORDS: Array<{ key: string; words: string[] }> = [
+  { key: 'primary_goal', words: ['goal', 'objective'] },
+  { key: 'preferred_cities', words: ['city', 'cities', 'location', 'area', 'where'] },
+  { key: 'buyer_types', words: ['persona', 'buyer type', 'profile'] },
+  { key: 'budget', words: ['budget', 'price', 'afford', 'money'] },
+  { key: 'min_bedrooms', words: ['bedroom', 'beds', 'br'] },
+  { key: 'min_bathrooms', words: ['bathroom', 'baths', 'ba'] },
+  { key: 'must_have_features', words: ['feature', 'amenit', 'must have'] },
+  { key: 'investment_strategies', words: ['strategy', 'invest'] },
+  { key: 'hold_period_years', words: ['hold', 'duration'] },
+  { key: 'financing_preferences', words: ['financ', 'loan', 'mortgage', 'cash'] },
+  { key: 'has_children', words: ['kid', 'child', 'school'] },
+  { key: 'climate_preference', words: ['climate', 'weather', 'warm', 'cold'] },
+  { key: 'safety_priority', words: ['safe', 'crime'] },
+  { key: 'about_me', words: ['about', 'note', 'else'] },
+];
+
+const STATE_MARKER_RE = /\n?<!--pc:(.*?)-->/g;
+
+function encodeState(state: Record<string, unknown>): string {
+  return `\n<!--pc:${JSON.stringify(state)}-->`;
+}
+
+function decodeStateFromLastAssistant(
+  messages: Array<{ role: string; content: string }>,
+): Record<string, unknown> | null {
+  const last = [...messages].reverse().find((m) => m?.role === 'assistant' && typeof m.content === 'string');
+  if (!last) return null;
+  const match = [...last.content.matchAll(STATE_MARKER_RE)].pop();
+  if (!match) return null;
+  try { return JSON.parse(match[1]); } catch { return null; }
+}
+
+function detectEditCategory(content: string): string | null {
+  const trimmed = content.trim();
+  const exact = EDIT_CATEGORY_CHOICES.find((c) => c.label.toLowerCase() === trimmed.toLowerCase() || c.value === trimmed);
+  if (exact) return exact.value.replace(/^edit:/, '');
+  if (/^restart|reset|start over|change (all|everything)/i.test(trimmed)) return 'restart_all';
+  const lower = trimmed.toLowerCase();
+  for (const c of CATEGORY_KEYWORDS) {
+    if (c.words.some((w) => lower.includes(w))) return c.key;
+  }
+  return null;
+}
+
+function questionForKey(key: string): Question | null {
+  switch (key) {
+    case 'primary_goal':
+      return { key, assistant_message: "What's your primary goal with HomeLens?", choices: PRIMARY_GOAL_CHOICES, multi_select: false, allow_text: false };
+    case 'preferred_cities':
+      return { key, assistant_message: 'Which US cities or areas are you interested in? You can list more than one.', allow_text: true };
+    case 'buyer_types':
+      return { key, assistant_message: 'Which profile best describes you?', choices: PERSONA_CHOICES, multi_select: true, allow_text: false };
+    case 'budget':
+      return { key, assistant_message: "What's your ideal budget range?", choices: BUDGET_CHOICES, multi_select: false, allow_text: true };
+    case 'min_bedrooms':
+      return { key, assistant_message: 'Minimum bedrooms?', choices: BEDROOM_CHOICES, multi_select: false, allow_text: true };
+    case 'min_bathrooms':
+      return { key, assistant_message: 'Minimum bathrooms?', choices: BATHROOM_CHOICES, multi_select: false, allow_text: true };
+    case 'must_have_features':
+      return { key, assistant_message: 'Which features matter most?', choices: FEATURE_CHOICES, multi_select: true, allow_text: true };
+    case 'investment_strategies':
+      return { key, assistant_message: 'Which investment strategy fits best?', choices: STRATEGY_CHOICES, multi_select: true, allow_text: false };
+    case 'hold_period_years':
+      return { key, assistant_message: 'How long do you expect to hold the property?', choices: HOLD_PERIOD_CHOICES, multi_select: false, allow_text: true };
+    case 'financing_preferences':
+      return { key, assistant_message: 'How do you expect to finance the purchase?', choices: FINANCING_CHOICES, multi_select: true, allow_text: false };
+    case 'has_children':
+      return { key, assistant_message: 'Should HomeLens consider children or school-age needs?', choices: YES_NO_CHOICES, multi_select: false, allow_text: false };
+    case 'children_ages':
+      return { key, assistant_message: 'Which age ranges should HomeLens consider?', choices: CHILD_AGE_CHOICES, multi_select: true, allow_text: false };
+    case 'climate_preference':
+      return { key, assistant_message: 'What climate do you prefer?', choices: CLIMATE_CHOICES, multi_select: false, allow_text: false };
+    case 'safety_priority':
+      return { key, assistant_message: 'How important is neighborhood safety in your search?', choices: SAFETY_CHOICES, multi_select: false, allow_text: false };
+    case 'about_me':
+      return { key, assistant_message: 'Anything else HomeLens should know about your search?', choices: SKIP_CHOICES, multi_select: false, allow_text: true };
+    default:
+      return null;
+  }
+}
+
+function formatCurrentValue(key: string, profile: ProfileRecord): string | null {
+  const v = profile[key];
+  const money = (n: unknown) => (typeof n === 'number' ? `$${n.toLocaleString()}` : null);
+  switch (key) {
+    case 'primary_goal':
+    case 'climate_preference':
+    case 'safety_priority':
+      return typeof v === 'string' ? v.replace(/_/g, ' ') : null;
+    case 'preferred_cities':
+    case 'buyer_types':
+    case 'must_have_features':
+    case 'investment_strategies':
+    case 'financing_preferences':
+    case 'children_ages':
+      return Array.isArray(v) && v.length ? v.join(', ') : null;
+    case 'budget': {
+      const lo = money(profile.budget_min); const hi = money(profile.budget_max);
+      if (!lo && !hi) return null;
+      return `${lo ?? '—'} – ${hi ?? '—'}`;
+    }
+    case 'min_bedrooms':
+    case 'min_bathrooms':
+    case 'hold_period_years':
+      return typeof v === 'number' ? String(v) : null;
+    case 'has_children':
+      return typeof v === 'boolean' ? (v ? 'Yes' : 'No') : null;
+    case 'about_me':
+      return typeof v === 'string' && v ? v : null;
+    default:
+      return null;
+  }
+}
+
+function editMenuResponse(prefix?: string) {
+  const base = prefix ? `${prefix} ` : '';
+  return {
+    assistant_message:
+      `${base}Your preferences are saved. What would you like to update? Pick a category or just type what you'd like to change.` +
+      encodeState({ mode: 'edit_menu' }),
+    choices: EDIT_CATEGORY_CHOICES,
+    multi_select: false,
+    allow_text: true,
+    done: false,
+    saved_fields: [] as string[],
+  };
+}
+
+function questionResponseWithState(
+  question: Question,
+  profile: ProfileRecord,
+  opts: { editing: boolean; prefix?: string },
+) {
+  const current = opts.editing ? formatCurrentValue(question.key, profile) : null;
+  const lead = opts.prefix ? `${opts.prefix} ` : '';
+  const ctx = current ? `Your current ${question.key.replace(/_/g, ' ')}: **${current}**.\n\n` : '';
+  const state = opts.editing ? encodeState({ mode: 'editing', key: question.key }) : encodeState({ mode: 'onboarding' });
+  return {
+    assistant_message: `${lead}${ctx}${question.assistant_message}${state}`,
+    choices: question.choices ?? [],
+    multi_select: Boolean(question.multi_select),
+    allow_text: question.allow_text !== false,
+    done: false,
+    saved_fields: [] as string[],
+  };
+}
 const PERSONA_VALUES = PERSONA_CHOICES.map((c) => c.value);
 const STRATEGY_VALUES = STRATEGY_CHOICES.map((c) => c.value);
 const FINANCING_VALUES = FINANCING_CHOICES.map((c) => c.value);
