@@ -19,6 +19,7 @@ interface Turn {
   choices?: Choice[];
   multiSelect?: boolean;
   allowText?: boolean;
+  done?: boolean;
   savedFields?: string[];
 }
 
@@ -189,7 +190,7 @@ const INITIAL_TURN: Turn = {
     { label: "Both", value: "both" },
   ],
   multiSelect: false,
-  allowText: true,
+  allowText: false,
 };
 
 export function PreferencesChat() {
@@ -229,6 +230,7 @@ export function PreferencesChat() {
         choices: Array.isArray(data?.choices) ? data.choices : [],
         multiSelect: !!data?.multi_select,
         allowText: data?.allow_text !== false,
+        done: !!data?.done,
         savedFields: Array.isArray(data?.saved_fields) ? data.saved_fields : [],
       };
       setTurns((prev) => [...prev, assistant]);
@@ -271,6 +273,7 @@ export function PreferencesChat() {
 
   const last = turns[turns.length - 1];
   const canShowChoices = !loading && last?.role === "assistant" && (last.choices?.length ?? 0) > 0;
+  const canUseText = !loading && last?.role === "assistant" && last.allowText !== false;
 
   const sendUserMessage = async (content: string) => {
     if (!content.trim()) return;
@@ -384,18 +387,20 @@ export function PreferencesChat() {
             </div>
           )}
 
-          <form onSubmit={handleTextSubmit} className="flex items-center gap-2 border-t border-border/50 pt-3">
-            <Input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Type your answer, or ask to change anything…"
-              disabled={loading}
-              autoFocus
-            />
-            <Button type="submit" size="icon" disabled={loading || !text.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </form>
+          {canUseText && (
+            <form onSubmit={handleTextSubmit} className="flex items-center gap-2 border-t border-border/50 pt-3">
+              <Input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={last.done ? "Type what you'd like to change…" : "Type your answer, or ask to change anything…"}
+                disabled={loading}
+                autoFocus
+              />
+              <Button type="submit" size="icon" disabled={loading || !text.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
