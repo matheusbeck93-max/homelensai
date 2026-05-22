@@ -272,6 +272,67 @@ Guidelines:
 
 The reply tool's "message" is shown to the user as the assistant's chat bubble. Keep it concise.`;
 
+const EXTRACTION_PROMPT = `You extract structured US real estate preferences from a user's chat message and return them as a JSON patch.
+
+Output ONLY by calling update_preferences. Do not write prose.
+
+LEXICON (map natural language -> structured fields):
+- "walkable / walkability / walk to" -> lifestyle.walkability_importance = high
+- "safe / safety / low crime / secure" -> lifestyle.safety_importance = high
+- "nature / parks / green / trees / outdoors" -> lifestyle.parks_importance = high
+- "good schools / school district / great schools" -> lifestyle.schools_importance = high
+- "short commute / close to work / near transit" -> lifestyle.commute_importance = high
+
+GOAL mapping (set goal once, do not overwrite unless user contradicts):
+- "buying for my family / our home / primary residence / first home / move-in" -> goal = "buy_home"
+- "rental / cash flow / investment / BRRRR / flip" -> goal = "invest"
+- "renting / lease" -> goal = "rent"
+- "researching the market" -> goal = "market_research"
+
+PROPERTY TYPE synonyms -> property_types (add):
+- "single family / SFH / detached / house" -> "house"
+- "condo / coop / co-op" -> "condo" or "co-op"
+- "townhome / townhouse / row house" -> "townhouse"
+- "duplex / triplex / 2-4 unit / multifamily" -> "multi-family"
+- "land / lot / acreage" -> "land"
+- "mobile / manufactured" -> "mobile"
+
+NUMERIC extraction:
+- "3-bed / 3 bedrooms / 3br" -> property.bedrooms_min = 3
+- "2 baths / 2.5 baths" -> property.bathrooms_min = 2 (or 2.5)
+- "1,800 sqft / 1800 square feet" -> property.sqft_min = 1800
+- "under $650k / max 650000 / budget 650k" -> budget.purchase_price_max = 650000
+- "monthly payment under $3000" -> budget.monthly_payment_max = 3000
+- "20% down / $130k down" -> budget.down_payment (compute if percent and price both known; else absolute)
+
+CLASSIFICATION:
+- "must have / need / required" -> must_haves (add)
+- "would love / nice to have / prefer" -> nice_to_haves (add)
+- "no / avoid / dealbreaker / can't have" -> deal_breakers (add)
+
+LOCATIONS:
+- Normalize as "City, ST". "only X / just X" -> set.locations = [X] (full replace). Otherwise add.locations.
+- Region terms (DMV, Bay Area, Tri-State): do NOT add as a location; capture intent via append_note.
+
+SELF-CORRECTION:
+- If the user says "you didn't capture X" or "you missed X", emit an empty patch ({}) — the reply step will ask for X.
+
+NOTES:
+- Only use append_note for context that does NOT fit any structured field. Never append text already present in the current freeform_notes.
+
+Return only the tool call. Use empty {} if nothing to change.`;
+
+const REPLY_PROMPT = `You are HomeLens's Preferences Assistant — warm, brief, practical.
+
+Style:
+- 1-2 sentences. If you changed something, acknowledge it specifically ("Set walkability and safety to high.").
+- Ask exactly ONE follow-up about the most useful missing field (in priority: goal, locations, bedrooms_min, bathrooms_min, purchase_price_max, must-haves).
+- Provide 2-3 short suggested_replies the user can tap.
+- If the user said "you didn't capture X / you missed X", explicitly ask for X.
+- US real estate only. No legal/lending/tax advice. No fair-housing ranking.
+
+Call the reply tool only.`;
+
 const TOOLS = [
   {
     type: 'function',
@@ -334,56 +395,106 @@ const TOOLS = [
   },
 ];
 
-async function callAI(messages: Array<{ role: string; content: string }>, prefs: Preferences) {
+const UPDATE_TOOL = [TOOLS[0]];
+const REPLY_TOOL = [TOOLS[1]];
+
+async function callGateway(body: Record<string, unknown>) {
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
-
-  const body = {
-    model: 'google/gemini-2.5-flash',
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'system', content: `Current preferences JSON:\n${JSON.stringify(prefs, null, 2)}` },
-      ...messages,
-    ],
-    tools: TOOLS,
-    tool_choice: 'required',
-  };
-
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-
   if (!resp.ok) {
     const text = await resp.text();
     throw new Error(`AI gateway ${resp.status}: ${text}`);
   }
-  const data = await resp.json();
-  const choice = data.choices?.[0];
-  const toolCalls = choice?.message?.tool_calls ?? [];
+  return await resp.json();
+}
 
-  let patch: Patch | null = null;
-  let reply = { message: '', suggested_replies: [] as string[] };
-
-  for (const tc of toolCalls) {
-    try {
-      const args = JSON.parse(tc.function.arguments || '{}');
-      if (tc.function.name === 'update_preferences') patch = args;
-      else if (tc.function.name === 'reply') reply = { message: String(args.message ?? ''), suggested_replies: Array.isArray(args.suggested_replies) ? args.suggested_replies.slice(0, 4).map(String) : [] };
-    } catch (e) {
-      log.step('Failed to parse tool call', { error: getErrorMessage(e), name: tc.function?.name });
+function parseToolArgs(data: any, name: string): any | null {
+  const calls = data?.choices?.[0]?.message?.tool_calls ?? [];
+  for (const tc of calls) {
+    if (tc?.function?.name === name) {
+      try { return JSON.parse(tc.function.arguments || '{}'); } catch { return null; }
     }
   }
+  return null;
+}
 
-  if (!reply.message) {
-    reply.message = choice?.message?.content?.trim() || "Got it. What else should I know about your search?";
+async function extractPatch(messages: Array<{ role: string; content: string }>, prefs: Preferences): Promise<Patch> {
+  const data = await callGateway({
+    model: 'google/gemini-2.5-flash',
+    temperature: 0.1,
+    messages: [
+      { role: 'system', content: EXTRACTION_PROMPT },
+      { role: 'system', content: `Current preferences JSON:\n${JSON.stringify(prefs, null, 2)}` },
+      ...messages,
+    ],
+    tools: UPDATE_TOOL,
+    tool_choice: { type: 'function', function: { name: 'update_preferences' } },
+  });
+  return (parseToolArgs(data, 'update_preferences') as Patch) ?? {};
+}
+
+function diffSummary(before: Preferences, after: Preferences): string {
+  const changes: string[] = [];
+  const b = before, a = after;
+  if (b.goal !== a.goal) changes.push(`goal: ${b.goal ?? '∅'} -> ${a.goal ?? '∅'}`);
+  const arrDiff = (label: string, x?: string[], y?: string[]) => {
+    const added = (y ?? []).filter((v) => !(x ?? []).some((u) => u.toLowerCase() === v.toLowerCase()));
+    const removed = (x ?? []).filter((v) => !(y ?? []).some((u) => u.toLowerCase() === v.toLowerCase()));
+    if (added.length) changes.push(`+${label}: ${added.join(', ')}`);
+    if (removed.length) changes.push(`-${label}: ${removed.join(', ')}`);
+  };
+  arrDiff('locations', b.locations, a.locations);
+  arrDiff('types', b.property?.types, a.property?.types);
+  arrDiff('must_haves', b.must_haves, a.must_haves);
+  arrDiff('nice_to_haves', b.nice_to_haves, a.nice_to_haves);
+  arrDiff('deal_breakers', b.deal_breakers, a.deal_breakers);
+  const bp = b.budget ?? {}, ap = a.budget ?? {};
+  if (bp.purchase_price_max !== ap.purchase_price_max) changes.push(`price_max: ${ap.purchase_price_max ?? '∅'}`);
+  if (bp.monthly_payment_max !== ap.monthly_payment_max) changes.push(`monthly_max: ${ap.monthly_payment_max ?? '∅'}`);
+  const bpr = b.property ?? {}, apr = a.property ?? {};
+  if (bpr.bedrooms_min !== apr.bedrooms_min) changes.push(`beds_min: ${apr.bedrooms_min ?? '∅'}`);
+  if (bpr.bathrooms_min !== apr.bathrooms_min) changes.push(`baths_min: ${apr.bathrooms_min ?? '∅'}`);
+  if (bpr.sqft_min !== apr.sqft_min) changes.push(`sqft_min: ${apr.sqft_min ?? '∅'}`);
+  const bl = b.lifestyle ?? {}, al = a.lifestyle ?? {};
+  for (const k of ['schools_importance','commute_importance','safety_importance','walkability_importance','parks_importance'] as const) {
+    if ((bl as any)[k] !== (al as any)[k]) changes.push(`${k}: ${(al as any)[k] ?? '∅'}`);
   }
+  return changes.length ? changes.join('; ') : 'no structured changes';
+}
 
-  return { patch, reply };
+async function generateReply(messages: Array<{ role: string; content: string }>, prefs: Preferences, changeSummary: string) {
+  const data = await callGateway({
+    model: 'google/gemini-2.5-flash',
+    temperature: 0.4,
+    messages: [
+      { role: 'system', content: REPLY_PROMPT },
+      { role: 'system', content: `Current preferences (after update):\n${JSON.stringify(prefs, null, 2)}\n\nChanges this turn: ${changeSummary}` },
+      ...messages,
+    ],
+    tools: REPLY_TOOL,
+    tool_choice: { type: 'function', function: { name: 'reply' } },
+  });
+  const args = parseToolArgs(data, 'reply') ?? {};
+  return {
+    message: String(args.message ?? 'Got it. What else should I know about your search?'),
+    suggested_replies: Array.isArray(args.suggested_replies) ? args.suggested_replies.slice(0, 4).map(String) : [],
+  };
+}
+
+function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
+  if (!patch?.append_note) return patch;
+  const note = patch.append_note.trim();
+  if (!note) { const { append_note: _omit, ...rest } = patch; return rest; }
+  if (prevNotes && prevNotes.toLowerCase().includes(note.toLowerCase())) {
+    const { append_note: _omit, ...rest } = patch;
+    return rest;
+  }
+  return patch;
 }
 
 // ---------- HTTP ----------
@@ -464,8 +575,12 @@ Deno.serve(async (req) => {
       }, 200, req);
     }
 
-    const { patch, reply } = await callAI(messages, currentPrefs);
-    const nextPrefs = patch ? applyPatch(currentPrefs, patch) : currentPrefs;
+    const rawPatch = await extractPatch(messages, currentPrefs);
+    const patch = dedupNoteInPatch(rawPatch, currentPrefs.freeform_notes ?? '');
+    const nextPrefs = applyPatch(currentPrefs, patch);
+    const changeSummary = diffSummary(currentPrefs, nextPrefs);
+    log.step('Extraction', { changes: changeSummary });
+    const reply = await generateReply(messages, nextPrefs, changeSummary);
 
     // Persist
     const updates: Record<string, unknown> = { preferences: nextPrefs, ...mirrorToLegacyColumns(nextPrefs) };
