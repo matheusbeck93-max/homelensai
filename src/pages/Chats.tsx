@@ -796,6 +796,10 @@ export default function Chats() {
           value={pendingInput}
           onValueChange={setPendingInput} />
       </div>
+      <CreditsExhaustedDialog
+        open={creditsDialogOpen}
+        onOpenChange={setCreditsDialogOpen}
+      />
     </div>);
 
 }
