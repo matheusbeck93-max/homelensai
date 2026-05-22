@@ -301,20 +301,20 @@ export function PreferencesChat() {
   };
 
   return (
-    <div className="space-y-4">
-      <PreferencesSummary profile={profile} />
-
+    <div>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Choose your preferences — change at any time
+            <Check className="h-4 w-4 text-primary" />
+            Your preferences
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <PreferencesSummary profile={profile} />
+
           <div
             ref={scrollRef}
-            className="max-h-[480px] min-h-[280px] overflow-y-auto space-y-3 pr-1"
+            className="max-h-[480px] min-h-[280px] overflow-y-auto space-y-3 border-t border-border/50 pt-4 pr-1"
           >
             {booting && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -328,7 +328,7 @@ export function PreferencesChat() {
               >
                 {t.role === "user" ? (
                   <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-2 text-sm">
-                    {t.content}
+                    {displayContent(t.content)}
                   </div>
                 ) : (
                   <div className="max-w-[90%] text-sm leading-relaxed">
