@@ -668,20 +668,8 @@ function toKebab(value: string): string {
   return normalizeText(value).replace(/\s+/g, '-');
 }
 
-function parseCities(content: string): string[] {
-  const trimmed = content.trim();
-  if (!trimmed) return [];
-
-  const matches = [...trimmed.matchAll(/([A-Za-z][A-Za-z .'-]+?),?\s+([A-Z]{2})\b/g)];
-  if (matches.length > 0) {
-    return matches.map((m) => `${titleCase(m[1].trim())}, ${m[2].toUpperCase()}`);
-  }
-
-  return trimmed
-    .split(/;|\n|\band\b/i)
-    .map((v) => v.trim())
-    .filter(Boolean)
-    .map(titleCase);
+function parseCities(content: string): { accepted: string[]; rejected: string[] } {
+  return parseCityList(content);
 }
 
 function titleCase(value: string): string {
