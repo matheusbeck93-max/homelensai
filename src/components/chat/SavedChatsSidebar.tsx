@@ -38,6 +38,8 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { SavedPropertiesShelf } from "@/components/chat/SavedPropertiesShelf";
+import { SavedProperty } from "@/hooks/useSavedProperties";
 
 interface Conversation {
   id: string;
@@ -58,6 +60,8 @@ interface SavedChatsSidebarProps {
   onRenameConversation?: (id: string, newTitle: string) => Promise<boolean>;
   onClearAllConversations?: () => void;
   onLogin: () => void;
+  savedProperties?: SavedProperty[];
+  onDeleteSavedProperty?: (id: string) => void;
 }
 
 export function SavedChatsSidebar({
@@ -71,7 +75,9 @@ export function SavedChatsSidebar({
   onDeleteConversation,
   onRenameConversation,
   onClearAllConversations,
-  onLogin
+  onLogin,
+  savedProperties,
+  onDeleteSavedProperty,
 }: SavedChatsSidebarProps) {
   const navigate = useNavigate();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -215,6 +221,14 @@ export function SavedChatsSidebar({
               New Chat
             </Button>
           </div>
+
+          {/* Saved Properties shelf */}
+          {user && savedProperties && onDeleteSavedProperty && (
+            <SavedPropertiesShelf
+              properties={savedProperties}
+              onDelete={onDeleteSavedProperty}
+            />
+          )}
 
           {/* Auto-save indicator and Clear History */}
           {user && (
