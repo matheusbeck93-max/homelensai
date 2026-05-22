@@ -64,3 +64,126 @@ export const US_STATES: UsState[] = [
 export function getCitiesForState(stateCode: string): string[] {
   return US_STATES.find((s) => s.code === stateCode)?.cities ?? [];
 }
+
+const STATE_BY_CODE = new Map(US_STATES.map((s) => [s.code.toUpperCase(), s]));
+const STATE_BY_NAME = new Map(US_STATES.map((s) => [s.name.toLowerCase(), s]));
+
+const CITY_INDEX: Array<{ city: string; state: string; code: string }> = [];
+for (const s of US_STATES) {
+  for (const c of s.cities) {
+    CITY_INDEX.push({ city: c, state: s.name, code: s.code });
+  }
+}
+
+// Regional aliases → list of canonical "City, ST" entries.
+const REGION_ALIASES: Record<string, string[]> = {
+  "dmv": ["Washington, DC", "Arlington, VA", "Bethesda, MD"],
+  "dfw": ["Dallas, TX", "Fort Worth, TX"],
+  "bay area": ["San Francisco, CA", "Oakland, CA", "San Jose, CA"],
+  "socal": ["Los Angeles, CA", "San Diego, CA"],
+  "nyc": ["New York City, NY"],
+  "south florida": ["Miami, FL", "Fort Lauderdale, FL", "West Palm Beach, FL"],
+  "tri-state": ["New York City, NY", "Jersey City, NJ", "Stamford, CT"],
+};
+
+function norm(s: string): string {
+  return s.toLowerCase().replace(/\./g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Try to resolve one user-typed token to one or more "City, ST" entries. */
+export function resolveLocationToken(raw: string): string[] {
+  const input = raw.trim();
+  if (!input) return [];
+  const low = norm(input);
+
+  // Regional alias
+  if (REGION_ALIASES[low]) return REGION_ALIASES[low];
+
+  // "City, ST" or "City, State Name"
+  const m = input.match(/^([A-Za-z .'-]+?)\s*,\s*([A-Za-z .]+)$/);
+  if (m) {
+    const cityPart = m[1].trim();
+    const statePart = m[2].trim();
+    let stateCode: string | null = null;
+    if (statePart.length === 2) {
+      const st = STATE_BY_CODE.get(statePart.toUpperCase());
+      if (st) stateCode = st.code;
+    } else {
+      const st = STATE_BY_NAME.get(statePart.toLowerCase());
+      if (st) stateCode = st.code;
+    }
+    if (!stateCode) return [];
+    // Find matching city case-insensitively
+    const cityNorm = norm(cityPart);
+    const match = CITY_INDEX.find(
+      (c) => c.code === stateCode && norm(c.city) === cityNorm,
+    );
+    if (match) return [`${match.city}, ${match.code}`];
+    // Accept user-typed city even if not in our short list, as long as state is valid
+    const titled = cityPart
+      .split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+    return [`${titled}, ${stateCode}`];
+  }
+
+  // Bare state name or code → expand to top cities (cap 3)
+  if (low.length === 2) {
+    const st = STATE_BY_CODE.get(low.toUpperCase());
+    if (st) return st.cities.slice(0, 3).map((c) => `${c}, ${st.code}`);
+  }
+  const stByName = STATE_BY_NAME.get(low);
+  if (stByName) return stByName.cities.slice(0, 3).map((c) => `${c}, ${stByName.code}`);
+
+  // Bare city: search across index; if exactly one match, accept; if multiple, return all but cap 3
+  const cityMatches = CITY_INDEX.filter((c) => norm(c.city) === low);
+  if (cityMatches.length === 1) return [`${cityMatches[0].city}, ${cityMatches[0].code}`];
+  if (cityMatches.length > 1) {
+    // Ambiguous — return empty so caller can ask user to disambiguate
+    return [];
+  }
+
+  return [];
+}
+
+/** Parse a free-text city list and return { accepted, rejected }. */
+export function parseCityList(content: string): { accepted: string[]; rejected: string[] } {
+  const tokens = content
+    .split(/\n|;|\band\b|\/| - /i)
+    .flatMap((part) => {
+      // Split on commas only when it doesn't look like "City, ST" (state token is 2 letters)
+      const segs: string[] = [];
+      let buf = "";
+      const pieces = part.split(",");
+      for (let i = 0; i < pieces.length; i++) {
+        const p = pieces[i].trim();
+        const next = pieces[i + 1]?.trim() ?? "";
+        if (buf) {
+          buf += ", " + p;
+          segs.push(buf);
+          buf = "";
+        } else if (next.length === 2 && /^[A-Za-z]{2}$/.test(next)) {
+          buf = p;
+        } else {
+          segs.push(p);
+        }
+      }
+      if (buf) segs.push(buf);
+      return segs;
+    })
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  const accepted: string[] = [];
+  const rejected: string[] = [];
+  for (const t of tokens) {
+    const resolved = resolveLocationToken(t);
+    if (resolved.length) accepted.push(...resolved);
+    else rejected.push(t);
+  }
+  // De-dup
+  return {
+    accepted: [...new Set(accepted)],
+    rejected: [...new Set(rejected)],
+  };
+}
