@@ -1,0 +1,1 @@
+UPDATE public.profiles SET ai_credits_used_today = 0, ai_credits_last_reset = CURRENT_DATE WHERE email = 'pedrolbeck@gmail.com';
