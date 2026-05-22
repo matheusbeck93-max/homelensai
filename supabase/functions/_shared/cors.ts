@@ -29,6 +29,10 @@ const ALLOWED_ORIGIN_PATTERNS: Array<(origin: string) => boolean> = [
   (o) => o === 'https://app.homelens.ai',
   (o) => o === 'https://staging.homelens.ai',
   (o) => /^https:\/\/[a-z0-9-]+\.homelens\.ai$/i.test(o),
+  // Production custom domain
+  (o) => o === 'https://homelensais.com',
+  (o) => o === 'https://www.homelensais.com',
+  (o) => /^https:\/\/[a-z0-9-]+\.homelensais\.com$/i.test(o),
   // Lovable hosting / preview
   (o) => /^https:\/\/[a-z0-9-]+\.lovable\.app$/i.test(o),
   (o) => /^https:\/\/[a-z0-9-]+\.lovable\.dev$/i.test(o),
@@ -40,7 +44,7 @@ const ALLOWED_ORIGIN_PATTERNS: Array<(origin: string) => boolean> = [
   (o) => o.startsWith('chrome-extension://'),
 ];
 
-const DEFAULT_SAFE_ORIGIN = 'https://homelens.ai';
+const DEFAULT_SAFE_ORIGIN = 'https://homelensais.com';
 
 const ALLOWED_HEADERS =
   'authorization, x-client-info, apikey, content-type, ' +
