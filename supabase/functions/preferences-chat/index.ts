@@ -319,7 +319,7 @@ function formatCurrentValue(key: string, profile: ProfileRecord): string | null 
     case 'has_children':
       return typeof v === 'boolean' ? (v ? 'Yes' : 'No') : null;
     case 'about_me':
-      return typeof v === 'string' && v ? v : null;
+      return typeof v === 'string' && v ? cleanAboutMeValue(v) || null : null;
     default:
       return null;
   }
