@@ -48,6 +48,7 @@ const DEFAULT_SAFE_ORIGIN = 'https://homelensais.com';
 
 const ALLOWED_HEADERS =
   'authorization, x-client-info, apikey, content-type, ' +
+  'x-supabase-client, ' +
   'x-supabase-client-platform, x-supabase-client-platform-version, ' +
   'x-supabase-client-runtime, x-supabase-client-runtime-version, ' +
   'x-supabase-api-version, x-cron-secret, stripe-signature';
