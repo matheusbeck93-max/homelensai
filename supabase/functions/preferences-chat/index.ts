@@ -847,7 +847,7 @@ type Intent =
   | { kind: 'reset' }
   | { kind: 'back' }
   | { kind: 'skip' }
-  | { kind: 'edit'; key: string }
+  | { kind: 'edit'; key: string; valueText?: string }
   | { kind: 'custom_pref'; text: string }
   | { kind: 'answer' };
 
@@ -869,13 +869,26 @@ function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
     if (k === 'restart_all') return { kind: 'reset' };
     if (EDITABLE_KEYS.has(k)) return { kind: 'edit', key: k };
   }
-  const editMatch = low.match(/^(edit|change|update)\s+(?:my\s+)?(.+?)\b\.?$/);
+  // Natural language "change/edit/update <category> [to <value>]" — capture value too.
+  const editMatch = t.match(/^(edit|change|update|set)\s+(?:my\s+)?(.+)$/i);
   if (editMatch) {
-    const phrase = editMatch[2];
+    const rest = editMatch[2];
+    const restLow = rest.toLowerCase();
     for (const c of CATEGORY_KEYWORDS) {
-      if (c.words.some((w) => phrase.includes(w))) {
-        if (c.key === 'budget') return { kind: 'edit', key: 'budget' };
-        return { kind: 'edit', key: c.key };
+      if (c.words.some((w) => restLow.includes(w))) {
+        // Strip the category words + optional "to" / ":" to isolate the value.
+        let valueText = rest;
+        const sepMatch = valueText.match(/\b(?:to|:|=)\b\s*(.+)$/i);
+        if (sepMatch) valueText = sepMatch[1];
+        else {
+          // Drop the first matched category word
+          for (const w of c.words) {
+            const re = new RegExp(`\\b${w}\\w*\\b`, 'i');
+            if (re.test(valueText)) { valueText = valueText.replace(re, '').trim(); break; }
+          }
+        }
+        valueText = valueText.trim().replace(/^[,:;\s-]+/, '').trim();
+        return { kind: 'edit', key: c.key, valueText: valueText || undefined };
       }
     }
   }
