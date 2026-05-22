@@ -164,13 +164,13 @@ const EDIT_CATEGORY_CHOICES: Choice[] = [
   { label: 'Climate', value: 'edit:climate_preference' },
   { label: 'Safety', value: 'edit:safety_priority' },
   { label: 'About me', value: 'edit:about_me' },
-  { label: 'Restart all preferences', value: 'edit:restart_all' },
+  { label: 'Reset preferences', value: 'edit:restart_all' },
 ];
 
 const COMPLETION_CHOICES: Choice[] = [
-  { label: 'Looks good', value: 'complete:looks_good' },
+  { label: 'Done', value: 'complete:looks_good' },
   { label: 'Change something', value: 'complete:change' },
-  { label: 'Start over', value: 'complete:restart' },
+  { label: 'Reset preferences', value: 'complete:restart' },
 ];
 
 const FRIENDLY_FIELD_LABEL: Record<string, string> = {
@@ -845,7 +845,9 @@ Deno.serve(async (req) => {
     // No user message yet → opening turn.
     if (!latestContent) {
       if (isComplete) {
-        return jsonResponse(editMenuResponse(), 200, req);
+        // Returning user with completed prefs → show a friendly saved summary with
+        // clear actions instead of dropping them straight into an edit menu.
+        return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
       }
       // Friendly welcome only when profile is brand new (very first question).
       const isFresh = !hasValue(currentProfile, 'primary_goal');
