@@ -199,7 +199,15 @@ export function PreferencesChat() {
       )
       .eq("id", user.id)
       .maybeSingle();
-    setProfile((data as ProfileSummary | null) ?? null);
+    const nextProfile = (data as ProfileSummary | null) ?? null;
+    if (nextProfile?.about_me) {
+      const cleaned = cleanAboutMe(nextProfile.about_me);
+      if (cleaned !== nextProfile.about_me) {
+        nextProfile.about_me = cleaned;
+        await supabase.from("profiles").update({ about_me: cleaned }).eq("id", user.id);
+      }
+    }
+    setProfile(nextProfile);
   };
 
   const callChat = async (newTurns: Turn[]) => {
@@ -293,7 +301,7 @@ export function PreferencesChat() {
       return;
     }
     if (!last?.multiSelect) {
-      sendUserMessage(pretty(value));
+      sendUserMessage(value.includes(":") ? value : pretty(value));
       return;
     }
     setSelected((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
