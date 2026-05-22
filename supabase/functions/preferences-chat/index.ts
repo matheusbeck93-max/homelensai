@@ -1013,6 +1013,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (intent.kind === 'ui_command') {
+      // complete:change → open edit menu; complete:looks_good → final ack.
+      if (latestContent.trim() === 'complete:change') {
+        return jsonResponse(editMenuResponse(), 200, req);
+      }
+      if (latestContent.trim() === 'complete:looks_good') {
+        return jsonResponse(finalAcknowledgementResponse(), 200, req);
+      }
+      // Unknown ui_command → re-show completion summary safely.
+      return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
+    }
+
     if (intent.kind === 'edit') {
       const q = questionForKey(intent.key);
       if (q) {
