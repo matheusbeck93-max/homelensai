@@ -820,6 +820,97 @@ function latestUserMessage(messages: Array<{ role: string; content: string }>): 
   return latest?.content.trim() ?? null;
 }
 
+/** Ordered list of question keys for back/forward navigation in onboarding. */
+const QUESTION_ORDER: string[] = [
+  'primary_goal',
+  'preferred_cities',
+  'buyer_types',
+  'budget',
+  'min_bedrooms',
+  'min_bathrooms',
+  'must_have_features',
+  'investment_strategies',
+  'hold_period_years',
+  'financing_preferences',
+  'has_children',
+  'children_ages',
+  'climate_preference',
+  'safety_priority',
+  'about_me',
+];
+
+type Intent =
+  | { kind: 'reset' }
+  | { kind: 'back' }
+  | { kind: 'skip' }
+  | { kind: 'edit'; key: string }
+  | { kind: 'custom_pref'; text: string }
+  | { kind: 'answer' };
+
+function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
+  const t = raw.trim();
+  const low = t.toLowerCase();
+  // Explicit nav buttons
+  if (t === 'nav:back' || /^(back|go back|previous|prev)\b\.?$/i.test(low)) return { kind: 'back' };
+  if (t === 'nav:skip' || /^skip\b\.?$/i.test(low)) return { kind: 'skip' };
+  if (
+    t === 'nav:restart' ||
+    /^(reset|restart|start over|clear all|wipe)( (everything|preferences|all|prefs))?\b\.?$/i.test(low) ||
+    /^reset preferences?\b/i.test(low) ||
+    /^restart preferences?\b/i.test(low)
+  ) return { kind: 'reset' };
+  // edit:<field> button or "edit <field>" / "change <field>" / "update <field>"
+  if (t.startsWith('edit:')) {
+    const k = t.slice(5);
+    if (k === 'restart_all') return { kind: 'reset' };
+    if (EDITABLE_KEYS.has(k)) return { kind: 'edit', key: k };
+  }
+  const editMatch = low.match(/^(edit|change|update)\s+(?:my\s+)?(.+?)\b\.?$/);
+  if (editMatch) {
+    const phrase = editMatch[2];
+    for (const c of CATEGORY_KEYWORDS) {
+      if (c.words.some((w) => phrase.includes(w))) {
+        if (c.key === 'budget') return { kind: 'edit', key: 'budget' };
+        return { kind: 'edit', key: c.key };
+      }
+    }
+  }
+  // Outside the questionnaire, treat any free text as a custom preference note.
+  if (!opts.inQuestionnaire) {
+    return { kind: 'custom_pref', text: t };
+  }
+  return { kind: 'answer' };
+}
+
+function appendAboutMe(existing: unknown, addition: string): string {
+  const prev = typeof existing === 'string' ? existing.trim() : '';
+  const add = addition.trim();
+  if (!add) return prev;
+  if (!prev) return add.slice(0, 2000);
+  return `${prev}; ${add}`.slice(0, 2000);
+}
+
+async function resetAllPreferences(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  currentProfile: ProfileRecord,
+) {
+  const reset: Record<string, unknown> = { onboarding_completed: false };
+  for (const key of EDITABLE_KEYS) {
+    if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
+    if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
+    reset[key] = null;
+  }
+  await supabase.from('profiles').update(reset).eq('id', userId);
+  return { ...currentProfile, ...reset } as ProfileRecord;
+}
+
+function indexOfKey(key: string | null | undefined): number {
+  if (!key) return 0;
+  const i = QUESTION_ORDER.indexOf(key);
+  return i < 0 ? 0 : i;
+}
+
 function responseForQuestion(question: Question, prefix?: string) {
   return {
     assistant_message: prefix ? `${prefix} ${question.assistant_message}` : question.assistant_message,
