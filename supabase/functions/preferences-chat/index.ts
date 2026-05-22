@@ -1009,7 +1009,33 @@ Deno.serve(async (req) => {
 
     if (intent.kind === 'edit') {
       const q = questionForKey(intent.key);
-      if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+      if (q) {
+        // If the user supplied the new value inline (e.g. "change cities to Tampa, FL"),
+        // try to parse + save it immediately instead of re-asking the question.
+        if (intent.valueText) {
+          const parsedInline = parseAnswerForQuestion(q, intent.valueText);
+          const sanitizedInline = sanitizeUpdates(parsedInline.updates);
+          if (Object.keys(sanitizedInline).length > 0) {
+            await supabase.from('profiles').update(sanitizedInline).eq('id', user.id);
+            const updated = { ...currentProfile, ...sanitizedInline } as ProfileRecord;
+            const fieldLabel = FRIENDLY_FIELD_LABEL[q.key] ?? q.key.replace(/_/g, ' ');
+            const noteSuffix = parsedInline.note ? ` ${parsedInline.note}` : '';
+            const resp = completionSummaryResponse(updated, Object.keys(sanitizedInline));
+            resp.assistant_message = `Updated your ${fieldLabel}.${noteSuffix}\n\n${resp.assistant_message}`;
+            return jsonResponse(resp, 200, req);
+          }
+          // Couldn't parse — show the question with a hint.
+          return jsonResponse(
+            questionResponseWithState(q, currentProfile, {
+              editing: true,
+              prefix: parsedInline.note ?? `I couldn't parse "${intent.valueText}".`,
+            }),
+            200,
+            req,
+          );
+        }
+        return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+      }
     }
 
     if (intent.kind === 'back' && priorState?.mode === 'onboarding') {
