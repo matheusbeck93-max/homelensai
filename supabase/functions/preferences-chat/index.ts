@@ -1128,6 +1128,8 @@ Deno.serve(async (req) => {
     if (priorState?.mode === 'editing' && typeof priorState.key === 'string') {
       currentQuestion = questionForKey(priorState.key);
       editingMode = true;
+    } else if (priorState?.mode === 'onboarding' && typeof priorState.key === 'string') {
+      currentQuestion = questionForKey(priorState.key) ?? onboardingQuestion;
     } else {
       currentQuestion = onboardingQuestion;
     }
