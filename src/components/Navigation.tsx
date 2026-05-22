@@ -3,6 +3,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Home, Calculator, TrendingUp, Menu, Sparkles, Briefcase, LayoutDashboard, MessageSquare } from "lucide-react";
+import { tierDisplayName } from "@/lib/subscriptionPlans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -33,7 +34,7 @@ export function Navigation() {
   const isMobile = isCompact;
   const [user, setUser] = useState<any>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { tier, loading: subscriptionLoading } = useSubscription();
+  const { tier, loading: subscriptionLoading, hasAccess, isFree } = useSubscription();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -60,7 +61,7 @@ export function Navigation() {
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
 
-  const portfolioNavItem = { label: 'Portfolio', path: '/portfolio', icon: Briefcase, requiresPremium: true };
+  const portfolioNavItem = { label: 'Portfolio', path: '/portfolio', icon: Briefcase };
  
   const handleGoHome = () => {
     
@@ -109,8 +110,8 @@ export function Navigation() {
               );
             })}
             
-            {/* Portfolio - Premium only */}
-            {tier === 'premium' && (
+            {/* Portfolio - Investor only */}
+            {hasAccess('PORTFOLIO_TRACKING') && (
               <Button
                 variant="ghost"
                 onClick={() => navigate(portfolioNavItem.path)}
@@ -124,7 +125,7 @@ export function Navigation() {
             <InstallPrompt />
             <ThemeToggle />
             
-            {user && !subscriptionLoading && tier === 'free' && (
+            {user && !subscriptionLoading && isFree && (
               <Button
                 variant="outline"
                 size="sm"
@@ -132,11 +133,11 @@ export function Navigation() {
                 className="gap-1.5"
               >
                 <Sparkles className="h-4 w-4" />
-                Upgrade to Premium
+                Upgrade
               </Button>
             )}
 
-            {user && !subscriptionLoading && tier === 'premium' && (
+            {user && !subscriptionLoading && !isFree && (
               <div className="flex items-center gap-2">
                 <SubscriptionBadge tier={tier} />
               </div>
@@ -189,8 +190,8 @@ export function Navigation() {
                         );
                       })}
                       
-                      {/* Portfolio - Premium only */}
-                      {tier === 'premium' && (
+                      {/* Portfolio - Investor only */}
+                      {hasAccess('PORTFOLIO_TRACKING') && (
                         <Button
                           variant="ghost"
                           className="justify-start w-full"

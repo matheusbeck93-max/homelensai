@@ -4,7 +4,7 @@ import type { SubscriptionTier } from "@/lib/subscriptionPlans";
 import { hasFeatureAccess, type FeatureKey } from "@/lib/subscriptionPlans";
 
 
-const VALID_TIERS: ReadonlySet<SubscriptionTier> = new Set(['free', 'premium']);
+const VALID_TIERS: ReadonlySet<SubscriptionTier> = new Set<SubscriptionTier>(['free', 'buyer', 'investor']);
 
 /**
  * Validate that a value read from profiles.subscription_status is one of the
@@ -16,6 +16,8 @@ function validateTier(raw: unknown): SubscriptionTier {
   if (typeof raw === 'string' && VALID_TIERS.has(raw as SubscriptionTier)) {
     return raw as SubscriptionTier;
   }
+  // Backward-compat: any legacy 'premium' string maps to 'buyer'.
+  if (raw === 'premium') return 'buyer';
   return 'free';
 }
 
@@ -154,16 +156,22 @@ export function useSubscription() {
     return hasFeatureAccess(tier, feature);
   };
 
-  const isPremiumUser = tier === 'premium';
   const isFreeUser = tier === 'free';
+  const isBuyerUser = tier === 'buyer';
+  const isInvestorUser = tier === 'investor';
+  // Backward-compat: any paid tier counts as "premium".
+  const isPaidUser = isBuyerUser || isInvestorUser;
 
   return {
     tier,
     userId,
     loading,
     hasAccess,
-    isPremium: isPremiumUser,
+    isPremium: isPaidUser,
+    isPaid: isPaidUser,
     isFree: isFreeUser,
+    isBuyer: isBuyerUser,
+    isInvestor: isInvestorUser,
     refresh: loadSubscription
   };
 }

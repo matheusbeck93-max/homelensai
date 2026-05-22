@@ -29,7 +29,7 @@ type AlertPreferences = {
 };
 
 export function AlertsPanel() {
-  const { tier, userId } = useSubscription();
+  const { userId, hasAccess: hasFeature } = useSubscription();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<AlertPreferences>({
@@ -40,7 +40,7 @@ export function AlertsPanel() {
   const [events, setEvents] = useState<AlertEvent[]>([]);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
-  const hasAccess = tier === "premium";
+  const hasAccess = hasFeature("PROPERTY_ALERTS");
 
   useEffect(() => {
     if (userId && hasAccess) {
