@@ -180,22 +180,12 @@ function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
   );
 }
 
-const INITIAL_TURN: Turn = {
-  role: "assistant",
-  content:
-    "Hi! Let's set up your HomeLens preferences — you can change anything anytime.\n\n**What's your primary goal with HomeLens?**",
-  choices: [
-    { label: "Buy a home", value: "buy_home" },
-    { label: "Invest", value: "invest" },
-    { label: "Both", value: "both" },
-  ],
-  multiSelect: false,
-  allowText: false,
-};
+const STATE_MARKER_RE = /\n?<!--pc:.*?-->/g;
+const stripMarkers = (s: string) => s.replace(STATE_MARKER_RE, "").trim();
 
 export function PreferencesChat() {
   const { toast } = useToast();
-  const [turns, setTurns] = useState<Turn[]>([INITIAL_TURN]);
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [text, setText] = useState("");
@@ -219,6 +209,7 @@ export function PreferencesChat() {
   const callChat = async (newTurns: Turn[]) => {
     setLoading(true);
     try {
+      // Send raw content (with hidden state markers) so the server can recover state.
       const messages = newTurns.map((t) => ({ role: t.role, content: t.content }));
       const { data, error } = await supabase.functions.invoke("preferences-chat", {
         body: { messages },
@@ -261,6 +252,8 @@ export function PreferencesChat() {
   useEffect(() => {
     (async () => {
       await loadProfile();
+      // Ask the server for the opener — it picks welcome vs. edit menu based on profile.
+      await callChat([]);
       setBooting(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -336,7 +329,7 @@ export function PreferencesChat() {
                 ) : (
                   <div className="max-w-[90%] text-sm leading-relaxed">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown>{t.content}</ReactMarkdown>
+                      <ReactMarkdown>{stripMarkers(t.content)}</ReactMarkdown>
                     </div>
                     {t.savedFields && t.savedFields.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
