@@ -162,8 +162,17 @@ export function PreferencesPanel({ embedded = false, onSave, showPrimaryGoal = t
     const validCities = cities.filter(c => c.city.trim() || c.state.trim());
     const preferredCities = validCities.map(c => `${c.city.trim()}, ${c.state.trim().toUpperCase()}`);
 
+    // Legacy buyer_type column has a CHECK constraint allowing only
+    // 'investor' | 'first-time-buyer' | 'regular-buyer'. Map the new persona
+    // values to that set, fall back to null for unsupported personas.
+    const LEGACY_BUYER_TYPE_MAP: Record<string, string> = {
+      investor: "investor",
+      first_time_buyer: "first-time-buyer",
+    };
+    const legacyBuyerType = buyerTypes[0] ? (LEGACY_BUYER_TYPE_MAP[buyerTypes[0]] ?? null) : null;
+
     const updates: any = {
-      buyer_type: buyerTypes[0] || "unspecified",
+      buyer_type: legacyBuyerType,
       buyer_types: buyerTypes.length > 0 ? buyerTypes : null,
       budget_min: budgetMin ? parseInt(budgetMin) : null,
       budget_max: budgetMax ? parseInt(budgetMax) : null,
