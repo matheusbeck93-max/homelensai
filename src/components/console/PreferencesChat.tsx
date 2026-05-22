@@ -109,8 +109,17 @@ const cleanAboutMe = (value?: string | null) => {
   if (!value) return value ?? null;
   const parts = value
     .split(";")
-    .map((part) => part.replace(/\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/gi, "").trim())
-    .filter((part) => part && !(STATE_WORD_RE.test(part) && (part.includes(",") || /\bcounty\b/i.test(part))));
+    .map((part) => {
+      const hadCommand = /\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/i.test(part);
+      return { hadCommand, text: part.replace(/\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/gi, "").trim() };
+    })
+    .filter(({ hadCommand, text }) => {
+      if (!text) return false;
+      const hasPreferenceWords = /\b(close|near|nearby|within|walk|store|school|commute|transit|park|grocery|whole\s*foods|trader\s*joe|costco)\b/i.test(text);
+      const locationOnly = STATE_WORD_RE.test(text) && (text.includes(",") || /\bcounty\b/i.test(text)) && !hasPreferenceWords;
+      return !(hadCommand || locationOnly);
+    })
+    .map(({ text }) => text);
   return parts.join("; ").trim() || null;
 };
 
