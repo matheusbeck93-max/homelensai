@@ -4,14 +4,14 @@ import { SUBSCRIPTION_PLANS } from "@/lib/subscriptionPlans";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Crown, Sparkles } from "lucide-react";
+import { Check, X, Crown, Sparkles, TrendingUp } from "lucide-react";
 import { ManageSubscriptionButton } from "@/components/subscription/ManageSubscriptionButton";
 
 export function SubscriptionPanel() {
   const navigate = useNavigate();
   const { tier } = useSubscription();
 
-  const plans = [SUBSCRIPTION_PLANS.free, SUBSCRIPTION_PLANS.premium];
+  const plans = [SUBSCRIPTION_PLANS.free, SUBSCRIPTION_PLANS.buyer, SUBSCRIPTION_PLANS.investor];
 
   return (
     <div className="space-y-8">
@@ -22,20 +22,22 @@ export function SubscriptionPanel() {
           Manage your HomeLens plan and billing.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {plans.map((plan) => {
             const isCurrent = plan.tier === tier;
-            const isUpgrade = tier === "free" && plan.tier === "premium";
-            const isPremiumPlan = plan.tier === "premium";
+            const isPaidPlan = plan.tier !== "free";
+            const isUpgrade = !isCurrent && isPaidPlan && (
+              tier === "free" ||
+              (tier === "buyer" && plan.tier === "investor")
+            );
+            const isInvestorPlan = plan.tier === "investor";
 
             return (
               <Card
                 key={plan.id}
                 className={`relative flex flex-col ${
                   isCurrent
-                    ? isPremiumPlan
-                      ? "border-primary shadow-lg"
-                      : "border-primary shadow-md"
+                    ? "border-primary shadow-lg"
                     : "border-border"
                 }`}
               >
@@ -47,12 +49,14 @@ export function SubscriptionPanel() {
 
                 <CardHeader className="pb-2 pt-8">
                   <div className="mb-3">
-                    {isPremiumPlan ? (
-                      <Crown className="h-9 w-9 text-primary" />
-                    ) : (
+                    {!isPaidPlan ? (
                       <div className="h-9 w-9 rounded-full border-2 border-foreground/20 flex items-center justify-center">
                         <div className="h-2.5 w-2.5 rounded-full bg-foreground/20" />
                       </div>
+                    ) : isInvestorPlan ? (
+                      <TrendingUp className="h-9 w-9 text-primary" />
+                    ) : (
+                      <Crown className="h-9 w-9 text-primary" />
                     )}
                   </div>
 
@@ -75,7 +79,7 @@ export function SubscriptionPanel() {
                   {isUpgrade && (
                     <Button className="w-full" onClick={() => navigate("/pricing")}>
                       <Sparkles className="h-4 w-4 mr-2" />
-                      Upgrade to Premium
+                      {plan.ctaLabel}
                     </Button>
                   )}
                   {isCurrent && (
@@ -84,8 +88,8 @@ export function SubscriptionPanel() {
                     </Button>
                   )}
 
-                  {/* Feature header for Premium */}
-                  {isPremiumPlan && (
+                  {/* Feature header for paid plans */}
+                  {isPaidPlan && (
                     <p className="text-xs text-muted-foreground">Everything in Free, plus:</p>
                   )}
 
