@@ -18,9 +18,12 @@ export interface SavePropertyInput {
   state?: string | null;
 }
 
-export type SavePropertyResult =
-  | { ok: true; id: string }
-  | { ok: false; error: "already_saved" | "unauthorized" | "unknown"; message?: string };
+export interface SavePropertyResult {
+  ok: boolean;
+  id?: string;
+  error?: "already_saved" | "unauthorized" | "unknown";
+  message?: string;
+}
 
 export function useSavedProperties(user: { id: string } | null | undefined) {
   const [properties, setProperties] = useState<SavedProperty[]>([]);
