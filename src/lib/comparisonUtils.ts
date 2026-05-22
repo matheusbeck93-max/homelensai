@@ -7,10 +7,10 @@ const DAILY_COMPARISON_LIMIT_FREE = 1;
  */
 export async function canRunComparison(
   userId: string,
-  subscriptionStatus: 'free' | 'pro' | 'premium'
+  subscriptionStatus: 'free' | 'buyer' | 'investor'
 ): Promise<{ canRun: boolean; reason?: string; remaining?: number }> {
-  // Pro and Premium have unlimited comparisons
-  if (subscriptionStatus === 'pro' || subscriptionStatus === 'premium') {
+  // Paid tiers (Buyer, Investor) have unlimited comparisons
+  if (subscriptionStatus === 'buyer' || subscriptionStatus === 'investor') {
     return { canRun: true };
   }
 
