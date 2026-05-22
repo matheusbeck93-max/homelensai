@@ -1,36 +1,42 @@
-## Problem
+## Goal
+Replace the generic "Failed to send a request..." toast with a friendly dialog when the user has run out of daily AI credits, showing plan options and the reset time.
 
-In production at `https://homelensais.com/chats`, sending a message fails with:
-> Failed to send a request to the Edge Function
+## Root cause recap
+The `perplexity-chat` / `ai-chat` edge functions return `429 { error: 'ai_credits_exhausted', limitReached: true, message: ... }` when the free daily quota (100 credits) is depleted. The Supabase client throws a `FunctionsHttpError` whose `.message` is just `"Edge Function returned a non-2xx status code"` — that's what the user is seeing as a scary platform error.
 
-Edge function logs for `perplexity-chat` show only successful `OPTIONS` preflights and no `POST` requests. This is a classic browser-blocked CORS response.
+## Changes
 
-Root cause: `supabase/functions/_shared/cors.ts` only allows these origins:
-- `homelens.ai`, `www.`, `app.`, `staging.`, `*.homelens.ai`
-- `*.lovable.app`, `*.lovable.dev`
-- `localhost:5173/3000/4173`
-- `chrome-extension://*`
+### 1. New component: `src/components/subscription/CreditsExhaustedDialog.tsx`
+- Controlled `<Dialog>` (shadcn) with:
+  - Title: "You've used today's AI credits"
+  - Body: "Free plan includes 100 AI credits per day. Upgrade for unlimited access, or wait until **{resetTime}** for your daily reset."
+  - `resetTime` = next UTC midnight rendered in the user's local timezone (`toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })`) plus a "(in 3h 12m)" countdown line.
+  - Two CTAs:
+    - Primary: **Upgrade to Premium — $4.97/mo** → navigates to `/pricing`
+    - Secondary: **Maybe later** → closes dialog
+  - Subtle footer link: "See all plans" → `/pricing`
+- Uses semantic tokens only (no hardcoded colors).
 
-The actual production custom domain is `homelensais.com` (note the extra `ais`), so preflight echoes back the default `https://homelens.ai` origin, the browser rejects the response, and the POST never leaves the page.
+### 2. Helper: `src/lib/edgeErrors.ts` (new)
+- `parseEdgeError(error): Promise<{ status?: number; body?: any }>` — handles `FunctionsHttpError` by reading `error.context.response.clone().json()` safely, so the catch block can detect `body.limitReached === true` or `body.error === 'ai_credits_exhausted'`.
 
-## Fix
+### 3. `src/pages/Chats.tsx`
+- Add `creditsDialogOpen` state.
+- In the existing `catch (error)` block (line ~466) and around the `excelErr` catch (line ~462) and the perplexity retry (line ~365):
+  - Run `parseEdgeError(error)`.
+  - If `status === 429` and `body.limitReached`: open `CreditsExhaustedDialog`, refresh `useAiCredits().refresh()`, and **skip the destructive toast**.
+  - Otherwise, keep existing toast behavior.
+- Render `<CreditsExhaustedDialog open={creditsDialogOpen} onOpenChange={setCreditsDialogOpen} />`.
 
-Update `supabase/functions/_shared/cors.ts` `ALLOWED_ORIGIN_PATTERNS` to also allow the real production domain:
+### 4. Optional consistency (small)
+Apply the same parse + dialog trigger to the Chrome extension popup is **out of scope** — extension already has its own upgrade button.
 
-```
-(o) => o === 'https://homelensais.com',
-(o) => o === 'https://www.homelensais.com',
-(o) => /^https:\/\/[a-z0-9-]+\.homelensais\.com$/i.test(o),
-```
+## Out of scope
+- No edge function changes (the 429 contract is already correct).
+- No changes to `useAiCredits`, pricing page, or subscription logic.
+- No CORS work (already fixed, will ship on next publish).
 
-Also update the `DEFAULT_SAFE_ORIGIN` to `https://homelensais.com` so any non-allowlisted preflight at least falls back to the actual production origin (cosmetic but correct).
-
-## Verification
-
-1. Republish so the updated edge functions deploy.
-2. From `https://homelensais.com/chats`, send a message — confirm a reply streams back.
-3. Check edge function logs: a `POST /perplexity-chat 200` should now appear (not only OPTIONS).
-
-## Scope
-
-One file edited: `supabase/functions/_shared/cors.ts`. No frontend, schema, or business logic changes.
+## Files touched
+- create `src/components/subscription/CreditsExhaustedDialog.tsx`
+- create `src/lib/edgeErrors.ts`
+- edit `src/pages/Chats.tsx`
