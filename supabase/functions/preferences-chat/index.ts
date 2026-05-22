@@ -480,7 +480,8 @@ function normalizeFieldValue(key: string, value: unknown): unknown {
 
   if (key === 'about_me') {
     if (value === null) return null;
-    return typeof value === 'string' ? value.trim().slice(0, 2000) : null;
+    const cleaned = cleanAboutMeValue(value);
+    return cleaned || null;
   }
 
   return value;
