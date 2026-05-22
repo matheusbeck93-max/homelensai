@@ -907,11 +907,32 @@ function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
 }
 
 function appendAboutMe(existing: unknown, addition: string): string {
-  const prev = typeof existing === 'string' ? existing.trim() : '';
-  const add = addition.trim();
+  const prev = cleanAboutMeValue(existing);
+  const add = stripReservedTokens(addition).trim();
   if (!add) return prev;
   if (!prev) return add.slice(0, 2000);
   return `${prev}; ${add}`.slice(0, 2000);
+}
+
+function stripReservedTokens(value: string): string {
+  return value.replace(/\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/gi, '').trim();
+}
+
+function looksLikeLocationOnlyPreference(value: string): boolean {
+  const text = stripReservedTokens(value).trim();
+  if (!text) return false;
+  const { accepted, rejected } = parseCities(text);
+  return accepted.length > 0 && rejected.length === 0;
+}
+
+function cleanAboutMeValue(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value
+    .split(';')
+    .map((part) => stripReservedTokens(part))
+    .filter((part) => part && !looksLikeLocationOnlyPreference(part))
+    .join('; ')
+    .slice(0, 2000);
 }
 
 async function resetAllPreferences(
