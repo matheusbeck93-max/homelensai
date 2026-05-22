@@ -760,25 +760,64 @@ Deno.serve(async (req) => {
       .single();
 
     const currentProfile = (profile ?? {}) as ProfileRecord;
-    const currentQuestion = nextQuestion(currentProfile);
     const latestContent = latestUserMessage(body.messages);
+    const priorState = decodeStateFromLastAssistant(body.messages);
+    const onboardingQuestion = nextQuestion(currentProfile);
+    const isComplete = !onboardingQuestion;
 
+    // No user message yet → opening turn.
     if (!latestContent) {
-      if (!currentQuestion) {
-        return jsonResponse(
-          {
-            assistant_message: 'Your preferences are already saved. You can modify them at any time.',
-            choices: [],
-            multi_select: false,
-            allow_text: true,
-            done: true,
-            saved_fields: [],
-          },
-          200,
-          req,
-        );
+      if (isComplete) {
+        return jsonResponse(editMenuResponse(), 200, req);
       }
-      return jsonResponse(responseForQuestion(currentQuestion), 200, req);
+      // Friendly welcome only when profile is brand new (very first question).
+      const isFresh = !hasValue(currentProfile, 'primary_goal');
+      const prefix = isFresh
+        ? "Welcome to HomeLens! I'll ask a few quick questions to personalize your experience — pick an option or type your own answer."
+        : undefined;
+      return jsonResponse(questionResponseWithState(onboardingQuestion, currentProfile, { editing: false, prefix }), 200, req);
+    }
+
+    // EDIT MODE handling.
+    if (priorState?.mode === 'edit_menu' || (isComplete && !priorState)) {
+      const detected = detectEditCategory(latestContent);
+      if (detected === 'restart_all') {
+        const reset: Record<string, unknown> = { onboarding_completed: false };
+        for (const key of EDITABLE_KEYS) {
+          if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
+          if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
+          reset[key] = null;
+        }
+        await supabase.from('profiles').update(reset).eq('id', user.id);
+        const freshProfile = { ...currentProfile, ...reset } as ProfileRecord;
+        const q = nextQuestion(freshProfile);
+        if (q) {
+          return jsonResponse(
+            questionResponseWithState(q, freshProfile, {
+              editing: false,
+              prefix: "Starting fresh — I'll walk you through every preference again.",
+            }),
+            200,
+            req,
+          );
+        }
+      }
+      if (detected && detected !== 'restart_all') {
+        const q = questionForKey(detected);
+        if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+      }
+      // Could not match → show menu again.
+      return jsonResponse(editMenuResponse("I didn't catch that —"), 200, req);
+    }
+
+    // Determine which question this answer belongs to.
+    let currentQuestion: Question | null = null;
+    let editingMode = false;
+    if (priorState?.mode === 'editing' && typeof priorState.key === 'string') {
+      currentQuestion = questionForKey(priorState.key);
+      editingMode = true;
+    } else {
+      currentQuestion = onboardingQuestion;
     }
 
     const rawUpdates = parseAnswerForQuestion(currentQuestion, latestContent);
@@ -786,7 +825,7 @@ Deno.serve(async (req) => {
 
     if (currentQuestion && Object.keys(sanitized).length === 0) {
       return jsonResponse(
-        responseForQuestion(currentQuestion, `I didn't catch that.`),
+        questionResponseWithState(currentQuestion, currentProfile, { editing: editingMode, prefix: "I didn't catch that." }),
         200,
         req,
       );
@@ -807,6 +846,14 @@ Deno.serve(async (req) => {
     }
 
     const updatedProfile = { ...currentProfile, ...sanitized };
+
+    // After an EDIT answer → return to edit menu, not onboarding flow.
+    if (editingMode) {
+      const resp = editMenuResponse('Saved.');
+      resp.saved_fields = savedFields;
+      return jsonResponse(resp, 200, req);
+    }
+
     const followingQuestion = nextQuestion(updatedProfile);
 
     if (!followingQuestion) {
@@ -823,21 +870,15 @@ Deno.serve(async (req) => {
         }
       }
 
-      return jsonResponse(
-        {
-          assistant_message: 'Your preferences are already saved. You can modify them at any time.',
-          choices: [],
-          multi_select: false,
-          allow_text: true,
-          done: true,
-          saved_fields: savedFields,
-        },
-        200,
-        req,
-      );
+      const resp = editMenuResponse("All set — your preferences are saved.");
+      resp.saved_fields = savedFields;
+      return jsonResponse(resp, 200, req);
     }
 
-    const response = responseForQuestion(followingQuestion, savedFields.length ? 'Got it — saved.' : undefined);
+    const response = questionResponseWithState(followingQuestion, updatedProfile, {
+      editing: false,
+      prefix: savedFields.length ? 'Got it — saved.' : undefined,
+    });
     response.saved_fields = savedFields;
     return jsonResponse(response, 200, req);
   } catch (error) {
