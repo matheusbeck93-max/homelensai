@@ -17,6 +17,7 @@ interface Turn {
   role: "user" | "assistant";
   content: string;
   choices?: Choice[];
+  navChoices?: Choice[];
   multiSelect?: boolean;
   allowText?: boolean;
   done?: boolean;
@@ -220,6 +221,7 @@ export function PreferencesChat() {
         role: "assistant",
         content: data?.assistant_message ?? "Tell me more.",
         choices: Array.isArray(data?.choices) ? data.choices : [],
+        navChoices: Array.isArray(data?.nav_choices) ? data.nav_choices : [],
         multiSelect: !!data?.multi_select,
         allowText: data?.allow_text !== false,
         done: !!data?.done,
@@ -291,6 +293,11 @@ export function PreferencesChat() {
   };
 
   const toggleChoice = (value: string) => {
+    // Nav buttons (back/skip/restart) are single-shot and bypass multi-select.
+    if (value.startsWith("nav:")) {
+      sendUserMessage(value);
+      return;
+    }
     if (!last?.multiSelect) {
       sendUserMessage(pretty(value));
       return;
@@ -391,6 +398,23 @@ export function PreferencesChat() {
                   </Button>
                 </div>
               )}
+            </div>
+          )}
+
+          {!loading && last?.role === "assistant" && (last.navChoices?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-2 border-t border-border/50 pt-3">
+              {last.navChoices!.map((c) => (
+                <Button
+                  key={c.value}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => sendUserMessage(c.value)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  {c.label}
+                </Button>
+              ))}
             </div>
           )}
 
