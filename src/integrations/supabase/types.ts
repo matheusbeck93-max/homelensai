@@ -434,6 +434,7 @@ export type Database = {
           min_sqft: number | null
           must_have_features: string[] | null
           onboarding_completed: boolean | null
+          preferences: Json
           preferred_cities: string[] | null
           primary_goal: string | null
           property_types: string[] | null
@@ -484,6 +485,7 @@ export type Database = {
           min_sqft?: number | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
+          preferences?: Json
           preferred_cities?: string[] | null
           primary_goal?: string | null
           property_types?: string[] | null
@@ -534,6 +536,7 @@ export type Database = {
           min_sqft?: number | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
+          preferences?: Json
           preferred_cities?: string[] | null
           primary_goal?: string | null
           property_types?: string[] | null
