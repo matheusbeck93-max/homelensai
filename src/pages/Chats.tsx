@@ -7,6 +7,8 @@ import { StickyChat, ChatAttachment } from "@/components/StickyChat";
 import { SavedChatsSidebar } from "@/components/chat/SavedChatsSidebar";
 import { ChatComparisonPanel, AnalyzedProperty } from "@/components/chat/ChatComparisonPanel";
 import { useSavedChats, ChatMessage } from "@/hooks/useSavedChats";
+import { useSavedProperties } from "@/hooks/useSavedProperties";
+import { SavePropertyButton } from "@/components/chat/SavePropertyButton";
 import { v4 as uuidv4 } from "uuid";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -181,6 +183,14 @@ export default function Chats() {
     startNewChat,
     clearAllConversations
   } = useSavedChats();
+
+  // Saved Properties (bookmark shelf in sidebar)
+  const {
+    properties: savedProperties,
+    saveProperty,
+    deleteProperty,
+    isUrlSaved,
+  } = useSavedProperties(user);
 
   // Local state
   const [loading, setLoading] = useState(false);
