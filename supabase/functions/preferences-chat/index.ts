@@ -200,8 +200,8 @@ CURRENT SAVED PREFERENCES
 ${summary}
 
 START
-- If no preferences saved, greet warmly and start with question 1.
-- If preferences already exist, summarize them in one sentence and ask if they'd like to update anything (offer chips: "Yes, update something" / "Looks good").`;
+- The client has already asked the user their primary goal as the opening message. Do NOT re-ask primary_goal unless the user wants to change it — instead, parse the user's first reply for primary_goal, save it, acknowledge briefly, and continue with question 2 (preferred_cities).
+- If preferences already exist, acknowledge what's saved in one short sentence and ask what they'd like to update.`;
 }
 
 function summarizeProfile(p: Record<string, unknown>): string {

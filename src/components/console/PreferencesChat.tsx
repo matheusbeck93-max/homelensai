@@ -179,9 +179,22 @@ function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
   );
 }
 
+const INITIAL_TURN: Turn = {
+  role: "assistant",
+  content:
+    "Hi! Let's set up your HomeLens preferences — you can change anything anytime.\n\n**What's your primary goal with HomeLens?**",
+  choices: [
+    { label: "Buy a home", value: "buy_home" },
+    { label: "Invest", value: "invest" },
+    { label: "Both", value: "both" },
+  ],
+  multiSelect: false,
+  allowText: true,
+};
+
 export function PreferencesChat() {
   const { toast } = useToast();
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<Turn[]>([INITIAL_TURN]);
   const [profile, setProfile] = useState<ProfileSummary | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [text, setText] = useState("");
@@ -223,6 +236,14 @@ export function PreferencesChat() {
         await loadProfile();
       }
     } catch (e: any) {
+      setTurns((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Something went wrong reaching the assistant. Try again, or just type your answer below and I'll save it.",
+        },
+      ]);
       toast({
         title: "Chat error",
         description: e?.message ?? "Could not reach the preferences assistant.",
@@ -234,11 +255,10 @@ export function PreferencesChat() {
     }
   };
 
-  // Initial greeting
+  // Initial load — just fetch profile; the opening question is preloaded.
   useEffect(() => {
     (async () => {
       await loadProfile();
-      await callChat([]);
       setBooting(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -251,7 +271,6 @@ export function PreferencesChat() {
 
   const last = turns[turns.length - 1];
   const canShowChoices = !loading && last?.role === "assistant" && (last.choices?.length ?? 0) > 0;
-  const canShowText = !loading && last?.role === "assistant" && last.allowText !== false;
 
   const sendUserMessage = async (content: string) => {
     if (!content.trim()) return;
@@ -289,7 +308,7 @@ export function PreferencesChat() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Chat with your HomeLens assistant
+            Choose your preferences — change at any time
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -365,19 +384,18 @@ export function PreferencesChat() {
             </div>
           )}
 
-          {canShowText && (
-            <form onSubmit={handleTextSubmit} className="flex items-center gap-2">
-              <Input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Type your answer, or ask to change anything…"
-                disabled={loading}
-              />
-              <Button type="submit" size="icon" disabled={loading || !text.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
-          )}
+          <form onSubmit={handleTextSubmit} className="flex items-center gap-2 border-t border-border/50 pt-3">
+            <Input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Type your answer, or ask to change anything…"
+              disabled={loading}
+              autoFocus
+            />
+            <Button type="submit" size="icon" disabled={loading || !text.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
