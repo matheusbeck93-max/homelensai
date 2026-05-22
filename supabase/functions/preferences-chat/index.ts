@@ -331,6 +331,7 @@ function editMenuResponse(prefix?: string) {
       `${prefix ? `${prefix} ` : ''}What would you like to update? Pick a category or just type what you'd like to change.` +
       encodeState({ mode: 'edit_menu' }),
     choices: EDIT_CATEGORY_CHOICES,
+    nav_choices: [] as Choice[],
     multi_select: false,
     allow_text: true,
     done: false,
@@ -361,14 +362,16 @@ function recapLines(profile: ProfileRecord): string[] {
 function completionSummaryResponse(profile: ProfileRecord, savedFields: string[]) {
   const recap = recapLines(profile);
   const body = [
-    "You're all set — your preferences are saved. You can change anything anytime.",
+    "All saved. Your preferences are ready.",
     recap.length ? `\n**Here's what I have:**\n${recap.join('\n')}` : '',
+    `\nYou can type things like "reset preferences", "edit budget", or add any note (e.g. "close to a Whole Foods").`,
   ]
     .filter(Boolean)
     .join('\n');
   return {
     assistant_message: `${body}${encodeState({ mode: 'completed_summary' })}`,
     choices: COMPLETION_CHOICES,
+    nav_choices: [] as Choice[],
     multi_select: false,
     allow_text: true,
     done: true,
@@ -379,9 +382,10 @@ function completionSummaryResponse(profile: ProfileRecord, savedFields: string[]
 function finalAcknowledgementResponse() {
   return {
     assistant_message:
-      "Great — I'll use these for your HomeLens experience. Reopen this chat anytime to tweak." +
+      `Got it — saved. Ask me anytime to "edit" or "reset", or add a new preference like "close to a Whole Foods".` +
       encodeState({ mode: 'closed' }),
     choices: [] as Choice[],
+    nav_choices: [] as Choice[],
     multi_select: false,
     allow_text: true,
     done: true,
