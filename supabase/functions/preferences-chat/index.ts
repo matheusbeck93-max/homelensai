@@ -956,16 +956,116 @@ Deno.serve(async (req) => {
     // No user message yet → opening turn.
     if (!latestContent) {
       if (isComplete) {
-        // Returning user with completed prefs → show a friendly saved summary with
-        // clear actions instead of dropping them straight into an edit menu.
         return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
       }
-      // Friendly welcome only when profile is brand new (very first question).
       const isFresh = !hasValue(currentProfile, 'primary_goal');
       const prefix = isFresh
-        ? "Welcome to HomeLens! I'll ask a few quick questions to personalize your experience — pick an option or type your own answer."
+        ? "Welcome! I'll ask a few quick questions to personalize HomeLens. Tap an option, type your answer, or say things like 'skip', 'back', 'reset', or 'edit budget' anytime."
         : undefined;
-      return jsonResponse(questionResponseWithState(onboardingQuestion, currentProfile, { editing: false, prefix }), 200, req);
+      const idx = indexOfKey(onboardingQuestion.key);
+      return jsonResponse(
+        questionResponseWithState(onboardingQuestion, currentProfile, { editing: false, prefix, questionIndex: idx }),
+        200,
+        req,
+      );
+    }
+
+    // Universal intent layer (back / skip / reset / edit / custom).
+    const inQuestionnaire = !isComplete && priorState?.mode !== 'completed_summary' && priorState?.mode !== 'closed';
+    const intent = detectIntent(latestContent, { inQuestionnaire });
+
+    if (intent.kind === 'reset') {
+      const fresh = await resetAllPreferences(supabase, user.id, currentProfile);
+      const q = nextQuestion(fresh);
+      if (q) {
+        return jsonResponse(
+          questionResponseWithState(q, fresh, {
+            editing: false,
+            prefix: "Starting fresh — your preferences are cleared.",
+            questionIndex: 0,
+          }),
+          200,
+          req,
+        );
+      }
+    }
+
+    if (intent.kind === 'edit') {
+      const q = questionForKey(intent.key);
+      if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+    }
+
+    if (intent.kind === 'back' && priorState?.mode === 'onboarding') {
+      const curKey = typeof priorState.key === 'string' ? priorState.key : null;
+      const curIdx = indexOfKey(curKey);
+      const prevIdx = Math.max(0, curIdx - 1);
+      const prevKey = QUESTION_ORDER[prevIdx];
+      const prevQ = questionForKey(prevKey);
+      if (prevQ) {
+        return jsonResponse(
+          questionResponseWithState(prevQ, currentProfile, {
+            editing: false,
+            prefix: 'Going back.',
+            questionIndex: prevIdx,
+          }),
+          200,
+          req,
+        );
+      }
+    }
+
+    if (intent.kind === 'skip' && priorState?.mode === 'onboarding') {
+      const curKey = typeof priorState.key === 'string' ? priorState.key : null;
+      const curIdx = indexOfKey(curKey);
+      const nextIdx = Math.min(QUESTION_ORDER.length - 1, curIdx + 1);
+      // Skip forward to the next *unanswered* question after this index.
+      const nextQ = nextQuestion(currentProfile);
+      if (nextQ && nextQ.key !== curKey) {
+        return jsonResponse(
+          questionResponseWithState(nextQ, currentProfile, {
+            editing: false,
+            prefix: 'Skipped.',
+            questionIndex: indexOfKey(nextQ.key),
+          }),
+          200,
+          req,
+        );
+      }
+      // Fall through to next-in-order if everything else is answered
+      const fallbackKey = QUESTION_ORDER[nextIdx];
+      const fallbackQ = questionForKey(fallbackKey);
+      if (fallbackQ && fallbackKey !== curKey) {
+        return jsonResponse(
+          questionResponseWithState(fallbackQ, currentProfile, {
+            editing: false,
+            prefix: 'Skipped.',
+            questionIndex: nextIdx,
+          }),
+          200,
+          req,
+        );
+      }
+    }
+
+    if (intent.kind === 'custom_pref') {
+      const merged = appendAboutMe(currentProfile.about_me, intent.text);
+      await supabase.from('profiles').update({ about_me: merged }).eq('id', user.id);
+      const updated = { ...currentProfile, about_me: merged };
+      return jsonResponse(
+        {
+          assistant_message:
+            `Added to your preferences: "${intent.text}".\n\nYou can keep adding notes, or say "edit budget", "reset preferences", etc.` +
+            encodeState({ mode: 'closed' }),
+          choices: COMPLETION_CHOICES,
+          nav_choices: [],
+          multi_select: false,
+          allow_text: true,
+          done: true,
+          saved_fields: ['about_me'],
+        },
+        200,
+        req,
+      );
     }
 
     // COMPLETION SUMMARY handling — user just saw the closing recap.
@@ -978,69 +1078,32 @@ Deno.serve(async (req) => {
       if (choice === 'complete:looks_good' || /^(ok(ay)?|thanks?|thank you|cool|great|sounds good|perfect|done)\b/i.test(trimmed)) {
         return jsonResponse(finalAcknowledgementResponse(), 200, req);
       }
-      if (choice === 'complete:restart' || /^restart|reset|start over/i.test(trimmed)) {
-        const reset: Record<string, unknown> = { onboarding_completed: false };
-        for (const key of EDITABLE_KEYS) {
-          if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
-          if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
-          reset[key] = null;
-        }
-        await supabase.from('profiles').update(reset).eq('id', user.id);
-        const freshProfile = { ...currentProfile, ...reset } as ProfileRecord;
-        const q = nextQuestion(freshProfile);
-        if (q) {
-          return jsonResponse(
-            questionResponseWithState(q, freshProfile, {
-              editing: false,
-              prefix: "Starting fresh — I'll walk you through every preference again.",
-            }),
-            200,
-            req,
-          );
-        }
-      }
       if (choice === 'complete:change') {
         return jsonResponse(editMenuResponse(), 200, req);
       }
-      // Free text → try to detect a specific category, else show the edit menu.
-      const detected = detectEditCategory(trimmed);
-      if (detected && detected !== 'restart_all') {
-        const q = questionForKey(detected);
-        if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
-      }
-      return jsonResponse(editMenuResponse(), 200, req);
+      // Any other free text → treat as custom preference note (already handled above
+      // via the universal intent layer when inQuestionnaire is false).
+      return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
     }
 
     // CLOSED state → any new message reopens the edit menu.
     if (priorState?.mode === 'closed') {
-      const detected = detectEditCategory(latestContent);
-      if (detected === 'restart_all') {
-        // fall through to edit_menu handler below by mutating priorState
-      } else if (detected) {
-        const q = questionForKey(detected);
-        if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
-      }
-      return jsonResponse(editMenuResponse(), 200, req);
+      // Reset/edit intents handled above. Anything else already routed to custom_pref.
+      return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
     }
 
     // EDIT MODE handling.
     if (priorState?.mode === 'edit_menu' || (isComplete && !priorState)) {
       const detected = detectEditCategory(latestContent);
       if (detected === 'restart_all') {
-        const reset: Record<string, unknown> = { onboarding_completed: false };
-        for (const key of EDITABLE_KEYS) {
-          if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
-          if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
-          reset[key] = null;
-        }
-        await supabase.from('profiles').update(reset).eq('id', user.id);
-        const freshProfile = { ...currentProfile, ...reset } as ProfileRecord;
+        const freshProfile = await resetAllPreferences(supabase, user.id, currentProfile);
         const q = nextQuestion(freshProfile);
         if (q) {
           return jsonResponse(
             questionResponseWithState(q, freshProfile, {
               editing: false,
-              prefix: "Starting fresh — I'll walk you through every preference again.",
+              prefix: "Starting fresh — your preferences are cleared.",
+              questionIndex: 0,
             }),
             200,
             req,
@@ -1065,12 +1128,17 @@ Deno.serve(async (req) => {
       currentQuestion = onboardingQuestion;
     }
 
-    const rawUpdates = parseAnswerForQuestion(currentQuestion, latestContent);
-    const sanitized = sanitizeUpdates(rawUpdates);
+    const parsed = parseAnswerForQuestion(currentQuestion, latestContent);
+    const sanitized = sanitizeUpdates(parsed.updates);
 
     if (currentQuestion && Object.keys(sanitized).length === 0) {
+      const prefix = parsed.note ?? "I didn't catch that.";
       return jsonResponse(
-        questionResponseWithState(currentQuestion, currentProfile, { editing: editingMode, prefix: "I didn't catch that." }),
+        questionResponseWithState(currentQuestion, currentProfile, {
+          editing: editingMode,
+          prefix,
+          questionIndex: indexOfKey(currentQuestion.key),
+        }),
         200,
         req,
       );
@@ -1120,9 +1188,11 @@ Deno.serve(async (req) => {
       return jsonResponse(completionSummaryResponse(updatedProfile, savedFields), 200, req);
     }
 
+    const savedNote = parsed.note ? ` ${parsed.note}` : '';
     const response = questionResponseWithState(followingQuestion, updatedProfile, {
       editing: false,
-      prefix: savedFields.length ? 'Got it — saved.' : undefined,
+      prefix: savedFields.length ? `Saved.${savedNote}` : undefined,
+      questionIndex: indexOfKey(followingQuestion.key),
     });
     response.saved_fields = savedFields;
     return jsonResponse(response, 200, req);
