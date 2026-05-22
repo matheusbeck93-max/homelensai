@@ -39,28 +39,28 @@ export function SavePropertyButton({
       state: state ?? null,
     });
     setBusy(false);
-    if (result.ok === true) {
-      toast({
-        title: "Saved",
-        description: `${address} added to your Saved Properties.`,
-      });
+    if (!result.ok) {
+      if (result.error === "already_saved") {
+        toast({ title: "Already saved", description: address });
+      } else if (result.error === "unauthorized") {
+        toast({
+          title: "Sign in required",
+          description: "Sign in to bookmark properties.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Couldn't save",
+          description: result.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
       return;
     }
-    if (result.error === "already_saved") {
-      toast({ title: "Already saved", description: address });
-    } else if (result.error === "unauthorized") {
-      toast({
-        title: "Sign in required",
-        description: "Sign in to bookmark properties.",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Couldn't save",
-        description: result.message || "Please try again.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Saved",
+      description: `${address} added to your Saved Properties.`,
+    });
   };
 
   return (
