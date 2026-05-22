@@ -1176,7 +1176,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             session={session}
             propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
             propertyAddress={activeProperty?.address || null}
-            isPremium={userProfile?.subscription_status === 'premium'}
+            isPremium={userProfile?.subscription_status === 'buyer' || userProfile?.subscription_status === 'investor'}
             onUpgradeNeeded={() => window.open('https://homelens.ai/pricing', '_blank')}
           />
         ))}
