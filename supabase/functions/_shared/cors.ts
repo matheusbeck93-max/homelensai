@@ -36,6 +36,7 @@ const ALLOWED_ORIGIN_PATTERNS: Array<(origin: string) => boolean> = [
   // Lovable hosting / preview
   (o) => /^https:\/\/[a-z0-9-]+\.lovable\.app$/i.test(o),
   (o) => /^https:\/\/[a-z0-9-]+\.lovable\.dev$/i.test(o),
+  (o) => /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(o),
   // Local dev (Vite + alternatives)
   (o) => o === 'http://localhost:5173',
   (o) => o === 'http://localhost:3000',
