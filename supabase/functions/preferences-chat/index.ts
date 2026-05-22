@@ -724,79 +724,94 @@ function parseFirstNumber(content: string, choices: Choice[]): number | null {
   return match ? Number(match[0]) : null;
 }
 
-function parseAnswerForQuestion(question: Question | null, content: string): Record<string, unknown> {
-  if (!question) return {};
+interface ParsedAnswer {
+  updates: Record<string, unknown>;
+  note?: string;
+}
+
+function parseAnswerForQuestion(question: Question | null, content: string): ParsedAnswer {
+  if (!question) return { updates: {} };
 
   switch (question.key) {
     case 'primary_goal': {
       const value = selectedValues(content, PRIMARY_GOAL_CHOICES)[0];
-      return value ? { primary_goal: value } : {};
+      return { updates: value ? { primary_goal: value } : {} };
     }
     case 'preferred_cities': {
-      const cities = parseCities(content);
-      return cities.length ? { preferred_cities: cities } : {};
+      const { accepted, rejected } = parseCities(content);
+      if (accepted.length) {
+        let note: string | undefined;
+        if (rejected.length) {
+          note = `I couldn't recognize: ${rejected.join(', ')}. I saved the rest.`;
+        }
+        return { updates: { preferred_cities: accepted }, note };
+      }
+      const note = rejected.length
+        ? `I couldn't recognize "${rejected.join(', ')}" as a US city or state. Try something like "Austin, TX" or "Florida".`
+        : `Please share at least one US city or state (e.g. "Austin, TX").`;
+      return { updates: {}, note };
     }
     case 'buyer_types': {
       const values = selectedValues(content, PERSONA_CHOICES);
-      return values.length ? { buyer_types: values } : {};
+      return { updates: values.length ? { buyer_types: values } : {} };
     }
     case 'budget':
-      return parseBudget(content);
+      return { updates: parseBudget(content) };
     case 'min_bedrooms': {
       const n = parseFirstNumber(content, BEDROOM_CHOICES);
-      return n ? { min_bedrooms: n } : {};
+      return { updates: n ? { min_bedrooms: n } : {} };
     }
     case 'min_bathrooms': {
       const n = parseFirstNumber(content, BATHROOM_CHOICES);
-      return n ? { min_bathrooms: n } : {};
+      return { updates: n ? { min_bathrooms: n } : {} };
     }
     case 'must_have_features': {
       const values = selectedValues(content, FEATURE_CHOICES);
-      if (values.includes('no_preference')) return { must_have_features: [] };
-      if (values.length) return { must_have_features: values.filter((v) => v !== 'no_preference') };
+      if (values.includes('no_preference')) return { updates: { must_have_features: [] } };
+      if (values.length) return { updates: { must_have_features: values.filter((v) => v !== 'no_preference') } };
       const custom = content
         .split(/[,;\n]|\band\b/i)
         .map(toKebab)
         .filter(Boolean);
-      return custom.length ? { must_have_features: custom } : {};
+      return { updates: custom.length ? { must_have_features: custom } : {} };
     }
     case 'investment_strategies': {
       const values = selectedValues(content, STRATEGY_CHOICES);
-      return values.length ? { investment_strategies: values } : {};
+      return { updates: values.length ? { investment_strategies: values } : {} };
     }
     case 'hold_period_years': {
       const n = parseFirstNumber(content, HOLD_PERIOD_CHOICES);
-      return n ? { hold_period_years: n } : {};
+      return { updates: n ? { hold_period_years: n } : {} };
     }
     case 'financing_preferences': {
       const values = selectedValues(content, FINANCING_CHOICES);
-      return values.length ? { financing_preferences: values } : {};
+      return { updates: values.length ? { financing_preferences: values } : {} };
     }
     case 'has_children': {
       const value = selectedValues(content, YES_NO_CHOICES)[0];
-      if (value === 'yes') return { has_children: true };
-      if (value === 'no') return { has_children: false, children_ages: [] };
-      return {};
+      if (value === 'yes') return { updates: { has_children: true } };
+      if (value === 'no') return { updates: { has_children: false, children_ages: [] } };
+      return { updates: {} };
     }
     case 'children_ages': {
       const values = selectedValues(content, CHILD_AGE_CHOICES);
-      return values.length ? { children_ages: values } : {};
+      return { updates: values.length ? { children_ages: values } : {} };
     }
     case 'climate_preference': {
       const value = selectedValues(content, CLIMATE_CHOICES)[0];
-      return value ? { climate_preference: value } : {};
+      return { updates: value ? { climate_preference: value } : {} };
     }
     case 'safety_priority': {
       const value = selectedValues(content, SAFETY_CHOICES)[0];
-      return value ? { safety_priority: value } : {};
+      return { updates: value ? { safety_priority: value } : {} };
     }
     case 'about_me': {
       const skip = selectedValues(content, SKIP_CHOICES)[0];
-      if (skip === 'skip') return { onboarding_completed: true };
-      return content.trim() ? { about_me: content.trim() } : {};
+      if (skip === 'skip') return { updates: { onboarding_completed: true } };
+      return { updates: content.trim() ? { about_me: content.trim() } : {} };
     }
     default:
-      return {};
+      return { updates: {} };
   }
 }
 
