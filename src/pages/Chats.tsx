@@ -759,7 +759,7 @@ export default function Chats() {
                       {user && analysisUrl && (() => {
                         const ap = (message.metadata as any)?.analyzedProperty;
                         const address: string | undefined =
-                          ap?.address || extractField(message.content, /Address:\s*([^\n]+)/i);
+                          ap?.address || extractFieldFromContent(message.content, /Address:\s*([^\n]+)/i);
                         if (!address) return null;
                         return (
                           <SavePropertyButton
