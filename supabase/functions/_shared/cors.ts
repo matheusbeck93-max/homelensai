@@ -50,7 +50,7 @@ const ALLOWED_HEADERS =
   'authorization, x-client-info, apikey, content-type, ' +
   'x-supabase-client-platform, x-supabase-client-platform-version, ' +
   'x-supabase-client-runtime, x-supabase-client-runtime-version, ' +
-  'x-cron-secret, stripe-signature';
+  'x-supabase-api-version, x-cron-secret, stripe-signature';
 
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
