@@ -22,6 +22,15 @@ export async function parseEdgeError(error: any): Promise<ParsedEdgeError> {
       }
       return { status: res.status, body };
     }
+    // Fallback: some supabase-js versions expose status directly on the error
+    // or have already consumed `context`. Try those before giving up.
+    const status: number | undefined =
+      error?.status ?? error?.statusCode ?? error?.context?.status;
+    let body: any = undefined;
+    if (ctx && typeof ctx.json === 'function') {
+      try { body = await ctx.json(); } catch { /* ignore */ }
+    }
+    if (status || body) return { status, body };
   } catch {
     /* ignore */
   }
@@ -35,6 +44,9 @@ export function isCreditsExhausted(parsed: ParsedEdgeError): boolean {
   if (body && typeof body === 'object') {
     if (body.limitReached === true) return true;
     if (body.error === 'ai_credits_exhausted') return true;
+  }
+  if (typeof body === 'string' && /ai_credits_exhausted|limitReached/i.test(body)) {
+    return true;
   }
   return false;
 }
