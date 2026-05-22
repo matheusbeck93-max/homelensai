@@ -849,11 +849,15 @@ type Intent =
   | { kind: 'skip' }
   | { kind: 'edit'; key: string; valueText?: string }
   | { kind: 'custom_pref'; text: string }
+  | { kind: 'ui_command' }
   | { kind: 'answer' };
 
 function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
   const t = raw.trim();
   const low = t.toLowerCase();
+  // Reserved UI command tokens emitted by buttons — never treat as free text.
+  if (t === 'complete:restart') return { kind: 'reset' };
+  if (t === 'complete:change' || t === 'complete:looks_good') return { kind: 'ui_command' };
   // Explicit nav buttons
   if (t === 'nav:back' || /^(back|go back|previous|prev)\b\.?$/i.test(low)) return { kind: 'back' };
   if (t === 'nav:skip' || /^skip\b\.?$/i.test(low)) return { kind: 'skip' };
@@ -868,6 +872,8 @@ function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
     const k = t.slice(5);
     if (k === 'restart_all') return { kind: 'reset' };
     if (EDITABLE_KEYS.has(k)) return { kind: 'edit', key: k };
+    // Unknown edit:* token — don't fall through to custom_pref.
+    return { kind: 'ui_command' };
   }
   // Natural language "change/edit/update <category> [to <value>]" — capture value too.
   const editMatch = t.match(/^(edit|change|update|set)\s+(?:my\s+)?(.+)$/i);
@@ -1005,6 +1011,18 @@ Deno.serve(async (req) => {
           req,
         );
       }
+    }
+
+    if (intent.kind === 'ui_command') {
+      // complete:change → open edit menu; complete:looks_good → final ack.
+      if (latestContent.trim() === 'complete:change') {
+        return jsonResponse(editMenuResponse(), 200, req);
+      }
+      if (latestContent.trim() === 'complete:looks_good') {
+        return jsonResponse(finalAcknowledgementResponse(), 200, req);
+      }
+      // Unknown ui_command → re-show completion summary safely.
+      return jsonResponse(completionSummaryResponse(currentProfile, []), 200, req);
     }
 
     if (intent.kind === 'edit') {
