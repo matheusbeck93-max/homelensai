@@ -908,7 +908,7 @@ function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
 
 function appendAboutMe(existing: unknown, addition: string): string {
   const prev = cleanAboutMeValue(existing);
-  const add = stripReservedTokens(addition).trim();
+  const { text: add } = stripReservedTokens(addition);
   if (!add) return prev;
   if (!prev) return add.slice(0, 2000);
   return `${prev}; ${add}`.slice(0, 2000);
