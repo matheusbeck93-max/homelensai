@@ -428,8 +428,10 @@ export type Database = {
           investment_strategy: string | null
           location_preferences: Json | null
           max_price_range: number | null
+          max_sqft: number | null
           min_bathrooms: number | null
           min_bedrooms: number | null
+          min_sqft: number | null
           must_have_features: string[] | null
           onboarding_completed: boolean | null
           preferred_cities: string[] | null
@@ -476,8 +478,10 @@ export type Database = {
           investment_strategy?: string | null
           location_preferences?: Json | null
           max_price_range?: number | null
+          max_sqft?: number | null
           min_bathrooms?: number | null
           min_bedrooms?: number | null
+          min_sqft?: number | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
           preferred_cities?: string[] | null
@@ -524,8 +528,10 @@ export type Database = {
           investment_strategy?: string | null
           location_preferences?: Json | null
           max_price_range?: number | null
+          max_sqft?: number | null
           min_bathrooms?: number | null
           min_bedrooms?: number | null
+          min_sqft?: number | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
           preferred_cities?: string[] | null

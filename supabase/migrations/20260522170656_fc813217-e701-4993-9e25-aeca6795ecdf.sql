@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS min_sqft integer, ADD COLUMN IF NOT EXISTS max_sqft integer;
