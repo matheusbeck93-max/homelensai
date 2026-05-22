@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, Sparkles, Check } from "lucide-react";
+import { Loader2, Send, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 interface Choice {
@@ -92,6 +92,36 @@ const LABEL_FOR_VALUE: Record<string, string> = {
 
 const pretty = (v: string) => LABEL_FOR_VALUE[v] ?? v;
 const money = (n?: number | null) => (n != null ? `$${n.toLocaleString()}` : null);
+const COMMAND_LABELS: Record<string, string> = {
+  "complete:looks_good": "Done",
+  "complete:change": "Change something",
+  "complete:restart": "Reset preferences",
+  "nav:back": "Back",
+  "nav:skip": "Skip",
+  "nav:restart": "Reset all",
+  "edit:restart_all": "Reset preferences",
+};
+
+const displayContent = (content: string) => COMMAND_LABELS[content] ?? content;
+const STATE_WORD_RE = /\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|district of columbia|AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/i;
+
+const cleanAboutMe = (value?: string | null) => {
+  if (!value) return value ?? null;
+  const parts = value
+    .split(";")
+    .map((part) => {
+      const hadCommand = /\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/i.test(part);
+      return { hadCommand, text: part.replace(/\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/gi, "").trim() };
+    })
+    .filter(({ hadCommand, text }) => {
+      if (!text) return false;
+      const hasPreferenceWords = /\b(close|near|nearby|within|walk|store|school|commute|transit|park|grocery|whole\s*foods|trader\s*joe|costco)\b/i.test(text);
+      const locationOnly = STATE_WORD_RE.test(text) && (text.includes(",") || /\bcounty\b/i.test(text)) && !hasPreferenceWords;
+      return !(hadCommand || locationOnly);
+    })
+    .map(({ text }) => text);
+  return parts.join("; ").trim() || null;
+};
 
 function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) return null;
@@ -105,6 +135,7 @@ function SummaryRow({ label, value }: { label: string; value: React.ReactNode })
 
 function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
   if (!profile) return null;
+  const aboutMe = cleanAboutMe(profile.about_me);
   const budget =
     profile.budget_min || profile.budget_max
       ? `${money(profile.budget_min) ?? "—"} – ${money(profile.budget_max) ?? "—"}`
@@ -129,55 +160,27 @@ function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
     profile.has_children ||
     profile.climate_preference ||
     profile.safety_priority ||
-    profile.about_me;
+    aboutMe;
 
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Check className="h-4 w-4 text-primary" />
-          Your preferences
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {!hasAny && (
-          <p className="text-sm text-muted-foreground">Nothing saved yet — start chatting below.</p>
-        )}
-        {hasAny && (
-          <div className="divide-y divide-border/50">
-            <SummaryRow label="Goal" value={profile.primary_goal ? pretty(profile.primary_goal) : null} />
-            <SummaryRow label="Cities" value={profile.preferred_cities?.join(" • ")} />
-            <SummaryRow
-              label="Persona"
-              value={profile.buyer_types?.map(pretty).join(", ")}
-            />
-            <SummaryRow label="Budget" value={budget} />
-            <SummaryRow label="Beds / Baths" value={profile.min_bedrooms || profile.min_bathrooms ? `${profile.min_bedrooms ?? "—"}+ bd / ${profile.min_bathrooms ?? "—"}+ ba` : null} />
-            <SummaryRow label="Size" value={sqft} />
-            <SummaryRow
-              label="Must-haves"
-              value={profile.must_have_features?.map(pretty).join(", ")}
-            />
-            <SummaryRow
-              label="Strategy"
-              value={profile.investment_strategies?.map(pretty).join(", ")}
-            />
-            <SummaryRow label="Hold period" value={profile.hold_period_years ? `${profile.hold_period_years} yr` : null} />
-            <SummaryRow
-              label="Financing"
-              value={profile.financing_preferences?.map(pretty).join(", ")}
-            />
-            <SummaryRow
-              label="Kids"
-              value={profile.has_children ? (profile.children_ages?.map(pretty).join(", ") || "Yes") : null}
-            />
-            <SummaryRow label="Climate" value={profile.climate_preference ? pretty(profile.climate_preference) : null} />
-            <SummaryRow label="Safety" value={profile.safety_priority ? pretty(profile.safety_priority) : null} />
-            <SummaryRow label="About me" value={profile.about_me} />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+  return !hasAny ? (
+    <p className="text-sm text-muted-foreground">Nothing saved yet — start chatting below.</p>
+  ) : (
+    <div className="divide-y divide-border/50">
+      <SummaryRow label="Goal" value={profile.primary_goal ? pretty(profile.primary_goal) : null} />
+      <SummaryRow label="Cities" value={profile.preferred_cities?.join(" • ")} />
+      <SummaryRow label="Persona" value={profile.buyer_types?.map(pretty).join(", ")} />
+      <SummaryRow label="Budget" value={budget} />
+      <SummaryRow label="Beds / Baths" value={profile.min_bedrooms || profile.min_bathrooms ? `${profile.min_bedrooms ?? "—"}+ bd / ${profile.min_bathrooms ?? "—"}+ ba` : null} />
+      <SummaryRow label="Size" value={sqft} />
+      <SummaryRow label="Must-haves" value={profile.must_have_features?.map(pretty).join(", ")} />
+      <SummaryRow label="Strategy" value={profile.investment_strategies?.map(pretty).join(", ")} />
+      <SummaryRow label="Hold period" value={profile.hold_period_years ? `${profile.hold_period_years} yr` : null} />
+      <SummaryRow label="Financing" value={profile.financing_preferences?.map(pretty).join(", ")} />
+      <SummaryRow label="Kids" value={profile.has_children ? (profile.children_ages?.map(pretty).join(", ") || "Yes") : null} />
+      <SummaryRow label="Climate" value={profile.climate_preference ? pretty(profile.climate_preference) : null} />
+      <SummaryRow label="Safety" value={profile.safety_priority ? pretty(profile.safety_priority) : null} />
+      <SummaryRow label="About me" value={aboutMe} />
+    </div>
   );
 }
 
@@ -205,7 +208,15 @@ export function PreferencesChat() {
       )
       .eq("id", user.id)
       .maybeSingle();
-    setProfile((data as ProfileSummary | null) ?? null);
+    const nextProfile = (data as ProfileSummary | null) ?? null;
+    if (nextProfile?.about_me) {
+      const cleaned = cleanAboutMe(nextProfile.about_me);
+      if (cleaned !== nextProfile.about_me) {
+        nextProfile.about_me = cleaned;
+        await supabase.from("profiles").update({ about_me: cleaned }).eq("id", user.id);
+      }
+    }
+    setProfile(nextProfile);
   };
 
   const callChat = async (newTurns: Turn[]) => {
@@ -299,7 +310,7 @@ export function PreferencesChat() {
       return;
     }
     if (!last?.multiSelect) {
-      sendUserMessage(pretty(value));
+      sendUserMessage(value.includes(":") ? value : pretty(value));
       return;
     }
     setSelected((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
@@ -318,20 +329,20 @@ export function PreferencesChat() {
   };
 
   return (
-    <div className="space-y-4">
-      <PreferencesSummary profile={profile} />
-
+    <div>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Choose your preferences — change at any time
+            <Check className="h-4 w-4 text-primary" />
+            Your preferences
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <PreferencesSummary profile={profile} />
+
           <div
             ref={scrollRef}
-            className="max-h-[480px] min-h-[280px] overflow-y-auto space-y-3 pr-1"
+            className="max-h-[480px] min-h-[280px] overflow-y-auto space-y-3 border-t border-border/50 pt-4 pr-1"
           >
             {booting && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -345,7 +356,7 @@ export function PreferencesChat() {
               >
                 {t.role === "user" ? (
                   <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-2 text-sm">
-                    {t.content}
+                    {displayContent(t.content)}
                   </div>
                 ) : (
                   <div className="max-w-[90%] text-sm leading-relaxed">

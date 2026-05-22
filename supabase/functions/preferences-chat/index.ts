@@ -319,7 +319,7 @@ function formatCurrentValue(key: string, profile: ProfileRecord): string | null 
     case 'has_children':
       return typeof v === 'boolean' ? (v ? 'Yes' : 'No') : null;
     case 'about_me':
-      return typeof v === 'string' && v ? v : null;
+      return typeof v === 'string' && v ? cleanAboutMeValue(v) || null : null;
     default:
       return null;
   }
@@ -480,7 +480,8 @@ function normalizeFieldValue(key: string, value: unknown): unknown {
 
   if (key === 'about_me') {
     if (value === null) return null;
-    return typeof value === 'string' ? value.trim().slice(0, 2000) : null;
+    const cleaned = cleanAboutMeValue(value);
+    return cleaned || null;
   }
 
   return value;
@@ -906,11 +907,40 @@ function detectIntent(raw: string, opts: { inQuestionnaire: boolean }): Intent {
 }
 
 function appendAboutMe(existing: unknown, addition: string): string {
-  const prev = typeof existing === 'string' ? existing.trim() : '';
-  const add = addition.trim();
+  const prev = cleanAboutMeValue(existing);
+  const { text: add } = stripReservedTokens(addition);
   if (!add) return prev;
   if (!prev) return add.slice(0, 2000);
   return `${prev}; ${add}`.slice(0, 2000);
+}
+
+function stripReservedTokens(value: string): { text: string; hadCommand: boolean } {
+  const hadCommand = /\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/i.test(value);
+  return {
+    text: value.replace(/\b(?:complete:(?:change|restart|looks_good)|nav:(?:back|skip|restart)|edit:restart_all)\b/gi, '').trim(),
+    hadCommand,
+  };
+}
+
+function looksLikeLocationOnlyPreference(value: string): boolean {
+  const { text } = stripReservedTokens(value);
+  if (!text) return false;
+  const { accepted, rejected } = parseCities(text);
+  const stateWordRe = /\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|district of columbia|AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/i;
+  const hasPreferenceWords = /\b(close|near|nearby|within|walk|store|school|commute|transit|park|grocery|whole\s*foods|trader\s*joe|costco)\b/i.test(text);
+  if (accepted.length > 0 && rejected.length === 0) return true;
+  return stateWordRe.test(text) && (text.includes(',') || /\bcounty\b/i.test(text)) && !hasPreferenceWords;
+}
+
+function cleanAboutMeValue(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value
+    .split(';')
+    .map((part) => stripReservedTokens(part))
+    .filter(({ text, hadCommand }) => text && !hadCommand && !looksLikeLocationOnlyPreference(text))
+    .map(({ text }) => text)
+    .join('; ')
+    .slice(0, 2000);
 }
 
 async function resetAllPreferences(
