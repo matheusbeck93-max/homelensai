@@ -22,6 +22,8 @@ import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
 import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
+import { CreditsExhaustedDialog } from "@/components/subscription/CreditsExhaustedDialog";
+import { parseEdgeError, isCreditsExhausted } from "@/lib/edgeErrors";
 
 // ── Match Score parser (tolerant) ──
 // Strict: prefix at line start. Tolerant: same pattern anywhere in first 300 chars.
@@ -188,6 +190,7 @@ export default function Chats() {
   const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState<string | null>(null);
   const [userPrimaryGoal, setUserPrimaryGoal] = useState<string | null>(null);
   const [pendingInput, setPendingInput] = useState<string>("");
+  const [creditsDialogOpen, setCreditsDialogOpen] = useState(false);
   // Edit a previously-sent user message:
   // - Remove that user message and the assistant reply that immediately followed it (if any)
   // - Populate the input with the original text so the user can adjust and re-submit
@@ -465,6 +468,11 @@ export default function Chats() {
       }
     } catch (error: any) {
       console.error('Chat error:', error);
+      const parsed = await parseEdgeError(error);
+      if (isCreditsExhausted(parsed)) {
+        setCreditsDialogOpen(true);
+        return;
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to send message",
@@ -788,6 +796,10 @@ export default function Chats() {
           value={pendingInput}
           onValueChange={setPendingInput} />
       </div>
+      <CreditsExhaustedDialog
+        open={creditsDialogOpen}
+        onOpenChange={setCreditsDialogOpen}
+      />
     </div>);
 
 }
