@@ -167,6 +167,33 @@ const EDIT_CATEGORY_CHOICES: Choice[] = [
   { label: 'Restart all preferences', value: 'edit:restart_all' },
 ];
 
+const COMPLETION_CHOICES: Choice[] = [
+  { label: 'Looks good', value: 'complete:looks_good' },
+  { label: 'Change something', value: 'complete:change' },
+  { label: 'Start over', value: 'complete:restart' },
+];
+
+const FRIENDLY_FIELD_LABEL: Record<string, string> = {
+  primary_goal: 'goal',
+  preferred_cities: 'cities',
+  buyer_types: 'persona',
+  budget: 'budget',
+  budget_min: 'budget',
+  budget_max: 'budget',
+  min_bedrooms: 'minimum bedrooms',
+  min_bathrooms: 'minimum bathrooms',
+  must_have_features: 'must-have features',
+  investment_strategies: 'investment strategy',
+  hold_period_years: 'hold period',
+  financing_preferences: 'financing',
+  has_children: 'kids info',
+  children_ages: 'kids info',
+  climate_preference: 'climate preference',
+  safety_priority: 'safety priority',
+  about_me: 'note',
+  onboarding_completed: 'preferences',
+};
+
 const EDITABLE_KEYS = new Set(
   EDIT_CATEGORY_CHOICES.map((c) => c.value.replace(/^edit:/, '')).filter((k) => k !== 'restart_all'),
 );
@@ -287,15 +314,65 @@ function formatCurrentValue(key: string, profile: ProfileRecord): string | null 
 }
 
 function editMenuResponse(prefix?: string) {
-  const base = prefix ? `${prefix} ` : '';
   return {
     assistant_message:
-      `${base}Your preferences are saved. What would you like to update? Pick a category or just type what you'd like to change.` +
+      `${prefix ? `${prefix} ` : ''}What would you like to update? Pick a category or just type what you'd like to change.` +
       encodeState({ mode: 'edit_menu' }),
     choices: EDIT_CATEGORY_CHOICES,
     multi_select: false,
     allow_text: true,
     done: false,
+    saved_fields: [] as string[],
+  };
+}
+
+function recapLines(profile: ProfileRecord): string[] {
+  const items: Array<[string, string]> = [
+    ['Goal', formatCurrentValue('primary_goal', profile) ?? ''],
+    ['Cities', formatCurrentValue('preferred_cities', profile) ?? ''],
+    ['Persona', formatCurrentValue('buyer_types', profile) ?? ''],
+    ['Budget', formatCurrentValue('budget', profile) ?? ''],
+    ['Bedrooms', formatCurrentValue('min_bedrooms', profile) ?? ''],
+    ['Bathrooms', formatCurrentValue('min_bathrooms', profile) ?? ''],
+    ['Features', formatCurrentValue('must_have_features', profile) ?? ''],
+    ['Strategy', formatCurrentValue('investment_strategies', profile) ?? ''],
+    ['Hold period', formatCurrentValue('hold_period_years', profile) ?? ''],
+    ['Financing', formatCurrentValue('financing_preferences', profile) ?? ''],
+    ['Kids', formatCurrentValue('has_children', profile) ?? ''],
+    ['Climate', formatCurrentValue('climate_preference', profile) ?? ''],
+    ['Safety', formatCurrentValue('safety_priority', profile) ?? ''],
+    ['Note', formatCurrentValue('about_me', profile) ?? ''],
+  ];
+  return items.filter(([, v]) => v).map(([k, v]) => `- **${k}:** ${v}`);
+}
+
+function completionSummaryResponse(profile: ProfileRecord, savedFields: string[]) {
+  const recap = recapLines(profile);
+  const body = [
+    "You're all set — your preferences are saved. You can change anything anytime.",
+    recap.length ? `\n**Here's what I have:**\n${recap.join('\n')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return {
+    assistant_message: `${body}${encodeState({ mode: 'completed_summary' })}`,
+    choices: COMPLETION_CHOICES,
+    multi_select: false,
+    allow_text: true,
+    done: true,
+    saved_fields: savedFields,
+  };
+}
+
+function finalAcknowledgementResponse() {
+  return {
+    assistant_message:
+      "Great — I'll use these for your HomeLens experience. Reopen this chat anytime to tweak." +
+      encodeState({ mode: 'closed' }),
+    choices: [] as Choice[],
+    multi_select: false,
+    allow_text: true,
+    done: true,
     saved_fields: [] as string[],
   };
 }
@@ -778,6 +855,61 @@ Deno.serve(async (req) => {
       return jsonResponse(questionResponseWithState(onboardingQuestion, currentProfile, { editing: false, prefix }), 200, req);
     }
 
+    // COMPLETION SUMMARY handling — user just saw the closing recap.
+    if (priorState?.mode === 'completed_summary') {
+      const trimmed = latestContent.trim();
+      const exact = COMPLETION_CHOICES.find(
+        (c) => c.label.toLowerCase() === trimmed.toLowerCase() || c.value === trimmed,
+      );
+      const choice = exact?.value;
+      if (choice === 'complete:looks_good' || /^(ok(ay)?|thanks?|thank you|cool|great|sounds good|perfect|done)\b/i.test(trimmed)) {
+        return jsonResponse(finalAcknowledgementResponse(), 200, req);
+      }
+      if (choice === 'complete:restart' || /^restart|reset|start over/i.test(trimmed)) {
+        const reset: Record<string, unknown> = { onboarding_completed: false };
+        for (const key of EDITABLE_KEYS) {
+          if (key === 'budget') { reset.budget_min = null; reset.budget_max = null; continue; }
+          if (key === 'has_children') { reset.has_children = null; reset.children_ages = null; continue; }
+          reset[key] = null;
+        }
+        await supabase.from('profiles').update(reset).eq('id', user.id);
+        const freshProfile = { ...currentProfile, ...reset } as ProfileRecord;
+        const q = nextQuestion(freshProfile);
+        if (q) {
+          return jsonResponse(
+            questionResponseWithState(q, freshProfile, {
+              editing: false,
+              prefix: "Starting fresh — I'll walk you through every preference again.",
+            }),
+            200,
+            req,
+          );
+        }
+      }
+      if (choice === 'complete:change') {
+        return jsonResponse(editMenuResponse(), 200, req);
+      }
+      // Free text → try to detect a specific category, else show the edit menu.
+      const detected = detectEditCategory(trimmed);
+      if (detected && detected !== 'restart_all') {
+        const q = questionForKey(detected);
+        if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+      }
+      return jsonResponse(editMenuResponse(), 200, req);
+    }
+
+    // CLOSED state → any new message reopens the edit menu.
+    if (priorState?.mode === 'closed') {
+      const detected = detectEditCategory(latestContent);
+      if (detected === 'restart_all') {
+        // fall through to edit_menu handler below by mutating priorState
+      } else if (detected) {
+        const q = questionForKey(detected);
+        if (q) return jsonResponse(questionResponseWithState(q, currentProfile, { editing: true }), 200, req);
+      }
+      return jsonResponse(editMenuResponse(), 200, req);
+    }
+
     // EDIT MODE handling.
     if (priorState?.mode === 'edit_menu' || (isComplete && !priorState)) {
       const detected = detectEditCategory(latestContent);
@@ -849,7 +981,8 @@ Deno.serve(async (req) => {
 
     // After an EDIT answer → return to edit menu, not onboarding flow.
     if (editingMode) {
-      const resp = editMenuResponse('Saved.');
+      const fieldLabel = currentQuestion ? FRIENDLY_FIELD_LABEL[currentQuestion.key] ?? currentQuestion.key.replace(/_/g, ' ') : 'that';
+      const resp = editMenuResponse(`Saved your ${fieldLabel}.`);
       resp.saved_fields = savedFields;
       return jsonResponse(resp, 200, req);
     }
@@ -867,12 +1000,11 @@ Deno.serve(async (req) => {
           log.step('Profile completion update failed', { error: completeError.message });
         } else {
           savedFields = [...new Set([...savedFields, 'onboarding_completed'])];
+          (updatedProfile as ProfileRecord).onboarding_completed = true;
         }
       }
 
-      const resp = editMenuResponse("All set — your preferences are saved.");
-      resp.saved_fields = savedFields;
-      return jsonResponse(resp, 200, req);
+      return jsonResponse(completionSummaryResponse(updatedProfile, savedFields), 200, req);
     }
 
     const response = questionResponseWithState(followingQuestion, updatedProfile, {

@@ -1,48 +1,42 @@
-## Problem
+## Goal
+Give the preferences chat a real "closure" moment when the onboarding flow finishes, and clean up the awkward double‑"saved" phrasing that currently bleeds into the edit menu.
 
-The preferences chat (`supabase/functions/preferences-chat/index.ts` + `src/components/console/PreferencesChat.tsx`) has two failure modes:
+## Problems observed
+1. After the last default question (`about_me` / skip), the assistant jumps straight into the edit menu with: **"All set — your preferences are saved. Your preferences are saved. What would you like to update?…"** — duplicated copy, no celebratory closure, no recap of what was captured.
+2. After editing a single category, the bot says **"Saved. Your preferences are saved. What would you like to update?"** — same duplication, same abrupt tone.
+3. There is no explicit confirmation step the user can dismiss. The user reads it as "the bot keeps asking questions".
 
-1. **Returning user (profile complete)** — Any reply is met with the same line: *"Your preferences are already saved. You can modify them at any time."* There's no way to actually change anything. (Visible in the screenshot.)
-2. **No menu / no entry point** to pick what to edit; only a free-text box that goes nowhere.
+## Plan (server-only changes — `supabase/functions/preferences-chat/index.ts`)
 
-What the user wants: a Claude-style conversational flow where every step has **preset multiple-choice buttons + a free-text input** for arbitrary answers, both for first-time setup *and* for editing later.
+### 1. New completion step: `completed_summary`
+- Add a new assistant state `mode: 'completed_summary'` (encoded in the hidden `<!--pc:...-->` marker).
+- When the onboarding flow finishes for the first time (current `!followingQuestion` branch), respond with:
+  - A clear closing line: **"You're all set — your preferences are saved. You can change anything anytime."**
+  - A short recap of the captured fields (Goal, Cities, Budget, Beds/Baths, Strategy if relevant, Kids, Climate, Safety). Reuse `formatCurrentValue` for each non-empty field.
+  - Three chip choices: `Looks good`, `Change something`, `Start over`.
+  - `done: true`, `allow_text: true`, plus `saved_fields` populated (including `onboarding_completed`).
 
-## Solution
+### 2. Handle the `completed_summary` state on the next user turn
+- `Looks good` / "ok" / "thanks" → final terminal turn: **"Great — I'll use these for your HomeLens experience. Reopen this chat anytime to tweak."** with `done: true`, `choices: []`, `allow_text: true`. If the user types after that, fall through to the existing edit-menu detection.
+- `Change something` → existing `editMenuResponse()`.
+- `Start over` → existing `restart_all` branch.
+- Free text → run `detectEditCategory`; if it matches a known category, jump straight into that single-question edit; otherwise show the edit menu.
 
-Keep the existing question bank and parsing logic — they're solid. Add an **edit mode** and a routing layer on top.
+### 3. Fix duplicated copy in `editMenuResponse`
+- Change the base copy so a prefix no longer produces "Saved. Your preferences are saved…".
+- New base: **"What would you like to update? Pick a category or just type what you'd like to change."**
+- Prefix usages:
+  - After editing a single field: `"Saved your {field}."` (use the friendly key label).
+  - When category match failed: `"I didn't catch that —"`.
 
-### 1. Edge function (`preferences-chat/index.ts`)
+### 4. Minor polish
+- `parseAnswerForQuestion` for `about_me` already returns `{ onboarding_completed: true }` on "skip" — keep that, but make sure the response goes through the new `completed_summary` branch (not the edit menu).
+- Strip the duplicate "Your preferences are saved." sentence everywhere it currently appears.
 
-- **New `EDIT_CATEGORY_CHOICES`** — one chip per editable preference (Goal, Cities, Persona, Budget, Bedrooms, Bathrooms, Features, Strategy, Hold period, Financing, Kids, Climate, Safety, About me) plus `Restart all preferences`.
-- **New question lookup by key** — `questionForKey(key)` reuses the same `Question` shape used today; lets us jump to a single question on demand.
-- **Track conversation state via the last assistant message** the client sends back. The server already receives the full `messages` array; tag each assistant turn with a hidden marker (e.g. trailing `\n<!--pc:{"mode":"edit_menu"}-->` or `pc:editing=budget`) so we can recover state without a DB column. Strip markers before showing.
-- **Routing in `Deno.serve`:**
-  - If `onboarding_completed` AND no in-progress edit → reply with `assistant_message: "Your preferences are saved. What would you like to update?"` + `choices: EDIT_CATEGORY_CHOICES` + `allow_text: true`. Free text is parsed against category keywords (budget, cities, etc.) to jump straight in.
-  - If user picks `restart_all` → set every preference field to `null` and `onboarding_completed = false`, then return the first onboarding question.
-  - If user picks a single category → return that category's question, prefilled prompt showing current value (e.g. *"Your current budget is $500k–$750k. What would you like instead?"*), with the same choices + free-text.
-  - On their next message → parse with existing `parseAnswerForQuestion`, save, then return to the edit menu (not the next onboarding question) with a "Saved — anything else?" prefix.
-- **First-time flow unchanged** — `nextQuestion(profile)` keeps walking the preset list until done. Add a friendlier opener for the very first question only when profile is empty: *"Welcome to HomeLens! I'll ask a few quick questions to personalize your experience — pick an option or type your own answer."*
-
-### 2. Client (`src/components/console/PreferencesChat.tsx`)
-
-- Already renders `choices` + free-text input — no structural changes needed.
-- Strip the hidden `<!--pc:...-->` markers before rendering assistant messages.
-- When `done: true` arrives, still show the choices (don't hide them) so the edit menu remains interactive. The current code already does this via `canShowChoices`; just ensure the assistant turn includes `done: false` when it's the edit menu (only mark `done: true` after a save confirmation, never with choices).
-- Reset welcome opener: replace the hardcoded `INITIAL_TURN` with a call to the edge function on mount when no messages exist, so the server controls the opener (welcome vs. edit menu) based on `onboarding_completed`.
-
-### 3. Files touched
-
-- `supabase/functions/preferences-chat/index.ts` — edit mode, category routing, state markers, restart-all reset.
-- `src/components/console/PreferencesChat.tsx` — remove hardcoded initial turn, fetch opener from server, strip state markers.
-
-### Non-goals
-
+## Out of scope
 - No DB schema change.
-- No new tables, no new edge function.
-- No change to property/chat features or to `nextQuestion`'s question order for first-time users.
+- No change to `PreferencesChat.tsx` — it already renders whatever `assistant_message`, `choices`, `allow_text`, `done`, and `saved_fields` the server returns, and already strips `<!--pc:...-->` markers.
+- No change to onboarding question order, parsers, or any other feature (Saved Properties, etc.).
 
-## Expected UX
-
-**First time:** Welcome message → goal chips → cities text → persona chips … → "All set! You can update anything anytime." + edit menu.
-
-**Returning:** Edit menu chips (Goal · Cities · Budget · …) + "or type what you'd like to change". Pick "Budget" → "Your current budget is $500k–$750k. What would you like instead?" + budget chips + free text → save → "Saved. Anything else?" + edit menu.
+## Files touched
+- `supabase/functions/preferences-chat/index.ts` (only)
