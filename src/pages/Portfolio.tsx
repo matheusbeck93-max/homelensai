@@ -37,22 +37,23 @@ export interface PortfolioProperty {
 export default function Portfolio() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isPremium, loading: subscriptionLoading } = useSubscription();
+  const { hasAccess, loading: subscriptionLoading } = useSubscription();
+  const hasPortfolioAccess = hasAccess('PORTFOLIO_TRACKING');
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [portfolio, setPortfolio] = useState<PortfolioProperty[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!subscriptionLoading && !isPremium) {
+    if (!subscriptionLoading && !hasPortfolioAccess) {
       setShowUpgrade(true);
     }
-  }, [subscriptionLoading, isPremium]);
+  }, [subscriptionLoading, hasPortfolioAccess]);
 
   useEffect(() => {
-    if (isPremium) {
+    if (hasPortfolioAccess) {
       loadPortfolio();
     }
-  }, [isPremium]);
+  }, [hasPortfolioAccess]);
 
   const loadPortfolio = async () => {
     try {

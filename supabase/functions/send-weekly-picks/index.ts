@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       .select('id, email, full_name, weekly_picks_enabled, weekly_picks_day, weekly_picks_last_sent, subscription_status, preferred_cities, max_price_range, min_bedrooms, budget_max')
       .eq('weekly_picks_enabled', true)
       .eq('weekly_picks_day', today)
-      .in('subscription_status', ['pro', 'premium']);
+      .in('subscription_status', ['buyer', 'investor']);
 
     if (usersError) throw usersError;
 

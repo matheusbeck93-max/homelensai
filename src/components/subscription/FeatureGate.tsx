@@ -15,7 +15,7 @@ interface FeatureGateProps {
 
 export function FeatureGate({ 
   isLocked, 
-  requiredTier = 'premium',
+  requiredTier = 'buyer',
   featureName, 
   onUpgradeClick, 
   children,
@@ -25,7 +25,7 @@ export function FeatureGate({
     return <>{children}</>;
   }
 
-  const tierName = requiredTier === 'premium' ? 'Premium' : 'Premium';
+  const tierName = requiredTier === 'investor' ? 'Investor' : 'Buyer';
 
   return (
     <div className="relative">

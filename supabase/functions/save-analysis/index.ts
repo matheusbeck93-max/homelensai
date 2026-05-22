@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       log.step('profile lookup error', { error: profileError.message });
       return errorResponse('Failed to verify subscription', 500);
     }
-    if (profile?.subscription_status !== 'premium') {
+    if (!profile || profile.subscription_status === 'free') {
       return new Response(
         JSON.stringify({ error: 'premium_required' }),
         { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } },

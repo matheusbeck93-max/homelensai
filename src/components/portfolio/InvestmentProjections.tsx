@@ -54,14 +54,15 @@ interface ProjectionsResponse {
 
 export function InvestmentProjections({ portfolioProperty }: InvestmentProjectionsProps) {
   const { toast } = useToast();
-  const { isPremium } = useSubscription();
+  const { hasAccess } = useSubscription();
+  const hasProjectionsAccess = hasAccess('INVESTMENT_PROJECTIONS');
   const [loading, setLoading] = useState(false);
   const [projections, setProjections] = useState<ProjectionsResponse | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [years, setYears] = useState(20);
 
   const generateProjections = async () => {
-    if (!isPremium) {
+    if (!hasProjectionsAccess) {
       setShowUpgrade(true);
       return;
     }

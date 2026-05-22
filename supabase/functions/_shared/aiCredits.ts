@@ -27,7 +27,7 @@ export interface CreditPrecheckResult {
   allowed: boolean;
   response?: Response;
   userId?: string;
-  tier?: 'free' | 'premium' | 'unlimited';
+  tier?: 'free' | 'paid' | 'unlimited';
   isAuthenticated: boolean;
   creditsRemaining?: number;
   enforced: boolean;
@@ -167,18 +167,20 @@ export async function precheckAiCredits(req: Request): Promise<CreditPrecheckRes
     .eq('id', user.id)
     .maybeSingle();
 
-  const tier = (profile?.subscription_status || 'free') as 'free' | 'premium';
+  const rawTier = (profile?.subscription_status || 'free') as string;
+  const tier: 'free' | 'paid' = rawTier === 'free' ? 'free' : 'paid';
 
-  if (tier === 'premium') {
+  if (tier === 'paid') {
     console.log(JSON.stringify({
       scope: 'aiCredits.precheck',
       functionName,
       requestId,
       userId: user.id,
-      tier: 'premium',
+      tier: 'paid',
+      rawTier,
       result: 'allowed_unlimited',
     }));
-    return { allowed: true, userId: user.id, tier: 'premium', isAuthenticated: true, enforced: CREDITS_ENFORCED, functionName, requestId };
+    return { allowed: true, userId: user.id, tier: 'paid', isAuthenticated: true, enforced: CREDITS_ENFORCED, functionName, requestId };
   }
 
   // Free tier — daily reset (UTC date).
@@ -290,7 +292,7 @@ export async function deductAiCredits(
   usage: TokenUsage | undefined | null,
   meta?: { model?: string },
 ): Promise<{ chargedCredits: number; remaining: number | null }> {
-  if (!precheck.userId || precheck.tier === 'premium') {
+  if (!precheck.userId || precheck.tier === 'paid' || precheck.tier === 'unlimited') {
     return { chargedCredits: 0, remaining: null };
   }
 
@@ -361,8 +363,8 @@ export async function deductAiCredits(
 }
 
 /** Output-token cap to apply when calling the LLM for FREE users. */
-export function maxOutputTokensFor(tier: 'free' | 'premium' | 'unlimited' | undefined): number | undefined {
-  if (tier === 'premium' || tier === 'unlimited') return undefined;
+export function maxOutputTokensFor(tier: 'free' | 'paid' | 'unlimited' | undefined): number | undefined {
+  if (tier === 'paid' || tier === 'unlimited') return undefined;
   return MAX_OUTPUT_TOKENS_FREE;
 }
 

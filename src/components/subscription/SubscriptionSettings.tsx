@@ -24,7 +24,7 @@ export function SubscriptionSettings() {
   }
 
   const currentPlan = SUBSCRIPTION_PLANS[tier];
-  const isPremiumUser = tier === 'premium';
+  const isPaidUser = tier === 'buyer' || tier === 'investor';
   const isFreeUser = tier === 'free';
 
   return (
@@ -32,7 +32,7 @@ export function SubscriptionSettings() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Subscription
-          {isPremiumUser && <Crown className="h-5 w-5 text-primary" />}
+          {isPaidUser && <Crown className="h-5 w-5 text-primary" />}
         </CardTitle>
         <CardDescription>Manage your HomeLens subscription</CardDescription>
       </CardHeader>
@@ -41,7 +41,7 @@ export function SubscriptionSettings() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold">{currentPlan.name} Plan</h3>
-              <Badge variant={isPremiumUser ? "default" : "secondary"}>
+              <Badge variant={isPaidUser ? "default" : "secondary"}>
                 {currentPlan.price}{currentPlan.pricePeriod || ''}
               </Badge>
             </div>
@@ -49,7 +49,7 @@ export function SubscriptionSettings() {
               {currentPlan.headerNote}
             </p>
           </div>
-          {isPremiumUser && <Crown className="h-8 w-8 text-primary" />}
+          {isPaidUser && <Crown className="h-8 w-8 text-primary" />}
         </div>
 
         {/* Features */}
@@ -74,11 +74,11 @@ export function SubscriptionSettings() {
           {isFreeUser && (
             <Button onClick={() => navigate('/pricing')} className="w-full">
               <ArrowUpRight className="h-4 w-4 mr-2" />
-              Upgrade to Premium
+              Upgrade
             </Button>
           )}
 
-          {isPremiumUser && (
+          {isPaidUser && (
             <>
               <Button
                 variant="outline"

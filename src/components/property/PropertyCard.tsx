@@ -118,7 +118,7 @@ export function PropertyCard({
 
   const imageUrl = property.photoUrl || '/placeholder.svg';
   const location = [property.city, property.state].filter(Boolean).join(', ') || 'Location not specified';
-  const isPremium = tier === 'premium';
+  const isPremium = tier !== 'free';
 
   // Calculate rent-to-price ratio if we have rent estimate
   const rentToPriceRatio = insights?.rentToPriceRatio || 

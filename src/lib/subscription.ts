@@ -39,8 +39,8 @@ export async function canRunAnalysis(userId: string): Promise<{ canRun: boolean;
     return { canRun: false, reason: 'Unable to fetch subscription data' };
   }
 
-  // Pro and Premium have unlimited analyses
-  if (subscription.subscription_status === 'premium') {
+  // Any paid tier (Buyer or Investor) has unlimited analyses
+  if (subscription.subscription_status !== 'free') {
     return { canRun: true };
   }
 
