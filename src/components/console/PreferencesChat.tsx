@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, Sparkles, Check } from "lucide-react";
+import { Loader2, Send, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 interface Choice {
@@ -92,6 +92,17 @@ const LABEL_FOR_VALUE: Record<string, string> = {
 
 const pretty = (v: string) => LABEL_FOR_VALUE[v] ?? v;
 const money = (n?: number | null) => (n != null ? `$${n.toLocaleString()}` : null);
+const COMMAND_LABELS: Record<string, string> = {
+  "complete:looks_good": "Done",
+  "complete:change": "Change something",
+  "complete:restart": "Reset preferences",
+  "nav:back": "Back",
+  "nav:skip": "Skip",
+  "nav:restart": "Reset all",
+  "edit:restart_all": "Reset preferences",
+};
+
+const displayContent = (content: string) => COMMAND_LABELS[content] ?? content;
 
 function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) return null;
@@ -131,53 +142,25 @@ function PreferencesSummary({ profile }: { profile: ProfileSummary | null }) {
     profile.safety_priority ||
     profile.about_me;
 
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Check className="h-4 w-4 text-primary" />
-          Your preferences
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {!hasAny && (
-          <p className="text-sm text-muted-foreground">Nothing saved yet — start chatting below.</p>
-        )}
-        {hasAny && (
-          <div className="divide-y divide-border/50">
-            <SummaryRow label="Goal" value={profile.primary_goal ? pretty(profile.primary_goal) : null} />
-            <SummaryRow label="Cities" value={profile.preferred_cities?.join(" • ")} />
-            <SummaryRow
-              label="Persona"
-              value={profile.buyer_types?.map(pretty).join(", ")}
-            />
-            <SummaryRow label="Budget" value={budget} />
-            <SummaryRow label="Beds / Baths" value={profile.min_bedrooms || profile.min_bathrooms ? `${profile.min_bedrooms ?? "—"}+ bd / ${profile.min_bathrooms ?? "—"}+ ba` : null} />
-            <SummaryRow label="Size" value={sqft} />
-            <SummaryRow
-              label="Must-haves"
-              value={profile.must_have_features?.map(pretty).join(", ")}
-            />
-            <SummaryRow
-              label="Strategy"
-              value={profile.investment_strategies?.map(pretty).join(", ")}
-            />
-            <SummaryRow label="Hold period" value={profile.hold_period_years ? `${profile.hold_period_years} yr` : null} />
-            <SummaryRow
-              label="Financing"
-              value={profile.financing_preferences?.map(pretty).join(", ")}
-            />
-            <SummaryRow
-              label="Kids"
-              value={profile.has_children ? (profile.children_ages?.map(pretty).join(", ") || "Yes") : null}
-            />
-            <SummaryRow label="Climate" value={profile.climate_preference ? pretty(profile.climate_preference) : null} />
-            <SummaryRow label="Safety" value={profile.safety_priority ? pretty(profile.safety_priority) : null} />
-            <SummaryRow label="About me" value={profile.about_me} />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+  return !hasAny ? (
+    <p className="text-sm text-muted-foreground">Nothing saved yet — start chatting below.</p>
+  ) : (
+    <div className="divide-y divide-border/50">
+      <SummaryRow label="Goal" value={profile.primary_goal ? pretty(profile.primary_goal) : null} />
+      <SummaryRow label="Cities" value={profile.preferred_cities?.join(" • ")} />
+      <SummaryRow label="Persona" value={profile.buyer_types?.map(pretty).join(", ")} />
+      <SummaryRow label="Budget" value={budget} />
+      <SummaryRow label="Beds / Baths" value={profile.min_bedrooms || profile.min_bathrooms ? `${profile.min_bedrooms ?? "—"}+ bd / ${profile.min_bathrooms ?? "—"}+ ba` : null} />
+      <SummaryRow label="Size" value={sqft} />
+      <SummaryRow label="Must-haves" value={profile.must_have_features?.map(pretty).join(", ")} />
+      <SummaryRow label="Strategy" value={profile.investment_strategies?.map(pretty).join(", ")} />
+      <SummaryRow label="Hold period" value={profile.hold_period_years ? `${profile.hold_period_years} yr` : null} />
+      <SummaryRow label="Financing" value={profile.financing_preferences?.map(pretty).join(", ")} />
+      <SummaryRow label="Kids" value={profile.has_children ? (profile.children_ages?.map(pretty).join(", ") || "Yes") : null} />
+      <SummaryRow label="Climate" value={profile.climate_preference ? pretty(profile.climate_preference) : null} />
+      <SummaryRow label="Safety" value={profile.safety_priority ? pretty(profile.safety_priority) : null} />
+      <SummaryRow label="About me" value={profile.about_me} />
+    </div>
   );
 }
 
