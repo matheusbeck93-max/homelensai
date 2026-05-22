@@ -1,42 +1,56 @@
-## Goal
-Give the preferences chat a real "closure" moment when the onboarding flow finishes, and clean up the awkward double‑"saved" phrasing that currently bleeds into the edit menu.
+## Plan
 
-## Problems observed
-1. After the last default question (`about_me` / skip), the assistant jumps straight into the edit menu with: **"All set — your preferences are saved. Your preferences are saved. What would you like to update?…"** — duplicated copy, no celebratory closure, no recap of what was captured.
-2. After editing a single category, the bot says **"Saved. Your preferences are saved. What would you like to update?"** — same duplication, same abrupt tone.
-3. There is no explicit confirmation step the user can dismiss. The user reads it as "the bot keeps asking questions".
+Rework Preferences into one clean conversational flow with a clear start, guided questions, a final save/closure screen, and reset/edit options.
 
-## Plan (server-only changes — `supabase/functions/preferences-chat/index.ts`)
+### 1. Fix duplicate opening/update messages
+- Add a frontend boot guard so the preferences chat only requests the first server message once.
+- Add defensive duplicate-response handling so identical assistant messages are not appended twice.
+- This directly fixes the repeated “What would you like to update…” issue.
 
-### 1. New completion step: `completed_summary`
-- Add a new assistant state `mode: 'completed_summary'` (encoded in the hidden `<!--pc:...-->` marker).
-- When the onboarding flow finishes for the first time (current `!followingQuestion` branch), respond with:
-  - A clear closing line: **"You're all set — your preferences are saved. You can change anything anytime."**
-  - A short recap of the captured fields (Goal, Cities, Budget, Beds/Baths, Strategy if relevant, Kids, Climate, Safety). Reuse `formatCurrentValue` for each non-empty field.
-  - Three chip choices: `Looks good`, `Change something`, `Start over`.
-  - `done: true`, `allow_text: true`, plus `saved_fields` populated (including `onboarding_completed`).
+### 2. Simplify the server state machine
+- Keep the flow to these states only:
+  - `welcome` / first question
+  - `question`
+  - `completed_summary`
+  - `closed`
+  - `editing`
+  - `reset`
+- Remove confusing loops where completed users are immediately shown the update menu again.
 
-### 2. Handle the `completed_summary` state on the next user turn
-- `Looks good` / "ok" / "thanks" → final terminal turn: **"Great — I'll use these for your HomeLens experience. Reopen this chat anytime to tweak."** with `done: true`, `choices: []`, `allow_text: true`. If the user types after that, fall through to the existing edit-menu detection.
-- `Change something` → existing `editMenuResponse()`.
-- `Start over` → existing `restart_all` branch.
-- Free text → run `detectEditCategory`; if it matches a known category, jump straight into that single-question edit; otherwise show the edit menu.
+### 3. Make the first-time flow feel complete
+- Start with a short welcome message.
+- Ask each preset preference question one at a time with choice buttons and text input where useful.
+- After the last question, show a recap and clear closure:
+  - “Your preferences are saved.”
+  - Summary of captured preferences
+  - Buttons: `Looks good`, `Change something`, `Reset preferences`
 
-### 3. Fix duplicated copy in `editMenuResponse`
-- Change the base copy so a prefix no longer produces "Saved. Your preferences are saved…".
-- New base: **"What would you like to update? Pick a category or just type what you'd like to change."**
-- Prefix usages:
-  - After editing a single field: `"Saved your {field}."` (use the friendly key label).
-  - When category match failed: `"I didn't catch that —"`.
+### 4. Make returning users land in a sensible place
+- If preferences are already complete, show a concise saved-summary message first, not the update menu twice.
+- Offer clear actions:
+  - `Change something`
+  - `Reset preferences`
+  - `Done`
 
-### 4. Minor polish
-- `parseAnswerForQuestion` for `about_me` already returns `{ onboarding_completed: true }` on "skip" — keep that, but make sure the response goes through the new `completed_summary` branch (not the edit menu).
-- Strip the duplicate "Your preferences are saved." sentence everywhere it currently appears.
+### 5. Reset flow
+- `Reset preferences` clears preference fields and starts the guided questions from the beginning.
+- The reset message should explicitly say it is starting fresh.
 
-## Out of scope
-- No DB schema change.
-- No change to `PreferencesChat.tsx` — it already renders whatever `assistant_message`, `choices`, `allow_text`, `done`, and `saved_fields` the server returns, and already strips `<!--pc:...-->` markers.
-- No change to onboarding question order, parsers, or any other feature (Saved Properties, etc.).
+### 6. Save behavior
+- Save each answer as the user progresses, as today.
+- At the end, set `onboarding_completed = true` and refresh the profile summary.
+- After `Looks good` / `Done`, close the chat with a final message and no repeated prompt.
 
-## Files touched
-- `supabase/functions/preferences-chat/index.ts` (only)
+### Files to change
+- `src/components/console/PreferencesChat.tsx`
+  - boot guard
+  - duplicate assistant message prevention
+  - clearer done/reset text handling if needed
+- `supabase/functions/preferences-chat/index.ts`
+  - simplify completion/opening/edit/reset responses
+  - prevent completed users from being dropped directly into a repeated edit menu
+
+### Out of scope
+- No database schema changes.
+- No design overhaul.
+- No changes to unrelated console/profile features.

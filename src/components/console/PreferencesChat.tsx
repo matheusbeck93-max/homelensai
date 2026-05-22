@@ -192,6 +192,7 @@ export function PreferencesChat() {
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const bootedRef = useRef(false);
 
   const loadProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -224,7 +225,18 @@ export function PreferencesChat() {
         done: !!data?.done,
         savedFields: Array.isArray(data?.saved_fields) ? data.saved_fields : [],
       };
-      setTurns((prev) => [...prev, assistant]);
+      setTurns((prev) => {
+        const prevLast = prev[prev.length - 1];
+        if (
+          prevLast?.role === "assistant" &&
+          stripMarkers(prevLast.content) === stripMarkers(assistant.content)
+        ) {
+          // De-dup identical assistant turn (StrictMode double-invoke safety).
+          const copy = prev.slice(0, -1);
+          return [...copy, assistant];
+        }
+        return [...prev, assistant];
+      });
       if (assistant.savedFields && assistant.savedFields.length > 0) {
         await loadProfile();
       }
@@ -250,6 +262,8 @@ export function PreferencesChat() {
 
   // Initial load — just fetch profile; the opening question is preloaded.
   useEffect(() => {
+    if (bootedRef.current) return;
+    bootedRef.current = true;
     (async () => {
       await loadProfile();
       // Ask the server for the opener — it picks welcome vs. edit menu based on profile.
