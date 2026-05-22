@@ -1,78 +1,53 @@
-## Plan: Conversational AI Preferences Assistant
+## Problem
 
-Rebuild the Preferences tab as a true natural-language assistant that extracts structured preferences via AI, with a live summary card and full control actions.
+From the screenshots:
+- User wrote "buying a home for my family, walkable, safe, nature around" → AI only captured `locations` and `types: [house]`. It missed `goal=buy_home`, lifestyle importance (walkability/safety/parks = high), and duplicated the same sentences into `freeform_notes` on every turn.
+- When user replied "you didn't capture the number of beds and bathrooms?", AI just said "Got it. What else…" instead of asking for the values or acknowledging the gap.
+- Editing through chat doesn't reliably mutate the Current Preferences card because the model isn't consistently emitting an `update_preferences` tool call.
 
-### 1. Data model
-Add a single flexible `preferences jsonb` column to `profiles` (keep existing columns intact for back-compat with the rest of the app). Shape:
+Root cause: with `tool_choice: 'required'` and two tools, Gemini often calls only `reply`. The system prompt asks for both but doesn't enforce it. Extraction is also too literal — no mapping from natural-language lifestyle words to structured fields, and no dedup on notes.
 
-```
-{
-  goal, locations[], budget{purchase_price_max, monthly_payment_max, down_payment},
-  property{types[], bedrooms_min, bathrooms_min, sqft_min},
-  lifestyle{schools_importance, commute_importance, safety_importance, walkability_importance, parks_importance},
-  investment{strategy, cash_flow_target, appreciation_focus, fixer_upper_ok, risk_tolerance},
-  must_haves[], nice_to_haves[], deal_breakers[], freeform_notes, updated_at
-}
-```
+## Fix (edge function only — UI already reactive)
 
-A backend sync also mirrors a few fields (`preferred_cities`, `budget_max`, `min_bedrooms`, `min_bathrooms`, `primary_goal`, `about_me`) to the existing columns so the rest of HomeLens (search, AI chat personalization) keeps working.
+Refactor `supabase/functions/preferences-assistant/index.ts` to a **two-pass** turn:
 
-### 2. New edge function: `preferences-assistant`
-Replace the old hand-coded state machine with a clean AI tool-calling flow using Lovable AI Gateway (`google/gemini-2.5-flash`).
+**Pass 1 — Deterministic extraction (structured output)**
 
-The model receives:
-- system prompt explaining the assistant's role, guardrails (no legal/tax/lending advice, no fair-housing claims), and HomeLens tone.
-- the current `preferences` JSON.
-- the full chat history.
+Call Gemini with `tool_choice: { type: 'function', function: { name: 'update_preferences' } }` so the model is forced to return a patch. Strengthen the system prompt with:
+- Explicit lexicon mapping: "walkable"→`lifestyle.walkability_importance=high`, "safe/safety/low crime"→`safety_importance=high`, "nature/parks/trees/green"→`parks_importance=high`, "good schools"→`schools_importance=high`, "short commute"→`commute_importance=high`.
+- Goal mapping: "buying… for my family / our home / primary residence" → `goal=buy_home`; "rental / cash flow / investment" → `goal=invest`.
+- Beds/baths/sqft/price extraction from numeric phrases ("3-bed", "2 baths", "under $650k", "1,800 sqft").
+- Property type synonyms (SFH/single family → house, condo/coop/townhome/multi-family/land).
+- Must-have / nice-to-have / deal-breaker classification from phrasing ("must have", "need", "no", "avoid", "deal-breaker").
+- Notes rule: only `append_note` if the input adds context not already representable as structured fields. Never re-append text already present in `freeform_notes` (case-insensitive substring check server-side).
 
-It must respond by calling one or both tools:
-- `update_preferences(patch)` — deep-merge patch onto preferences. Supports add/remove on arrays (e.g. removing condos, adding Woodbridge).
-- `reply(message, suggested_questions?)` — the chat text shown to the user, plus optional quick-reply chips.
+Server-side dedup: before applying `append_note`, skip if the trimmed note already appears in current `freeform_notes`.
 
-The function applies the patch server-side (validated), saves to Supabase, mirrors the legacy fields, and returns `{ message, suggested_questions, preferences }`.
+**Pass 2 — Reply**
 
-Reset/restart are handled by a separate action param (`action: "reset" | "restart"`) so it's deterministic, not dependent on the model.
+Call Gemini again with `tool_choice: { type: 'function', function: { name: 'reply' } }`, passing the patched preferences plus a note of what changed so the reply can acknowledge ("Set walkability and safety to high.") and ask for the most useful next missing field (beds, budget, etc.) with 2–3 suggested_replies.
 
-### 3. Frontend: rebuilt `PreferencesChat.tsx`
-Two-pane layout (stacks on mobile):
+**Self-correction case**
 
-**Left — AI Preferences Chat**
-- Opening assistant message inviting natural-language input with the townhouse example.
-- Suggested-reply chips under the latest assistant turn (from the model).
-- Free-text input always available.
-- Markdown-rendered assistant messages.
+When the user says "you didn't capture X" or "you missed X", the extraction prompt must treat it as a request to ask for X, not as a no-op. Add an explicit instruction + an `acknowledge_gap` hint in the patch (no schema change — just included in the second-pass context).
 
-**Right — Current Preferences Summary card**
-- Live-updates from server response after every turn.
-- Sections: Goal · Locations · Budget · Property · Must-haves · Nice-to-haves · Deal breakers · Lifestyle importance · Investment · Notes.
-- Empty fields hidden.
+**Other tweaks**
 
-**Action bar**
-- Save Preferences (explicit save toast; auto-save also happens on each turn)
-- Reset Preferences (confirm dialog → clears `preferences` and chat)
-- Restart Setup (clears chat only, re-opens the guided opener)
-- Edit Manually (opens a sheet with the same fields as the summary, editable; saves the JSON)
-- Review Summary (sends a synthetic user turn: "Show me what you know so far")
+- Lower `temperature` to 0.2 for extraction pass.
+- Validate patch with the existing `applyPatch` (already deep-merges). Log the diff for debugging.
+- Mirror to legacy columns stays as-is.
+- Opening turn unchanged.
 
-### 4. Files touched
-- `supabase/functions/preferences-assistant/index.ts` (new)
-- `supabase/functions/preferences-chat/index.ts` (kept but unused; safe to remove later)
-- `src/components/console/PreferencesChat.tsx` (rewritten)
-- `src/components/console/PreferencesSummaryCard.tsx` (new)
-- `src/components/console/PreferencesEditDialog.tsx` (new)
-- `supabase/config.toml` (register new function with `verify_jwt = false`, we auth via Bearer token inside)
-- Migration: add `preferences jsonb default '{}'::jsonb` to `profiles`.
+## No DB or UI changes
 
-### 5. Acceptance
-- Natural language captures locations, budget, beds, must-haves, deal breakers, importance scores.
-- Contradictions update the prefs and the assistant acknowledges.
-- Reset/Restart/Edit/Review buttons all work.
-- Summary card mirrors the JSON live.
-- Legacy fields stay in sync so search & AI chat personalization continue working.
-- App still builds with no TS errors.
+- `PreferencesSummaryCard` already re-renders from the returned `preferences` object on every turn. No change needed once extraction works.
+- `PreferencesChat` already calls the function and updates state on each response.
+- No migration.
 
-### Technical notes
-- Auth: edge function validates the JWT, loads/saves `profiles.preferences` for `auth.uid()`.
-- AI: Lovable AI Gateway, tool-calling with `update_preferences` + `reply`. Temperature low. Always re-loads server-side prefs before applying patch to avoid stale overwrites.
-- Patch semantics: `update_preferences` accepts `{add: {...}, remove: {...}, set: {...}}` per field so the model can express "include Woodbridge too" vs "no condos" cleanly.
-- Guardrails enforced in system prompt + a small server-side sanitizer that drops any keys outside the schema.
+## Acceptance
+
+- "I'm buying a home for my family, walkable, safe, nature around" → sets `goal=buy_home`, `lifestyle.walkability_importance=high`, `safety_importance=high`, `parks_importance=high`, no duplicated notes.
+- "3 beds 2 baths under $650k" → fills `property.bedrooms_min=3`, `bathrooms_min=2`, `budget.purchase_price_max=650000`.
+- "you didn't capture beds/baths" → AI asks "How many bedrooms and bathrooms do you need (minimum)?"
+- "only Tampa" → replaces locations with `[Tampa, FL]`.
+- Current Preferences card updates live on every turn.
