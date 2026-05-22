@@ -749,6 +749,22 @@ export default function Chats() {
                         />
                       )}
 
+                      {/* Save Property bookmark — sidebar shelf */}
+                      {user && analysisUrl && (() => {
+                        const ap = (message.metadata as any)?.analyzedProperty;
+                        const address: string | undefined =
+                          ap?.address || extractField(message.content, /Address:\s*([^\n]+)/i);
+                        if (!address) return null;
+                        return (
+                          <SavePropertyButton
+                            url={analysisUrl}
+                            address={address}
+                            isSaved={isUrlSaved(analysisUrl)}
+                            onSave={saveProperty}
+                          />
+                        );
+                      })()}
+
                       {/* Property Links - Card Style Only */}
                       {message.links && message.links.length > 0 &&
                     <div className="mt-4 grid gap-3">
