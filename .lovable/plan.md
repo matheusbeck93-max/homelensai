@@ -1,27 +1,36 @@
-## Issues found in Console → Preferences
+## Problem
 
-### 1. Production save still fails
-The `buyer_type` CHECK constraint fix is in code but the **production build hasn't been republished**. The fix maps new persona values (`first_time_buyer` → `first-time-buyer`, `investor` → `investor`, others → `null`) so it satisfies the legacy constraint. Republishing should resolve the production error.
+In production at `https://homelensais.com/chats`, sending a message fails with:
+> Failed to send a request to the Edge Function
 
-If after republishing the error persists, the likely secondary culprit is the `buyer_types` array column rejecting new persona values via a separate CHECK — I'll verify and, if needed, drop/relax that array constraint in a migration.
+Edge function logs for `perplexity-chat` show only successful `OPTIONS` preflights and no `POST` requests. This is a classic browser-blocked CORS response.
 
-### 2. Missing fields: Min Bedrooms and Sqft range
-The form currently only shows **Min Bathrooms**. We'll add:
-- **Min Bedrooms** input → maps to existing `profiles.min_bedrooms` column.
-- **Min Sqft** and **Max Sqft** inputs → requires a small migration to add `min_sqft` and `max_sqft` (integer, nullable) to `profiles`.
+Root cause: `supabase/functions/_shared/cors.ts` only allows these origins:
+- `homelens.ai`, `www.`, `app.`, `staging.`, `*.homelens.ai`
+- `*.lovable.app`, `*.lovable.dev`
+- `localhost:5173/3000/4173`
+- `chrome-extension://*`
 
-### 3. Cities don't autocomplete
-The "Preferred Cities" rows are plain text inputs. We'll replace each row with a **Combobox (Command + Popover)** powered by `src/data/usStatesCities.ts`:
-- Typing filters the curated US city list (city + state shown together).
-- Selecting an option fills both `city` and `state` for that row.
-- Free-text fallback preserved for cities not in the curated list (so users in smaller markets aren't blocked).
+The actual production custom domain is `homelensais.com` (note the extra `ais`), so preflight echoes back the default `https://homelens.ai` origin, the browser rejects the response, and the POST never leaves the page.
 
-## Files to change
-- `src/components/console/PreferencesPanel.tsx` — add Min Bedrooms field, Min/Max Sqft fields, swap city inputs for a city/state Combobox, load + save the new fields.
-- New migration — `ALTER TABLE profiles ADD COLUMN min_sqft int, ADD COLUMN max_sqft int;` (nullable, no default).
-- Verify `buyer_types` array has no CHECK constraint blocking new values; relax if needed.
+## Fix
+
+Update `supabase/functions/_shared/cors.ts` `ALLOWED_ORIGIN_PATTERNS` to also allow the real production domain:
+
+```
+(o) => o === 'https://homelensais.com',
+(o) => o === 'https://www.homelensais.com',
+(o) => /^https:\/\/[a-z0-9-]+\.homelensais\.com$/i.test(o),
+```
+
+Also update the `DEFAULT_SAFE_ORIGIN` to `https://homelensais.com` so any non-allowlisted preflight at least falls back to the actual production origin (cosmetic but correct).
 
 ## Verification
-- Save with persona "Move-up Buyer" + cities + bedrooms/baths/sqft → succeeds in production.
-- Typing "Aus" in a city row shows "Austin, TX" suggestion; selecting it fills both fields.
-- Reloading the page restores all saved values including bedrooms and sqft range.
+
+1. Republish so the updated edge functions deploy.
+2. From `https://homelensais.com/chats`, send a message — confirm a reply streams back.
+3. Check edge function logs: a `POST /perplexity-chat 200` should now appear (not only OPTIONS).
+
+## Scope
+
+One file edited: `supabase/functions/_shared/cors.ts`. No frontend, schema, or business logic changes.
