@@ -551,7 +551,9 @@ export default function Chats() {
         onDeleteConversation={deleteConversation}
         onRenameConversation={renameConversation}
         onClearAllConversations={clearAllConversations}
-        onLogin={() => navigate('/auth')} />
+        onLogin={() => navigate('/auth')}
+        savedProperties={savedProperties}
+        onDeleteSavedProperty={deleteProperty} />
 
 
       <main className={cn(
