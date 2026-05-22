@@ -67,6 +67,8 @@ export function buildCorsHeaders(req: Request): Record<string, string> {
     'Access-Control-Allow-Origin': isAllowedOrigin(origin) ? origin! : DEFAULT_SAFE_ORIGIN,
     'Vary': 'Origin',
     'Access-Control-Allow-Headers': ALLOWED_HEADERS,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Max-Age': '86400',
   };
 }
 
@@ -89,6 +91,8 @@ export const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Vary': 'Origin',
   'Access-Control-Allow-Headers': ALLOWED_HEADERS,
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 /**
