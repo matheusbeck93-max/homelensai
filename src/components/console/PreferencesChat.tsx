@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, MessageCircle, RotateCcw, RefreshCw, Pencil, Eye, Save } from "lucide-react";
+import { Loader2, Send, MessageCircle, RotateCcw, RefreshCw, Pencil, Eye, Save, CheckCircle2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import {
   AlertDialog,
@@ -43,6 +43,7 @@ export function PreferencesChat() {
   const [booting, setBooting] = useState(true);
   const [confirmReset, setConfirmReset] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const loadInitial = async () => {
@@ -89,6 +90,7 @@ export function PreferencesChat() {
       };
       setTurns((prev) => [...prev, reply]);
       if (data?.preferences) setPreferences({ ...EMPTY_PREFERENCES, ...data.preferences });
+      if (typeof data?.setup_complete === "boolean") setSetupComplete(data.setup_complete);
       if (data?.backup_mode || data?.rate_limited) {
         toast({
           title: "Backup mode",
@@ -116,6 +118,7 @@ export function PreferencesChat() {
       if (error) throw error;
       setPreferences({ ...EMPTY_PREFERENCES, ...(data?.preferences ?? {}) });
       setTurns([{ role: "assistant", content: OPENING_MESSAGE, suggested: OPENING_SUGGESTED }]);
+      setSetupComplete(false);
       toast({ title: "Preferences reset" });
     } catch (e: any) {
       toast({ title: "Reset failed", description: e?.message, variant: "destructive" });
@@ -126,6 +129,7 @@ export function PreferencesChat() {
 
   const handleRestart = () => {
     setTurns([{ role: "assistant", content: OPENING_MESSAGE, suggested: OPENING_SUGGESTED }]);
+    setSetupComplete(false);
     toast({ title: "Setup restarted", description: "Preferences kept. Chat cleared." });
   };
 
@@ -163,9 +167,17 @@ export function PreferencesChat() {
       <div className="lg:col-span-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-primary" />
-              Preferences assistant
+            <CardTitle className="text-base flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-primary" />
+                Preferences assistant
+              </span>
+              {setupComplete && (
+                <span className="flex items-center gap-1 text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Setup complete
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
