@@ -450,6 +450,96 @@ const TOOLS = [
 const UPDATE_TOOL = [TOOLS[0]];
 const REPLY_TOOL = [TOOLS[1]];
 
+// ---------- Missing-field priority + suggested-reply chips ----------
+
+type MissingField =
+  | 'goal'
+  | 'locations'
+  | 'budget.purchase_price_max'
+  | 'property.bedrooms_min'
+  | 'property.bathrooms_min'
+  | 'property.types'
+  | 'must_haves'
+  | 'lifestyle'
+  | null;
+
+function nextMissingField(p: Preferences): MissingField {
+  const isInvestor = p.goal === 'invest';
+  const order: MissingField[] = isInvestor
+    ? ['goal', 'budget.purchase_price_max', 'locations', 'property.bedrooms_min', 'property.types', 'lifestyle']
+    : ['goal', 'locations', 'budget.purchase_price_max', 'property.bedrooms_min', 'property.bathrooms_min', 'property.types', 'must_haves', 'lifestyle'];
+  for (const f of order) {
+    if (!f) continue;
+    if (f === 'goal' && !p.goal) return 'goal';
+    if (f === 'locations' && !(p.locations ?? []).length) return 'locations';
+    if (f === 'budget.purchase_price_max' && p.budget?.purchase_price_max == null) return 'budget.purchase_price_max';
+    if (f === 'property.bedrooms_min' && p.property?.bedrooms_min == null) return 'property.bedrooms_min';
+    if (f === 'property.bathrooms_min' && p.property?.bathrooms_min == null) return 'property.bathrooms_min';
+    if (f === 'property.types' && !(p.property?.types ?? []).length) return 'property.types';
+    if (f === 'must_haves' && !(p.must_haves ?? []).length) return 'must_haves';
+    if (f === 'lifestyle') {
+      const l = p.lifestyle ?? {};
+      if (!l.schools_importance && !l.commute_importance && !l.safety_importance && !l.walkability_importance && !l.parks_importance) return 'lifestyle';
+    }
+  }
+  return null;
+}
+
+function suggestedRepliesFor(field: MissingField): string[] {
+  switch (field) {
+    case 'goal': return ['Buying a home', 'Investing in rentals', 'Just researching'];
+    case 'locations': return ['Tampa, FL', 'Austin, TX', 'Open to suggestions'];
+    case 'budget.purchase_price_max': return ['Under $400k', '$400k–$700k', '$700k–$1M', '$1M+'];
+    case 'property.bedrooms_min': return ['2+ bedrooms', '3+ bedrooms', '4+ bedrooms'];
+    case 'property.bathrooms_min': return ['1+ bathroom', '2+ bathrooms', '3+ bathrooms'];
+    case 'property.types': return ['House', 'Townhouse', 'Condo', 'Open to any'];
+    case 'must_haves': return ['Garage', 'Yard', 'Home office', 'Skip for now'];
+    case 'lifestyle': return ['Good schools', 'Walkable area', 'Short commute', 'Safe neighborhood'];
+    case null: return ['Show me what you know so far', 'Start browsing homes'];
+    default: return [];
+  }
+}
+
+function fieldLabel(f: MissingField): string {
+  switch (f) {
+    case 'goal': return 'your goal (buying vs investing)';
+    case 'locations': return 'cities or areas you\'re considering';
+    case 'budget.purchase_price_max': return 'your max purchase price';
+    case 'property.bedrooms_min': return 'minimum bedrooms';
+    case 'property.bathrooms_min': return 'minimum bathrooms';
+    case 'property.types': return 'property type (house, townhouse, condo…)';
+    case 'must_haves': return 'any must-haves (garage, yard, etc.)';
+    case 'lifestyle': return 'lifestyle priorities (schools, walkability, commute)';
+    case null: return '';
+  }
+}
+
+function savedSummary(before: Preferences, after: Preferences): string {
+  const parts: string[] = [];
+  if (before.goal !== after.goal && after.goal) parts.push(`goal=${after.goal}`);
+  const added = (a?: string[], b?: string[]) => (b ?? []).filter((v) => !(a ?? []).some((u) => u.toLowerCase() === v.toLowerCase()));
+  const aL = added(before.locations, after.locations); if (aL.length) parts.push(`locations +[${aL.join(', ')}]`);
+  const aT = added(before.property?.types, after.property?.types); if (aT.length) parts.push(`types +[${aT.join(', ')}]`);
+  const aM = added(before.must_haves, after.must_haves); if (aM.length) parts.push(`must_haves +[${aM.join(', ')}]`);
+  const aN = added(before.nice_to_haves, after.nice_to_haves); if (aN.length) parts.push(`nice_to_haves +[${aN.join(', ')}]`);
+  const aD = added(before.deal_breakers, after.deal_breakers); if (aD.length) parts.push(`deal_breakers +[${aD.join(', ')}]`);
+  if (before.budget?.purchase_price_max !== after.budget?.purchase_price_max && after.budget?.purchase_price_max != null)
+    parts.push(`max price=$${after.budget.purchase_price_max.toLocaleString()}`);
+  if (before.budget?.monthly_payment_max !== after.budget?.monthly_payment_max && after.budget?.monthly_payment_max != null)
+    parts.push(`monthly max=$${after.budget.monthly_payment_max.toLocaleString()}`);
+  if (before.property?.bedrooms_min !== after.property?.bedrooms_min && after.property?.bedrooms_min != null)
+    parts.push(`beds≥${after.property.bedrooms_min}`);
+  if (before.property?.bathrooms_min !== after.property?.bathrooms_min && after.property?.bathrooms_min != null)
+    parts.push(`baths≥${after.property.bathrooms_min}`);
+  if (before.property?.sqft_min !== after.property?.sqft_min && after.property?.sqft_min != null)
+    parts.push(`sqft≥${after.property.sqft_min}`);
+  const bl = before.lifestyle ?? {}, al = after.lifestyle ?? {};
+  for (const k of ['schools_importance','commute_importance','safety_importance','walkability_importance','parks_importance'] as const) {
+    if ((bl as any)[k] !== (al as any)[k] && (al as any)[k]) parts.push(`${k.replace('_importance','')}=${(al as any)[k]}`);
+  }
+  return parts.join('; ');
+}
+
 type GatewayResult =
   | { ok: true; data: any }
   | { ok: false; status: number; rateLimited: boolean; creditsExhausted: boolean; text: string };
@@ -486,50 +576,82 @@ function parseToolArgs(data: any, name: string): any | null {
   return null;
 }
 
-// Single combined call: exposes BOTH tools and lets the model emit them
-// in parallel. Halves gateway pressure vs. the old two-pass flow.
-async function chatTurn(
+// Pass 1: extract a structured patch from the user's latest message.
+// We FORCE update_preferences so the model can never silently skip the save.
+async function extractPatch(
   messages: Array<{ role: string; content: string }>,
   prefs: Preferences,
 ): Promise<
-  | { ok: true; patch: Patch; reply: { message: string; suggested_replies: string[] } | null }
+  | { ok: true; patch: Patch }
   | { ok: false; rateLimited: boolean; creditsExhausted: boolean }
 > {
-  const COMBINED_PROMPT = `${SYSTEM_PROMPT}
-
---- EXTRACTION RULES ---
-${EXTRACTION_PROMPT}
-
---- REPLY RULES ---
-${REPLY_PROMPT}
-
-You MUST call update_preferences (with {} if nothing changes) AND reply in the same response.`;
-
   const result = await callGateway({
     model: 'google/gemini-2.5-flash',
-    temperature: 0.3,
+    temperature: 0,
     messages: [
-      { role: 'system', content: COMBINED_PROMPT },
+      { role: 'system', content: EXTRACTION_PROMPT },
       { role: 'system', content: `Current preferences JSON:\n${JSON.stringify(prefs, null, 2)}` },
       ...messages,
     ],
-    tools: TOOLS,
-    tool_choice: 'auto',
+    tools: UPDATE_TOOL,
+    tool_choice: { type: 'function', function: { name: 'update_preferences' } },
   });
   if (!result.ok) {
     return { ok: false, rateLimited: result.rateLimited, creditsExhausted: result.creditsExhausted };
   }
   const patch = (parseToolArgs(result.data, 'update_preferences') as Patch) ?? {};
+  return { ok: true, patch };
+}
+
+// Pass 2: generate a data-driven reply that confirms what was actually saved
+// and asks about the next-most-important missing field.
+async function generateReply(
+  messages: Array<{ role: string; content: string }>,
+  before: Preferences,
+  after: Preferences,
+): Promise<
+  | { ok: true; reply: { message: string; suggested_replies: string[] } | null }
+  | { ok: false; rateLimited: boolean; creditsExhausted: boolean }
+> {
+  const saved = savedSummary(before, after);
+  const missing = nextMissingField(after);
+  const chips = suggestedRepliesFor(missing);
+  const context = [
+    `Saved this turn: ${saved || '(no structured changes)'}`,
+    `Current preferences JSON:\n${JSON.stringify(after, null, 2)}`,
+    `Next most important MISSING field: ${missing ?? '(everything required is set)'}`,
+    missing
+      ? `Ask ONE focused question about ${fieldLabel(missing)}. Do NOT ask about any field already filled.`
+      : `All key fields are set. Confirm and offer: "Want me to start browsing homes?"`,
+    `If something was saved this turn, your reply MUST specifically name what was saved (e.g. "Added Tampa, FL to your locations" or "Set max price to $650k"). Never use the generic phrase "Got it — updated".`,
+    `Suggested replies should be 3-4 short chips relevant to that next question. Recommended: ${JSON.stringify(chips)}.`,
+  ].join('\n\n');
+
+  const result = await callGateway({
+    model: 'google/gemini-2.5-flash',
+    temperature: 0.5,
+    messages: [
+      { role: 'system', content: REPLY_PROMPT },
+      { role: 'system', content: context },
+      ...messages,
+    ],
+    tools: REPLY_TOOL,
+    tool_choice: { type: 'function', function: { name: 'reply' } },
+  });
+  if (!result.ok) {
+    return { ok: false, rateLimited: result.rateLimited, creditsExhausted: result.creditsExhausted };
+  }
   const replyArgs = parseToolArgs(result.data, 'reply');
-  const reply = replyArgs
-    ? {
-        message: String(replyArgs.message ?? 'Got it.'),
-        suggested_replies: Array.isArray(replyArgs.suggested_replies)
-          ? replyArgs.suggested_replies.slice(0, 4).map(String)
-          : [],
-      }
-    : null;
-  return { ok: true, patch, reply };
+  if (!replyArgs) return { ok: true, reply: null };
+  return {
+    ok: true,
+    reply: {
+      message: String(replyArgs.message ?? '').trim(),
+      suggested_replies: Array.isArray(replyArgs.suggested_replies)
+        ? replyArgs.suggested_replies.slice(0, 4).map(String)
+        : chips,
+    },
+  };
 }
 
 function diffSummary(before: Preferences, after: Preferences): string {
@@ -561,14 +683,16 @@ function diffSummary(before: Preferences, after: Preferences): string {
   return changes.length ? changes.join('; ') : 'no structured changes';
 }
 
-function fallbackAck(changeSummary: string, prefs: Preferences): string {
-  if (changeSummary && changeSummary !== 'no structured changes') {
-    return `Got it — updated. What else should I know about your search?`;
+function fallbackAck(saved: string, prefs: Preferences): string {
+  const missing = nextMissingField(prefs);
+  const ask = missing
+    ? ` What about ${fieldLabel(missing)}?`
+    : ' Want me to start browsing homes?';
+  if (saved) {
+    return `Saved: ${saved}.${ask}`;
   }
-  if (!prefs.goal) return "What's the main goal — buying a home, or investing?";
-  if (!(prefs.locations ?? []).length) return 'Which cities or areas are you considering?';
-  if (prefs.budget?.purchase_price_max == null) return "What's your max purchase price?";
-  return 'Anything else you want me to capture?';
+  if (missing) return `Got it.${ask}`;
+  return "Your preferences look complete. Want me to start browsing homes?";
 }
 
 function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
@@ -677,42 +801,60 @@ Deno.serve(async (req) => {
       }, 200, req);
     }
 
-    const turn = await chatTurn(messages, currentPrefs);
-
-    if (!turn.ok) {
-      // Graceful 429/402 — return 200 so the client can show an inline,
-      // non-destructive notice without losing the chat thread.
-      const msg = turn.rateLimited
-        ? "I'm getting rate-limited right now — please try again in a few seconds. Your preferences are safe."
-        : turn.creditsExhausted
-        ? "The AI workspace is out of credits. Please top up in Settings → Workspace → Usage."
-        : "I couldn't reach the AI right now. Please try again in a moment.";
+    // Pass 1: extract & persist BEFORE composing any reply text. This guarantees
+    // the assistant's acknowledgment is grounded in what actually got saved.
+    const extraction = await extractPatch(messages, currentPrefs);
+    if (!extraction.ok) {
+      const msg = extraction.rateLimited
+        ? "I'm getting rate-limited and couldn't save your last message yet. Please try again in a few seconds — your earlier preferences are safe."
+        : extraction.creditsExhausted
+        ? "The AI workspace is out of credits, so I couldn't save your last message. Please top up in Settings → Workspace → Usage and retry."
+        : "I couldn't reach the AI to save your last message. Please retry in a moment.";
       return jsonResponse({
         preferences: currentPrefs,
         message: msg,
-        suggested_replies: [],
-        rate_limited: turn.rateLimited,
+        suggested_replies: ['Retry', 'Show me what you know so far'],
+        rate_limited: extraction.rateLimited,
         soft_error: true,
       }, 200, req);
     }
 
-    const patch = dedupNoteInPatch(turn.patch, currentPrefs.freeform_notes ?? '');
+    const patch = dedupNoteInPatch(extraction.patch, currentPrefs.freeform_notes ?? '');
     const nextPrefs = applyPatch(currentPrefs, patch);
     const changeSummary = diffSummary(currentPrefs, nextPrefs);
-    log.step('Extraction', { changes: changeSummary });
+    const saved = savedSummary(currentPrefs, nextPrefs);
+    log.step('Extraction', { changes: changeSummary, saved });
 
-    // Persist
+    // Persist BEFORE replying so the UI's Current Preferences reflects truth.
     const updates: Record<string, unknown> = { preferences: nextPrefs, ...mirrorToLegacyColumns(nextPrefs) };
     const { error: updateErr } = await supabase.from('profiles').update(updates).eq('id', user.id);
-    if (updateErr) log.step('Profile update failed', { error: updateErr.message });
+    if (updateErr) {
+      log.step('Profile update failed', { error: updateErr.message });
+      return jsonResponse({
+        preferences: currentPrefs,
+        message: `I couldn't save that to your profile (${updateErr.message}). Please retry.`,
+        suggested_replies: ['Retry'],
+        soft_error: true,
+      }, 200, req);
+    }
 
-    const message = turn.reply?.message ?? fallbackAck(changeSummary, nextPrefs);
-    const suggested_replies = turn.reply?.suggested_replies ?? [];
+    // Pass 2: data-driven reply. If it fails, fall back to a hand-built
+    // confirmation that still names what was saved.
+    const replyTurn = await generateReply(messages, currentPrefs, nextPrefs);
+    const missing = nextMissingField(nextPrefs);
+    const fallbackChips = suggestedRepliesFor(missing);
+
+    const message =
+      (replyTurn.ok && replyTurn.reply?.message) ? replyTurn.reply.message : fallbackAck(saved, nextPrefs);
+    const suggested_replies =
+      (replyTurn.ok && replyTurn.reply?.suggested_replies?.length) ? replyTurn.reply.suggested_replies : fallbackChips;
 
     return jsonResponse({
       preferences: nextPrefs,
       message,
       suggested_replies,
+      saved_summary: saved || null,
+      rate_limited: replyTurn.ok ? false : replyTurn.rateLimited,
     }, 200, req);
   } catch (error) {
     log.step('ERROR', { message: getErrorMessage(error) });
