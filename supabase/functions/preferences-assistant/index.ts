@@ -742,7 +742,7 @@ function buyerTypeLabel(b: string): string {
 
 function goalPhrase(g: string): string {
   return ({
-    buy_home: 'buying a home',
+    buy_home: 'looking for a primary home',
     invest: 'investing in rentals',
     rent: 'renting',
     market_research: 'researching the market',
@@ -760,6 +760,15 @@ function humanAck(before: Preferences, after: Preferences, missing: MissingField
     phrases.push(`you're a ${buyerTypeLabel(after.buyer_type!)}`);
   } else if (goalChanged) {
     phrases.push(`you're ${goalPhrase(after.goal!)}`);
+  }
+
+  // Detect family / primary-home context from the latest user message via notes
+  // pattern — keeps the ack warm without requiring a separate field.
+  const familyContext = /\b(family|kids|children|our home|forever home)\b/i.test(
+    (after.freeform_notes ?? '') + ' ' + (before.freeform_notes ?? ''),
+  );
+  if ((buyerChanged || goalChanged) && after.goal === 'buy_home' && familyContext && !buyerChanged) {
+    phrases[phrases.length - 1] = `you're looking for a primary home for your family`;
   }
 
   const addedTypes = (after.property?.types ?? []).filter(
