@@ -751,7 +751,7 @@ function goalPhrase(g: string): string {
   } as Record<string, string>)[g] ?? g;
 }
 
-function humanAck(before: Preferences, after: Preferences, missing: MissingField): string {
+function humanAck(before: Preferences, after: Preferences, missing: MissingField, userText = ''): string {
   const phrases: string[] = [];
 
   const buyerChanged = before.buyer_type !== after.buyer_type && after.buyer_type;
@@ -762,11 +762,8 @@ function humanAck(before: Preferences, after: Preferences, missing: MissingField
     phrases.push(`you're ${goalPhrase(after.goal!)}`);
   }
 
-  // Detect family / primary-home context from the latest user message via notes
-  // pattern — keeps the ack warm without requiring a separate field.
-  const familyContext = /\b(family|kids|children|our home|forever home)\b/i.test(
-    (after.freeform_notes ?? '') + ' ' + (before.freeform_notes ?? ''),
-  );
+  // Warm phrasing when user mentions family / forever-home context.
+  const familyContext = /\b(family|kids|children|forever home|our home)\b/i.test(userText);
   if ((buyerChanged || goalChanged) && after.goal === 'buy_home' && familyContext && !buyerChanged) {
     phrases[phrases.length - 1] = `you're looking for a primary home for your family`;
   }
