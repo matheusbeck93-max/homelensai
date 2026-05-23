@@ -276,6 +276,13 @@ const EXTRACTION_PROMPT = `You extract structured US real estate preferences fro
 
 Output ONLY by calling update_preferences. Do not write prose.
 
+CRITICAL RULES:
+1. Extract EVERY field mentioned in the user's message in ONE call. Do not skip fields.
+2. Prefer STRUCTURED fields over freeform_notes. Only use append_note for context that truly fits nowhere structured (e.g. "I work night shifts"). NEVER append text already representable as a structured field.
+3. When the user contradicts a previous scalar value ("actually make it 4 bedrooms"), use "set" to overwrite — do not "add". Same for budget, sqft, goal, lifestyle importance.
+4. When the user says "only X" or "just X" for locations/types, use set with the full replacement array.
+5. Match property type EXACTLY as stated. "townhouse" -> "townhouse", NOT "house". "condo" -> "condo", NOT "house". A "house" is a single-family detached only.
+
 LEXICON (map natural language -> structured fields):
 - "walkable / walkability / walk to" -> lifestyle.walkability_importance = high
 - "safe / safety / low crime / secure" -> lifestyle.safety_importance = high
@@ -290,12 +297,13 @@ GOAL mapping (set goal once, do not overwrite unless user contradicts):
 - "researching the market" -> goal = "market_research"
 
 PROPERTY TYPE synonyms -> property_types (add):
-- "single family / SFH / detached / house" -> "house"
+- "single family / SFH / detached / standalone house" -> "house"
 - "condo / coop / co-op" -> "condo" or "co-op"
 - "townhome / townhouse / row house" -> "townhouse"
 - "duplex / triplex / 2-4 unit / multifamily" -> "multi-family"
 - "land / lot / acreage" -> "land"
 - "mobile / manufactured" -> "mobile"
+Never coerce "townhouse" or "condo" into "house". If user names a specific type, use exactly that type.
 
 NUMERIC extraction:
 - "3-bed / 3 bedrooms / 3br" -> property.bedrooms_min = 3
@@ -312,13 +320,31 @@ CLASSIFICATION:
 
 LOCATIONS:
 - Normalize as "City, ST". "only X / just X" -> set.locations = [X] (full replace). Otherwise add.locations.
+- Infer the state from well-known city names ("Arlington" near DC -> "Arlington, VA"; "Tampa" -> "Tampa, FL"; "Austin" -> "Austin, TX").
 - Region terms (DMV, Bay Area, Tri-State): do NOT add as a location; capture intent via append_note.
 
 SELF-CORRECTION:
 - If the user says "you didn't capture X" or "you missed X", emit an empty patch ({}) — the reply step will ask for X.
 
 NOTES:
-- Only use append_note for context that does NOT fit any structured field. Never append text already present in the current freeform_notes.
+- Only use append_note for context that does NOT fit any structured field. Never paraphrase a structured fact (like "user wants walkable") into a note — that data already lives in lifestyle.walkability_importance.
+- Never re-emit a note whose meaning is already in current freeform_notes.
+
+WORKED EXAMPLE:
+User message: "I'm looking for a 3-bedroom townhouse near Arlington under $650k with good schools and a short commute."
+Correct patch:
+{
+  "set": {
+    "property": { "bedrooms_min": 3 },
+    "budget": { "purchase_price_max": 650000 },
+    "lifestyle": { "schools_importance": "high", "commute_importance": "high" }
+  },
+  "add": {
+    "property_types": ["townhouse"],
+    "locations": ["Arlington, VA"]
+  }
+}
+No append_note — every fact fits a structured field.
 
 Return only the tool call. Use empty {} if nothing to change.`;
 
