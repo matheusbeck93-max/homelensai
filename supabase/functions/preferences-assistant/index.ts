@@ -856,9 +856,9 @@ function humanAck(before: Preferences, after: Preferences, missing: MissingField
   const intro = phrases.length ? `Got it — I saved that ${phrases.join(', ')}.` : '';
   const q = missing ? nextQuestion(missing) : '';
   if (intro && q) return `${intro} ${q}`;
-  if (intro) return `${intro} Want me to start browsing homes?`;
+  if (intro) return intro;
   if (q) return q;
-  return 'Your preferences look complete. Want me to start browsing homes?';
+  return 'Got it.';
 }
 
 // ---------- Deterministic fallback parser ----------
