@@ -1081,26 +1081,33 @@ Deno.serve(async (req) => {
       }, 200, req);
     }
 
-    // Pass 1: extract & persist BEFORE composing any reply text. This guarantees
-    // the assistant's acknowledgment is grounded in what actually got saved.
+    // Always run the deterministic semantic parser on the latest user message
+    // FIRST. This guarantees obvious intent ("buying for my family", "Tampa",
+    // "under $650k") is captured even if the AI extraction misses or 429s.
+    const latestUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+    const detPatch = deterministicParse(latestUser);
+
     const extraction = await extractPatch(messages, currentPrefs);
     let backupMode = false;
     let rateLimited = false;
     let creditsExhausted = false;
-    let rawPatch: Patch;
+    let aiPatch: Patch = {};
     if (extraction.ok) {
-      rawPatch = extraction.patch;
+      aiPatch = extraction.patch;
     } else {
       backupMode = true;
       rateLimited = extraction.rateLimited;
       creditsExhausted = extraction.creditsExhausted;
-      const latestUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
-      rawPatch = deterministicParse(latestUser);
-      log.step('Fallback parse', { rateLimited, creditsExhausted, hasPatch: !!(rawPatch.set || rawPatch.add || rawPatch.append_note) });
+      log.step('AI extract failed, deterministic only', { rateLimited, creditsExhausted });
     }
 
-    const patch = dedupNoteInPatch(rawPatch, currentPrefs.freeform_notes ?? '');
-    const nextPrefs = applyPatch(currentPrefs, patch);
+    // Apply deterministic patch first, then layer the AI patch on top.
+    // AI wins on scalar conflicts (it has more context); deterministic guarantees
+    // baseline coverage so the assistant never re-asks an already-stated field.
+    const detDeduped = dedupNoteInPatch(detPatch, currentPrefs.freeform_notes ?? '');
+    const afterDet = applyPatch(currentPrefs, detDeduped);
+    const aiDeduped = dedupNoteInPatch(aiPatch, afterDet.freeform_notes ?? '');
+    const nextPrefs = applyPatch(afterDet, aiDeduped);
     const changeSummary = diffSummary(currentPrefs, nextPrefs);
     const saved = savedSummary(currentPrefs, nextPrefs);
     log.step('Extraction', { changes: changeSummary, saved });
