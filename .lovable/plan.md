@@ -1,53 +1,40 @@
 ## Problem
 
-From the screenshots:
-- User wrote "buying a home for my family, walkable, safe, nature around" → AI only captured `locations` and `types: [house]`. It missed `goal=buy_home`, lifestyle importance (walkability/safety/parks = high), and duplicated the same sentences into `freeform_notes` on every turn.
-- When user replied "you didn't capture the number of beds and bathrooms?", AI just said "Got it. What else…" instead of asking for the values or acknowledging the gap.
-- Editing through chat doesn't reliably mutate the Current Preferences card because the model isn't consistently emitting an `update_preferences` tool call.
+The "Something went wrong reaching the assistant" toast is caused by the `preferences-assistant` edge function returning a non-2xx response. Logs show:
 
-Root cause: with `tool_choice: 'required'` and two tools, Gemini often calls only `reply`. The system prompt asks for both but doesn't enforce it. Extraction is also too literal — no mapping from natural-language lifestyle words to structured fields, and no dedup on notes.
+```
+AI gateway 429: {"type":"rate_limited","message":"A lot of free users are using the API and you're being rate limited..."}
+```
 
-## Fix (edge function only — UI already reactive)
+Two contributing factors:
+1. Every user turn currently makes **two** AI Gateway calls (Pass 1 extract, Pass 2 reply), doubling rate-limit pressure.
+2. When the gateway returns 429, the function bubbles the error up, the client toasts a generic message, and the user's preferences pane doesn't update.
 
-Refactor `supabase/functions/preferences-assistant/index.ts` to a **two-pass** turn:
+## Fix
 
-**Pass 1 — Deterministic extraction (structured output)**
+### 1. Graceful 429/402 handling in `supabase/functions/preferences-assistant/index.ts`
+- Wrap both `extractPatch` and `generateReply` so that if `callAiGateway` returns `{ error }` (already-handled 429/402), we:
+  - Still persist any structured patch we managed to extract (Pass 1 may have succeeded even if Pass 2 failed).
+  - Return a **200** JSON payload with `{ message: "I'm getting rate-limited right now — please try again in a few seconds. Your preferences are saved.", preferences, suggested_replies: [] }` instead of a 5xx.
+  - Include a `rate_limited: true` flag so the client can style differently if desired.
+- If Pass 1 itself 429s, return 200 with the same friendly message and the unchanged preferences.
 
-Call Gemini with `tool_choice: { type: 'function', function: { name: 'update_preferences' } }` so the model is forced to return a patch. Strengthen the system prompt with:
-- Explicit lexicon mapping: "walkable"→`lifestyle.walkability_importance=high`, "safe/safety/low crime"→`safety_importance=high`, "nature/parks/trees/green"→`parks_importance=high`, "good schools"→`schools_importance=high`, "short commute"→`commute_importance=high`.
-- Goal mapping: "buying… for my family / our home / primary residence" → `goal=buy_home`; "rental / cash flow / investment" → `goal=invest`.
-- Beds/baths/sqft/price extraction from numeric phrases ("3-bed", "2 baths", "under $650k", "1,800 sqft").
-- Property type synonyms (SFH/single family → house, condo/coop/townhome/multi-family/land).
-- Must-have / nice-to-have / deal-breaker classification from phrasing ("must have", "need", "no", "avoid", "deal-breaker").
-- Notes rule: only `append_note` if the input adds context not already representable as structured fields. Never re-append text already present in `freeform_notes` (case-insensitive substring check server-side).
+### 2. Collapse to a single AI call on the happy path
+- Replace the two-pass design with **one** gateway call that exposes both tools (`update_preferences` and `reply`) and uses `tool_choice: "auto"`, letting the model emit both tool calls in one response when needed (Gemini supports parallel tool calls).
+- Keep the existing extraction lexicon/rules in the system prompt; merge the reply-prompt rules ("never re-ask filled fields", "ack diff briefly") into the same system prompt.
+- Apply any returned `update_preferences` patch first, then use the `reply` tool's `{message, suggested_replies}` as the response. If only one tool fires, fall back: missing reply → synthesize a short ack from the diff; missing patch → skip patching.
+- Net effect: ~50% fewer gateway requests per user turn, sharply reducing 429 frequency.
 
-Server-side dedup: before applying `append_note`, skip if the trimmed note already appears in current `freeform_notes`.
+### 3. Client UX polish in `src/components/console/PreferencesChat.tsx`
+- When the edge function returns `rate_limited: true` (200 response), render the message inline as a normal assistant turn instead of showing the destructive "Chat error" toast.
+- Keep the existing destructive toast only for true errors (network failure, non-200 from the function).
 
-**Pass 2 — Reply**
+### Technical notes
 
-Call Gemini again with `tool_choice: { type: 'function', function: { name: 'reply' } }`, passing the patched preferences plus a note of what changed so the reply can acknowledge ("Set walkability and safety to high.") and ask for the most useful next missing field (beds, budget, etc.) with 2–3 suggested_replies.
+- No DB schema, route, or auth changes.
+- No changes to `PreferencesSummaryCard`, `PreferencesEditDialog`, save/reset/restart/edit flows — those already work.
+- Single edge function edit + single component edit.
 
-**Self-correction case**
-
-When the user says "you didn't capture X" or "you missed X", the extraction prompt must treat it as a request to ask for X, not as a no-op. Add an explicit instruction + an `acknowledge_gap` hint in the patch (no schema change — just included in the second-pass context).
-
-**Other tweaks**
-
-- Lower `temperature` to 0.2 for extraction pass.
-- Validate patch with the existing `applyPatch` (already deep-merges). Log the diff for debugging.
-- Mirror to legacy columns stays as-is.
-- Opening turn unchanged.
-
-## No DB or UI changes
-
-- `PreferencesSummaryCard` already re-renders from the returned `preferences` object on every turn. No change needed once extraction works.
-- `PreferencesChat` already calls the function and updates state on each response.
-- No migration.
-
-## Acceptance
-
-- "I'm buying a home for my family, walkable, safe, nature around" → sets `goal=buy_home`, `lifestyle.walkability_importance=high`, `safety_importance=high`, `parks_importance=high`, no duplicated notes.
-- "3 beds 2 baths under $650k" → fills `property.bedrooms_min=3`, `bathrooms_min=2`, `budget.purchase_price_max=650000`.
-- "you didn't capture beds/baths" → AI asks "How many bedrooms and bathrooms do you need (minimum)?"
-- "only Tampa" → replaces locations with `[Tampa, FL]`.
-- Current Preferences card updates live on every turn.
+### Files touched
+- `supabase/functions/preferences-assistant/index.ts` (collapse to single call, graceful 429)
+- `src/components/console/PreferencesChat.tsx` (handle `rate_limited` response without destructive toast)
