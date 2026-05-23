@@ -677,22 +677,42 @@ Deno.serve(async (req) => {
       }, 200, req);
     }
 
-    const rawPatch = await extractPatch(messages, currentPrefs);
-    const patch = dedupNoteInPatch(rawPatch, currentPrefs.freeform_notes ?? '');
+    const turn = await chatTurn(messages, currentPrefs);
+
+    if (!turn.ok) {
+      // Graceful 429/402 — return 200 so the client can show an inline,
+      // non-destructive notice without losing the chat thread.
+      const msg = turn.rateLimited
+        ? "I'm getting rate-limited right now — please try again in a few seconds. Your preferences are safe."
+        : turn.creditsExhausted
+        ? "The AI workspace is out of credits. Please top up in Settings → Workspace → Usage."
+        : "I couldn't reach the AI right now. Please try again in a moment.";
+      return jsonResponse({
+        preferences: currentPrefs,
+        message: msg,
+        suggested_replies: [],
+        rate_limited: turn.rateLimited,
+        soft_error: true,
+      }, 200, req);
+    }
+
+    const patch = dedupNoteInPatch(turn.patch, currentPrefs.freeform_notes ?? '');
     const nextPrefs = applyPatch(currentPrefs, patch);
     const changeSummary = diffSummary(currentPrefs, nextPrefs);
     log.step('Extraction', { changes: changeSummary });
-    const reply = await generateReply(messages, nextPrefs, changeSummary);
 
     // Persist
     const updates: Record<string, unknown> = { preferences: nextPrefs, ...mirrorToLegacyColumns(nextPrefs) };
     const { error: updateErr } = await supabase.from('profiles').update(updates).eq('id', user.id);
     if (updateErr) log.step('Profile update failed', { error: updateErr.message });
 
+    const message = turn.reply?.message ?? fallbackAck(changeSummary, nextPrefs);
+    const suggested_replies = turn.reply?.suggested_replies ?? [];
+
     return jsonResponse({
       preferences: nextPrefs,
-      message: reply.message,
-      suggested_replies: reply.suggested_replies,
+      message,
+      suggested_replies,
     }, 200, req);
   } catch (error) {
     log.step('ERROR', { message: getErrorMessage(error) });
