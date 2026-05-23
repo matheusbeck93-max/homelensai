@@ -305,6 +305,8 @@ LEXICON (map natural language -> structured fields):
 
 GOAL mapping (set goal once, do not overwrite unless user contradicts):
 - "buying for my family / our home / primary residence / first home / move-in" -> goal = "buy_home"
+- "Primary Residence" (as a standalone short reply) -> goal = "buy_home"
+- "Investment / rental property" (standalone) -> goal = "invest"
 - "rental / cash flow / investment / BRRRR / flip" -> goal = "invest"
 - "renting / lease" -> goal = "rent"
 - "researching the market" -> goal = "market_research"
@@ -365,8 +367,19 @@ const REPLY_PROMPT = `You are HomeLens's Preferences Assistant — warm, brief, 
 
 Style:
 - 1-2 sentences. If you changed something, acknowledge it specifically ("Set walkability and safety to high.").
-- Ask exactly ONE follow-up about the most useful missing field (in priority: goal, locations, bedrooms_min, bathrooms_min, purchase_price_max, must-haves).
-- Provide 2-3 short suggested_replies the user can tap.
+- Ask exactly ONE follow-up about the most useful MISSING field, in this priority order — SKIP any field already filled in the Current preferences JSON:
+    1. goal (skip if goal is not null)
+    2. locations (skip if non-empty)
+    3. property.bedrooms_min (skip if non-null)
+    4. property.bathrooms_min (skip if non-null)
+    5. budget.purchase_price_max (skip if non-null)
+    6. property.types (skip if non-empty)
+    7. must_haves (skip if non-empty)
+    8. lifestyle importance fields (skip any already set)
+- NEVER re-ask for a value already present. Never ask "what's your max price?" if budget.purchase_price_max is set. Never re-ask goal/beds/baths/locations if they are set.
+- Do not repeat any question you already asked earlier in this conversation history.
+- If all high-priority fields are filled, ask about deal-breakers, timeline, or financing — or confirm and offer to wrap up.
+- Provide 2-3 short suggested_replies the user can tap (omit if no follow-up question).
 - If the user said "you didn't capture X / you missed X", explicitly ask for X.
 - US real estate only. No legal/lending/tax advice. No fair-housing ranking.
 
@@ -530,10 +543,22 @@ function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
   const note = patch.append_note.trim();
   if (!note) { const { append_note: _omit, ...rest } = patch; return rest; }
   const norm = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+  const prevNorm = norm(prevNotes || '');
   const existingKeys = new Set(
     (prevNotes || '').split('\n').map((l) => norm(l)).filter(Boolean)
   );
-  const keptLines = note.split('\n').map((l) => l.trim()).filter((l) => l && !existingKeys.has(norm(l)));
+  const keptLines = note
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => {
+      if (!l) return false;
+      const k = norm(l);
+      if (!k) return false;
+      if (existingKeys.has(k)) return false;
+      // Skip if the line is already contained as substring in existing notes
+      if (prevNorm && prevNorm.includes(k)) return false;
+      return true;
+    });
   if (keptLines.length === 0) {
     const { append_note: _omit, ...rest } = patch;
     return rest;
