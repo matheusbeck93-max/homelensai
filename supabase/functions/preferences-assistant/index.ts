@@ -940,22 +940,22 @@ Deno.serve(async (req) => {
     // Pass 1: extract & persist BEFORE composing any reply text. This guarantees
     // the assistant's acknowledgment is grounded in what actually got saved.
     const extraction = await extractPatch(messages, currentPrefs);
-    if (!extraction.ok) {
-      const msg = extraction.rateLimited
-        ? "I'm getting rate-limited and couldn't save your last message yet. Please try again in a few seconds — your earlier preferences are safe."
-        : extraction.creditsExhausted
-        ? "The AI workspace is out of credits, so I couldn't save your last message. Please top up in Settings → Workspace → Usage and retry."
-        : "I couldn't reach the AI to save your last message. Please retry in a moment.";
-      return jsonResponse({
-        preferences: currentPrefs,
-        message: msg,
-        suggested_replies: ['Retry', 'Show me what you know so far'],
-        rate_limited: extraction.rateLimited,
-        soft_error: true,
-      }, 200, req);
+    let backupMode = false;
+    let rateLimited = false;
+    let creditsExhausted = false;
+    let rawPatch: Patch;
+    if (extraction.ok) {
+      rawPatch = extraction.patch;
+    } else {
+      backupMode = true;
+      rateLimited = extraction.rateLimited;
+      creditsExhausted = extraction.creditsExhausted;
+      const latestUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+      rawPatch = deterministicParse(latestUser);
+      log.step('Fallback parse', { rateLimited, creditsExhausted, hasPatch: !!(rawPatch.set || rawPatch.add || rawPatch.append_note) });
     }
 
-    const patch = dedupNoteInPatch(extraction.patch, currentPrefs.freeform_notes ?? '');
+    const patch = dedupNoteInPatch(rawPatch, currentPrefs.freeform_notes ?? '');
     const nextPrefs = applyPatch(currentPrefs, patch);
     const changeSummary = diffSummary(currentPrefs, nextPrefs);
     const saved = savedSummary(currentPrefs, nextPrefs);
@@ -974,23 +974,20 @@ Deno.serve(async (req) => {
       }, 200, req);
     }
 
-    // Pass 2: data-driven reply. If it fails, fall back to a hand-built
-    // confirmation that still names what was saved.
-    const replyTurn = await generateReply(messages, currentPrefs, nextPrefs);
+    // Deterministic reply — no second AI call. This halves gateway pressure
+    // and means setup keeps working even when the gateway is rate-limited.
     const missing = nextMissingField(nextPrefs);
-    const fallbackChips = suggestedRepliesFor(missing);
-
-    const message =
-      (replyTurn.ok && replyTurn.reply?.message) ? replyTurn.reply.message : fallbackAck(saved, nextPrefs);
-    const suggested_replies =
-      (replyTurn.ok && replyTurn.reply?.suggested_replies?.length) ? replyTurn.reply.suggested_replies : fallbackChips;
+    const suggested_replies = suggestedRepliesFor(missing);
+    const message = fallbackAck(saved, nextPrefs);
 
     return jsonResponse({
       preferences: nextPrefs,
       message,
       suggested_replies,
       saved_summary: saved || null,
-      rate_limited: replyTurn.ok ? false : replyTurn.rateLimited,
+      backup_mode: backupMode,
+      rate_limited: rateLimited,
+      credits_exhausted: creditsExhausted,
     }, 200, req);
   } catch (error) {
     log.step('ERROR', { message: getErrorMessage(error) });
