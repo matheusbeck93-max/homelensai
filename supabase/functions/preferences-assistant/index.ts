@@ -305,6 +305,8 @@ LEXICON (map natural language -> structured fields):
 
 GOAL mapping (set goal once, do not overwrite unless user contradicts):
 - "buying for my family / our home / primary residence / first home / move-in" -> goal = "buy_home"
+- "Primary Residence" (as a standalone short reply) -> goal = "buy_home"
+- "Investment / rental property" (standalone) -> goal = "invest"
 - "rental / cash flow / investment / BRRRR / flip" -> goal = "invest"
 - "renting / lease" -> goal = "rent"
 - "researching the market" -> goal = "market_research"
