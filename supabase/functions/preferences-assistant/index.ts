@@ -503,9 +503,41 @@ function suggestedRepliesFor(field: MissingField): string[] {
     case 'property.types': return ['House', 'Townhouse', 'Condo', 'Open to any'];
     case 'must_haves': return ['Garage', 'Yard', 'Home office', 'Skip for now'];
     case 'lifestyle': return ['Good schools', 'Walkable area', 'Short commute', 'Safe neighborhood'];
-    case null: return ['Show me what you know so far', 'Start browsing homes'];
+    case null: return [];
     default: return [];
   }
+}
+
+// Setup is "complete enough" once the user has shared:
+//  - a goal
+//  - at least one location
+//  - a budget signal (purchase price OR monthly payment)
+//  - a property signal (bedrooms or bathrooms OR a property type)
+function isSetupComplete(p: Preferences): boolean {
+  const hasGoal = !!p.goal;
+  const hasLocation = (p.locations ?? []).length > 0;
+  const hasBudget = p.budget?.purchase_price_max != null || p.budget?.monthly_payment_max != null;
+  const hasProperty =
+    p.property?.bedrooms_min != null ||
+    p.property?.bathrooms_min != null ||
+    (p.property?.types ?? []).length > 0;
+  return hasGoal && hasLocation && hasBudget && hasProperty;
+}
+
+function hasAnyChange(saved: string): boolean {
+  return !!saved && saved.trim().length > 0;
+}
+
+const COMPLETION_MESSAGES = [
+  "You're all set — I now understand your core home preferences and will personalize recommendations around them. You can refine anything anytime by just chatting with me.",
+  "Perfect — your HomeLens preferences are configured. As you keep exploring, I'll use these to personalize search, analysis, and recommendations. Update anything anytime.",
+  "Great — I have enough to personalize your HomeLens experience. Feel free to adjust your preferences naturally through chat whenever you'd like.",
+];
+
+function pickCompletionMessage(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return COMPLETION_MESSAGES[h % COMPLETION_MESSAGES.length];
 }
 
 function fieldLabel(f: MissingField): string {
