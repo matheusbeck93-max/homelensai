@@ -83,8 +83,19 @@ export function PreferencesSummaryCard({ preferences }: { preferences: Preferenc
       } as Record<string, string>)[p.goal] ?? p.goal
     : null;
 
+  const buyerTypeLabel = p.buyer_type
+    ? ({
+        first_time_home_buyer: "First-time home buyer",
+        repeat_buyer: "Repeat buyer",
+        move_up_buyer: "Move-up buyer",
+        downsizer: "Downsizer",
+        relocating_buyer: "Relocating buyer",
+      } as Record<string, string>)[p.buyer_type] ?? p.buyer_type
+    : null;
+
   const hasAny =
     goalLabel ||
+    buyerTypeLabel ||
     (p.locations && p.locations.length) ||
     budget ||
     bedbath ||
@@ -112,6 +123,7 @@ export function PreferencesSummaryCard({ preferences }: { preferences: Preferenc
         ) : (
           <div className="divide-y divide-border/50">
             <Row label="Goal" value={goalLabel} />
+            <Row label="Buyer type" value={buyerTypeLabel} />
             <Row label="Locations" value={<Chips items={p.locations} />} />
             <Row label="Budget" value={budget} />
             <Row label="Property" value={bedbath || null} />
