@@ -227,8 +227,21 @@ function applyPatch(prev: Preferences, patch: Patch | undefined | null): Prefere
   }
 
   if (typeof patch.append_note === 'string' && patch.append_note.trim()) {
+    const incoming = patch.append_note.trim();
     const prevNote = (next.freeform_notes ?? '').trim();
-    next.freeform_notes = (prevNote ? `${prevNote}\n${patch.append_note.trim()}` : patch.append_note.trim()).slice(0, 4000);
+    const norm = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const existingLines = prevNote ? prevNote.split('\n').map((l) => l.trim()).filter(Boolean) : [];
+    const existingKeys = new Set(existingLines.map(norm));
+    const incomingLines = incoming.split('\n').map((l) => l.trim()).filter(Boolean);
+    const merged = [...existingLines];
+    for (const line of incomingLines) {
+      const k = norm(line);
+      if (k && !existingKeys.has(k)) {
+        existingKeys.add(k);
+        merged.push(line);
+      }
+    }
+    next.freeform_notes = merged.join('\n').slice(0, 4000);
   }
 
   next.updated_at = new Date().toISOString();
@@ -516,11 +529,16 @@ function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
   if (!patch?.append_note) return patch;
   const note = patch.append_note.trim();
   if (!note) { const { append_note: _omit, ...rest } = patch; return rest; }
-  if (prevNotes && prevNotes.toLowerCase().includes(note.toLowerCase())) {
+  const norm = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+  const existingKeys = new Set(
+    (prevNotes || '').split('\n').map((l) => norm(l)).filter(Boolean)
+  );
+  const keptLines = note.split('\n').map((l) => l.trim()).filter((l) => l && !existingKeys.has(norm(l)));
+  if (keptLines.length === 0) {
     const { append_note: _omit, ...rest } = patch;
     return rest;
   }
-  return patch;
+  return { ...patch, append_note: keptLines.join('\n') };
 }
 
 // ---------- HTTP ----------
