@@ -576,50 +576,82 @@ function parseToolArgs(data: any, name: string): any | null {
   return null;
 }
 
-// Single combined call: exposes BOTH tools and lets the model emit them
-// in parallel. Halves gateway pressure vs. the old two-pass flow.
-async function chatTurn(
+// Pass 1: extract a structured patch from the user's latest message.
+// We FORCE update_preferences so the model can never silently skip the save.
+async function extractPatch(
   messages: Array<{ role: string; content: string }>,
   prefs: Preferences,
 ): Promise<
-  | { ok: true; patch: Patch; reply: { message: string; suggested_replies: string[] } | null }
+  | { ok: true; patch: Patch }
   | { ok: false; rateLimited: boolean; creditsExhausted: boolean }
 > {
-  const COMBINED_PROMPT = `${SYSTEM_PROMPT}
-
---- EXTRACTION RULES ---
-${EXTRACTION_PROMPT}
-
---- REPLY RULES ---
-${REPLY_PROMPT}
-
-You MUST call update_preferences (with {} if nothing changes) AND reply in the same response.`;
-
   const result = await callGateway({
     model: 'google/gemini-2.5-flash',
-    temperature: 0.3,
+    temperature: 0,
     messages: [
-      { role: 'system', content: COMBINED_PROMPT },
+      { role: 'system', content: EXTRACTION_PROMPT },
       { role: 'system', content: `Current preferences JSON:\n${JSON.stringify(prefs, null, 2)}` },
       ...messages,
     ],
-    tools: TOOLS,
-    tool_choice: 'auto',
+    tools: UPDATE_TOOL,
+    tool_choice: { type: 'function', function: { name: 'update_preferences' } },
   });
   if (!result.ok) {
     return { ok: false, rateLimited: result.rateLimited, creditsExhausted: result.creditsExhausted };
   }
   const patch = (parseToolArgs(result.data, 'update_preferences') as Patch) ?? {};
+  return { ok: true, patch };
+}
+
+// Pass 2: generate a data-driven reply that confirms what was actually saved
+// and asks about the next-most-important missing field.
+async function generateReply(
+  messages: Array<{ role: string; content: string }>,
+  before: Preferences,
+  after: Preferences,
+): Promise<
+  | { ok: true; reply: { message: string; suggested_replies: string[] } | null }
+  | { ok: false; rateLimited: boolean; creditsExhausted: boolean }
+> {
+  const saved = savedSummary(before, after);
+  const missing = nextMissingField(after);
+  const chips = suggestedRepliesFor(missing);
+  const context = [
+    `Saved this turn: ${saved || '(no structured changes)'}`,
+    `Current preferences JSON:\n${JSON.stringify(after, null, 2)}`,
+    `Next most important MISSING field: ${missing ?? '(everything required is set)'}`,
+    missing
+      ? `Ask ONE focused question about ${fieldLabel(missing)}. Do NOT ask about any field already filled.`
+      : `All key fields are set. Confirm and offer: "Want me to start browsing homes?"`,
+    `If something was saved this turn, your reply MUST specifically name what was saved (e.g. "Added Tampa, FL to your locations" or "Set max price to $650k"). Never use the generic phrase "Got it — updated".`,
+    `Suggested replies should be 3-4 short chips relevant to that next question. Recommended: ${JSON.stringify(chips)}.`,
+  ].join('\n\n');
+
+  const result = await callGateway({
+    model: 'google/gemini-2.5-flash',
+    temperature: 0.5,
+    messages: [
+      { role: 'system', content: REPLY_PROMPT },
+      { role: 'system', content: context },
+      ...messages,
+    ],
+    tools: REPLY_TOOL,
+    tool_choice: { type: 'function', function: { name: 'reply' } },
+  });
+  if (!result.ok) {
+    return { ok: false, rateLimited: result.rateLimited, creditsExhausted: result.creditsExhausted };
+  }
   const replyArgs = parseToolArgs(result.data, 'reply');
-  const reply = replyArgs
-    ? {
-        message: String(replyArgs.message ?? 'Got it.'),
-        suggested_replies: Array.isArray(replyArgs.suggested_replies)
-          ? replyArgs.suggested_replies.slice(0, 4).map(String)
-          : [],
-      }
-    : null;
-  return { ok: true, patch, reply };
+  if (!replyArgs) return { ok: true, reply: null };
+  return {
+    ok: true,
+    reply: {
+      message: String(replyArgs.message ?? '').trim(),
+      suggested_replies: Array.isArray(replyArgs.suggested_replies)
+        ? replyArgs.suggested_replies.slice(0, 4).map(String)
+        : chips,
+    },
+  };
 }
 
 function diffSummary(before: Preferences, after: Preferences): string {
