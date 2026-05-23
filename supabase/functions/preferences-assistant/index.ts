@@ -1118,7 +1118,7 @@ Deno.serve(async (req) => {
     // and means setup keeps working even when the gateway is rate-limited.
     const missing = nextMissingField(nextPrefs);
     const suggested_replies = suggestedRepliesFor(missing);
-    const message = fallbackAck(saved, nextPrefs);
+    const message = humanAck(currentPrefs, nextPrefs, missing);
 
     return jsonResponse({
       preferences: nextPrefs,
