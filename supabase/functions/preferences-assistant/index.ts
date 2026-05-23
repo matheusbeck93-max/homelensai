@@ -683,14 +683,16 @@ function diffSummary(before: Preferences, after: Preferences): string {
   return changes.length ? changes.join('; ') : 'no structured changes';
 }
 
-function fallbackAck(changeSummary: string, prefs: Preferences): string {
-  if (changeSummary && changeSummary !== 'no structured changes') {
-    return `Got it — updated. What else should I know about your search?`;
+function fallbackAck(saved: string, prefs: Preferences): string {
+  const missing = nextMissingField(prefs);
+  const ask = missing
+    ? ` What about ${fieldLabel(missing)}?`
+    : ' Want me to start browsing homes?';
+  if (saved) {
+    return `Saved: ${saved}.${ask}`;
   }
-  if (!prefs.goal) return "What's the main goal — buying a home, or investing?";
-  if (!(prefs.locations ?? []).length) return 'Which cities or areas are you considering?';
-  if (prefs.budget?.purchase_price_max == null) return "What's your max purchase price?";
-  return 'Anything else you want me to capture?';
+  if (missing) return `Got it.${ask}`;
+  return "Your preferences look complete. Want me to start browsing homes?";
 }
 
 function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
@@ -799,42 +801,60 @@ Deno.serve(async (req) => {
       }, 200, req);
     }
 
-    const turn = await chatTurn(messages, currentPrefs);
-
-    if (!turn.ok) {
-      // Graceful 429/402 — return 200 so the client can show an inline,
-      // non-destructive notice without losing the chat thread.
-      const msg = turn.rateLimited
-        ? "I'm getting rate-limited right now — please try again in a few seconds. Your preferences are safe."
-        : turn.creditsExhausted
-        ? "The AI workspace is out of credits. Please top up in Settings → Workspace → Usage."
-        : "I couldn't reach the AI right now. Please try again in a moment.";
+    // Pass 1: extract & persist BEFORE composing any reply text. This guarantees
+    // the assistant's acknowledgment is grounded in what actually got saved.
+    const extraction = await extractPatch(messages, currentPrefs);
+    if (!extraction.ok) {
+      const msg = extraction.rateLimited
+        ? "I'm getting rate-limited and couldn't save your last message yet. Please try again in a few seconds — your earlier preferences are safe."
+        : extraction.creditsExhausted
+        ? "The AI workspace is out of credits, so I couldn't save your last message. Please top up in Settings → Workspace → Usage and retry."
+        : "I couldn't reach the AI to save your last message. Please retry in a moment.";
       return jsonResponse({
         preferences: currentPrefs,
         message: msg,
-        suggested_replies: [],
-        rate_limited: turn.rateLimited,
+        suggested_replies: ['Retry', 'Show me what you know so far'],
+        rate_limited: extraction.rateLimited,
         soft_error: true,
       }, 200, req);
     }
 
-    const patch = dedupNoteInPatch(turn.patch, currentPrefs.freeform_notes ?? '');
+    const patch = dedupNoteInPatch(extraction.patch, currentPrefs.freeform_notes ?? '');
     const nextPrefs = applyPatch(currentPrefs, patch);
     const changeSummary = diffSummary(currentPrefs, nextPrefs);
-    log.step('Extraction', { changes: changeSummary });
+    const saved = savedSummary(currentPrefs, nextPrefs);
+    log.step('Extraction', { changes: changeSummary, saved });
 
-    // Persist
+    // Persist BEFORE replying so the UI's Current Preferences reflects truth.
     const updates: Record<string, unknown> = { preferences: nextPrefs, ...mirrorToLegacyColumns(nextPrefs) };
     const { error: updateErr } = await supabase.from('profiles').update(updates).eq('id', user.id);
-    if (updateErr) log.step('Profile update failed', { error: updateErr.message });
+    if (updateErr) {
+      log.step('Profile update failed', { error: updateErr.message });
+      return jsonResponse({
+        preferences: currentPrefs,
+        message: `I couldn't save that to your profile (${updateErr.message}). Please retry.`,
+        suggested_replies: ['Retry'],
+        soft_error: true,
+      }, 200, req);
+    }
 
-    const message = turn.reply?.message ?? fallbackAck(changeSummary, nextPrefs);
-    const suggested_replies = turn.reply?.suggested_replies ?? [];
+    // Pass 2: data-driven reply. If it fails, fall back to a hand-built
+    // confirmation that still names what was saved.
+    const replyTurn = await generateReply(messages, currentPrefs, nextPrefs);
+    const missing = nextMissingField(nextPrefs);
+    const fallbackChips = suggestedRepliesFor(missing);
+
+    const message =
+      (replyTurn.ok && replyTurn.reply?.message) ? replyTurn.reply.message : fallbackAck(saved, nextPrefs);
+    const suggested_replies =
+      (replyTurn.ok && replyTurn.reply?.suggested_replies?.length) ? replyTurn.reply.suggested_replies : fallbackChips;
 
     return jsonResponse({
       preferences: nextPrefs,
       message,
       suggested_replies,
+      saved_summary: saved || null,
+      rate_limited: replyTurn.ok ? false : replyTurn.rateLimited,
     }, 200, req);
   } catch (error) {
     log.step('ERROR', { message: getErrorMessage(error) });
