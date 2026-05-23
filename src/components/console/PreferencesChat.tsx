@@ -89,6 +89,9 @@ export function PreferencesChat() {
       };
       setTurns((prev) => [...prev, reply]);
       if (data?.preferences) setPreferences({ ...EMPTY_PREFERENCES, ...data.preferences });
+      if (data?.rate_limited) {
+        toast({ title: "Rate limited", description: "Try again in a few seconds." });
+      }
     } catch (e: any) {
       setTurns((prev) => [...prev, { role: "assistant", content: "Something went wrong reaching the assistant. Please try again." }]);
       toast({ title: "Chat error", description: e?.message ?? "Could not reach the assistant.", variant: "destructive" });

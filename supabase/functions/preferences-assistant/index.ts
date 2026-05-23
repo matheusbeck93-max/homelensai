@@ -450,7 +450,11 @@ const TOOLS = [
 const UPDATE_TOOL = [TOOLS[0]];
 const REPLY_TOOL = [TOOLS[1]];
 
-async function callGateway(body: Record<string, unknown>) {
+type GatewayResult =
+  | { ok: true; data: any }
+  | { ok: false; status: number; rateLimited: boolean; creditsExhausted: boolean; text: string };
+
+async function callGateway(body: Record<string, unknown>): Promise<GatewayResult> {
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -460,9 +464,16 @@ async function callGateway(body: Record<string, unknown>) {
   });
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`AI gateway ${resp.status}: ${text}`);
+    log.step('Gateway non-2xx', { status: resp.status, text: text.slice(0, 300) });
+    return {
+      ok: false,
+      status: resp.status,
+      rateLimited: resp.status === 429,
+      creditsExhausted: resp.status === 402,
+      text,
+    };
   }
-  return await resp.json();
+  return { ok: true, data: await resp.json() };
 }
 
 function parseToolArgs(data: any, name: string): any | null {
@@ -475,19 +486,50 @@ function parseToolArgs(data: any, name: string): any | null {
   return null;
 }
 
-async function extractPatch(messages: Array<{ role: string; content: string }>, prefs: Preferences): Promise<Patch> {
-  const data = await callGateway({
+// Single combined call: exposes BOTH tools and lets the model emit them
+// in parallel. Halves gateway pressure vs. the old two-pass flow.
+async function chatTurn(
+  messages: Array<{ role: string; content: string }>,
+  prefs: Preferences,
+): Promise<
+  | { ok: true; patch: Patch; reply: { message: string; suggested_replies: string[] } | null }
+  | { ok: false; rateLimited: boolean; creditsExhausted: boolean }
+> {
+  const COMBINED_PROMPT = `${SYSTEM_PROMPT}
+
+--- EXTRACTION RULES ---
+${EXTRACTION_PROMPT}
+
+--- REPLY RULES ---
+${REPLY_PROMPT}
+
+You MUST call update_preferences (with {} if nothing changes) AND reply in the same response.`;
+
+  const result = await callGateway({
     model: 'google/gemini-2.5-flash',
-    temperature: 0.1,
+    temperature: 0.3,
     messages: [
-      { role: 'system', content: EXTRACTION_PROMPT },
+      { role: 'system', content: COMBINED_PROMPT },
       { role: 'system', content: `Current preferences JSON:\n${JSON.stringify(prefs, null, 2)}` },
       ...messages,
     ],
-    tools: UPDATE_TOOL,
-    tool_choice: { type: 'function', function: { name: 'update_preferences' } },
+    tools: TOOLS,
+    tool_choice: 'auto',
   });
-  return (parseToolArgs(data, 'update_preferences') as Patch) ?? {};
+  if (!result.ok) {
+    return { ok: false, rateLimited: result.rateLimited, creditsExhausted: result.creditsExhausted };
+  }
+  const patch = (parseToolArgs(result.data, 'update_preferences') as Patch) ?? {};
+  const replyArgs = parseToolArgs(result.data, 'reply');
+  const reply = replyArgs
+    ? {
+        message: String(replyArgs.message ?? 'Got it.'),
+        suggested_replies: Array.isArray(replyArgs.suggested_replies)
+          ? replyArgs.suggested_replies.slice(0, 4).map(String)
+          : [],
+      }
+    : null;
+  return { ok: true, patch, reply };
 }
 
 function diffSummary(before: Preferences, after: Preferences): string {
@@ -519,23 +561,14 @@ function diffSummary(before: Preferences, after: Preferences): string {
   return changes.length ? changes.join('; ') : 'no structured changes';
 }
 
-async function generateReply(messages: Array<{ role: string; content: string }>, prefs: Preferences, changeSummary: string) {
-  const data = await callGateway({
-    model: 'google/gemini-2.5-flash',
-    temperature: 0.4,
-    messages: [
-      { role: 'system', content: REPLY_PROMPT },
-      { role: 'system', content: `Current preferences (after update):\n${JSON.stringify(prefs, null, 2)}\n\nChanges this turn: ${changeSummary}` },
-      ...messages,
-    ],
-    tools: REPLY_TOOL,
-    tool_choice: { type: 'function', function: { name: 'reply' } },
-  });
-  const args = parseToolArgs(data, 'reply') ?? {};
-  return {
-    message: String(args.message ?? 'Got it. What else should I know about your search?'),
-    suggested_replies: Array.isArray(args.suggested_replies) ? args.suggested_replies.slice(0, 4).map(String) : [],
-  };
+function fallbackAck(changeSummary: string, prefs: Preferences): string {
+  if (changeSummary && changeSummary !== 'no structured changes') {
+    return `Got it — updated. What else should I know about your search?`;
+  }
+  if (!prefs.goal) return "What's the main goal — buying a home, or investing?";
+  if (!(prefs.locations ?? []).length) return 'Which cities or areas are you considering?';
+  if (prefs.budget?.purchase_price_max == null) return "What's your max purchase price?";
+  return 'Anything else you want me to capture?';
 }
 
 function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
@@ -644,22 +677,42 @@ Deno.serve(async (req) => {
       }, 200, req);
     }
 
-    const rawPatch = await extractPatch(messages, currentPrefs);
-    const patch = dedupNoteInPatch(rawPatch, currentPrefs.freeform_notes ?? '');
+    const turn = await chatTurn(messages, currentPrefs);
+
+    if (!turn.ok) {
+      // Graceful 429/402 — return 200 so the client can show an inline,
+      // non-destructive notice without losing the chat thread.
+      const msg = turn.rateLimited
+        ? "I'm getting rate-limited right now — please try again in a few seconds. Your preferences are safe."
+        : turn.creditsExhausted
+        ? "The AI workspace is out of credits. Please top up in Settings → Workspace → Usage."
+        : "I couldn't reach the AI right now. Please try again in a moment.";
+      return jsonResponse({
+        preferences: currentPrefs,
+        message: msg,
+        suggested_replies: [],
+        rate_limited: turn.rateLimited,
+        soft_error: true,
+      }, 200, req);
+    }
+
+    const patch = dedupNoteInPatch(turn.patch, currentPrefs.freeform_notes ?? '');
     const nextPrefs = applyPatch(currentPrefs, patch);
     const changeSummary = diffSummary(currentPrefs, nextPrefs);
     log.step('Extraction', { changes: changeSummary });
-    const reply = await generateReply(messages, nextPrefs, changeSummary);
 
     // Persist
     const updates: Record<string, unknown> = { preferences: nextPrefs, ...mirrorToLegacyColumns(nextPrefs) };
     const { error: updateErr } = await supabase.from('profiles').update(updates).eq('id', user.id);
     if (updateErr) log.step('Profile update failed', { error: updateErr.message });
 
+    const message = turn.reply?.message ?? fallbackAck(changeSummary, nextPrefs);
+    const suggested_replies = turn.reply?.suggested_replies ?? [];
+
     return jsonResponse({
       preferences: nextPrefs,
-      message: reply.message,
-      suggested_replies: reply.suggested_replies,
+      message,
+      suggested_replies,
     }, 200, req);
   } catch (error) {
     log.step('ERROR', { message: getErrorMessage(error) });
