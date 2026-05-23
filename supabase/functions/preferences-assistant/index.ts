@@ -450,6 +450,96 @@ const TOOLS = [
 const UPDATE_TOOL = [TOOLS[0]];
 const REPLY_TOOL = [TOOLS[1]];
 
+// ---------- Missing-field priority + suggested-reply chips ----------
+
+type MissingField =
+  | 'goal'
+  | 'locations'
+  | 'budget.purchase_price_max'
+  | 'property.bedrooms_min'
+  | 'property.bathrooms_min'
+  | 'property.types'
+  | 'must_haves'
+  | 'lifestyle'
+  | null;
+
+function nextMissingField(p: Preferences): MissingField {
+  const isInvestor = p.goal === 'invest';
+  const order: MissingField[] = isInvestor
+    ? ['goal', 'budget.purchase_price_max', 'locations', 'property.bedrooms_min', 'property.types', 'lifestyle']
+    : ['goal', 'locations', 'budget.purchase_price_max', 'property.bedrooms_min', 'property.bathrooms_min', 'property.types', 'must_haves', 'lifestyle'];
+  for (const f of order) {
+    if (!f) continue;
+    if (f === 'goal' && !p.goal) return 'goal';
+    if (f === 'locations' && !(p.locations ?? []).length) return 'locations';
+    if (f === 'budget.purchase_price_max' && p.budget?.purchase_price_max == null) return 'budget.purchase_price_max';
+    if (f === 'property.bedrooms_min' && p.property?.bedrooms_min == null) return 'property.bedrooms_min';
+    if (f === 'property.bathrooms_min' && p.property?.bathrooms_min == null) return 'property.bathrooms_min';
+    if (f === 'property.types' && !(p.property?.types ?? []).length) return 'property.types';
+    if (f === 'must_haves' && !(p.must_haves ?? []).length) return 'must_haves';
+    if (f === 'lifestyle') {
+      const l = p.lifestyle ?? {};
+      if (!l.schools_importance && !l.commute_importance && !l.safety_importance && !l.walkability_importance && !l.parks_importance) return 'lifestyle';
+    }
+  }
+  return null;
+}
+
+function suggestedRepliesFor(field: MissingField): string[] {
+  switch (field) {
+    case 'goal': return ['Buying a home', 'Investing in rentals', 'Just researching'];
+    case 'locations': return ['Tampa, FL', 'Austin, TX', 'Open to suggestions'];
+    case 'budget.purchase_price_max': return ['Under $400k', '$400k–$700k', '$700k–$1M', '$1M+'];
+    case 'property.bedrooms_min': return ['2+ bedrooms', '3+ bedrooms', '4+ bedrooms'];
+    case 'property.bathrooms_min': return ['1+ bathroom', '2+ bathrooms', '3+ bathrooms'];
+    case 'property.types': return ['House', 'Townhouse', 'Condo', 'Open to any'];
+    case 'must_haves': return ['Garage', 'Yard', 'Home office', 'Skip for now'];
+    case 'lifestyle': return ['Good schools', 'Walkable area', 'Short commute', 'Safe neighborhood'];
+    case null: return ['Show me what you know so far', 'Start browsing homes'];
+    default: return [];
+  }
+}
+
+function fieldLabel(f: MissingField): string {
+  switch (f) {
+    case 'goal': return 'your goal (buying vs investing)';
+    case 'locations': return 'cities or areas you\'re considering';
+    case 'budget.purchase_price_max': return 'your max purchase price';
+    case 'property.bedrooms_min': return 'minimum bedrooms';
+    case 'property.bathrooms_min': return 'minimum bathrooms';
+    case 'property.types': return 'property type (house, townhouse, condo…)';
+    case 'must_haves': return 'any must-haves (garage, yard, etc.)';
+    case 'lifestyle': return 'lifestyle priorities (schools, walkability, commute)';
+    case null: return '';
+  }
+}
+
+function savedSummary(before: Preferences, after: Preferences): string {
+  const parts: string[] = [];
+  if (before.goal !== after.goal && after.goal) parts.push(`goal=${after.goal}`);
+  const added = (a?: string[], b?: string[]) => (b ?? []).filter((v) => !(a ?? []).some((u) => u.toLowerCase() === v.toLowerCase()));
+  const aL = added(before.locations, after.locations); if (aL.length) parts.push(`locations +[${aL.join(', ')}]`);
+  const aT = added(before.property?.types, after.property?.types); if (aT.length) parts.push(`types +[${aT.join(', ')}]`);
+  const aM = added(before.must_haves, after.must_haves); if (aM.length) parts.push(`must_haves +[${aM.join(', ')}]`);
+  const aN = added(before.nice_to_haves, after.nice_to_haves); if (aN.length) parts.push(`nice_to_haves +[${aN.join(', ')}]`);
+  const aD = added(before.deal_breakers, after.deal_breakers); if (aD.length) parts.push(`deal_breakers +[${aD.join(', ')}]`);
+  if (before.budget?.purchase_price_max !== after.budget?.purchase_price_max && after.budget?.purchase_price_max != null)
+    parts.push(`max price=$${after.budget.purchase_price_max.toLocaleString()}`);
+  if (before.budget?.monthly_payment_max !== after.budget?.monthly_payment_max && after.budget?.monthly_payment_max != null)
+    parts.push(`monthly max=$${after.budget.monthly_payment_max.toLocaleString()}`);
+  if (before.property?.bedrooms_min !== after.property?.bedrooms_min && after.property?.bedrooms_min != null)
+    parts.push(`beds≥${after.property.bedrooms_min}`);
+  if (before.property?.bathrooms_min !== after.property?.bathrooms_min && after.property?.bathrooms_min != null)
+    parts.push(`baths≥${after.property.bathrooms_min}`);
+  if (before.property?.sqft_min !== after.property?.sqft_min && after.property?.sqft_min != null)
+    parts.push(`sqft≥${after.property.sqft_min}`);
+  const bl = before.lifestyle ?? {}, al = after.lifestyle ?? {};
+  for (const k of ['schools_importance','commute_importance','safety_importance','walkability_importance','parks_importance'] as const) {
+    if ((bl as any)[k] !== (al as any)[k] && (al as any)[k]) parts.push(`${k.replace('_importance','')}=${(al as any)[k]}`);
+  }
+  return parts.join('; ');
+}
+
 type GatewayResult =
   | { ok: true; data: any }
   | { ok: false; status: number; rateLimited: boolean; creditsExhausted: boolean; text: string };
