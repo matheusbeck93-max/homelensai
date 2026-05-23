@@ -13,6 +13,7 @@ type Importance = 'low' | 'medium' | 'high' | null;
 
 interface Preferences {
   goal?: string | null;
+  buyer_type?: string | null;
   locations?: string[];
   budget?: {
     purchase_price_max?: number | null;
@@ -48,6 +49,7 @@ interface Preferences {
 
 const EMPTY_PREFS: Preferences = {
   goal: null,
+  buyer_type: null,
   locations: [],
   budget: { purchase_price_max: null, monthly_payment_max: null, down_payment: null },
   property: { types: [], bedrooms_min: null, bathrooms_min: null, sqft_min: null },
@@ -76,6 +78,7 @@ function normalizePrefs(input: unknown): Preferences {
   if (!input || typeof input !== 'object') return base;
   const p = input as Record<string, any>;
   if (typeof p.goal === 'string') base.goal = p.goal;
+  if (typeof p.buyer_type === 'string') base.buyer_type = p.buyer_type;
   if (Array.isArray(p.locations)) base.locations = p.locations.filter((x) => typeof x === 'string');
   if (p.budget && typeof p.budget === 'object') {
     base.budget = {
@@ -169,6 +172,7 @@ function applyPatch(prev: Preferences, patch: Patch | undefined | null): Prefere
   if (patch.set && typeof patch.set === 'object') {
     const s = patch.set as any;
     if ('goal' in s) next.goal = typeof s.goal === 'string' ? s.goal : null;
+    if ('buyer_type' in s) next.buyer_type = typeof s.buyer_type === 'string' ? s.buyer_type : null;
     if ('freeform_notes' in s && typeof s.freeform_notes === 'string') next.freeform_notes = s.freeform_notes.slice(0, 4000);
     if (s.budget && typeof s.budget === 'object') {
       next.budget = {
