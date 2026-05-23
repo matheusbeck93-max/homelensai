@@ -695,6 +695,142 @@ function fallbackAck(saved: string, prefs: Preferences): string {
   return "Your preferences look complete. Want me to start browsing homes?";
 }
 
+// ---------- Deterministic fallback parser ----------
+
+const CITY_MAP: Record<string, string> = {
+  tampa: 'Tampa, FL', miami: 'Miami, FL', orlando: 'Orlando, FL', jacksonville: 'Jacksonville, FL',
+  austin: 'Austin, TX', dallas: 'Dallas, TX', houston: 'Houston, TX', 'san antonio': 'San Antonio, TX',
+  arlington: 'Arlington, VA', alexandria: 'Alexandria, VA', richmond: 'Richmond, VA',
+  'washington': 'Washington, DC', 'dc': 'Washington, DC',
+  bethesda: 'Bethesda, MD', baltimore: 'Baltimore, MD', rockville: 'Rockville, MD',
+  atlanta: 'Atlanta, GA', charlotte: 'Charlotte, NC', raleigh: 'Raleigh, NC', nashville: 'Nashville, TN',
+  denver: 'Denver, CO', phoenix: 'Phoenix, AZ', scottsdale: 'Scottsdale, AZ', 'las vegas': 'Las Vegas, NV',
+  seattle: 'Seattle, WA', portland: 'Portland, OR',
+  'san francisco': 'San Francisco, CA', oakland: 'Oakland, CA', 'san jose': 'San Jose, CA',
+  'los angeles': 'Los Angeles, CA', 'san diego': 'San Diego, CA', sacramento: 'Sacramento, CA',
+  chicago: 'Chicago, IL', 'new york': 'New York, NY', brooklyn: 'Brooklyn, NY', boston: 'Boston, MA',
+  philadelphia: 'Philadelphia, PA', pittsburgh: 'Pittsburgh, PA',
+  detroit: 'Detroit, MI', minneapolis: 'Minneapolis, MN', columbus: 'Columbus, OH', cleveland: 'Cleveland, OH',
+};
+
+function deterministicParse(text: string): Patch {
+  const patch: Patch = {};
+  const set: any = {};
+  const add: any = {};
+  if (!text || !text.trim()) return patch;
+  const t = text.toLowerCase();
+
+  // Goal
+  if (/\b(invest|rental|cash[- ]?flow|brrrr|flip|landlord)\b/.test(t)) set.goal = 'invest';
+  else if (/\b(rent|lease|leasing|renting)\b/.test(t) && !/rental/.test(t)) set.goal = 'rent';
+  else if (/\b(buy|buying|primary residence|family home|first home|move[- ]?in|our home|my home)\b/.test(t)) set.goal = 'buy_home';
+  else if (/\b(research|researching|just looking|browsing)\b/.test(t)) set.goal = 'market_research';
+
+  // Locations — explicit "City, ST"
+  const locs: string[] = [];
+  const cityStateRe = /([A-Z][a-zA-Z.\- ]+?),\s*([A-Z]{2})\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = cityStateRe.exec(text)) !== null) {
+    const name = m[1].trim().replace(/\s+/g, ' ');
+    locs.push(`${name}, ${m[2].toUpperCase()}`);
+  }
+  // Known city inference
+  for (const [k, v] of Object.entries(CITY_MAP)) {
+    const re = new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (re.test(t) && !locs.some((l) => l.toLowerCase() === v.toLowerCase())) locs.push(v);
+  }
+  if (locs.length) add.locations = locs;
+
+  // Budget
+  const budget: any = {};
+  // monthly first to avoid swallowing
+  const monthly = t.match(/(?:monthly|per month|\/mo|payment)[^$\d]{0,20}\$?\s*([\d,]+)(\s*k)?/);
+  if (monthly) {
+    let n = parseInt(monthly[1].replace(/,/g, ''), 10);
+    if (monthly[2]) n *= 1000;
+    if (Number.isFinite(n) && n > 0) budget.monthly_payment_max = n;
+  }
+  const price = t.match(/(?:under|below|max|up to|budget|around|about|<=?)\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k|m|thousand|million)?/) ||
+    t.match(/\$\s*([\d,]+(?:\.\d+)?)\s*(k|m|thousand|million)?/);
+  if (price) {
+    let n = parseFloat(price[1].replace(/,/g, ''));
+    const u = (price[2] || '').toLowerCase();
+    if (u === 'k' || u === 'thousand') n *= 1000;
+    else if (u === 'm' || u === 'million') n *= 1_000_000;
+    if (Number.isFinite(n) && n >= 1000) {
+      // avoid duplicating monthly
+      if (!budget.monthly_payment_max || Math.abs(budget.monthly_payment_max - n) > 1) {
+        budget.purchase_price_max = n;
+      }
+    }
+  }
+  if (Object.keys(budget).length) set.budget = budget;
+
+  // Bedrooms / bathrooms
+  const bed = t.match(/(\d+(?:\.\d+)?)\s*(?:\+)?\s*(?:bed(?:room)?s?|br)\b/);
+  const bath = t.match(/(\d+(?:\.\d+)?)\s*(?:\+)?\s*(?:bath(?:room)?s?|ba)\b/);
+  const property: any = {};
+  if (bed) property.bedrooms_min = parseFloat(bed[1]);
+  if (bath) property.bathrooms_min = parseFloat(bath[1]);
+  const sqft = t.match(/([\d,]{3,})\s*(?:sqft|sq\.?\s*ft|square feet)/);
+  if (sqft) {
+    const n = parseInt(sqft[1].replace(/,/g, ''), 10);
+    if (Number.isFinite(n)) property.sqft_min = n;
+  }
+  if (Object.keys(property).length) set.property = property;
+
+  // Property types
+  const types: string[] = [];
+  if (/\btownhouse|townhome|row house\b/.test(t)) types.push('townhouse');
+  if (/\bcondo(minium)?\b/.test(t)) types.push('condo');
+  if (/\bco-?op\b/.test(t)) types.push('co-op');
+  if (/\bmulti[- ]?family|duplex|triplex|fourplex|2-4 unit\b/.test(t)) types.push('multi-family');
+  if (/\bland|lot|acreage\b/.test(t)) types.push('land');
+  if (/\bmobile|manufactured\b/.test(t)) types.push('mobile');
+  if (/\b(single[- ]?family|sfh|detached|standalone house|\bhouse\b)\b/.test(t) && !types.includes('townhouse')) {
+    types.push('house');
+  }
+  if (types.length) add.property_types = [...new Set(types)];
+
+  // Lifestyle importance
+  const lifestyle: any = {};
+  if (/\b(good schools?|school district|great schools?)\b/.test(t)) lifestyle.schools_importance = 'high';
+  if (/\b(safe|safety|low crime|secure)\b/.test(t)) lifestyle.safety_importance = 'high';
+  if (/\b(walkab|walk to|walking distance)\b/.test(t)) lifestyle.walkability_importance = 'high';
+  if (/\b(parks?|nature|green|trees|outdoors?)\b/.test(t)) lifestyle.parks_importance = 'high';
+  if (/\b(short commute|close to work|near transit|public transit|commute)\b/.test(t)) lifestyle.commute_importance = 'high';
+  if (Object.keys(lifestyle).length) set.lifestyle = lifestyle;
+
+  // Must / nice / deal-breakers
+  const must: string[] = [];
+  const nice: string[] = [];
+  const drop: string[] = [];
+  if (/\b(must have|need(?:s|ed)?|required|gotta have)\b.*?\b(garage|yard|pool|office|basement|parking|ac|fence)\b/.test(t)) {
+    const mm = t.match(/\b(garage|yard|pool|office|basement|parking|ac|fence)\b/);
+    if (mm) must.push(mm[1]);
+  }
+  if (/\b(would love|nice to have|prefer)\b.*?\b(garage|yard|pool|office|basement|parking|fence)\b/.test(t)) {
+    const mm = t.match(/\b(garage|yard|pool|office|basement|parking|fence)\b/);
+    if (mm) nice.push(mm[1]);
+  }
+  if (/\b(no|avoid|dealbreaker|deal[- ]?breaker|can'?t have|don'?t want)\b/.test(t)) {
+    const mm = t.match(/\bno\s+([a-z]{3,15})\b/) || t.match(/\bavoid\s+([a-z]{3,15})\b/);
+    if (mm) drop.push(mm[1]);
+  }
+  if (must.length) add.must_haves = must;
+  if (nice.length) add.nice_to_haves = nice;
+  if (drop.length) add.deal_breakers = drop;
+
+  if (Object.keys(set).length) patch.set = set;
+  if (Object.keys(add).length) patch.add = add;
+
+  // Nothing structured → keep raw text as a note
+  if (!patch.set && !patch.add) {
+    patch.append_note = text.trim().slice(0, 500);
+  }
+  return patch;
+}
+
 function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
   if (!patch?.append_note) return patch;
   const note = patch.append_note.trim();
