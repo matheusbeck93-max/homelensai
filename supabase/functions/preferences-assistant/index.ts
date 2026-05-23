@@ -308,7 +308,11 @@ LEXICON (map natural language -> structured fields):
 - "short commute / close to work / near transit" -> lifestyle.commute_importance = high
 
 GOAL mapping (set goal once, do not overwrite unless user contradicts):
-- "buying for my family / our home / primary residence / first home / move-in" -> goal = "buy_home"
+- "buying for my family / our home / primary residence / first home / move-in / homebuyer / home buyer / first-time buyer" -> goal = "buy_home"
+- "first time home buyer / first-time homebuyer / 1st time buyer" -> ALSO set buyer_type = "first_time_home_buyer"
+- "move-up buyer" -> buyer_type = "move_up_buyer" + goal = "buy_home"
+- "downsizing / downsizer" -> buyer_type = "downsizer" + goal = "buy_home"
+- "relocating" -> buyer_type = "relocating_buyer"
 - "Primary Residence" (as a standalone short reply) -> goal = "buy_home"
 - "Investment / rental property" (standalone) -> goal = "invest"
 - "rental / cash flow / investment / BRRRR / flip" -> goal = "invest"
