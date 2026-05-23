@@ -89,8 +89,11 @@ export function PreferencesChat() {
       };
       setTurns((prev) => [...prev, reply]);
       if (data?.preferences) setPreferences({ ...EMPTY_PREFERENCES, ...data.preferences });
-      if (data?.rate_limited) {
-        toast({ title: "Rate limited", description: "Try again in a few seconds." });
+      if (data?.backup_mode || data?.rate_limited) {
+        toast({
+          title: "Backup mode",
+          description: "Using backup mode — your preferences are still being saved.",
+        });
       }
     } catch (e: any) {
       setTurns((prev) => [...prev, { role: "assistant", content: "Something went wrong reaching the assistant. Please try again." }]);
