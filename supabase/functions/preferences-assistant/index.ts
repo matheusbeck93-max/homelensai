@@ -1165,15 +1165,44 @@ Deno.serve(async (req) => {
 
     // Deterministic reply — no second AI call. This halves gateway pressure
     // and means setup keeps working even when the gateway is rate-limited.
+    const wasComplete = isSetupComplete(currentPrefs);
+    const nowComplete = isSetupComplete(nextPrefs);
     const missing = nextMissingField(nextPrefs);
-    const suggested_replies = suggestedRepliesFor(missing);
-    const message = humanAck(currentPrefs, nextPrefs, missing, latestUser);
+    const changed = hasAnyChange(saved);
+
+    let message: string;
+    let suggested_replies: string[];
+    let justCompleted = false;
+
+    if (!wasComplete && nowComplete) {
+      // Transition turn — congratulate once, offer one-time optional actions.
+      const ack = humanAck(currentPrefs, nextPrefs, null, latestUser);
+      const closer = pickCompletionMessage(user.id);
+      message = changed && ack && ack !== 'Got it.' ? `${ack} ${closer}` : closer;
+      suggested_replies = ['Review preferences', 'Start exploring homes', 'Edit preferences'];
+      justCompleted = true;
+    } else if (wasComplete && nowComplete) {
+      // Maintenance mode — acknowledge edits quietly, no follow-up questions,
+      // no repeated CTAs. Treat further user messages as natural conversation.
+      if (changed) {
+        message = humanAck(currentPrefs, nextPrefs, null, latestUser);
+      } else {
+        message = "Got it — your preferences are saved. Tell me what you'd like to adjust or explore.";
+      }
+      suggested_replies = [];
+    } else {
+      // Still onboarding — keep asking the next missing field.
+      message = humanAck(currentPrefs, nextPrefs, missing, latestUser);
+      suggested_replies = suggestedRepliesFor(missing);
+    }
 
     return jsonResponse({
       preferences: nextPrefs,
       message,
       suggested_replies,
       saved_summary: saved || null,
+      setup_complete: nowComplete,
+      just_completed: justCompleted,
       backup_mode: backupMode,
       rate_limited: rateLimited,
       credits_exhausted: creditsExhausted,
