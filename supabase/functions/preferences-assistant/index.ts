@@ -844,11 +844,27 @@ function deterministicParse(text: string): Patch {
   if (!text || !text.trim()) return patch;
   const t = text.toLowerCase();
 
+  // Buyer type (first-time, move-up, etc.) — also implies goal=buy_home
+  if (/\b(first[- ]?time\s+(home\s+)?buyer|first[- ]?time\s+homebuyer|1st[- ]?time\s+(home\s+)?buyer)\b/.test(t)) {
+    set.buyer_type = 'first_time_home_buyer';
+    set.goal = 'buy_home';
+  } else if (/\bmove[- ]?up\s+buyer\b/.test(t)) {
+    set.buyer_type = 'move_up_buyer';
+    set.goal = 'buy_home';
+  } else if (/\bdownsiz(?:er|ing)\b/.test(t)) {
+    set.buyer_type = 'downsizer';
+    set.goal = 'buy_home';
+  } else if (/\brelocat(?:ing|ion)\b/.test(t)) {
+    set.buyer_type = 'relocating_buyer';
+  }
+
   // Goal
-  if (/\b(invest|rental|cash[- ]?flow|brrrr|flip|landlord)\b/.test(t)) set.goal = 'invest';
-  else if (/\b(rent|lease|leasing|renting)\b/.test(t) && !/rental/.test(t)) set.goal = 'rent';
-  else if (/\b(buy|buying|primary residence|family home|first home|move[- ]?in|our home|my home)\b/.test(t)) set.goal = 'buy_home';
-  else if (/\b(research|researching|just looking|browsing)\b/.test(t)) set.goal = 'market_research';
+  if (!set.goal) {
+    if (/\b(invest|rental|cash[- ]?flow|brrrr|flip|landlord)\b/.test(t)) set.goal = 'invest';
+    else if (/\b(rent|lease|leasing|renting)\b/.test(t) && !/rental/.test(t)) set.goal = 'rent';
+    else if (/\b(buy|buying|homebuyer|home buyer|\bbuyer\b|primary residence|family home|first home|move[- ]?in|our home|my home)\b/.test(t)) set.goal = 'buy_home';
+    else if (/\b(research|researching|just looking|browsing)\b/.test(t)) set.goal = 'market_research';
+  }
 
   // Locations — explicit "City, ST"
   const locs: string[] = [];
@@ -896,7 +912,7 @@ function deterministicParse(text: string): Patch {
   const property: any = {};
   if (bed) property.bedrooms_min = parseFloat(bed[1]);
   if (bath) property.bathrooms_min = parseFloat(bath[1]);
-  const sqft = t.match(/([\d,]{3,})\s*(?:sqft|sq\.?\s*ft|square feet)/);
+  const sqft = t.match(/([\d,]{3,})\s*(?:sqft|sq\.?\s*\/?\s*ft|square\s*feet|sf)\b/);
   if (sqft) {
     const n = parseInt(sqft[1].replace(/,/g, ''), 10);
     if (Number.isFinite(n)) property.sqft_min = n;
