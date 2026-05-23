@@ -471,7 +471,7 @@ function nextMissingField(p: Preferences): MissingField {
   const isInvestor = p.goal === 'invest';
   const order: MissingField[] = isInvestor
     ? ['goal', 'budget.purchase_price_max', 'locations', 'property.bedrooms_min', 'property.types', 'lifestyle']
-    : ['goal', 'locations', 'budget.purchase_price_max', 'property.bedrooms_min', 'property.bathrooms_min', 'property.types', 'must_haves', 'lifestyle'];
+    : ['goal', 'budget.purchase_price_max', 'locations', 'property.types', 'property.bedrooms_min', 'property.bathrooms_min', 'must_haves', 'lifestyle'];
   for (const f of order) {
     if (!f) continue;
     if (f === 'goal' && !p.goal) return 'goal';
