@@ -543,10 +543,22 @@ function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
   const note = patch.append_note.trim();
   if (!note) { const { append_note: _omit, ...rest } = patch; return rest; }
   const norm = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+  const prevNorm = norm(prevNotes || '');
   const existingKeys = new Set(
     (prevNotes || '').split('\n').map((l) => norm(l)).filter(Boolean)
   );
-  const keptLines = note.split('\n').map((l) => l.trim()).filter((l) => l && !existingKeys.has(norm(l)));
+  const keptLines = note
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => {
+      if (!l) return false;
+      const k = norm(l);
+      if (!k) return false;
+      if (existingKeys.has(k)) return false;
+      // Skip if the line is already contained as substring in existing notes
+      if (prevNorm && prevNorm.includes(k)) return false;
+      return true;
+    });
   if (keptLines.length === 0) {
     const { append_note: _omit, ...rest } = patch;
     return rest;
