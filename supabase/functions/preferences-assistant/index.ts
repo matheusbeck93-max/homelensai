@@ -13,6 +13,7 @@ type Importance = 'low' | 'medium' | 'high' | null;
 
 interface Preferences {
   goal?: string | null;
+  buyer_type?: string | null;
   locations?: string[];
   budget?: {
     purchase_price_max?: number | null;
@@ -48,6 +49,7 @@ interface Preferences {
 
 const EMPTY_PREFS: Preferences = {
   goal: null,
+  buyer_type: null,
   locations: [],
   budget: { purchase_price_max: null, monthly_payment_max: null, down_payment: null },
   property: { types: [], bedrooms_min: null, bathrooms_min: null, sqft_min: null },
@@ -76,6 +78,7 @@ function normalizePrefs(input: unknown): Preferences {
   if (!input || typeof input !== 'object') return base;
   const p = input as Record<string, any>;
   if (typeof p.goal === 'string') base.goal = p.goal;
+  if (typeof p.buyer_type === 'string') base.buyer_type = p.buyer_type;
   if (Array.isArray(p.locations)) base.locations = p.locations.filter((x) => typeof x === 'string');
   if (p.budget && typeof p.budget === 'object') {
     base.budget = {
@@ -169,6 +172,7 @@ function applyPatch(prev: Preferences, patch: Patch | undefined | null): Prefere
   if (patch.set && typeof patch.set === 'object') {
     const s = patch.set as any;
     if ('goal' in s) next.goal = typeof s.goal === 'string' ? s.goal : null;
+    if ('buyer_type' in s) next.buyer_type = typeof s.buyer_type === 'string' ? s.buyer_type : null;
     if ('freeform_notes' in s && typeof s.freeform_notes === 'string') next.freeform_notes = s.freeform_notes.slice(0, 4000);
     if (s.budget && typeof s.budget === 'object') {
       next.budget = {
@@ -304,7 +308,11 @@ LEXICON (map natural language -> structured fields):
 - "short commute / close to work / near transit" -> lifestyle.commute_importance = high
 
 GOAL mapping (set goal once, do not overwrite unless user contradicts):
-- "buying for my family / our home / primary residence / first home / move-in" -> goal = "buy_home"
+- "buying for my family / our home / primary residence / first home / move-in / homebuyer / home buyer / first-time buyer" -> goal = "buy_home"
+- "first time home buyer / first-time homebuyer / 1st time buyer" -> ALSO set buyer_type = "first_time_home_buyer"
+- "move-up buyer" -> buyer_type = "move_up_buyer" + goal = "buy_home"
+- "downsizing / downsizer" -> buyer_type = "downsizer" + goal = "buy_home"
+- "relocating" -> buyer_type = "relocating_buyer"
 - "Primary Residence" (as a standalone short reply) -> goal = "buy_home"
 - "Investment / rental property" (standalone) -> goal = "invest"
 - "rental / cash flow / investment / BRRRR / flip" -> goal = "invest"
@@ -467,7 +475,7 @@ function nextMissingField(p: Preferences): MissingField {
   const isInvestor = p.goal === 'invest';
   const order: MissingField[] = isInvestor
     ? ['goal', 'budget.purchase_price_max', 'locations', 'property.bedrooms_min', 'property.types', 'lifestyle']
-    : ['goal', 'locations', 'budget.purchase_price_max', 'property.bedrooms_min', 'property.bathrooms_min', 'property.types', 'must_haves', 'lifestyle'];
+    : ['goal', 'budget.purchase_price_max', 'locations', 'property.types', 'property.bedrooms_min', 'property.bathrooms_min', 'must_haves', 'lifestyle'];
   for (const f of order) {
     if (!f) continue;
     if (f === 'goal' && !p.goal) return 'goal';
@@ -695,6 +703,126 @@ function fallbackAck(saved: string, prefs: Preferences): string {
   return "Your preferences look complete. Want me to start browsing homes?";
 }
 
+function nextQuestion(f: MissingField): string {
+  switch (f) {
+    case 'goal': return 'Are you buying a home or looking for investment properties?';
+    case 'locations': return 'Which cities or neighborhoods are you considering?';
+    case 'budget.purchase_price_max': return 'What budget or monthly payment range should I use?';
+    case 'property.bedrooms_min': return 'How many bedrooms do you need?';
+    case 'property.bathrooms_min': return 'How many bathrooms do you need?';
+    case 'property.types': return 'What property type are you open to — house, townhouse, or condo?';
+    case 'must_haves': return 'Any must-haves like a garage, yard, or home office?';
+    case 'lifestyle': return 'What lifestyle priorities matter most — schools, walkability, commute, or safety?';
+    case null: return '';
+  }
+}
+
+function typeLabel(t: string): string {
+  const k = t.toLowerCase();
+  return ({
+    house: 'single-family home',
+    townhouse: 'townhouse',
+    condo: 'condo',
+    'co-op': 'co-op',
+    'multi-family': 'multi-family',
+    land: 'land',
+    mobile: 'mobile home',
+  } as Record<string, string>)[k] ?? t;
+}
+
+function buyerTypeLabel(b: string): string {
+  return ({
+    first_time_home_buyer: 'first-time home buyer',
+    repeat_buyer: 'repeat buyer',
+    move_up_buyer: 'move-up buyer',
+    downsizer: 'downsizer',
+    relocating_buyer: 'relocating buyer',
+  } as Record<string, string>)[b] ?? b.replace(/_/g, ' ');
+}
+
+function goalPhrase(g: string): string {
+  return ({
+    buy_home: 'buying a home',
+    invest: 'investing in rentals',
+    rent: 'renting',
+    market_research: 'researching the market',
+    both: 'buying and investing',
+    tax_incentives: 'looking into tax incentives',
+  } as Record<string, string>)[g] ?? g;
+}
+
+function humanAck(before: Preferences, after: Preferences, missing: MissingField): string {
+  const phrases: string[] = [];
+
+  const buyerChanged = before.buyer_type !== after.buyer_type && after.buyer_type;
+  const goalChanged = before.goal !== after.goal && after.goal;
+  if (buyerChanged) {
+    phrases.push(`you're a ${buyerTypeLabel(after.buyer_type!)}`);
+  } else if (goalChanged) {
+    phrases.push(`you're ${goalPhrase(after.goal!)}`);
+  }
+
+  const addedTypes = (after.property?.types ?? []).filter(
+    (t) => !(before.property?.types ?? []).some((u) => u.toLowerCase() === t.toLowerCase()),
+  );
+  if (addedTypes.length) {
+    phrases.push(`looking for a ${addedTypes.map(typeLabel).join(' or ')}`);
+  }
+
+  const addedLocs = (after.locations ?? []).filter(
+    (l) => !(before.locations ?? []).some((u) => u.toLowerCase() === l.toLowerCase()),
+  );
+  if (addedLocs.length) phrases.push(`in ${addedLocs.join(' or ')}`);
+
+  const specs: string[] = [];
+  if (before.property?.bedrooms_min !== after.property?.bedrooms_min && after.property?.bedrooms_min != null)
+    specs.push(`at least ${after.property.bedrooms_min} bedrooms`);
+  if (before.property?.bathrooms_min !== after.property?.bathrooms_min && after.property?.bathrooms_min != null)
+    specs.push(`${after.property.bathrooms_min} bathrooms`);
+  if (before.property?.sqft_min !== after.property?.sqft_min && after.property?.sqft_min != null)
+    specs.push(`${after.property.sqft_min.toLocaleString()} sqft`);
+  if (specs.length) phrases.push(`with ${specs.join(', ')}`);
+
+  const budgetBits: string[] = [];
+  if (before.budget?.purchase_price_max !== after.budget?.purchase_price_max && after.budget?.purchase_price_max != null)
+    budgetBits.push(`a max purchase price of $${after.budget.purchase_price_max.toLocaleString()}`);
+  if (before.budget?.monthly_payment_max !== after.budget?.monthly_payment_max && after.budget?.monthly_payment_max != null)
+    budgetBits.push(`a max monthly payment of $${after.budget.monthly_payment_max.toLocaleString()}`);
+  if (budgetBits.length) phrases.push(budgetBits.join(' and '));
+
+  const lifestyleNew: string[] = [];
+  const labels: Record<string, string> = {
+    schools_importance: 'good schools',
+    safety_importance: 'safety',
+    walkability_importance: 'walkability',
+    parks_importance: 'parks and nature',
+    commute_importance: 'short commute',
+  };
+  for (const k of Object.keys(labels)) {
+    const b = (before.lifestyle as any)?.[k];
+    const a = (after.lifestyle as any)?.[k];
+    if (a && a !== b) lifestyleNew.push(labels[k]);
+  }
+  if (lifestyleNew.length) phrases.push(`prioritizing ${lifestyleNew.join(', ')}`);
+
+  const addedMust = (after.must_haves ?? []).filter(
+    (l) => !(before.must_haves ?? []).some((u) => u.toLowerCase() === l.toLowerCase()),
+  );
+  if (addedMust.length) phrases.push(`must-haves: ${addedMust.join(', ')}`);
+
+  const addedDB = (after.deal_breakers ?? []).filter(
+    (l) => !(before.deal_breakers ?? []).some((u) => u.toLowerCase() === l.toLowerCase()),
+  );
+  if (addedDB.length) phrases.push(`avoiding ${addedDB.join(', ')}`);
+
+  const intro = phrases.length ? `Got it — I saved that ${phrases.join(', ')}.` : '';
+  const q = missing ? nextQuestion(missing) : '';
+  if (intro && q) return `${intro} ${q}`;
+  if (intro) return `${intro} Want me to start browsing homes?`;
+  if (q) return q;
+  return 'Your preferences look complete. Want me to start browsing homes?';
+}
+
 // ---------- Deterministic fallback parser ----------
 
 const CITY_MAP: Record<string, string> = {
@@ -720,11 +848,27 @@ function deterministicParse(text: string): Patch {
   if (!text || !text.trim()) return patch;
   const t = text.toLowerCase();
 
+  // Buyer type (first-time, move-up, etc.) — also implies goal=buy_home
+  if (/\b(first[- ]?time\s+(home\s+)?buyer|first[- ]?time\s+homebuyer|1st[- ]?time\s+(home\s+)?buyer)\b/.test(t)) {
+    set.buyer_type = 'first_time_home_buyer';
+    set.goal = 'buy_home';
+  } else if (/\bmove[- ]?up\s+buyer\b/.test(t)) {
+    set.buyer_type = 'move_up_buyer';
+    set.goal = 'buy_home';
+  } else if (/\bdownsiz(?:er|ing)\b/.test(t)) {
+    set.buyer_type = 'downsizer';
+    set.goal = 'buy_home';
+  } else if (/\brelocat(?:ing|ion)\b/.test(t)) {
+    set.buyer_type = 'relocating_buyer';
+  }
+
   // Goal
-  if (/\b(invest|rental|cash[- ]?flow|brrrr|flip|landlord)\b/.test(t)) set.goal = 'invest';
-  else if (/\b(rent|lease|leasing|renting)\b/.test(t) && !/rental/.test(t)) set.goal = 'rent';
-  else if (/\b(buy|buying|primary residence|family home|first home|move[- ]?in|our home|my home)\b/.test(t)) set.goal = 'buy_home';
-  else if (/\b(research|researching|just looking|browsing)\b/.test(t)) set.goal = 'market_research';
+  if (!set.goal) {
+    if (/\b(invest|rental|cash[- ]?flow|brrrr|flip|landlord)\b/.test(t)) set.goal = 'invest';
+    else if (/\b(rent|lease|leasing|renting)\b/.test(t) && !/rental/.test(t)) set.goal = 'rent';
+    else if (/\b(buy|buying|homebuyer|home buyer|\bbuyer\b|primary residence|family home|first home|move[- ]?in|our home|my home)\b/.test(t)) set.goal = 'buy_home';
+    else if (/\b(research|researching|just looking|browsing)\b/.test(t)) set.goal = 'market_research';
+  }
 
   // Locations — explicit "City, ST"
   const locs: string[] = [];
@@ -772,7 +916,7 @@ function deterministicParse(text: string): Patch {
   const property: any = {};
   if (bed) property.bedrooms_min = parseFloat(bed[1]);
   if (bath) property.bathrooms_min = parseFloat(bath[1]);
-  const sqft = t.match(/([\d,]{3,})\s*(?:sqft|sq\.?\s*ft|square feet)/);
+  const sqft = t.match(/([\d,]{3,})\s*(?:sqft|sq\.?\s*\/?\s*ft|square\s*feet|sf)\b/);
   if (sqft) {
     const n = parseInt(sqft[1].replace(/,/g, ''), 10);
     if (Number.isFinite(n)) property.sqft_min = n;
@@ -978,7 +1122,7 @@ Deno.serve(async (req) => {
     // and means setup keeps working even when the gateway is rate-limited.
     const missing = nextMissingField(nextPrefs);
     const suggested_replies = suggestedRepliesFor(missing);
-    const message = fallbackAck(saved, nextPrefs);
+    const message = humanAck(currentPrefs, nextPrefs, missing);
 
     return jsonResponse({
       preferences: nextPrefs,

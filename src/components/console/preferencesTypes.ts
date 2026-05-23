@@ -2,6 +2,7 @@ export type Importance = "low" | "medium" | "high" | null;
 
 export interface Preferences {
   goal?: string | null;
+  buyer_type?: string | null;
   locations?: string[];
   budget?: {
     purchase_price_max?: number | null;
@@ -37,6 +38,7 @@ export interface Preferences {
 
 export const EMPTY_PREFERENCES: Preferences = {
   goal: null,
+  buyer_type: null,
   locations: [],
   budget: { purchase_price_max: null, monthly_payment_max: null, down_payment: null },
   property: { types: [], bedrooms_min: null, bathrooms_min: null, sqft_min: null },
