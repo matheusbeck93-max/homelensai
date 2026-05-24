@@ -684,24 +684,7 @@ function MessageBubble({
     <div className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
       <div className={`hl-bubble hl-bubble-${msg.role}`}>
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
-        {msg.upgradeCta && (
-          <button
-            onClick={() => window.open('https://homelens.ai/pricing', '_blank')}
-            style={{
-              marginTop: '10px',
-              padding: '8px 14px',
-              background: '#6B8DB5',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-          >
-            Upgrade to Premium
-          </button>
-        )}
+        {msg.upgradeCta && <CreditsExhaustedCard />}
         {showSave && (
           <div style={{ marginTop: 10 }}>
             {saveState === 'saved' || saveState === 'duplicate' ? (
@@ -1289,7 +1272,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
             propertyAddress={activeProperty?.address || null}
             isPremium={userProfile?.subscription_status === 'buyer' || userProfile?.subscription_status === 'investor'}
-            onUpgradeNeeded={() => window.open('https://homelens.ai/pricing', '_blank')}
+            onUpgradeNeeded={() => window.open('https://homelensai.com/pricing', '_blank')}
           />
         ))}
 
