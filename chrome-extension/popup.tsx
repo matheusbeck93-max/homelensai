@@ -494,10 +494,23 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
         {loading ? 'Signing in...' : 'Sign In'}
       </button>
 
+      <button
+        type="button"
+        className="hl-login-btn"
+        style={{
+          background: 'transparent',
+          color: '#6B8DB5',
+          border: '1px solid #6B8DB5',
+          marginTop: 8,
+        }}
+        onClick={() => {
+          chrome.tabs.create({ url: 'https://homelensai.com/auth' });
+        }}
+      >
+        Create Account
+      </button>
+
       <div className="hl-login-links">
-        <a className="hl-login-link" href="https://homelens.ai/auth" target="_blank" rel="noopener">
-          Create account
-        </a>
         <a className="hl-login-link" href="https://homelens.ai" target="_blank" rel="noopener">
           Open HomeLens
         </a>
