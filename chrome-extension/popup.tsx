@@ -324,6 +324,85 @@ function detectPropertyUrl(text: string): string | null {
   return match ? match[0] : null;
 }
 
+// ══════════════════════════════════════
+// Credits Exhausted CTA Card
+// ══════════════════════════════════════
+function CreditsExhaustedCard() {
+  const openPricing = () => window.open('https://homelensai.com/pricing', '_blank');
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        background: '#F4F7FB',
+        border: '1px solid #E2E8F0',
+        borderRadius: 10,
+        padding: 14,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B8DB5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3l1.9 4.6L18.5 9.5 14.5 12.6 16 17.5 12 14.8 8 17.5l1.5-4.9L5.5 9.5l4.6-1.9z" />
+        </svg>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#2C3E55' }}>
+          You've used today's AI credits
+        </div>
+      </div>
+      <div style={{ fontSize: 12, color: '#52606D', lineHeight: 1.5, marginBottom: 12 }}>
+        Upgrade to Buyer Plan or Investor Plan for unlimited analyses, or wait for tomorrow's reset.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button
+          onClick={openPricing}
+          style={{
+            width: '100%',
+            padding: '9px 12px',
+            background: '#6B8DB5',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: 'pointer',
+          }}
+        >
+          Upgrade to Buyer Plan — $9.97/mo
+        </button>
+        <button
+          onClick={openPricing}
+          style={{
+            width: '100%',
+            padding: '9px 12px',
+            background: '#2C3E55',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: 'pointer',
+          }}
+        >
+          Upgrade to Investor Plan — $24.97/mo
+        </button>
+      </div>
+      <div style={{ textAlign: 'center', marginTop: 8 }}>
+        <button
+          onClick={() => { /* dismiss visually — card stays in history */ }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#94A3B8',
+            fontSize: 11,
+            cursor: 'pointer',
+            padding: 4,
+          }}
+        >
+          Maybe later
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function buildAnalysisMessages(
   url: string,
   history: Message[],
@@ -605,24 +684,7 @@ function MessageBubble({
     <div className={`hl-msg hl-msg-${msg.role}`} style={{ position: 'relative' }}>
       <div className={`hl-bubble hl-bubble-${msg.role}`}>
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
-        {msg.upgradeCta && (
-          <button
-            onClick={() => window.open('https://homelens.ai/pricing', '_blank')}
-            style={{
-              marginTop: '10px',
-              padding: '8px 14px',
-              background: '#6B8DB5',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-          >
-            Upgrade to Premium
-          </button>
-        )}
+        {msg.upgradeCta && <CreditsExhaustedCard />}
         {showSave && (
           <div style={{ marginTop: 10 }}>
             {saveState === 'saved' || saveState === 'duplicate' ? (
@@ -1210,7 +1272,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
             propertyAddress={activeProperty?.address || null}
             isPremium={userProfile?.subscription_status === 'buyer' || userProfile?.subscription_status === 'investor'}
-            onUpgradeNeeded={() => window.open('https://homelens.ai/pricing', '_blank')}
+            onUpgradeNeeded={() => window.open('https://homelensai.com/pricing', '_blank')}
           />
         ))}
 
