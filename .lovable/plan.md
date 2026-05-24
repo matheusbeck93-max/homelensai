@@ -1,64 +1,47 @@
-## Chrome Extension Updates — Plan
+## Chrome Extension Credit-Limit CTA — Plan
 
-Scope: `chrome-extension/popup.tsx` and `chrome-extension/background.ts` only. No app, manifest, or other file changes.
+Scope: `chrome-extension/popup.tsx` only. No backend, manifest, or other file changes.
 
-### Important constraint to flag up-front
+## Findings
 
-Chrome MV3 toolbar popups (`chrome.action.default_popup`) **cannot be repositioned** — Chrome always anchors them under the toolbar icon. To make the chat "open in the same position as the Analyze with HomeLens button on the page", the only viable approach is to render the chat as a **floating panel injected into the page DOM** (anchored to the floating button), instead of the toolbar popup.
+**Limits match the app.** The extension calls `ai-chat` and `perplexity-chat`, both of which run through `supabase/functions/_shared/aiCredits.ts` — the same shared enforcer the web app uses (100 AI credits/day free, unlimited paid tiers). When exhausted, it returns `429 { error: 'ai_credits_exhausted', limitReached: true, message: "You've reached your daily AI limit..." }`. The quota is already shared and server-enforced — no backend changes needed.
 
-Since the user restricted edits to `popup.tsx` and `background.ts` (not `content.ts` or `manifest.json`), I need to confirm the approach before building. Two viable options:
+**CTA exists but is rough.** In `chrome-extension/popup.tsx`, both `callPerplexityChat` and `callAiChat` already catch `429 + limitReached` and append an assistant bubble with `upgradeCta: true`, which `MessageBubble` renders as a single flat blue "Upgrade to Premium" button under the text. Two issues:
 
-- **Option A (recommended):** Reuse the existing `popup.tsx` React app, but mount it from `content.ts` into a Shadow DOM container anchored at the floating button's position. This requires a small edit to `content.ts` to host the panel. *Strictly speaking this touches one extra file beyond the two you listed, but it is the only way to satisfy requirement #1.*
-- **Option B:** Keep the toolbar popup as-is (always opens under the toolbar icon) and ignore the "same position as floating button" requirement. Apply the other three requirements (auth gate, persistent login, per-tab conversation) inside `popup.tsx` + `background.ts` only.
+1. The button opens `https://homelens.ai/pricing` — wrong domain. Live site is `https://homelensai.com/pricing`.
+2. It reads as a plain error sentence + raw button, not a designed CTA.
 
-**Question for you before I implement:** which option do you want? I'll assume Option A for the rest of the plan since it matches the stated UX; tell me if you'd rather have Option B.
+## Plan
 
----
+### 1. New inline component `CreditsExhaustedCard`
+A self-contained card rendered inside the assistant bubble when `msg.upgradeCta === true`, replacing the current plain text + button combo:
 
-### 1. Chat panel positioning (Option A)
+- Soft card surface (light background, 1px border, 10px radius, 14px padding) inside the existing assistant bubble — clearly a CTA, not an error.
+- Small sparkles SVG icon in a tinted circle (uses the existing brand color `#6B8DB5`).
+- Title: **"You've used today's AI credits"**
+- Body: "Upgrade to Buyer Plan or Investor Plan for unlimited analyses, or wait for tomorrow's reset."
+- Subtle reset hint line with a clock glyph: "Credits reset at {local time of next UTC midnight}".
+- Two primary buttons stacked:
+  - **"Upgrade to Buyer Plan — $9.97/mo"** → opens `https://homelensai.com/pricing` in a new tab.
+  - **"Upgrade to Investor Plan — $24.97/mo"** → opens `https://homelensai.com/pricing` in a new tab.
+- Secondary ghost link: **"Maybe later"** → dismisses the card (local state only; message stays in history without the CTA).
 
-- `content.ts` (existing floating-button injector) gains a second responsibility: when the user clicks the floating "Analyze with HomeLens" button, instead of asking the background to open the toolbar popup, mount a Shadow-DOM container at the button's bounding rect (`getBoundingClientRect`) and load the same React app currently in `popup.tsx`.
-- `popup.tsx` is refactored so its root component (`<App />`) can be mounted into either:
-  - the existing `#root` div in `popup.html` (fallback when no listing detected — toolbar popup, default bottom-right behavior as today), or
-  - the Shadow-DOM container created by `content.ts` (anchored to the floating button).
-- Anchor logic: position the panel so its bottom-right corner aligns with the button's top-right corner; if it would overflow viewport, flip to a safe side. When no button is present on the page, the user falls back to clicking the toolbar icon → standard popup (bottom-right of toolbar = default).
+Styling matches the rest of the extension (inline styles, brand `#6B8DB5`, no new deps).
 
-### 2. Authentication gate (`popup.tsx`)
+### 2. Wire into `MessageBubble`
+Replace the existing `{msg.upgradeCta && (...)}` block with `<CreditsExhaustedCard />`. Keep the message bubble itself; only the inline button is swapped for the card. Markdown rendering of `msg.content` is preserved, but for `upgradeCta` messages we'll hide the raw sentence (the card carries the copy) to avoid duplication.
 
-- On every mount, read `chrome.storage.local.homelens_session`.
-- If no session, or refresh fails, render `<LoginScreen />` (already exists). Add a secondary "Create Account" button that opens `https://homelensai.com/auth` in a new tab via `chrome.tabs.create`.
-- Block all chat/analysis UI until authenticated. Do not auto-open any external tab on launch.
+### 3. Fix the pricing URL
+Change `https://homelens.ai/pricing` → `https://homelensai.com/pricing` (the live custom domain). This affects both the new CTA card and the existing `onUpgradeNeeded` handler (Save-analysis upsell). Same domain fix.
 
-### 3. Persistent login
+### 4. Keep current backend contract
+- Still triggered by `429 + limitReached` from `ai-chat` / `perplexity-chat`.
+- No changes to `background.ts`, manifest, edge functions, or DB.
+- No new permissions.
 
-- `LoginScreen` already saves `{ access_token, refresh_token, expires_at, email, user_id }` to `chrome.storage.local.homelens_session` — keep as is.
-- `refreshAccessTokenIfNeeded()` already exists; ensure it runs once on mount before deciding auth state. If refresh fails → show login.
-- Add an explicit **Logout** control in the extension's settings/header menu that calls `chrome.storage.local.remove('homelens_session')` and resets in-memory state.
+### Files touched
+- `chrome-extension/popup.tsx` — add `CreditsExhaustedCard`, swap the inline button, fix pricing URLs.
 
-### 4. Per-tab conversation persistence
-
-- Introduce a background-worker in-memory map: `Map<tabId, { url, messages, scrollTop, draftInput }>` in `background.ts`. Not persisted to storage.
-- `popup.tsx` (or injected panel) on mount:
-  1. Resolve current `tabId` and `url` via `chrome.tabs.query({active:true, currentWindow:true})`.
-  2. Ask background for cached state for that tab (`chrome.runtime.sendMessage({type:'GET_TAB_CONVO', tabId})`).
-  3. If `cached.url === currentUrl` → restore messages, scroll position, draft input.
-  4. Otherwise → start fresh.
-- On every message send / input change / scroll, debounce-push state to background (`SET_TAB_CONVO`).
-- `background.ts` listens to `chrome.tabs.onUpdated` — when a tab's `url` changes, delete that tab's entry. Also clear on `chrome.tabs.onRemoved`.
-- "New Conversation" button in the UI sends `CLEAR_TAB_CONVO` for the current tab and resets local React state regardless of URL.
-- Because the service worker can be evicted, the map is best-effort in-memory; eviction = fresh conversation, which is acceptable per spec ("in-memory per tab only").
-
-### What stays untouched
-
-- No app code outside `chrome-extension/`.
-- `manifest.json` permissions unchanged (already has `activeTab`, `storage`, `tabs` access via host_permissions).
-- No Supabase persistence of conversation history.
-- No forced reloads.
-
-### Files that will change
-
-- `chrome-extension/popup.tsx` — refactor mount, add logout, integrate background conversation cache, add "Create Account" CTA.
-- `chrome-extension/background.ts` — add in-memory per-tab conversation map + message handlers + `tabs.onUpdated` URL-change reset.
-- `chrome-extension/content.ts` — *only under Option A*: mount the React panel anchored to the floating button (Shadow DOM).
-
-Confirm Option A vs B and I'll implement.
+### Out of scope
+- No changes to credit accounting, daily reset logic, or the app's `CreditsExhaustedDialog`.
+- No new translations, telemetry, or analytics.
