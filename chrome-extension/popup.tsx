@@ -328,7 +328,7 @@ function detectPropertyUrl(text: string): string | null {
 // Credits Exhausted CTA Card
 // ══════════════════════════════════════
 function CreditsExhaustedCard() {
-  const openPricing = () => window.open('https://homelensai.com/pricing', '_blank');
+  const openPricing = () => window.open('https://homelensais.com/pricing', '_blank');
   return (
     <div
       style={{
@@ -1272,7 +1272,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             propertyUrl={activeProperty?.externalUrl || currentTabUrl || null}
             propertyAddress={activeProperty?.address || null}
             isPremium={userProfile?.subscription_status === 'buyer' || userProfile?.subscription_status === 'investor'}
-            onUpgradeNeeded={() => window.open('https://homelensai.com/pricing', '_blank')}
+            onUpgradeNeeded={() => window.open('https://homelensais.com/pricing', '_blank')}
           />
         ))}
 
