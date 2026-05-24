@@ -296,7 +296,7 @@ const ShareIcon = () => (
 );
 
 function ShareMenu({ content, onClose }: { content: string; onClose: () => void }) {
-  const shareText = `🏡 HomeLens AI Analysis:\n\n${content}\n\nAnalyzed with HomeLens — homelens.ai`;
+  const shareText = `🏡 HomeLens AI Analysis:\n\n${content}\n\nAnalyzed with HomeLens — homelensais.com`;
   const encoded = encodeURIComponent(shareText);
 
   const options = [
@@ -583,14 +583,14 @@ function LoginScreen({ onLogin }: { onLogin: (s: Session) => void }) {
           marginTop: 8,
         }}
         onClick={() => {
-          chrome.tabs.create({ url: 'https://homelensai.com/auth' });
+          chrome.tabs.create({ url: 'https://homelensais.com/auth' });
         }}
       >
         Create Account
       </button>
 
       <div className="hl-login-links">
-        <a className="hl-login-link" href="https://homelens.ai" target="_blank" rel="noopener">
+        <a className="hl-login-link" href="https://homelensais.com" target="_blank" rel="noopener">
           Open HomeLens
         </a>
       </div>
@@ -693,7 +693,7 @@ function MessageBubble({
                   ? 'Analysis saved to your HomeLens account'
                   : 'Already saved in your HomeLens account'}
                 <a
-                  href="https://homelens.ai/saved-analyses"
+                  href="https://homelensais.com/saved-analyses"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ marginLeft: 8, color: '#6B8DB5', textDecoration: 'underline' }}
@@ -1212,7 +1212,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       {/* Profile prompt if not completed */}
       {userProfile && !userProfile.onboarding_completed && (
         <div style={{ padding: '8px 12px', background: '#1a2332', borderBottom: '1px solid #2a3a4e', fontSize: '11px', color: '#9ca3af' }}>
-          <a href="https://homelens.ai/profile" target="_blank" rel="noopener" style={{ color: '#60a5fa', textDecoration: 'underline' }}>
+          <a href="https://homelensais.com/profile" target="_blank" rel="noopener" style={{ color: '#60a5fa', textDecoration: 'underline' }}>
             Complete your profile
           </a> on HomeLens for a personalized match score.
         </div>

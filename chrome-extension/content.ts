@@ -70,7 +70,7 @@ function createFloatingButton(pageUrl: string): void {
     chrome.storage.local.set({ homelens_pending_url: pageUrl });
     chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }).catch(() => {
       // Fallback: open in new tab
-      window.open(`https://homelens.ai/chats?url=${encodeURIComponent(pageUrl)}`, '_blank');
+      window.open(`https://homelensais.com/chats?url=${encodeURIComponent(pageUrl)}`, '_blank');
     });
   });
 
@@ -146,7 +146,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 // Never run on HomeLens itself
 const hostname = window.location.hostname;
-if (hostname === 'homelens.ai' || hostname.endsWith('.homelens.ai') || hostname.endsWith('.lovable.app') || hostname.endsWith('.lovable.dev')) {
+if (hostname === 'homelensais.com' || hostname.endsWith('.homelensais.com') || hostname.endsWith('.lovable.app') || hostname.endsWith('.lovable.dev')) {
   // Skip injection entirely
 } else {
 

@@ -36,8 +36,8 @@
         "https://netflix.com/*",
         "https://reddit.com/*",
         "https://linkedin.com/*",
-        "https://homelens.ai/*",
-        "https://*.homelens.ai/*",
+        "https://homelensais.com/*",
+        "https://*.homelensais.com/*",
         "https://*.lovable.app/*",
         "https://*.lovable.dev/*"
       ]
