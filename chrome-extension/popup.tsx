@@ -1191,7 +1191,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       )}
 
       {/* Messages */}
-      <div className="hl-messages">
+      <div className="hl-messages" ref={messagesScrollRef}>
         {messages.length === 0 && (
           <div className="hl-empty">
             <div className="hl-empty-icon">🏡</div>
