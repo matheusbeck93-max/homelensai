@@ -70,7 +70,7 @@ function createFloatingButton(pageUrl: string): void {
     chrome.storage.local.set({ homelens_pending_url: pageUrl });
     chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }).catch(() => {
       // Fallback: open in new tab
-      window.open(`https://homelens.ai/chats?url=${encodeURIComponent(pageUrl)}`, '_blank');
+      window.open(`https://homelensais.com/chats?url=${encodeURIComponent(pageUrl)}`, '_blank');
     });
   });
 
