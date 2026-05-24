@@ -296,7 +296,7 @@ const ShareIcon = () => (
 );
 
 function ShareMenu({ content, onClose }: { content: string; onClose: () => void }) {
-  const shareText = `🏡 HomeLens AI Analysis:\n\n${content}\n\nAnalyzed with HomeLens — homelens.ai`;
+  const shareText = `🏡 HomeLens AI Analysis:\n\n${content}\n\nAnalyzed with HomeLens — homelensais.com`;
   const encoded = encodeURIComponent(shareText);
 
   const options = [

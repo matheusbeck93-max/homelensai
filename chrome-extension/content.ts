@@ -146,7 +146,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 // Never run on HomeLens itself
 const hostname = window.location.hostname;
-if (hostname === 'homelens.ai' || hostname.endsWith('.homelens.ai') || hostname.endsWith('.lovable.app') || hostname.endsWith('.lovable.dev')) {
+if (hostname === 'homelensais.com' || hostname.endsWith('.homelensais.com') || hostname.endsWith('.lovable.app') || hostname.endsWith('.lovable.dev')) {
   // Skip injection entirely
 } else {
 
