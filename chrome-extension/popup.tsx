@@ -696,9 +696,20 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
+  const [currentTabId, setCurrentTabId] = useState<number | null>(null);
+  const [restored, setRestored] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const restoredScrollRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // When restoring a cached session, honor the saved scroll position
+    // on the first render after restore instead of auto-scrolling to bottom.
+    if (restoredScrollRef.current != null && messagesScrollRef.current) {
+      messagesScrollRef.current.scrollTop = restoredScrollRef.current;
+      restoredScrollRef.current = null;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
@@ -708,40 +719,49 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     detectCurrentTab();
   }, []);
 
-  // Load session-scoped history (same site only) from chrome.storage.session
+  // Restore per-tab conversation from background in-memory cache
+  // (cleared automatically when the tab navigates to a new URL).
   useEffect(() => {
-    if (!currentTabUrl) return;
-    const siteKey = getSiteKey(currentTabUrl);
-    chrome.storage.session?.get(`hl_chat_${siteKey}`, (result) => {
-      const stored = result?.[`hl_chat_${siteKey}`];
-      if (stored && Array.isArray(stored.messages)) {
-        setMessages(stored.messages);
-      }
+    if (!currentTabId || !currentTabUrl || restored) return;
+    chrome.runtime.sendMessage(
+      { type: 'GET_TAB_CONVO', tabId: currentTabId, url: currentTabUrl },
+      (resp) => {
+        const state = resp?.state;
+        if (state && state.url === currentTabUrl) {
+          if (Array.isArray(state.messages)) setMessages(state.messages as Message[]);
+          if (typeof state.draftInput === 'string') setInput(state.draftInput);
+          if (typeof state.matchScore === 'number') setMatchScore(state.matchScore);
+          if (typeof state.scrollTop === 'number') restoredScrollRef.current = state.scrollTop;
+        }
+        setRestored(true);
+      },
+    );
+  }, [currentTabId, currentTabUrl, restored]);
+
+  // Push state to background cache after restore is complete. Debounced
+  // through React's batching; the cache is in-memory so cost is trivial.
+  useEffect(() => {
+    if (!restored || !currentTabId || !currentTabUrl) return;
+    const scrollTop = messagesScrollRef.current?.scrollTop ?? 0;
+    chrome.runtime.sendMessage({
+      type: 'SET_TAB_CONVO',
+      tabId: currentTabId,
+      state: {
+        url: currentTabUrl,
+        messages,
+        draftInput: input,
+        matchScore,
+        scrollTop,
+      },
     });
-  }, [currentTabUrl]);
-
-  // Persist messages to session storage (cleared when browser closes)
-  useEffect(() => {
-    if (!currentTabUrl || messages.length === 0) return;
-    const siteKey = getSiteKey(currentTabUrl);
-    chrome.storage.session?.set({ [`hl_chat_${siteKey}`]: { messages, updatedAt: Date.now() } });
-  }, [messages, currentTabUrl]);
-
-  const getSiteKey = (url: string): string => {
-    try {
-      const parsed = new URL(url);
-      return parsed.hostname.replace(/\./g, '_');
-    } catch {
-      return 'unknown';
-    }
-  };
+  }, [messages, input, matchScore, restored, currentTabId, currentTabUrl]);
 
   const detectCurrentTab = async () => {
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tabs[0]?.url) {
-        setCurrentTabUrl(tabs[0].url);
-      }
+      const tab = tabs[0];
+      if (tab?.url) setCurrentTabUrl(tab.url);
+      if (tab?.id) setCurrentTabId(tab.id);
     } catch {
       // Ignore
     }
@@ -1084,10 +1104,10 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setMessages([]);
     setMatchScore(null);
     setActiveProperty(null);
-    // Clear session storage for current site
-    if (currentTabUrl) {
-      const siteKey = getSiteKey(currentTabUrl);
-      chrome.storage.session?.remove(`hl_chat_${siteKey}`);
+    setInput('');
+    restoredScrollRef.current = null;
+    if (currentTabId) {
+      chrome.runtime.sendMessage({ type: 'CLEAR_TAB_CONVO', tabId: currentTabId });
     }
   };
 
