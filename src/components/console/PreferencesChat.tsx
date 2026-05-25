@@ -34,7 +34,21 @@ const OPENING_SUGGESTED = [
   "Show me what you know so far",
 ];
 
-export function PreferencesChat() {
+interface PreferencesChatProps {
+  onSaveComplete?: () => void | Promise<void>;
+  saveLabel?: string;
+  continueLabel?: string;
+  onSkip?: () => void;
+  skipLabel?: string;
+}
+
+export function PreferencesChat({
+  onSaveComplete,
+  saveLabel,
+  continueLabel,
+  onSkip,
+  skipLabel,
+}: PreferencesChatProps = {}) {
   const { toast } = useToast();
   const [turns, setTurns] = useState<Turn[]>([{ role: "assistant", content: OPENING_MESSAGE, suggested: OPENING_SUGGESTED }]);
   const [preferences, setPreferences] = useState<Preferences>(EMPTY_PREFERENCES);
@@ -139,6 +153,7 @@ export function PreferencesChat() {
       const { error } = await supabase.functions.invoke("preferences-assistant", { body: { action: "save" } });
       if (error) throw error;
       toast({ title: "Preferences saved" });
+      if (onSaveComplete) await onSaveComplete();
     } catch (e: any) {
       toast({ title: "Save failed", description: e?.message, variant: "destructive" });
     } finally {
@@ -243,7 +258,7 @@ export function PreferencesChat() {
 
             <div className="flex flex-wrap gap-2 pt-1">
               <Button size="sm" variant="outline" onClick={handleSave} disabled={loading}>
-                <Save className="h-3.5 w-3.5 mr-1.5" /> Save
+                <Save className="h-3.5 w-3.5 mr-1.5" /> {saveLabel ?? "Save"}
               </Button>
               <Button size="sm" variant="outline" onClick={handleReview} disabled={loading}>
                 <Eye className="h-3.5 w-3.5 mr-1.5" /> Review summary
@@ -258,6 +273,20 @@ export function PreferencesChat() {
                 <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset preferences
               </Button>
             </div>
+            {(onSaveComplete || onSkip) && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                {onSaveComplete && (
+                  <Button onClick={handleSave} disabled={loading} className="flex-1 min-w-[180px]">
+                    {continueLabel ?? "Save and continue"}
+                  </Button>
+                )}
+                {onSkip && (
+                  <Button variant="ghost" onClick={onSkip} disabled={loading}>
+                    {skipLabel ?? "Skip for now"}
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
