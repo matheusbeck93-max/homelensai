@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Navigation } from "@/components/Navigation";
+import { PreferencesPanel } from "@/components/console/PreferencesPanel";
 
 import { User, LogOut, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
 
@@ -18,7 +18,6 @@ export default function Profile() {
   const [profile, setProfile] = useState<any>(null);
   
   const [loading, setLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -45,12 +44,6 @@ export default function Profile() {
 
     setProfile(profileData);
 
-    // Check if onboarding is needed
-    if (profileData && !profileData.onboarding_completed) {
-      setShowOnboarding(true);
-    }
-
-    
     setLoading(false);
   };
 
@@ -60,6 +53,24 @@ export default function Profile() {
     navigate("/");
   };
 
+  const handleSaveAndContinue = async (data: any) => {
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) { navigate("/auth"); return; }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ ...data, onboarding_completed: true })
+        .eq("id", authUser.id);
+      if (error) throw error;
+
+      toast({ title: "Welcome to HomeLens!", description: "Your preferences have been saved." });
+      navigate("/");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -67,18 +78,6 @@ export default function Profile() {
       maximumFractionDigits: 0,
     }).format(value);
   };
-
-  if (showOnboarding) {
-    return (
-      <OnboardingFlow
-        onComplete={() => {
-          setShowOnboarding(false);
-          checkUser();
-        }}
-        initialData={profile}
-      />
-    );
-  }
 
   if (loading) {
     return (
@@ -91,6 +90,37 @@ export default function Profile() {
             {[...Array(3)].map((_, i) => (
               <Skeleton key={i} className="h-64" />
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // First-time setup: show the same preferences panel as My HomeLens
+  if (profile && !profile.onboarding_completed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8 pt-24 pb-24 max-w-3xl">
+          <div className="text-center mb-10">
+            <div className="flex items-center justify-center mb-4">
+              <Home className="h-12 w-12 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold mb-2">Set Up Your Profile</h1>
+            <p className="text-lg text-muted-foreground">
+              Have a personalized experience with HomeLens.
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              All fields are optional — you can always update them later.
+            </p>
+          </div>
+
+          <PreferencesPanel embedded onSave={handleSaveAndContinue} />
+
+          <div className="text-center mt-6">
+            <Button variant="ghost" onClick={() => navigate("/")}>
+              Skip for now
+            </Button>
           </div>
         </div>
       </div>
@@ -129,7 +159,7 @@ export default function Profile() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowOnboarding(true)}
+                onClick={() => navigate("/profile-setup")}
               >
                 <Settings className="mr-2 h-4 w-4" />
                 Edit Preferences

@@ -1,20 +1,25 @@
-## Fix wrong URLs in Chrome extension
+## Goal
 
-The correct domain is `homelensais.com`. Several places still reference `homelens.ai` or `homelensai.com`.
+Make the first-time preferences page identical to the "My HomeLens" preferences page. Currently, when a user opens `/profile` (or clicks "Edit Preferences") and their `onboarding_completed` is `false`, the old multi-step `OnboardingFlow` modal-style wizard is shown. The signup flow already routes to `/profile-setup` which uses the new `PreferencesPanel` — but the `/profile` path still falls back to the legacy component.
 
-### Changes in `chrome-extension/popup.tsx`
-- Line 299: share text footer `homelens.ai` → `homelensais.com`
-- Line 586: "Create Account" → `https://homelensais.com/auth` (currently `homelensai.com/auth`)
-- Line 593: "Open HomeLens" link → `https://homelensais.com`
-- Line 696: Saved analyses link → `https://homelensais.com/saved-analyses`
-- Line 1215: Profile link → `https://homelensais.com/profile`
+## Changes
 
-### Changes in `chrome-extension/content.ts`
-- Line 73: Fallback open URL → `https://homelensais.com/chats?url=...`
-- Line 149: Hostname guard — add `homelensais.com` to the skip list (keep old `homelens.ai` entries as safety in case old domain still loads)
+### 1. `src/pages/Profile.tsx`
+- Remove the import and usage of `OnboardingFlow`.
+- When `!profileData.onboarding_completed` (first-time), render the same layout as `ProfileSetup.tsx`:
+  - Welcome header ("Set Up Your Profile" / personalized copy)
+  - `<PreferencesPanel embedded onSave={handleSaveAndContinue} />`
+  - "Skip for now" ghost button → navigates to `/`
+- `handleSaveAndContinue` updates the profile with the panel's payload, sets `onboarding_completed: true`, shows a success toast, then navigates to `/` (same UX as ProfileSetup).
+- The "Edit Preferences" button on the completed profile view should also use the new panel — simplest path: navigate to `/profile-setup` instead of toggling `showOnboarding`. This keeps a single canonical preferences UI.
 
-### Changes in `chrome-extension/manifest.json`
-- Lines 39–40: Add `https://homelensais.com/*` and `https://*.homelensais.com/*` to host permissions (keep existing entries for backward compatibility, or replace — will replace since the correct domain is `homelensais.com`).
+### 2. `src/components/OnboardingFlow.tsx`
+- No longer referenced after the Profile.tsx change. Delete the file to prevent regressions and keep one source of truth for preferences UI.
 
-### Out of scope
-No backend, no UI redesign, no other files.
+## Out of scope
+- No DB/schema changes. `PreferencesPanel` already writes all relevant fields via `buildUpdatePayload`; we just add `onboarding_completed: true` when saving from the first-time path.
+- No changes to `Auth.tsx` (already routes new signups to `/profile-setup`).
+- No changes to `PreferencesPanel` itself.
+
+## Result
+First-time users land on a page visually and functionally identical to the My HomeLens preferences page, can save and continue (or skip), and the legacy wizard is removed.
