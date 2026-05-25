@@ -2,6 +2,32 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Tolerant MATCH_SCORE parser — mirrors the one in Chats.tsx so the
+// Save Analysis button keeps working after a conversation is reloaded
+// from the database (the messages table has no metadata column, so we
+// re-extract the score from the persisted prefix).
+function parseMatchScoreFromContent(
+  content: string,
+): { score: number | null; cleanContent: string } {
+  const strict = content.match(/^MATCH_SCORE:\s*([\d.]+)\/10\s*\n?/i);
+  if (strict) {
+    const score = parseFloat(strict[1]);
+    return {
+      score: Number.isFinite(score) ? score : null,
+      cleanContent: content.slice(strict[0].length).trim(),
+    };
+  }
+  const head = content.slice(0, 300);
+  const labeled = head.match(/MATCH[\s_-]?SCORE\s*[:=]?\s*([\d.]+)\s*\/\s*10/i);
+  if (labeled) {
+    const score = parseFloat(labeled[1]);
+    if (Number.isFinite(score)) {
+      return { score, cleanContent: content.replace(labeled[0], '').trim() };
+    }
+  }
+  return { score: null, cleanContent: content };
+}
+
 export interface ChatMessageAttachment {
   name: string;
   mimeType: string;
