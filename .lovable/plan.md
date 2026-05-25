@@ -1,33 +1,26 @@
-## Plan
+## Goal
+Grant `matheusbeck93@gmail.com` and `pedrolbeck@gmail.com` permanent Investor plan access at no cost.
 
-Fix the first-time preferences flow so it uses the same component and behavior as **My HomeLens → Preferences**.
+## Approach
+Direct database update on the `profiles` table — no Stripe charges, no checkout, no expiration. This is the simplest path and gives them full Investor-tier feature access immediately (unlimited AI analyses, saved analyses, investor calculator pro features, etc.).
 
-### What will change
+## What will change
+Update two rows in `profiles`:
 
-1. **Use `PreferencesChat` instead of the old form panel**
-   - Replace the current `/profile-setup` embedded `PreferencesPanel` form with the same `PreferencesChat` component used on `/console?tab=preferences`.
-   - This makes the first-login page visually and functionally match the Preferences page: assistant chat, summary card, Save, Review summary, Edit manually, Restart setup, and Reset preferences.
+| Email | User ID | Before | After |
+|---|---|---|---|
+| matheusbeck93@gmail.com | 9ce41b39… | free | investor |
+| pedrolbeck@gmail.com | 936faac3… | free | investor |
 
-2. **Add first-time “save and continue” behavior**
-   - Extend `PreferencesChat` with optional onboarding props, for example:
-     - `onSaveComplete`
-     - `saveLabel`
-     - optional `showContinueAction`
-   - On first-time setup, the Save button will save preferences, mark `onboarding_completed: true`, show a success toast, and navigate the user to the app.
+Also clear `subscription_cancel_at` and set `subscription_renews_at = NULL` so the UI doesn't show a renewal/cancel date (since there's no Stripe subscription backing this).
 
-3. **Align `/profile` first-time view with `/profile-setup`**
-   - Update `/profile` so incomplete users also see the same first-time `PreferencesChat` setup experience instead of the old-style `PreferencesPanel`.
-   - Keep “Skip for now” available, but it should also mark onboarding as completed before navigating home so the user doesn’t keep seeing setup repeatedly.
+## Trade-offs
+- **No Stripe record** — if they ever click "Manage Subscription", the customer portal will say no subscription exists. They won't be charged anything.
+- **Permanent** — won't auto-revert. You can downgrade them manually later with another update if needed.
+- **Realtime-aware** — `useSubscription` listens to `profiles` updates, so their tier will flip live without a re-login.
 
-4. **Keep the completed profile edit path canonical**
-   - The completed profile “Edit Preferences” action should take users to `/console?tab=preferences`, because that is now the true Preferences page.
+## Files
+No code changes. Single SQL update executed via the data tool.
 
-### Technical details
-
-- Files to update:
-  - `src/components/console/PreferencesChat.tsx`
-  - `src/pages/ProfileSetup.tsx`
-  - `src/pages/Profile.tsx`
-- No database schema changes.
-- No changes to authentication routing.
-- No changes to the existing My HomeLens Preferences page behavior except making `PreferencesChat` reusable for first-time setup.
+## Alternative (not chosen)
+A Stripe 100%-off comp subscription would integrate with the billing portal and webhook flow, but you asked for forever + free, which the direct update handles more cleanly.
