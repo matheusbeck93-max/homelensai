@@ -1,25 +1,33 @@
-## Goal
+## Plan
 
-Make the first-time preferences page identical to the "My HomeLens" preferences page. Currently, when a user opens `/profile` (or clicks "Edit Preferences") and their `onboarding_completed` is `false`, the old multi-step `OnboardingFlow` modal-style wizard is shown. The signup flow already routes to `/profile-setup` which uses the new `PreferencesPanel` — but the `/profile` path still falls back to the legacy component.
+Fix the first-time preferences flow so it uses the same component and behavior as **My HomeLens → Preferences**.
 
-## Changes
+### What will change
 
-### 1. `src/pages/Profile.tsx`
-- Remove the import and usage of `OnboardingFlow`.
-- When `!profileData.onboarding_completed` (first-time), render the same layout as `ProfileSetup.tsx`:
-  - Welcome header ("Set Up Your Profile" / personalized copy)
-  - `<PreferencesPanel embedded onSave={handleSaveAndContinue} />`
-  - "Skip for now" ghost button → navigates to `/`
-- `handleSaveAndContinue` updates the profile with the panel's payload, sets `onboarding_completed: true`, shows a success toast, then navigates to `/` (same UX as ProfileSetup).
-- The "Edit Preferences" button on the completed profile view should also use the new panel — simplest path: navigate to `/profile-setup` instead of toggling `showOnboarding`. This keeps a single canonical preferences UI.
+1. **Use `PreferencesChat` instead of the old form panel**
+   - Replace the current `/profile-setup` embedded `PreferencesPanel` form with the same `PreferencesChat` component used on `/console?tab=preferences`.
+   - This makes the first-login page visually and functionally match the Preferences page: assistant chat, summary card, Save, Review summary, Edit manually, Restart setup, and Reset preferences.
 
-### 2. `src/components/OnboardingFlow.tsx`
-- No longer referenced after the Profile.tsx change. Delete the file to prevent regressions and keep one source of truth for preferences UI.
+2. **Add first-time “save and continue” behavior**
+   - Extend `PreferencesChat` with optional onboarding props, for example:
+     - `onSaveComplete`
+     - `saveLabel`
+     - optional `showContinueAction`
+   - On first-time setup, the Save button will save preferences, mark `onboarding_completed: true`, show a success toast, and navigate the user to the app.
 
-## Out of scope
-- No DB/schema changes. `PreferencesPanel` already writes all relevant fields via `buildUpdatePayload`; we just add `onboarding_completed: true` when saving from the first-time path.
-- No changes to `Auth.tsx` (already routes new signups to `/profile-setup`).
-- No changes to `PreferencesPanel` itself.
+3. **Align `/profile` first-time view with `/profile-setup`**
+   - Update `/profile` so incomplete users also see the same first-time `PreferencesChat` setup experience instead of the old-style `PreferencesPanel`.
+   - Keep “Skip for now” available, but it should also mark onboarding as completed before navigating home so the user doesn’t keep seeing setup repeatedly.
 
-## Result
-First-time users land on a page visually and functionally identical to the My HomeLens preferences page, can save and continue (or skip), and the legacy wizard is removed.
+4. **Keep the completed profile edit path canonical**
+   - The completed profile “Edit Preferences” action should take users to `/console?tab=preferences`, because that is now the true Preferences page.
+
+### Technical details
+
+- Files to update:
+  - `src/components/console/PreferencesChat.tsx`
+  - `src/pages/ProfileSetup.tsx`
+  - `src/pages/Profile.tsx`
+- No database schema changes.
+- No changes to authentication routing.
+- No changes to the existing My HomeLens Preferences page behavior except making `PreferencesChat` reusable for first-time setup.

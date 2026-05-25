@@ -1,21 +1,24 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Home } from "lucide-react";
-import { PreferencesPanel } from "@/components/console/PreferencesPanel";
+import { PreferencesChat } from "@/components/console/PreferencesChat";
+import { Navigation } from "@/components/Navigation";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSaveAndContinue = async (data: any) => {
+  const handleSaveAndContinue = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/auth"); return; }
 
-      const { error } = await supabase.from("profiles").update(data).eq("id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ onboarding_completed: true })
+        .eq("id", user.id);
       if (error) throw error;
 
       toast({ title: "Welcome to HomeLens!", description: "Your preferences have been saved." });
@@ -25,9 +28,18 @@ export default function ProfileSetup() {
     }
   };
 
+  const handleSkip = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", user.id);
+    }
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 pb-24 max-w-2xl">
+      <Navigation />
+      <div className="container mx-auto px-4 py-8 pt-24 pb-24 max-w-5xl">
         {/* Header */}
         <div className="text-center mb-10">
           <div className="flex items-center justify-center mb-4">
@@ -42,15 +54,11 @@ export default function ProfileSetup() {
           </p>
         </div>
 
-        {/* Preferences */}
-        <PreferencesPanel embedded onSave={handleSaveAndContinue} />
-
-        {/* Skip link */}
-        <div className="text-center mt-6">
-          <Button variant="ghost" onClick={() => navigate("/")}>
-            Skip for now
-          </Button>
-        </div>
+        <PreferencesChat
+          onSaveComplete={handleSaveAndContinue}
+          continueLabel="Save and continue"
+          onSkip={handleSkip}
+        />
       </div>
     </div>
   );
