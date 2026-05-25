@@ -404,7 +404,14 @@ export default function Chats() {
 
       // Auto-save: Save assistant message immediately
       if (user && conversationId) {
-        saveMessage(assistantMessage, conversationId);
+        // Persist the MATCH_SCORE prefix in DB content so it can be re-parsed
+        // on conversation reload (messages table has no metadata column).
+        // Without this, the Save Analysis button disappears after refresh.
+        const dbContent =
+          matchScore !== null
+            ? `MATCH_SCORE: ${matchScore}/10\n\n${assistantMessage.content}`
+            : assistantMessage.content;
+        saveMessage({ ...assistantMessage, content: dbContent }, conversationId);
       }
 
       // Check if this was an analysis that can be compared
