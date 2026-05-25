@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+
 interface Props {
   data: { market: string; rows: string[]; cols: string[]; values: number[][] };
 }
@@ -16,8 +18,8 @@ export function HeatmapCard({ data }: Props) {
           </div>
         ))}
         {data.rows.map((zip, r) => (
-          <>
-            <div key={`${zip}-label`} className="text-[10px] text-muted-foreground pr-1 self-center">
+          <Fragment key={zip}>
+            <div className="text-[10px] text-muted-foreground pr-1 self-center">
               {zip}
             </div>
             {data.values[r].map((v, c) => (
@@ -28,7 +30,7 @@ export function HeatmapCard({ data }: Props) {
                 title={`${zip} · ${data.cols[c]}: ${(v * 100).toFixed(0)}%`}
               />
             ))}
-          </>
+          </Fragment>
         ))}
       </div>
     </div>
