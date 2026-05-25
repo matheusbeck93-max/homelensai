@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Sparkles, Briefcase, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Sparkles, Briefcase, LayoutDashboard, MessageSquare, UserPlus } from "lucide-react";
 import { tierDisplayName } from "@/lib/subscriptionPlans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -148,9 +148,15 @@ export function Navigation() {
                 Sign Out
               </Button>
             ) : (
-              <Button onClick={() => navigate('/auth')}>
-                Sign In
-              </Button>
+              <>
+                <Button variant="ghost" onClick={() => navigate('/auth')}>
+                  Sign In
+                </Button>
+                <Button onClick={() => navigate('/auth?mode=signup')} className="gap-1.5">
+                  <UserPlus className="h-4 w-4" />
+                  Sign Up
+                </Button>
+              </>
             )}
           </div>
         )}
@@ -220,15 +226,28 @@ export function Navigation() {
                           Sign Out
                         </Button>
                       ) : (
-                        <Button
-                          className="w-full"
-                          onClick={() => {
-                            navigate('/auth');
-                            setMobileOpen(false);
-                          }}
-                        >
-                          Sign In
-                        </Button>
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => {
+                              navigate('/auth');
+                              setMobileOpen(false);
+                            }}
+                          >
+                            Sign In
+                          </Button>
+                          <Button
+                            className="w-full gap-1.5"
+                            onClick={() => {
+                              navigate('/auth?mode=signup');
+                              setMobileOpen(false);
+                            }}
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Sign Up
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
