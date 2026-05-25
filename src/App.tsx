@@ -75,7 +75,6 @@ const Calculators = lazyWithRetry(() => import("./pages/Calculators"));
 const Investor = lazyWithRetry(() => import("./pages/Investor"));
 
 const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
-const Portfolio = lazyWithRetry(() => import("./pages/Portfolio"));
 const Console = lazyWithRetry(() => import("./pages/Console"));
 const ProfileSetup = lazyWithRetry(() => import("./pages/ProfileSetup"));
 const Compare = lazyWithRetry(() => import("./pages/Compare"));
@@ -124,8 +123,7 @@ function App() {
                   <Route path="/saved-analyses" element={<ProtectedRoute><SavedAnalyses /></ProtectedRoute>} />
                   <Route path="/calculators" element={<Calculators />} />
                   <Route path="/investor" element={<Investor />} />
-                  
-                  <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
+                  <Route path="/portfolio" element={<Navigate to="/" replace />} />
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/auth" element={<Auth />} />
