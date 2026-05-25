@@ -1203,6 +1203,13 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           <button className="hl-header-btn" onClick={handleNewChat} title="New chat">
             +
           </button>
+          <button
+            className="hl-header-btn"
+            onClick={() => chrome.tabs.create({ url: 'https://homelensais.com/' })}
+            title="Open HomeLens"
+          >
+            Open HomeLens
+          </button>
           <button className="hl-header-btn" onClick={onLogout}>
             Sign out
           </button>
