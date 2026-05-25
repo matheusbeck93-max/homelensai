@@ -50,7 +50,6 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Excel workflow in chat',
       'Voice mode (text-to-speech)',
       'Investor Calculator & Market Comparator',
-      'Portfolio tracking',
     ],
   },
   buyer: {
@@ -105,7 +104,6 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Tax modeling with MFJ filing & LTCG',
       '20-year Investment Projections with IRR',
       'Market Comparator (multi-market)',
-      'Portfolio tracking',
       'Investor-grade Excel workbooks',
       'Investor email digests',
       'Priority API limits (2,000 credits/day)',
@@ -169,7 +167,6 @@ export const INVESTOR_ANNUAL_PLAN: SubscriptionPlan = {
     'Tax modeling with MFJ filing & LTCG',
     '20-year Investment Projections with IRR',
     'Market Comparator (multi-market)',
-    'Portfolio tracking',
     'Investor-grade Excel workbooks',
     'Investor email digests',
     'Priority API limits (2,000 credits/day)',
@@ -185,7 +182,7 @@ export const INVESTOR_ANNUAL_PLAN: SubscriptionPlan = {
  *
  * Buyer = home-buyer features (Match Score, alerts, history, neighborhood, etc.)
  * Investor = Buyer + rental-property tools (Investor Calc, Market Comparator,
- *            Portfolio, MFJ tax modeling, etc.)
+ *            MFJ tax modeling, etc.)
  */
 export const FEATURE_GATES = {
   // Buyer + Investor
@@ -214,7 +211,6 @@ export const FEATURE_GATES = {
   TAX_MODELING_MFJ: ['investor'],
   INVESTMENT_PROJECTIONS: ['investor'],
   MARKET_COMPARATOR: ['investor'],
-  PORTFOLIO_TRACKING: ['investor'],
   INVESTOR_EXCEL_WORKBOOKS: ['investor'],
   INVESTOR_EMAIL_DIGESTS: ['investor'],
 } as const;
