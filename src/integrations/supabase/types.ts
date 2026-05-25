@@ -250,6 +250,206 @@ export type Database = {
           },
         ]
       }
+      investor_brief_cards: {
+        Row: {
+          brief_id: string
+          card_type: string
+          config: Json
+          created_at: string
+          data_snapshot: Json
+          hidden: boolean
+          id: string
+          position: number
+        }
+        Insert: {
+          brief_id: string
+          card_type: string
+          config?: Json
+          created_at?: string
+          data_snapshot?: Json
+          hidden?: boolean
+          id?: string
+          position?: number
+        }
+        Update: {
+          brief_id?: string
+          card_type?: string
+          config?: Json
+          created_at?: string
+          data_snapshot?: Json
+          hidden?: boolean
+          id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_brief_cards_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "investor_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_brief_events: {
+        Row: {
+          brief_id: string | null
+          card_type: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          brief_id?: string | null
+          card_type?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          brief_id?: string | null
+          card_type?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_brief_events_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "investor_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_briefs: {
+        Row: {
+          context_snapshot: Json
+          created_at: string
+          edited_at: string | null
+          edited_insights: Json | null
+          edited_intro: string | null
+          followups: string[]
+          generated_at: string
+          id: string
+          insights: Json
+          intro_text: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context_snapshot?: Json
+          created_at?: string
+          edited_at?: string | null
+          edited_insights?: Json | null
+          edited_intro?: string | null
+          followups?: string[]
+          generated_at?: string
+          id?: string
+          insights?: Json
+          intro_text?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context_snapshot?: Json
+          created_at?: string
+          edited_at?: string | null
+          edited_insights?: Json | null
+          edited_intro?: string | null
+          followups?: string[]
+          generated_at?: string
+          id?: string
+          insights?: Json
+          intro_text?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      investor_card_feedback: {
+        Row: {
+          brief_card_id: string | null
+          card_type: string
+          created_at: string
+          id: string
+          signal: string
+          user_id: string
+        }
+        Insert: {
+          brief_card_id?: string | null
+          card_type: string
+          created_at?: string
+          id?: string
+          signal: string
+          user_id: string
+        }
+        Update: {
+          brief_card_id?: string | null
+          card_type?: string
+          created_at?: string
+          id?: string
+          signal?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_card_feedback_brief_card_id_fkey"
+            columns: ["brief_card_id"]
+            isOneToOne: false
+            referencedRelation: "investor_brief_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_talking_points: {
+        Row: {
+          id: string
+          pinned_at: string
+          source_card_id: string | null
+          source_card_type: string | null
+          status: string
+          text: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          pinned_at?: string
+          source_card_id?: string | null
+          source_card_type?: string | null
+          status?: string
+          text: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          pinned_at?: string
+          source_card_id?: string | null
+          source_card_type?: string | null
+          status?: string
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_talking_points_source_card_id_fkey"
+            columns: ["source_card_id"]
+            isOneToOne: false
+            referencedRelation: "investor_brief_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_metrics: {
         Row: {
           created_at: string | null
@@ -406,6 +606,8 @@ export type Database = {
           alert_email_enabled: boolean | null
           alert_price_drops: boolean | null
           alert_status_changes: boolean | null
+          brief_cadence: string
+          brief_card_count: number
           budget_max: number | null
           budget_min: number | null
           buyer_type: string | null
@@ -457,6 +659,8 @@ export type Database = {
           alert_email_enabled?: boolean | null
           alert_price_drops?: boolean | null
           alert_status_changes?: boolean | null
+          brief_cadence?: string
+          brief_card_count?: number
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
@@ -508,6 +712,8 @@ export type Database = {
           alert_email_enabled?: boolean | null
           alert_price_drops?: boolean | null
           alert_status_changes?: boolean | null
+          brief_cadence?: string
+          brief_card_count?: number
           budget_max?: number | null
           budget_min?: number | null
           buyer_type?: string | null
