@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Navigation } from "@/components/Navigation";
-import { PreferencesPanel } from "@/components/console/PreferencesPanel";
+import { PreferencesChat } from "@/components/console/PreferencesChat";
 
 import { User, LogOut, Home, DollarSign, MapPin, TrendingUp, Settings, ArrowLeft } from "lucide-react";
 
@@ -53,14 +53,14 @@ export default function Profile() {
     navigate("/");
   };
 
-  const handleSaveAndContinue = async (data: any) => {
+  const handleSaveAndContinue = async () => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) { navigate("/auth"); return; }
 
       const { error } = await supabase
         .from("profiles")
-        .update({ ...data, onboarding_completed: true })
+        .update({ onboarding_completed: true })
         .eq("id", authUser.id);
       if (error) throw error;
 
@@ -101,7 +101,7 @@ export default function Profile() {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="container mx-auto px-4 py-8 pt-24 pb-24 max-w-3xl">
+      <div className="container mx-auto px-4 py-8 pt-24 pb-24 max-w-5xl">
           <div className="text-center mb-10">
             <div className="flex items-center justify-center mb-4">
               <Home className="h-12 w-12 text-primary" />
@@ -115,13 +115,15 @@ export default function Profile() {
             </p>
           </div>
 
-          <PreferencesPanel embedded onSave={handleSaveAndContinue} />
-
-          <div className="text-center mt-6">
-            <Button variant="ghost" onClick={() => navigate("/")}>
-              Skip for now
-            </Button>
-          </div>
+          <PreferencesChat
+            onSaveComplete={handleSaveAndContinue}
+            continueLabel="Save and continue"
+            onSkip={async () => {
+              const { data: { user: u } } = await supabase.auth.getUser();
+              if (u) await supabase.from("profiles").update({ onboarding_completed: true }).eq("id", u.id);
+              navigate("/");
+            }}
+          />
         </div>
       </div>
     );
