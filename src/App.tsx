@@ -72,7 +72,9 @@ const Settings = lazyWithRetry(() => import("./pages/Settings"));
 const SavedSearches = lazyWithRetry(() => import("./pages/SavedSearches"));
 const SavedAnalyses = lazyWithRetry(() => import("./pages/SavedAnalyses"));
 const Calculators = lazyWithRetry(() => import("./pages/Calculators"));
-const Investor = lazyWithRetry(() => import("./pages/Investor"));
+const InvestorBrief = lazyWithRetry(() => import("./pages/InvestorBrief"));
+const InvestorConsole = lazyWithRetry(() => import("./pages/InvestorConsole"));
+const InvestorCalculator = lazyWithRetry(() => import("./pages/InvestorCalculator"));
 
 const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
 const Console = lazyWithRetry(() => import("./pages/Console"));
@@ -122,7 +124,9 @@ function App() {
                   <Route path="/saved-searches" element={<ProtectedRoute><SavedSearches /></ProtectedRoute>} />
                   <Route path="/saved-analyses" element={<ProtectedRoute><SavedAnalyses /></ProtectedRoute>} />
                   <Route path="/calculators" element={<Calculators />} />
-                  <Route path="/investor" element={<Investor />} />
+                  <Route path="/investor" element={<ProtectedRoute><InvestorBrief /></ProtectedRoute>} />
+                  <Route path="/investor/console" element={<ProtectedRoute><InvestorConsole /></ProtectedRoute>} />
+                  <Route path="/investor/calculator" element={<ProtectedRoute><InvestorCalculator /></ProtectedRoute>} />
                   <Route path="/portfolio" element={<Navigate to="/" replace />} />
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/pricing" element={<Pricing />} />
