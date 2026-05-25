@@ -441,7 +441,11 @@ export default function Chats() {
         setMessages((prev) => prev.map(m => m.id === assistantMessage.id ? { ...m, content: withOffer } : m));
         if (user && conversationId) {
           // Re-save with offer appended (best-effort; non-blocking)
-          saveMessage({ ...assistantMessage, content: withOffer }, conversationId);
+          const dbContent =
+            matchScore !== null
+              ? `MATCH_SCORE: ${matchScore}/10\n\n${withOffer}`
+              : withOffer;
+          saveMessage({ ...assistantMessage, content: dbContent }, conversationId);
         }
       }
 
