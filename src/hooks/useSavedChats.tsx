@@ -130,13 +130,27 @@ export function useSavedChats() {
 
       if (error) throw error;
       
-      setMessages(data?.map(m => ({
-        id: m.id,
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-        createdAt: m.created_at,
-        metadata: {}
-      })) || []);
+      setMessages(
+        data?.map((m) => {
+          if (m.role === 'assistant') {
+            const { score, cleanContent } = parseMatchScoreFromContent(m.content);
+            return {
+              id: m.id,
+              role: 'assistant' as const,
+              content: cleanContent,
+              createdAt: m.created_at,
+              metadata: score !== null ? { matchScore: score } : {},
+            };
+          }
+          return {
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            createdAt: m.created_at,
+            metadata: {},
+          };
+        }) || [],
+      );
       
       setCurrentConversationId(conversationId);
     } catch (error) {
