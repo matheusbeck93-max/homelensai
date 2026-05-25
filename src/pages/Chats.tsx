@@ -747,7 +747,12 @@ export default function Chats() {
                     }
 
                       {/* Save Analysis Button — only on real property analyses (MATCH_SCORE present) */}
-                      {message.metadata?.matchScore != null && (
+                      {/* Save Analysis Button — shown whenever this assistant message
+                          looks like a property analysis (URL analyzed, parsed property,
+                          or MATCH_SCORE present). Score is optional. */}
+                      {(message.metadata?.matchScore != null ||
+                        (message.metadata as any)?.analyzedProperty ||
+                        (analysisUrl && (message.content.includes("Property Summary") || /\bPrice:/i.test(message.content)))) && (
                         <SaveAnalysisButton
                           analysis={{
                             propertyUrl: analysisUrl ?? null,
@@ -755,10 +760,14 @@ export default function Chats() {
                               (message.metadata as any)?.analyzedProperty?.address ?? null,
                             propertyPrice: null,
                             analysisSummary: message.content,
-                            investmentScore: Math.round(
-                              message.metadata.matchScore * 10,
-                            ),
-                            scoreLabel: getScoreLabel(message.metadata.matchScore),
+                            investmentScore:
+                              message.metadata?.matchScore != null
+                                ? Math.round(message.metadata.matchScore * 10)
+                                : null,
+                            scoreLabel:
+                              message.metadata?.matchScore != null
+                                ? getScoreLabel(message.metadata.matchScore)
+                                : null,
                             keyMetrics:
                               (message.metadata as any)?.analyzedProperty ?? null,
                             source: "app",
