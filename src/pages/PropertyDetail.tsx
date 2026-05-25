@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles, Map as MapIcon, Briefcase } from "lucide-react";
+import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles, Map as MapIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { ExternalLinks } from "@/components/ExternalLinks";
@@ -17,7 +17,6 @@ import { NeighborhoodPersonality } from "@/components/NeighborhoodPersonality";
 import { PropertyMap } from "@/components/PropertyMap";
 import { PropertyPDFExport } from "@/components/PropertyPDFExport";
 import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighborhood";
-import { AddToPortfolioDialog } from "@/components/portfolio/AddToPortfolioDialog";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { PropertyInsights } from "@/components/PropertyInsights";
 import { MarketTrendsChart } from "@/components/MarketTrendsChart";
@@ -37,7 +36,6 @@ export default function PropertyDetail() {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [insightsSource, setInsightsSource] = useState<'perplexity' | 'fallback'>('fallback');
   const [showMap, setShowMap] = useState(false);
-  const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
@@ -310,22 +308,6 @@ export default function PropertyDetail() {
               variant="outline"
               size="lg"
               className="w-full"
-              onClick={() => {
-                if (isPremium) {
-                  setShowAddToPortfolio(true);
-                } else {
-                  setShowUpgrade(true);
-                }
-              }}
-            >
-              <Briefcase className="mr-2 h-5 w-5" />
-              Add to Portfolio
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full"
               onClick={handleMapToggle}
             >
               {showMap ? (
@@ -436,18 +418,11 @@ export default function PropertyDetail() {
         </div>
       </div>
 
-      <AddToPortfolioDialog
-        isOpen={showAddToPortfolio}
-        onClose={() => setShowAddToPortfolio(false)}
-        propertyId={property.id}
-        propertyPrice={property.price}
-      />
-
       <UpgradeModal
         isOpen={showUpgrade}
         onClose={() => setShowUpgrade(false)}
-        reason="Portfolio Builder is a Premium feature"
-        feature="Track multiple properties with combined cash flow analysis and ROI calculations"
+        reason="This is a Premium feature"
+        feature="Upgrade to unlock the full HomeLens experience"
       />
     </div>
   );

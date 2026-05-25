@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Sparkles, Briefcase, LayoutDashboard, MessageSquare, UserPlus } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Sparkles, LayoutDashboard, MessageSquare, UserPlus } from "lucide-react";
 import { tierDisplayName } from "@/lib/subscriptionPlans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -34,7 +34,7 @@ export function Navigation() {
   const isMobile = isCompact;
   const [user, setUser] = useState<any>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { tier, loading: subscriptionLoading, hasAccess, isFree } = useSubscription();
+  const { tier, loading: subscriptionLoading, isFree } = useSubscription();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -61,8 +61,6 @@ export function Navigation() {
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
 
-  const portfolioNavItem = { label: 'Portfolio', path: '/portfolio', icon: Briefcase };
- 
   const handleGoHome = () => {
     
     if (location.pathname === '/') {
@@ -109,19 +107,7 @@ export function Navigation() {
                 </Button>
               );
             })}
-            
-            {/* Portfolio - Investor only */}
-            {hasAccess('PORTFOLIO_TRACKING') && (
-              <Button
-                variant="ghost"
-                onClick={() => navigate(portfolioNavItem.path)}
-                className={location.pathname === portfolioNavItem.path ? "text-primary" : ""}
-              >
-                <Briefcase className="h-4 w-4 mr-2" />
-                {portfolioNavItem.label}
-              </Button>
-            )}
-            
+
             <InstallPrompt />
             <ThemeToggle />
             
@@ -195,21 +181,6 @@ export function Navigation() {
                           </Button>
                         );
                       })}
-                      
-                      {/* Portfolio - Investor only */}
-                      {hasAccess('PORTFOLIO_TRACKING') && (
-                        <Button
-                          variant="ghost"
-                          className="justify-start w-full"
-                          onClick={() => {
-                            navigate('/portfolio');
-                            setMobileOpen(false);
-                          }}
-                        >
-                          <Briefcase className="h-4 w-4 mr-2" />
-                          Portfolio
-                        </Button>
-                      )}
                     </div>
 
 
