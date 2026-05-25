@@ -1,0 +1,249 @@
+/**
+ * investor-brief edge function
+ *
+ * Generates the natural-language portion of a user's Investor Brief
+ * grounded in the cards the client composed. Persists the brief +
+ * cards and returns the saved record.
+ *
+ * Body:
+ *   {
+ *     contextSnapshot: any,
+ *     selectedCards: Array<{
+ *       type: string,
+ *       title: string,
+ *       config: any,
+ *       dataSnapshot: any,
+ *       summary: string,
+ *     }>,
+ *     pinnedTalkingPoints?: string[],
+ *   }
+ *
+ * Returns: { brief: { id, intro_text, insights, followups, generated_at }, cards: [...] }
+ */
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { getAuthenticatedUser } from '../_shared/auth.ts';
+
+const MODEL = 'google/gemini-2.5-pro';
+const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+function buildSystemPrompt(): string {
+  return [
+    'You are HomeLens Investor Brief — you write the natural-language portion of a',
+    "real-estate investor's daily brief.",
+    '',
+    'You receive:',
+    "  - The user's preferences (target cap rate, target markets, etc.)",
+    '  - A list of insight cards already selected for this brief, each with an id,',
+    '    title, and a one-line summary of what the card shows.',
+    '  - Any pinned talking points the user wants you to reference.',
+    '',
+    'Output STRICT JSON ONLY (no markdown, no commentary):',
+    '{',
+    '  "introText": "1–2 sentence intro mentioning what the brief was built from.",',
+    '  "insights": [',
+    '    { "text": "...", "citedCardIds": ["<id>"], "severity": "info" }',
+    '  ],',
+    '  "followups": ["short question", "..."]',
+    '}',
+    '',
+    'Rules:',
+    '- 3–5 bullets in insights. Each must cite ≥1 card id from the input.',
+    '- Describe what the card shows. Do NOT introduce metrics no card supports.',
+    "- Frame against the user's targets when relevant (e.g., \"above your 7% target\").",
+    '- severity is one of: "info" | "opportunity" | "warning". Use "warning" sparingly.',
+    '- Tone: factual, concise, second-person.',
+    '- 2–4 short followups the user could click next.',
+    '- US real estate only.',
+  ].join('\n');
+}
+
+Deno.serve(async (req) => {
+  const preflight = handleCors(req);
+  if (preflight) return preflight;
+
+  try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+    const body = await req.json();
+    const contextSnapshot = body?.contextSnapshot ?? {};
+    const selectedCards: Array<any> = Array.isArray(body?.selectedCards) ? body.selectedCards : [];
+    const pinnedTalkingPoints: string[] = Array.isArray(body?.pinnedTalkingPoints)
+      ? body.pinnedTalkingPoints.filter((s: unknown) => typeof s === 'string')
+      : [];
+
+    if (selectedCards.length === 0) {
+      return jsonResponse({ error: 'No cards provided' }, 400);
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // 1. Create brief row in 'pending' status with a stable id we can reference
+    //    for card insertion below.
+    const { data: briefRow, error: briefInsertError } = await supabase
+      .from('investor_briefs')
+      .insert({
+        user_id: user.id,
+        status: 'pending',
+        intro_text: '',
+        insights: [],
+        context_snapshot: contextSnapshot,
+      })
+      .select('id')
+      .single();
+
+    if (briefInsertError || !briefRow) {
+      console.error('Failed to create brief row', briefInsertError);
+      return jsonResponse({ error: 'Failed to create brief' }, 500);
+    }
+
+    const briefId = briefRow.id;
+
+    // 2. Insert cards with positions. The LLM cites by the card id we send it,
+    //    which is the freshly-generated DB id.
+    const cardRows = selectedCards.map((c, i) => ({
+      brief_id: briefId,
+      card_type: String(c.type ?? 'note'),
+      position: i,
+      config: c.config ?? {},
+      data_snapshot: c.dataSnapshot ?? {},
+    }));
+
+    const { data: insertedCards, error: cardsError } = await supabase
+      .from('investor_brief_cards')
+      .insert(cardRows)
+      .select('id, card_type, position, config, data_snapshot');
+
+    if (cardsError || !insertedCards) {
+      console.error('Failed to insert brief cards', cardsError);
+      return jsonResponse({ error: 'Failed to insert cards' }, 500);
+    }
+
+    // 3. Build LLM payload using the persisted card ids so citations are stable.
+    const cardsForPrompt = insertedCards
+      .sort((a, b) => a.position - b.position)
+      .map((row, i) => ({
+        id: row.id,
+        type: row.card_type,
+        title: selectedCards[i]?.title ?? row.card_type,
+        summary: selectedCards[i]?.summary ?? '',
+      }));
+
+    const userMessage = JSON.stringify({
+      preferences: contextSnapshot?.preferences ?? {},
+      cards: cardsForPrompt,
+      pinnedTalkingPoints,
+    });
+
+    // 4. Call Lovable AI Gateway.
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!apiKey) {
+      await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
+      return jsonResponse({ error: 'LOVABLE_API_KEY not configured' }, 500);
+    }
+
+    const aiResp = await fetch(GATEWAY_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: buildSystemPrompt() },
+          { role: 'user', content: userMessage },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.4,
+      }),
+    });
+
+    if (!aiResp.ok) {
+      const errText = await aiResp.text();
+      console.error('AI Gateway error', aiResp.status, errText);
+      await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
+      if (aiResp.status === 429) return jsonResponse({ error: 'Rate limited' }, 429);
+      if (aiResp.status === 402) return jsonResponse({ error: 'Credits exhausted' }, 402);
+      return jsonResponse({ error: 'AI generation failed' }, 502);
+    }
+
+    const aiData = await aiResp.json();
+    const raw = aiData?.choices?.[0]?.message?.content ?? '{}';
+
+    let parsed: { introText?: string; insights?: any[]; followups?: string[] };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = {};
+    }
+
+    const introText = typeof parsed.introText === 'string' && parsed.introText.length > 0
+      ? parsed.introText
+      : 'Today\'s brief built from your preferences and watchlist.';
+
+    const validCardIds = new Set(insertedCards.map((c) => c.id));
+    const insights = Array.isArray(parsed.insights)
+      ? parsed.insights
+          .filter((b: any) => b && typeof b.text === 'string')
+          .map((b: any) => ({
+            text: String(b.text).slice(0, 600),
+            citedCardIds: Array.isArray(b.citedCardIds)
+              ? b.citedCardIds.filter((id: any) => typeof id === 'string' && validCardIds.has(id))
+              : [],
+            severity: ['info', 'opportunity', 'warning'].includes(b.severity) ? b.severity : 'info',
+          }))
+          .slice(0, 5)
+      : [];
+
+    const followups = Array.isArray(parsed.followups)
+      ? parsed.followups
+          .filter((s: any) => typeof s === 'string')
+          .map((s: string) => s.slice(0, 120))
+          .slice(0, 4)
+      : [];
+
+    // 5. Finalize brief row.
+    const { error: updateError } = await supabase
+      .from('investor_briefs')
+      .update({
+        status: 'ready',
+        intro_text: introText,
+        insights,
+        followups,
+      })
+      .eq('id', briefId);
+
+    if (updateError) {
+      console.error('Failed to finalize brief', updateError);
+      return jsonResponse({ error: 'Failed to save brief' }, 500);
+    }
+
+    return jsonResponse({
+      brief: {
+        id: briefId,
+        intro_text: introText,
+        insights,
+        followups,
+        generated_at: new Date().toISOString(),
+        status: 'ready',
+      },
+      cards: insertedCards,
+    });
+  } catch (err) {
+    console.error('investor-brief unexpected error', err);
+    return jsonResponse({ error: 'Internal error' }, 500);
+  }
+});
