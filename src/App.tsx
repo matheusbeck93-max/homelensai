@@ -73,7 +73,6 @@ const SavedSearches = lazyWithRetry(() => import("./pages/SavedSearches"));
 const SavedAnalyses = lazyWithRetry(() => import("./pages/SavedAnalyses"));
 const Calculators = lazyWithRetry(() => import("./pages/Calculators"));
 const InvestorBrief = lazyWithRetry(() => import("./pages/InvestorBrief"));
-const InvestorConsole = lazyWithRetry(() => import("./pages/InvestorConsole"));
 const InvestorCalculator = lazyWithRetry(() => import("./pages/InvestorCalculator"));
 
 const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
