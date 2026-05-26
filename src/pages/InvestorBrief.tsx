@@ -106,7 +106,7 @@ function InvestorBriefInner() {
               />
               <section>
                 {mode === 'chat' ? (
-                  <DeepPanel context={activeCardContext} onBack={exitChatMode} />
+                  <DeepPanel onBack={exitChatMode} />
                 ) : loading && cards.length === 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[0, 1, 2, 3].map((i) => (
