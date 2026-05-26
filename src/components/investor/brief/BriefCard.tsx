@@ -118,7 +118,7 @@ export function BriefCard({
               ref={scrollRef}
               className="max-h-[420px] overflow-y-auto pr-1"
             >
-              <ChatMessageList turns={currentThread} pending={pending} />
+              <ChatMessageList turns={currentThread} pending={pending} currentTurn={currentTurn} />
             </div>
           </div>
         ) : loading ? (
