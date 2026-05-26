@@ -13,7 +13,6 @@ import { useInvestorBriefSurface } from '@/contexts/InvestorBriefContext';
 import { PersonaSummary } from '@/components/preferences/PersonaSummary';
 import { usePersona } from '@/lib/personas/usePersona';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useState as useReactState } from 'react';
 import { recordPersonaEvent } from '@/lib/personas/telemetry';
 
 interface Props {
