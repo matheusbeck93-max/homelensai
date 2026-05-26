@@ -96,7 +96,19 @@ export function PreferencesChat({
       const { data, error } = await supabase.functions.invoke("preferences-assistant", {
         body: { action: "chat", messages },
       });
-      if (error) throw error;
+      if (error) {
+        // Try to surface the real error from the edge function response body.
+        let detail = error.message ?? "Unknown error";
+        const ctx: any = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.json();
+            if (body?.error) detail = String(body.error);
+          } catch {}
+        }
+        console.error("[PreferencesChat] invoke failed", error, detail);
+        throw new Error(detail);
+      }
       const reply: Turn = {
         role: "assistant",
         content: data?.message ?? "Got it.",
@@ -112,8 +124,15 @@ export function PreferencesChat({
         });
       }
     } catch (e: any) {
-      setTurns((prev) => [...prev, { role: "assistant", content: "Something went wrong reaching the assistant. Please try again." }]);
-      toast({ title: "Chat error", description: e?.message ?? "Could not reach the assistant.", variant: "destructive" });
+      const detail = e?.message ?? "Could not reach the assistant.";
+      setTurns((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `I couldn't reach the assistant: ${detail}\n\nPlease try again, or use **Edit manually** to update your preferences directly.`,
+        },
+      ]);
+      toast({ title: "Assistant unavailable", description: detail, variant: "destructive", duration: 6000 });
     } finally {
       setLoading(false);
     }
