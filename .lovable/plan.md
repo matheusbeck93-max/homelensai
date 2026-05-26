@@ -1,169 +1,67 @@
+## Unified Investor Brief — Single Surface Rebuild
 
-# Investor Console v2 + Brief — Build Plan
+This supersedes the prior two-route design (`/investor` brief + `/investor/console` chat). The brief and chat become **one surface** at `/investor` that swaps state in-place. The Comparator tab and rail icon are removed entirely (folded into an AI tool). A new **Buying Power** card is added.
 
-Replaces today's `/investor` (calculator + tabs) with a two-surface Investor experience:
+### Scope summary
 
-- **`/investor`** — Manager Brief homepage (rail + brief card + insight grid).
-- **`/investor/console`** — Chat-first console with sidebar; Investigate links land here with grounded context.
-- **`/investor/calculator`** — Existing calculator preserved, moved one level down (still linked from rail and console).
+- Keep DB tables already created (`investor_briefs`, `investor_brief_cards`, `investor_talking_points`, `investor_card_feedback`, `investor_brief_events`).
+- Add `cash_available` + `financing_defaults` JSON to `profiles` for the Buying Power card.
+- Delete the separate `/investor/console` route + `InvestorConsole.tsx`.
+- Rewrite `/investor` page to host `mode: 'brief' | 'chat'` state with shared composer and right-column dispatch.
+- Add Buying Power card, ContextCard, ChatMessageList, DeepPanel + 3 initial deep views, NoteCallout, BottomActionBar, BriefEditDialog, TalkingPointPicker.
+- Add `InvestorBriefContext` for mode/thread/activeCardContext.
+- Add `aiTools.ts` registry (compare_properties, list_affordable_listings, etc.) — wired via existing `ai-chat` edge function for actual LLM calls.
+- Remove Comparator references from sidebar/rail.
 
-Old `Investor.tsx` (Calculator / Comparator / Saved Analyses tabs) is removed. Saved Analyses + Market Comparator move into the console as side panels (reachable from rail). Hard cutover — no `investor_console_v2` flag.
+### Changes
 
-Daily cadence, 5 cards default, fresh-regenerate each cycle, `google/gemini-2.5-pro` via Lovable AI Gateway.
+**DB migration**
+- Add `cash_available numeric`, `financing_defaults jsonb default '{"downPct":25,"rateApr":7,"termYears":30}'` to `profiles`.
 
----
+**New files**
+- `src/contexts/InvestorBriefContext.tsx` — mode, chat thread, activeCardContext, enter/exitChatMode.
+- `src/components/investor/brief/ContextCard.tsx`
+- `src/components/investor/brief/ChatMessageList.tsx`
+- `src/components/investor/brief/NoteCallout.tsx`
+- `src/components/investor/brief/BottomActionBar.tsx`
+- `src/components/investor/brief/BriefEditDialog.tsx`
+- `src/components/investor/brief/TalkingPointPicker.tsx`
+- `src/components/investor/brief/cards/BuyingPowerCard.tsx`
+- `src/components/investor/brief/cards/AnomalyCard.tsx`
+- `src/components/investor/brief/deep/DeepPanel.tsx` (dispatch by card_type)
+- `src/components/investor/brief/deep/AffordableListingsView.tsx`
+- `src/components/investor/brief/deep/MarketBreakdownView.tsx`
+- `src/components/investor/brief/deep/PropertyReductionDetailsView.tsx`
+- `src/lib/investorBrief/buyingPower.ts` — pure compute.
+- `src/lib/investorBrief/aiTools.ts` — tool registry metadata.
 
-## 1. Database (one migration)
+**Rewrites**
+- `src/pages/InvestorBrief.tsx` — wrap in `InvestorBriefProvider`; render `BriefCard` (mode-aware) + right column (`DashboardGrid` vs `DeepPanel`); single composer; IconRail (no Chat, no Comparator icon).
+- `src/components/investor/brief/BriefCard.tsx` — two states sharing composer; back-chevron in chat mode.
+- `src/lib/investorBrief/insightRegistry.ts` — add `buying_power` entry with `investigatePrompt` + `deepView` + `toContextCard`; extend interface.
+- `src/components/investor/console/ConsoleSidebar.tsx` — remove Comparator + Chat items; rename to IconRail or repurpose; keep Home/Properties/Saved Analyses/Searches/Calculator/Preferences.
 
-Tables, all with RLS scoped to `auth.uid()`:
+**Deletions**
+- `src/pages/InvestorConsole.tsx` and its route in `src/App.tsx`.
+- Comparator rail link (kept as page if it already exists, just removed from rail).
 
-- `investor_briefs` — one row per generated brief (intro_text, insights jsonb, followups[], context_snapshot, status, edited_intro, edited_insights, generated_at).
-- `investor_brief_cards` — one row per card in a brief (brief_id, card_type, position, config, data_snapshot, hidden).
-- `investor_talking_points` — user-pinned points (text, source_card_id, source_card_type, status).
-- `investor_card_feedback` — thumbs/investigate/copy/pin/dismiss signals per card_type.
+**Edge function**
+- `supabase/functions/investor-brief/index.ts` — extend prompt to reference Buying Power summary + pinned talking points (already partly done).
+- Chat in chat-mode reuses existing `ai-chat` edge function with a system prefix derived from `activeCardContext`.
 
-Indices: `(user_id, generated_at desc)`, `(brief_id, position)`, `(user_id, card_type, created_at desc)`.
+### Out of scope this pass
 
-Brief cards policy uses subquery on parent brief's user_id (per `user-roles` pattern, no recursion risk since it's a different table).
+- Scheduled cron regeneration job (will add as separate pass).
+- Telemetry events instrumentation (stubs in place; full wiring later).
+- Tool execution backend for `compare_properties` etc. (registry + UI hook only — AI will narrate, no live tool calls yet).
+- Deep linking via `?investigate=` query param.
+- Mobile polish pass beyond stack-on-narrow.
 
-## 2. Edge functions
+### Tech notes
 
-### `supabase/functions/investor-brief/index.ts` (new)
-- Input: `{ contextSnapshot, selectedCards: [{type, config, dataSummary}] }`.
-- Calls Lovable AI Gateway with `google/gemini-2.5-pro` via shared `_shared/ai-gateway.ts` wrapper.
-- System prompt grounded in the cards (rules: cite ≥1 card per bullet, frame against user targets, no hedging, severity sparingly).
-- Persists `investor_briefs` + `investor_brief_cards` rows server-side using service-role client (with user_id from JWT).
-- Returns the persisted brief.
-- Uses `_shared/aiCredits.ts` to deduct (matches project convention).
+- Chat thread lives in `InvestorBriefContext` (in-memory, session-only). No new DB table for it in this pass.
+- `DeepPanel` reads `activeCardContext.card.data_snapshot` and renders the matching view; falls back to a neutral "Exploring this insight" placeholder.
+- `BuyingPowerCard` pulls `cash_available` + `financing_defaults` from `profiles`, market medians from `market_snapshots` (existing) or computes from `saved_properties` as fallback.
+- IconRail = compact `ConsoleSidebar` with revised items.
 
-### `supabase/functions/regenerate-briefs-cron/index.ts` (new)
-- Protected by `_shared/cronAuth.ts` (X-Cron-Secret).
-- Iterates users where `brief_cadence` matches today + opted in; enqueues per-user regeneration by re-running composer server-side (shared composer module lives in edge `_shared/briefComposer.ts` for cron + on a server route called from client refresh).
-- Scheduled via `pg_cron` daily at 09:00 UTC (handles local 5am for US users; configurable later).
-
-Cron schedule SQL goes through `supabase--insert` (per project rules, not migration) when ready.
-
-## 3. Insight registry (`src/lib/investorBrief/insightRegistry.ts`)
-
-Single source of truth. Each entry:
-
-```ts
-{ id, cardType, title, subtitle?, isEligible(ctx), loadData(ctx),
-  basePriority, scorePriority?(ctx, feedback), toBriefSummary(data),
-  investigatePrompt(data) }
-```
-
-Ship with: `cap_rate_trend`, `watchlist_price_trend`, `price_reduction_heatmap`, `top_matches_today`, `missing_data`, `target_breach`, `cluster_alert`, `inactive_search`. Plus `setup_card` + `sample_card` for cold-start.
-
-Composer (`briefComposer.ts`):
-1. Load preferences, last 25 saved analyses, last 25 memorized properties, last 10 searches.
-2. Filter eligible cards.
-3. Parallel `loadData` (mostly local; some hit Supabase for market aggregates).
-4. Score via base + feedback (Bayesian-smoothed thumbs ratio over 30 days, `investigated` and `pinned` boost, `down`/`dismissed` demote).
-5. Pick top N (default 5).
-
-Card data is frozen into `data_snapshot` at generation time — brief is point-in-time.
-
-## 4. Pages, routes, contexts
-
-### Routes (in `src/App.tsx`)
-- `/investor` → `InvestorBrief` (default homepage of section).
-- `/investor/console` → `InvestorConsole` (chat).
-- `/investor/console?cardId=&prompt=` → same page, reads params to ground the chat.
-- `/investor/calculator` → existing `HomeLensInvestorCalculator` page (extract from current `Investor.tsx`).
-- Old `/investor` Tabs UI removed; Market Comparator + SavedAnalysesContent reachable from console rail.
-
-### Contexts
-- `InvestorConsoleContext` — preferences, memorized properties, saved analyses, searches subscriptions (reused by both surfaces).
-- `InvestorBriefContext` — wraps console context; adds current brief, talking points, refresh state.
-
-### Brief page tree
-```text
-InvestorBrief
-├── ConsoleSidebar (rail mode, icon-only)
-├── BriefCard (Prepared by HomeLens · intro · insights · followups · reactions · composer)
-└── DashboardGrid
-    ├── InsightCard × N (dispatches by card_type)
-    ├── NoteCallout (latest talking point)
-    └── BottomActionBar (Edit · Add Talking Point)
-```
-
-### Console page tree
-```text
-InvestorConsole
-├── ConsoleSidebar (expanded; sections: Chat, Saved Analyses, Comparator, Calculator, Talking Points)
-├── ChatPanel (existing chat primitives — reuses ai-chat edge fn)
-└── Right rail (preferences summary, memorized properties)
-```
-
-## 5. Components to create
-
-- `src/pages/InvestorBrief.tsx`, `src/pages/InvestorConsole.tsx`, `src/pages/InvestorCalculator.tsx`
-- `src/components/investor/console/ConsoleSidebar.tsx`
-- `src/components/investor/brief/`: `BriefCard`, `InsightCard`, `NoteCallout`, `BottomActionBar`, `BriefEditDialog`, `TalkingPointPicker`
-- `src/components/investor/brief/cards/`: `TrendChartCard`, `HeatmapCard`, `RankedListCard`, `AnomalyCard`, `MissingDataCard`, `SetupCard`, `SampleCard`
-- `src/lib/investorBrief/`: `insightRegistry.ts`, `briefComposer.ts`, `intoCards.ts`, `feedback.ts`, `telemetry.ts`
-- `src/contexts/InvestorConsoleContext.tsx`, `src/contexts/InvestorBriefContext.tsx`
-- `src/hooks/useInvestorBrief.ts` (current brief + refresh action with 5min rate limit)
-
-Charts via existing `recharts` + `@/components/ui/chart`. Heatmap as Tailwind grid (no new dep).
-
-## 6. Interactions
-
-- **Investigate**: card → `/investor/console?cardId=<uuid>&prompt=<encoded>`. Console reads card from DB, injects system message *"User is investigating <title>. Card shows: <toBriefSummary>"*, auto-sends `prompt`.
-- **Brief composer input**: submits → navigates to `/investor/console` with the typed query as first message (no separate chat thread on brief).
-- **Reactions**: thumbs/copy/open-in-new/overflow (Dismiss · Pin as Talking Point · Hide this card type) → write `investor_card_feedback`; Dismiss flips `hidden=true` for this brief only.
-- **Edit dialog**: drag reorder, hide, override intro/bullets. Persists to `edited_intro`/`edited_insights`. Next cycle regenerates fresh (edits = point-in-time).
-- **Talking Points**: pinned items appear as NoteCallout next brief; LLM prompt receives them so it can reference.
-- **Refresh button**: rate-limited 1/5min; on stale (>30h) shows "Refresh recommended" pill.
-
-## 7. Cold-start
-
-User with no prefs/properties/analyses gets welcome `introText`, `SetupCard` (CTA to `/profile-setup`), and `SampleCard` (static demo). Bottom action bar disabled.
-
-## 8. Mobile (≤768px)
-
-Rail collapses to bottom tab in `Navigation`. Brief card stacks above dashboard grid (single column). BottomActionBar sticky.
-
-## 9. Telemetry
-
-New helper `telemetry.ts` writes to existing `tool_call_telemetry` pattern OR a new lightweight `investor_brief_events` table (proposed in same migration) with events: `opened`, `card_rendered`, `card_investigated`, `card_reaction`, `talking_point_added`, `edited`, `refreshed`, `composer_query_sent`.
-
-## 10. Memory & cleanup
-
-- Update `mem://funcionalidades/pagina-investor-foco-calculadora` → `/investor` is now Brief; calculator at `/investor/calculator`.
-- Add `mem://features/investor-brief` — registry pattern, point-in-time semantics, Investigate routing contract.
-- Remove old `Investor.tsx`'s tab UI.
-
-## 11. Verification
-
-End-to-end smoke (via browser + supabase tools):
-1. New user lands on `/investor` → cold-start brief renders with 2 cards, no errors.
-2. Seeded user → brief skeleton → 3–5 cards within ~5s, intro/insights cite card ids.
-3. Investigate on cap-rate-trend → console opens, AI first message references ZIP/window/value.
-4. Thumb-down heatmap 3× → next 3 regenerations demote it out of top 5.
-5. Pin talking point → next brief shows NoteCallout + LLM references it.
-6. Edit override persists; manual regenerate restores AI output.
-7. Refresh 5× in 30s → second+ return cached, tooltip shows wait.
-8. RLS: query user B's brief as user A → denied.
-9. Brief stability: memorize new property mid-day → brief unchanged until refresh, console reflects immediately.
-10. Mobile 375px: rail collapsed, single-column stack, sticky bar.
-
-## 12. Commit order
-
-1. Migration: 4 brief tables + RLS + indices + `brief_cadence` + `brief_card_count` columns on `profiles`.
-2. Insight registry + composer (no UI).
-3. `investor-brief` edge function + LLM prompt.
-4. Page shells (`InvestorBrief`, `InvestorConsole`, `InvestorCalculator`) + routes + sidebar.
-5. BriefCard + card renderers (trend, heatmap, ranked_list, anomaly, missing_data, note).
-6. Investigate routing + grounded chat context in console.
-7. Reactions, talking points, BriefEditDialog.
-8. Cron edge function + pg_cron schedule (via `supabase--insert`).
-9. Telemetry + feedback-driven priority adjustments.
-10. Mobile pass + cold-start polish + memory updates.
-
----
-
-## Out of scope
-
-Email delivery of brief, multi-user briefs, brief history archive UI, AI-authored card types, cross-user benchmarks, non-investor persona briefs. Per the prompt.
+Confirm and I'll implement.
