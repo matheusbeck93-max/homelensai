@@ -1,67 +1,77 @@
-## Unified Investor Brief — Single Surface Rebuild
+## Goal
 
-This supersedes the prior two-route design (`/investor` brief + `/investor/console` chat). The brief and chat become **one surface** at `/investor` that swaps state in-place. The Comparator tab and rail icon are removed entirely (folded into an AI tool). A new **Buying Power** card is added.
+Make all investor-area pages (Brief, Calculator, Saved Analyses, Profile Setup) share the same layout shell with the `ConsoleSidebar` visible — including on mobile/tablet, where it becomes a horizontally scrollable strip.
 
-### Scope summary
+## Scope
 
-- Keep DB tables already created (`investor_briefs`, `investor_brief_cards`, `investor_talking_points`, `investor_card_feedback`, `investor_brief_events`).
-- Add `cash_available` + `financing_defaults` JSON to `profiles` for the Buying Power card.
-- Delete the separate `/investor/console` route + `InvestorConsole.tsx`.
-- Rewrite `/investor` page to host `mode: 'brief' | 'chat'` state with shared composer and right-column dispatch.
-- Add Buying Power card, ContextCard, ChatMessageList, DeepPanel + 3 initial deep views, NoteCallout, BottomActionBar, BriefEditDialog, TalkingPointPicker.
-- Add `InvestorBriefContext` for mode/thread/activeCardContext.
-- Add `aiTools.ts` registry (compare_properties, list_affordable_listings, etc.) — wired via existing `ai-chat` edge function for actual LLM calls.
-- Remove Comparator references from sidebar/rail.
+Frontend layout only. No business logic, no data model changes.
 
-### Changes
+## Changes
 
-**DB migration**
-- Add `cash_available numeric`, `financing_defaults jsonb default '{"downPct":25,"rateApr":7,"termYears":30}'` to `profiles`.
+### 1. `src/components/investor/console/ConsoleSidebar.tsx` — responsive variants
 
-**New files**
-- `src/contexts/InvestorBriefContext.tsx` — mode, chat thread, activeCardContext, enter/exitChatMode.
-- `src/components/investor/brief/ContextCard.tsx`
-- `src/components/investor/brief/ChatMessageList.tsx`
-- `src/components/investor/brief/NoteCallout.tsx`
-- `src/components/investor/brief/BottomActionBar.tsx`
-- `src/components/investor/brief/BriefEditDialog.tsx`
-- `src/components/investor/brief/TalkingPointPicker.tsx`
-- `src/components/investor/brief/cards/BuyingPowerCard.tsx`
-- `src/components/investor/brief/cards/AnomalyCard.tsx`
-- `src/components/investor/brief/deep/DeepPanel.tsx` (dispatch by card_type)
-- `src/components/investor/brief/deep/AffordableListingsView.tsx`
-- `src/components/investor/brief/deep/MarketBreakdownView.tsx`
-- `src/components/investor/brief/deep/PropertyReductionDetailsView.tsx`
-- `src/lib/investorBrief/buyingPower.ts` — pure compute.
-- `src/lib/investorBrief/aiTools.ts` — tool registry metadata.
+Currently `hidden lg:flex` → invisible below 1024px.
 
-**Rewrites**
-- `src/pages/InvestorBrief.tsx` — wrap in `InvestorBriefProvider`; render `BriefCard` (mode-aware) + right column (`DashboardGrid` vs `DeepPanel`); single composer; IconRail (no Chat, no Comparator icon).
-- `src/components/investor/brief/BriefCard.tsx` — two states sharing composer; back-chevron in chat mode.
-- `src/lib/investorBrief/insightRegistry.ts` — add `buying_power` entry with `investigatePrompt` + `deepView` + `toContextCard`; extend interface.
-- `src/components/investor/console/ConsoleSidebar.tsx` — remove Comparator + Chat items; rename to IconRail or repurpose; keep Home/Properties/Saved Analyses/Searches/Calculator/Preferences.
+Refactor to render two variants from the same `items` array:
 
-**Deletions**
-- `src/pages/InvestorConsole.tsx` and its route in `src/App.tsx`.
-- Comparator rail link (kept as page if it already exists, just removed from rail).
+- **Desktop (`lg+`)**: keep current vertical rail (`hidden lg:flex w-14 / w-56`, border-r).
+- **Mobile + tablet (`< lg`)**: a sticky horizontal bar directly under the global `Navigation`, full-width, `overflow-x-auto`, with each item as a pill (icon + label). Active item uses `bg-primary/10 text-primary`. Add `scrollbar-thin` styling and `snap-x` for smooth horizontal scroll. Touch targets ≥ 44px (matches mobile UX memory).
 
-**Edge function**
-- `supabase/functions/investor-brief/index.ts` — extend prompt to reference Buying Power summary + pinned talking points (already partly done).
-- Chat in chat-mode reuses existing `ai-chat` edge function with a system prefix derived from `activeCardContext`.
+Export the horizontal version as either a second named export (`ConsoleTabBar`) or have `ConsoleSidebar` render both internally so consumers don't change. Internal rendering is simpler — recommended.
 
-### Out of scope this pass
+### 2. Apply shell consistently
 
-- Scheduled cron regeneration job (will add as separate pass).
-- Telemetry events instrumentation (stubs in place; full wiring later).
-- Tool execution backend for `compare_properties` etc. (registry + UI hook only — AI will narrate, no live tool calls yet).
-- Deep linking via `?investigate=` query param.
-- Mobile polish pass beyond stack-on-narrow.
+#### `src/pages/ProfileSetup.tsx`
+Wrap content in the same shell as `InvestorBrief.tsx`:
+```
+<div className="min-h-screen bg-background flex flex-col">
+  <Navigation />
+  <div className="flex flex-1 pt-20 lg:pt-16">
+    <ConsoleSidebar />
+    <main className="flex-1 min-w-0">
+      <div className="container mx-auto px-4 py-6 lg:py-8 max-w-5xl">
+        ... existing header + step content ...
+      </div>
+    </main>
+  </div>
+</div>
+```
+Remove the current `pt-24 pb-24 max-w-5xl` outer container.
 
-### Tech notes
+#### `src/pages/SavedAnalyses.tsx`
+Replace the current default-export wrapper:
+```
+<div className="min-h-screen bg-background">
+  <Navigation />
+  <main className="container mx-auto px-4 pt-24 pb-12 max-w-5xl">
+    <SavedAnalysesContent />
+  </main>
+</div>
+```
+with the same shell as Brief/Calculator (Navigation → flex pt-20 lg:pt-16 → ConsoleSidebar + main). `SavedAnalysesContent` stays untouched and is still reusable elsewhere.
 
-- Chat thread lives in `InvestorBriefContext` (in-memory, session-only). No new DB table for it in this pass.
-- `DeepPanel` reads `activeCardContext.card.data_snapshot` and renders the matching view; falls back to a neutral "Exploring this insight" placeholder.
-- `BuyingPowerCard` pulls `cash_available` + `financing_defaults` from `profiles`, market medians from `market_snapshots` (existing) or computes from `saved_properties` as fallback.
-- IconRail = compact `ConsoleSidebar` with revised items.
+#### `src/pages/InvestorBrief.tsx` and `src/pages/InvestorCalculator.tsx`
+No structural changes — they already use the shell. They automatically get the new mobile/tablet horizontal bar through the ConsoleSidebar refactor.
 
-Confirm and I'll implement.
+### 3. Layout cleanup (remove blank gaps)
+
+- `InvestorBrief.tsx`: header uses `mb-6`; main column already grids. No change needed beyond ensuring the new mobile tab bar sits flush (no extra top padding when horizontal variant is active — adjust `pt-20 lg:pt-16` to `pt-16` since the sticky nav handles spacing; the horizontal tab bar will add its own height under it).
+- `ProfileSetup.tsx`: drop redundant outer `pt-24 pb-24` once it's in the shell — the shell's `pt-20 lg:pt-16` already accounts for the sticky nav.
+- `SavedAnalyses.tsx`: when rendered inside the shell with `showHeader=true`, keep its existing `mb-8` header. The empty whitespace below the cards comes from the previous double-wrapping — removed by the shell refactor.
+
+### 4. Active-route highlighting on `/profile-setup`
+
+`ConsoleSidebar`'s `items` array already includes `{ to: '/profile-setup', label: 'Preferences' }`, so the active state will light up automatically once the sidebar renders on that page.
+
+## Out of scope
+
+- No new routes, no item changes in the sidebar.
+- No changes to `InvestorBriefContext`, brief cards, or chat.
+- No changes to `Navigation` (top nav stays as is).
+
+## Acceptance
+
+- Desktop ≥ 1024px: vertical icon rail visible on `/investor`, `/investor/calculator`, `/saved-analyses`, `/profile-setup`.
+- Tablet & mobile (< 1024px): horizontal scrollable pill bar visible on all four pages, just under the top nav; can scroll horizontally to reveal all four items.
+- Active route highlighted in both variants.
+- No empty/blank vertical sections between header and content on any of the four pages.
