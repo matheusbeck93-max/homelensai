@@ -8,6 +8,9 @@ import { SetupCard } from './cards/SetupCard';
 import { SampleCard } from './cards/SampleCard';
 import { BuyingPowerCard } from './cards/BuyingPowerCard';
 import { AnomalyCard } from './cards/AnomalyCard';
+import { NeighborhoodScoresCard } from './cards/NeighborhoodScoresCard';
+import { FlipSpreadMoversCard } from './cards/FlipSpreadMoversCard';
+import { MigrationTrendsCard } from './cards/MigrationTrendsCard';
 
 interface Props {
   card: ComposedCard;
@@ -36,6 +39,12 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, 
         return <BuyingPowerCard data={card.data as any} />;
       case 'anomaly':
         return <AnomalyCard data={card.data as any} />;
+      case 'neighborhood_scores':
+        return <NeighborhoodScoresCard data={card.data as any} />;
+      case 'flip_spread_movers':
+        return <FlipSpreadMoversCard data={card.data as any} />;
+      case 'migration_trends':
+        return <MigrationTrendsCard data={card.data as any} />;
       default:
         return (
           <p className="text-xs text-muted-foreground">{card.summary || 'No preview available.'}</p>
