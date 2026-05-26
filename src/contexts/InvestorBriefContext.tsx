@@ -116,17 +116,11 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
 
   const enterChatModeFromQuery = useCallback<
     InvestorBriefContextValue['enterChatModeFromQuery']
-  >((query) => {
+  >((_query) => {
     setActiveCardContext(null);
     setActiveThreadKey(FREEFORM_KEY);
     setMode('chat');
-    appendTurn(FREEFORM_KEY, {
-      id: nextId(),
-      role: 'user',
-      content: query,
-      createdAt: Date.now(),
-    });
-  }, [appendTurn]);
+  }, []);
 
   const exitChatMode = useCallback(() => {
     setMode('brief');
