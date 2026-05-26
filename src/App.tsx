@@ -124,7 +124,7 @@ function App() {
                   <Route path="/saved-analyses" element={<ProtectedRoute><SavedAnalyses /></ProtectedRoute>} />
                   <Route path="/calculators" element={<Calculators />} />
                   <Route path="/investor" element={<ProtectedRoute><InvestorBrief /></ProtectedRoute>} />
-                  <Route path="/investor/console" element={<ProtectedRoute><InvestorConsole /></ProtectedRoute>} />
+                  <Route path="/investor/console" element={<Navigate to="/investor" replace />} />
                   <Route path="/investor/calculator" element={<ProtectedRoute><InvestorCalculator /></ProtectedRoute>} />
                   <Route path="/portfolio" element={<Navigate to="/" replace />} />
                   <Route path="/compare" element={<Compare />} />
