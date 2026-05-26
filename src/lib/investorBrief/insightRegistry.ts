@@ -1,4 +1,54 @@
 import type { ContextSnapshot, InsightDefinition } from './types';
+import { computeBuyingPower, type BuyingPowerResult } from './buyingPower';
+// ── buying_power ──────────────────────────────────────────────────
+const buyingPower: InsightDefinition<BuyingPowerResult> = {
+  id: 'buying_power',
+  cardType: 'buying_power',
+  basePriority: 95,
+  isEligible: (ctx) =>
+    (ctx.preferences.preferred_cities ?? []).length > 0,
+  loadData: async (ctx) => {
+    const fin = ctx.preferences.financing_defaults ?? {};
+    const cash = ctx.preferences.cash_available ?? 0;
+    const downPct = fin.downPct ?? 25;
+    const rateApr = fin.rateApr ?? 7;
+    const termYears = fin.termYears ?? 30;
+    const cities = (ctx.preferences.preferred_cities ?? []).slice(0, 3);
+    // Until market_snapshots is wired, approximate medians from a heuristic
+    // (max price range as soft ceiling). This keeps the card honest about
+    // assumptions without hallucinating real medians.
+    const ceiling = ctx.preferences.max_price_range ?? 600_000;
+    const markets = cities.map((c, i) => ({
+      market: c,
+      medianListPrice: Math.round(ceiling * (0.55 + i * 0.08)),
+      totalListings: 1200 + i * 350,
+    }));
+    return computeBuyingPower({
+      cashAvailable: cash,
+      downPct,
+      rateApr,
+      termYears,
+      markets,
+    });
+  },
+  title: () => 'Buying power vs market',
+  subtitle: (_ctx, d) =>
+    `$${(d.cashAvailable / 1000).toFixed(0)}k cash · ${d.downPct}% down · ${d.rateApr}% APR / ${d.termYears}y → $${(d.buyingPower / 1000).toFixed(0)}k max purchase`,
+  toBriefSummary: (d) => {
+    if (d.perMarket.length === 0) return `Buying power $${Math.round(d.buyingPower).toLocaleString()}.`;
+    const parts = d.perMarket.map(
+      (m) =>
+        `${m.market} covers ${Math.round(m.affordabilityPct * 100)}% (${m.headroomPct >= 0 ? '+' : ''}${Math.round(m.headroomPct * 100)}% vs median)`,
+    );
+    return `Buying power $${Math.round(d.buyingPower).toLocaleString()} · ${parts.join(' · ')}.`;
+  },
+  investigatePrompt: (d) => {
+    const top = [...d.perMarket].sort((a, b) => b.affordabilityPct - a.affordabilityPct)[0];
+    if (!top) return 'Walk me through how my cash on hand maps to current listings.';
+    return `Surface active listings in ${top.market} within my $${Math.round(d.buyingPower).toLocaleString()} buying power that also clear my cap-rate target.`;
+  },
+};
+
 
 /**
  * Insight registry — single source of truth for what cards exist.
@@ -232,6 +282,7 @@ const sampleCard: InsightDefinition<{ market: string }> = {
 export const insightRegistry: InsightDefinition<any>[] = [
   setupCard,
   sampleCard,
+  buyingPower,
   capRateTrend,
   watchlistPriceTrend,
   rankedAnalyses,

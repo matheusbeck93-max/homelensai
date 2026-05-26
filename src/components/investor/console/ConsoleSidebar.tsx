@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Bookmark, Scale, Calculator as CalcIcon, Pin } from 'lucide-react';
+import { LayoutDashboard, Bookmark, Calculator as CalcIcon, Pin, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ConsoleSidebarProps {
@@ -8,10 +8,9 @@ interface ConsoleSidebarProps {
 
 const items = [
   { to: '/investor', icon: LayoutDashboard, label: 'Brief', end: true },
-  { to: '/investor/console', icon: MessageSquare, label: 'Console' },
   { to: '/saved-analyses', icon: Bookmark, label: 'Saved analyses' },
-  { to: '/compare', icon: Scale, label: 'Comparator' },
   { to: '/investor/calculator', icon: CalcIcon, label: 'Calculator' },
+  { to: '/profile-setup', icon: Settings, label: 'Preferences' },
 ];
 
 export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {

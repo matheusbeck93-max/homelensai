@@ -6,7 +6,8 @@ export type CardType =
   | 'missing_data'
   | 'note'
   | 'setup'
-  | 'sample';
+  | 'sample'
+  | 'buying_power';
 
 export type InsightSeverity = 'info' | 'opportunity' | 'warning';
 
@@ -18,6 +19,12 @@ export interface ContextSnapshot {
     min_bedrooms?: number | null;
     about_me?: string | null;
     brief_card_count?: number | null;
+    cash_available?: number | null;
+    financing_defaults?: {
+      downPct?: number;
+      rateApr?: number;
+      termYears?: number;
+    } | null;
   };
   savedProperties: Array<{
     id: string;

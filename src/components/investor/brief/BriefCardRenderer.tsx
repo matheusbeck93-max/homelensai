@@ -6,6 +6,8 @@ import { RankedListCard } from './cards/RankedListCard';
 import { MissingDataCard } from './cards/MissingDataCard';
 import { SetupCard } from './cards/SetupCard';
 import { SampleCard } from './cards/SampleCard';
+import { BuyingPowerCard } from './cards/BuyingPowerCard';
+import { AnomalyCard } from './cards/AnomalyCard';
 
 interface Props {
   card: ComposedCard;
@@ -29,6 +31,10 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss }
         return <SetupCard data={card.data as any} />;
       case 'sample':
         return <SampleCard data={card.data as any} />;
+      case 'buying_power':
+        return <BuyingPowerCard data={card.data as any} />;
+      case 'anomaly':
+        return <AnomalyCard data={card.data as any} />;
       default:
         return (
           <p className="text-xs text-muted-foreground">{card.summary || 'No preview available.'}</p>

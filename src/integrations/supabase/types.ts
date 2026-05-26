@@ -612,6 +612,7 @@ export type Database = {
           budget_min: number | null
           buyer_type: string | null
           buyer_types: string[] | null
+          cash_available: number | null
           children_ages: string[] | null
           climate_preference: string | null
           commute_preferences: Json | null
@@ -620,6 +621,7 @@ export type Database = {
           daily_analysis_last_reset: string | null
           desired_monthly_payment: number | null
           email: string | null
+          financing_defaults: Json
           financing_preference: string | null
           financing_preferences: string[] | null
           full_name: string | null
@@ -665,6 +667,7 @@ export type Database = {
           budget_min?: number | null
           buyer_type?: string | null
           buyer_types?: string[] | null
+          cash_available?: number | null
           children_ages?: string[] | null
           climate_preference?: string | null
           commute_preferences?: Json | null
@@ -673,6 +676,7 @@ export type Database = {
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
+          financing_defaults?: Json
           financing_preference?: string | null
           financing_preferences?: string[] | null
           full_name?: string | null
@@ -718,6 +722,7 @@ export type Database = {
           budget_min?: number | null
           buyer_type?: string | null
           buyer_types?: string[] | null
+          cash_available?: number | null
           children_ages?: string[] | null
           climate_preference?: string | null
           commute_preferences?: Json | null
@@ -726,6 +731,7 @@ export type Database = {
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
+          financing_defaults?: Json
           financing_preference?: string | null
           financing_preferences?: string[] | null
           full_name?: string | null
