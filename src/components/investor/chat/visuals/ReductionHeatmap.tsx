@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { ToolCardShell } from './ToolCardShell';
 import type { ToolEvent } from '@/lib/investorChat/turnTypes';
 
@@ -14,8 +15,8 @@ export function ReductionHeatmap({ event }: { event: ToolEvent }) {
         <div className="overflow-x-auto">
           <div className="grid" style={{ gridTemplateColumns: `auto repeat(${rows[0]?.weeks?.length ?? 0}, minmax(20px, 1fr))` }}>
             {rows.map((row: any) => (
-              <>
-                <div key={`${row.zip}-label`} className="p-1 text-[10px] text-muted-foreground">{row.zip}</div>
+              <Fragment key={row.zip}>
+                <div className="p-1 text-[10px] text-muted-foreground">{row.zip}</div>
                 {(row.weeks ?? []).map((w: number, i: number) => (
                   <div
                     key={`${row.zip}-${i}`}
@@ -24,7 +25,7 @@ export function ReductionHeatmap({ event }: { event: ToolEvent }) {
                     title={`${w} reductions`}
                   />
                 ))}
-              </>
+              </Fragment>
             ))}
           </div>
         </div>
