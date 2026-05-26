@@ -1,5 +1,14 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Bookmark, Calculator as CalcIcon, Pin, Settings } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Bookmark,
+  Calculator as CalcIcon,
+  Pin,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ConsoleSidebarProps {
@@ -14,6 +23,7 @@ const items = [
 ];
 
 export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
+  const [mobileExpanded, setMobileExpanded] = useState(false);
   return (
     <>
       {/* Desktop: vertical rail */}
@@ -54,33 +64,50 @@ export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
         )}
       </aside>
 
-      {/* Mobile + tablet: horizontal scrollable strip, sticky under top nav */}
-      <nav
-        className="lg:hidden sticky top-16 z-30 w-full px-4 border-b bg-background/95 backdrop-blur-md overflow-x-auto"
+      {/* Mobile + tablet: collapsible vertical mini rail (expands as overlay) */}
+      <aside
+        className={cn(
+          'lg:hidden sticky top-16 self-start z-30 shrink-0 border-r bg-card/95 backdrop-blur-md flex flex-col transition-[width] duration-200',
+          mobileExpanded ? 'w-56' : 'w-12',
+        )}
+        style={{ height: 'calc(100vh - 4rem)' }}
         aria-label="Investor sections"
       >
-        <ul className="flex items-center gap-2 py-2 w-max snap-x">
+        <button
+          type="button"
+          onClick={() => setMobileExpanded((v) => !v)}
+          className="flex items-center justify-end gap-2 px-2 py-2 border-b text-muted-foreground hover:text-foreground touch-manipulation"
+          aria-label={mobileExpanded ? 'Collapse menu' : 'Expand menu'}
+        >
+          {mobileExpanded ? (
+            <ChevronLeft className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </button>
+        <nav className="flex-1 py-2 space-y-1 overflow-y-auto">
           {items.map((item) => (
-            <li key={item.to} className="snap-start">
-              <NavLink
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-2 px-3 min-h-11 rounded-full text-sm whitespace-nowrap border touch-manipulation transition-colors active:scale-[0.98]',
-                    isActive
-                      ? 'bg-primary/10 text-primary border-primary/30'
-                      : 'text-muted-foreground border-border hover:bg-muted hover:text-foreground',
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
-              </NavLink>
-            </li>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={() => setMobileExpanded(false)}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 mx-1 px-2 min-h-11 rounded-md text-sm transition-colors touch-manipulation',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )
+              }
+              title={mobileExpanded ? undefined : item.label}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {mobileExpanded && <span className="truncate">{item.label}</span>}
+            </NavLink>
           ))}
-        </ul>
-      </nav>
+        </nav>
+      </aside>
     </>
   );
 }

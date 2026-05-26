@@ -81,7 +81,7 @@ export default function ProfileSetup() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      <div className="flex flex-col lg:flex-row flex-1">
+      <div className="flex flex-row flex-1">
         <ConsoleSidebar />
         <main className="flex-1 min-w-0">
           <div className="container mx-auto px-4 py-6 lg:py-8 max-w-5xl">
