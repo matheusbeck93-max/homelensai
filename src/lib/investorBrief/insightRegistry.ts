@@ -257,7 +257,7 @@ const migrationTrends: InsightDefinition<MigrationTrendsData> = {
   subtitle: (_ctx, d) =>
     `${d.indicator === 'in' ? 'Net inbound' : d.indicator === 'out' ? 'Net outbound' : 'Flat'} · last 5 years`,
   toBriefSummary: (d) =>
-    `${d.market} migration: ${d.indicator === 'in' ? 'net inbound' : d.indicator === 'out' ? 'net outbound' : 'flat'} over the last 5 years; latest year ${d.netMigrationYearly.at(-1)?.netMigration.toLocaleString()} people.`,
+    `${d.market} migration: ${d.indicator === 'in' ? 'net inbound' : d.indicator === 'out' ? 'net outbound' : 'flat'} over the last 5 years; latest year ${d.netMigrationYearly[d.netMigrationYearly.length - 1]?.netMigration.toLocaleString()} people.`,
   investigatePrompt: (d) =>
     `Deep dive on migration and employment trends for ${d.market}, including supply pipeline.`,
 };
