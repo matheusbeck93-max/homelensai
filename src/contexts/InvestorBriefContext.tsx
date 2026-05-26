@@ -8,6 +8,8 @@ import {
   useState,
 } from 'react';
 import type { ComposedCard } from '@/lib/investorBrief/types';
+import { streamInvestorChat } from '@/lib/investorChat/streamClient';
+import { anchorFor, type CurrentTurn, type ToolEvent } from '@/lib/investorChat/turnTypes';
 
 export type BriefMode = 'brief' | 'chat';
 
@@ -17,6 +19,8 @@ export interface ChatTurn {
   content: string;
   /** Optional list of AI tool ids invoked while producing this turn. */
   toolCalls?: string[];
+  /** Tool events captured for this turn (assistant only). */
+  toolEvents?: ToolEvent[];
   createdAt: number;
 }
 
@@ -34,11 +38,14 @@ interface InvestorBriefContextValue {
   /** Active thread key — card id when investigating, "__freeform__" otherwise. */
   activeThreadKey: string;
   currentThread: ChatTurn[];
+  currentTurn: CurrentTurn;
+  threadIdByKey: Record<string, string | undefined>;
   enterChatModeFromCard: (card: ComposedCard, severity?: ActiveCardContext['severity']) => void;
   enterChatModeFromQuery: (query: string) => void;
   exitChatMode: () => void;
   appendUserMessage: (text: string) => void;
   appendAssistantMessage: (text: string, toolCalls?: string[]) => void;
+  sendTurn: (text: string) => Promise<void>;
 }
 
 const FREEFORM_KEY = '__freeform__';
@@ -56,6 +63,20 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
   const [threads, setThreads] = useState<Record<string, ChatTurn[]>>({});
   const [activeThreadKey, setActiveThreadKey] = useState<string>(FREEFORM_KEY);
   const seededRef = useRef<Set<string>>(new Set());
+  const [threadIdByKey, setThreadIdByKey] = useState<Record<string, string | undefined>>({});
+  const [currentTurn, setCurrentTurn] = useState<CurrentTurn>({
+    status: 'idle',
+    text: '',
+    toolEvents: [],
+  });
+  const activeKeyRef = useRef(activeThreadKey);
+  activeKeyRef.current = activeThreadKey;
+  const activeCtxRef = useRef(activeCardContext);
+  activeCtxRef.current = activeCardContext;
+  const threadsRef = useRef(threads);
+  threadsRef.current = threads;
+  const threadIdRef = useRef(threadIdByKey);
+  threadIdRef.current = threadIdByKey;
 
   const appendTurn = useCallback((key: string, turn: ChatTurn) => {
     setThreads((prev) => {
@@ -136,6 +157,96 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
     [appendTurn, activeThreadKey],
   );
 
+  const sendTurn = useCallback(async (text: string) => {
+    const key = activeKeyRef.current;
+    // optimistic user turn
+    const userTurn: ChatTurn = {
+      id: nextId(),
+      role: 'user',
+      content: text,
+      createdAt: Date.now(),
+    };
+    setThreads((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), userTurn] }));
+
+    setCurrentTurn({ status: 'streaming', text: '', toolEvents: [] });
+
+    // build outgoing messages from history (exclude system seeds)
+    const history = (threadsRef.current[key] ?? [])
+      .filter((t) => t.role !== 'system')
+      .map((t) => ({ role: t.role as 'user' | 'assistant', content: t.content }));
+    const messages = [...history, { role: 'user' as const, content: text }];
+
+    try {
+      await streamInvestorChat({
+        threadId: threadIdRef.current[key],
+        messages,
+        activeCardContext: activeCtxRef.current
+          ? {
+              card: { id: activeCtxRef.current.card.id, title: activeCtxRef.current.card.title },
+              summary: activeCtxRef.current.summary,
+              severity: activeCtxRef.current.severity,
+            }
+          : null,
+        onEvent: (ev) => {
+          if (ev.type === 'thread') {
+            setThreadIdByKey((prev) => ({ ...prev, [key]: ev.threadId }));
+          } else if (ev.type === 'text_delta') {
+            setCurrentTurn((prev) => ({ ...prev, text: prev.text + ev.delta }));
+          } else if (ev.type === 'tool_use_start') {
+            setCurrentTurn((prev) => ({
+              ...prev,
+              toolEvents: [
+                ...prev.toolEvents,
+                {
+                  id: ev.id,
+                  name: ev.name,
+                  input: ev.input,
+                  status: 'running',
+                  anchor: anchorFor(ev.name),
+                },
+              ],
+            }));
+          } else if (ev.type === 'tool_use_result') {
+            setCurrentTurn((prev) => ({
+              ...prev,
+              toolEvents: prev.toolEvents.map((t) =>
+                t.id === ev.id ? { ...t, output: ev.output, status: 'done' } : t,
+              ),
+            }));
+          } else if (ev.type === 'tool_use_error') {
+            setCurrentTurn((prev) => ({
+              ...prev,
+              toolEvents: prev.toolEvents.map((t) =>
+                t.id === ev.id ? { ...t, error: ev.error, status: 'error' } : t,
+              ),
+            }));
+          } else if (ev.type === 'turn_done') {
+            setCurrentTurn((prev) => {
+              const assistantTurn: ChatTurn = {
+                id: ev.messageId ?? nextId(),
+                role: 'assistant',
+                content: prev.text,
+                toolCalls: prev.toolEvents.map((t) => t.name),
+                toolEvents: prev.toolEvents,
+                createdAt: Date.now(),
+              };
+              setThreads((p) => ({
+                ...p,
+                [key]: [...(p[key] ?? []), assistantTurn],
+              }));
+              return { status: 'done', text: '', toolEvents: [], threadId: ev.threadId };
+            });
+          } else if (ev.type === 'error') {
+            setCurrentTurn((prev) => ({ ...prev, status: 'error', error: ev.message }));
+          }
+        },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setCurrentTurn({ status: 'error', text: '', toolEvents: [], error: msg });
+    }
+  }, []);
+
   const value = useMemo<InvestorBriefContextValue>(
     () => ({
       mode,
@@ -143,22 +254,28 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
       threads,
       activeThreadKey,
       currentThread: threads[activeThreadKey] ?? [],
+      currentTurn,
+      threadIdByKey,
       enterChatModeFromCard,
       enterChatModeFromQuery,
       exitChatMode,
       appendUserMessage,
       appendAssistantMessage,
+      sendTurn,
     }),
     [
       mode,
       activeCardContext,
       threads,
       activeThreadKey,
+      currentTurn,
+      threadIdByKey,
       enterChatModeFromCard,
       enterChatModeFromQuery,
       exitChatMode,
       appendUserMessage,
       appendAssistantMessage,
+      sendTurn,
     ],
   );
 
