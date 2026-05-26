@@ -26,6 +26,14 @@ export const TOOL_LABEL: Record<string, string> = {
   compare_properties: 'Comparison Table',
   show_reduction_heatmap: 'Reduction Heatmap',
   find_comparable_sales: 'Comparable Sales',
+  compute_affordability_index: 'Affordability Index',
+  estimate_arv: 'ARV Estimate',
+  compute_flip_spread: 'Flip Spread',
+  get_neighborhood_quality: 'Neighborhood Quality',
+  get_migration_trends: 'Migration Trend',
+  get_employment_trends: 'Employment Trend',
+  get_absorption_rate: 'Absorption Rate',
+  get_supply_pipeline: 'Supply Pipeline',
 };
 
 export function anchorFor(name: string): string {
