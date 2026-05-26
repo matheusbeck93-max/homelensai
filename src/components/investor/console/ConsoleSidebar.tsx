@@ -56,7 +56,7 @@ export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
 
       {/* Mobile + tablet: horizontal scrollable strip, sticky under top nav */}
       <nav
-        className="lg:hidden sticky top-16 z-30 -mx-4 px-4 border-b bg-background/95 backdrop-blur-md overflow-x-auto"
+        className="lg:hidden sticky top-16 z-30 w-full px-4 border-b bg-background/95 backdrop-blur-md overflow-x-auto"
         aria-label="Investor sections"
       >
         <ul className="flex items-center gap-2 py-2 w-max snap-x">
