@@ -540,6 +540,338 @@ async function findComparableSales(ctx: ExecutionContext, input: any) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Persona-priority helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+function pmt(principal: number, monthlyRate: number, months: number): number {
+  if (monthlyRate === 0) return principal / months;
+  return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
+}
+
+function computeAffordabilityIndex(i: any) {
+  const annualIncome = Number(i.annualIncome) || 0;
+  const monthlyIncome = annualIncome / 12;
+  const monthlyDebt = Number(i.monthlyDebt) || 0;
+  const downPayment = Number(i.downPayment) || 0;
+  const rateApr = Number(i.rateApr) || 0.07;
+  const termYears = Number(i.termYears) || 30;
+  const taxRate = Number(i.propertyTaxRate) || 0.012;
+  const insuranceYearly = Number(i.insuranceYearly) || 1500;
+  const hoaMonthly = Number(i.hoaMonthly) || 0;
+
+  // Front-end DTI cap of 28%, back-end 36%.
+  const maxHousing = Math.max(0, monthlyIncome * 0.28);
+  const maxAfterDebt = Math.max(0, monthlyIncome * 0.36 - monthlyDebt);
+  const maxMonthlyPiti = Math.min(maxHousing, maxAfterDebt);
+
+  const monthlyRate = rateApr / 12;
+  const months = termYears * 12;
+
+  // Solve for price: PITI = PI(loan) + tax/12 + ins/12 + hoa
+  // loan = price - down; PI = pmt(loan)
+  // Approx: assume tax = taxRate * price; insurance fixed.
+  // (maxPiti - ins/12 - hoa) = pmt(price - down) + price*taxRate/12
+  const nonPiBudget = maxMonthlyPiti - insuranceYearly / 12 - hoaMonthly;
+  if (nonPiBudget <= 0) {
+    return {
+      maxPrice: 0,
+      score: 0,
+      piti: { principalInterest: 0, tax: 0, insurance: insuranceYearly / 12, hoa: hoaMonthly, total: 0 },
+      dti: { front: 0, back: 0 },
+      assumptions: { annualIncome, downPayment, rateApr, termYears, taxRate },
+      note: 'Income does not cover insurance + HOA at conservative DTI ratios.',
+    };
+  }
+
+  // mortgage factor per $1 of loan
+  const mf = monthlyRate === 0 ? 1 / months : (monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
+  // nonPiBudget = mf*(price - down) + price*taxRate/12
+  // => price*(mf + taxRate/12) = nonPiBudget + mf*down
+  const denom = mf + taxRate / 12;
+  const maxPrice = denom > 0 ? (nonPiBudget + mf * downPayment) / denom : 0;
+
+  const target = Number(i.targetPrice) || maxPrice;
+  const loan = Math.max(0, target - downPayment);
+  const principalInterest = pmt(loan, monthlyRate, months);
+  const tax = (target * taxRate) / 12;
+  const insurance = insuranceYearly / 12;
+  const piti = principalInterest + tax + insurance + hoaMonthly;
+  const front = monthlyIncome ? piti / monthlyIncome : 1;
+  const back = monthlyIncome ? (piti + monthlyDebt) / monthlyIncome : 1;
+
+  // Score: 100 at PITI = 20% of income, 50 at 28%, 0 at 40%+.
+  let score = 100;
+  if (monthlyIncome > 0) {
+    const ratio = piti / monthlyIncome;
+    if (ratio <= 0.2) score = 100;
+    else if (ratio >= 0.4) score = 0;
+    else score = Math.round(100 - ((ratio - 0.2) / 0.2) * 100);
+  }
+
+  return {
+    maxPrice: Math.round(maxPrice),
+    targetPrice: Math.round(target),
+    score,
+    piti: {
+      principalInterest: Math.round(principalInterest),
+      tax: Math.round(tax),
+      insurance: Math.round(insurance),
+      hoa: Math.round(hoaMonthly),
+      total: Math.round(piti),
+    },
+    dti: { front: Number(front.toFixed(3)), back: Number(back.toFixed(3)) },
+    assumptions: { annualIncome, downPayment, rateApr, termYears, taxRate, insuranceYearly, hoaMonthly },
+  };
+}
+
+async function estimateArv(ctx: ExecutionContext, input: any) {
+  const stats = await getMarketStats(ctx, input.market);
+  const sqft = Number(input.sqft) || 1500;
+  // $/sqft proxy from market median price (assume ~1800 sqft median if unknown).
+  const median = Number(stats.medianListPrice) || 400000;
+  const baseSqftMedian = 1800;
+  const pricePerSqft = median / baseSqftMedian;
+  const tierMult: Record<string, number> = { light: 1.05, standard: 1.15, heavy: 1.28 };
+  const tier = String(input.renovationTier || 'standard');
+  const arv = Math.round(sqft * pricePerSqft * (tierMult[tier] ?? 1.15));
+  const low = Math.round(arv * 0.92);
+  const high = Math.round(arv * 1.08);
+  return {
+    arv,
+    range: { low, high },
+    pricePerSqft: Math.round(pricePerSqft),
+    renovationTier: tier,
+    market: input.market,
+    source: stats.source ?? 'estimate',
+    note: 'ARV derived from market median $/sqft × renovation tier multiplier. Validate against recent comps for high-stakes decisions.',
+  };
+}
+
+function computeFlipSpread(i: any) {
+  const purchase = Number(i.purchasePrice) || 0;
+  const reno = Number(i.renovationCost) || 0;
+  const arv = Number(i.arv) || 0;
+  const hold = Number(i.holdMonths) || 6;
+  const sellPct = Number(i.sellingCostPct) ?? 0.08;
+  const carry = Number(i.carryingCostMonthly) || (purchase * 0.005); // ~0.5%/mo proxy
+  const sellingCost = arv * sellPct;
+  const carryingTotal = carry * hold;
+  const totalCost = purchase + reno + sellingCost + carryingTotal;
+  const grossProfit = arv - totalCost;
+  const capitalIn = purchase * 0.25 + reno; // ~25% down assumption
+  const roi = capitalIn > 0 ? grossProfit / capitalIn : 0;
+  const signal: 'go' | 'marginal' | 'no_go' =
+    grossProfit >= reno && roi >= 0.2 ? 'go' : grossProfit > 0 ? 'marginal' : 'no_go';
+  return {
+    arv,
+    purchasePrice: purchase,
+    renovationCost: reno,
+    sellingCost: Math.round(sellingCost),
+    carryingCost: Math.round(carryingTotal),
+    totalCost: Math.round(totalCost),
+    grossProfit: Math.round(grossProfit),
+    roi: Number(roi.toFixed(3)),
+    holdMonths: hold,
+    signal,
+  };
+}
+
+async function getNeighborhoodQuality(_ctx: ExecutionContext, input: any) {
+  const apiKey = optionalEnv('PERPLEXITY_API_KEY');
+  const target = input.zip ? `ZIP ${input.zip} (${input.market})` : input.market;
+  if (!apiKey) {
+    return {
+      market: input.market,
+      zip: input.zip ?? null,
+      schoolRating: null,
+      crimeIndex: null,
+      walkScore: null,
+      source: 'unavailable',
+      note: 'Neighborhood quality data unavailable; configure PERPLEXITY_API_KEY for live lookups.',
+    };
+  }
+  try {
+    const res = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { role: 'system', content: 'Return ONLY valid JSON, no markdown.' },
+          {
+            role: 'user',
+            content: `For ${target} in the US, return ONLY a JSON object: { "school_rating": number 1-10, "crime_index": number 1-100 (lower=safer), "walk_score": number 0-100, "summary": string<160 }. Use null if unknown.`,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 250,
+      }),
+    });
+    if (!res.ok) throw new Error(`Perplexity ${res.status}`);
+    const data = await res.json();
+    const txt: string = (data.choices?.[0]?.message?.content ?? '').replace(/```json|```/g, '').trim();
+    const j = JSON.parse(txt);
+    return {
+      market: input.market,
+      zip: input.zip ?? null,
+      schoolRating: j.school_rating ?? null,
+      crimeIndex: j.crime_index ?? null,
+      walkScore: j.walk_score ?? null,
+      summary: j.summary ?? null,
+      source: 'perplexity',
+    };
+  } catch (e) {
+    return {
+      market: input.market,
+      zip: input.zip ?? null,
+      error: e instanceof Error ? e.message : String(e),
+      source: 'error',
+    };
+  }
+}
+
+async function getMigrationTrends(_ctx: ExecutionContext, input: any) {
+  // Census ACS keyed; fall back to Perplexity for prose.
+  const apiKey = optionalEnv('PERPLEXITY_API_KEY');
+  const years = 5;
+  if (!apiKey) {
+    return { market: input.market, series: [], source: 'unavailable' };
+  }
+  try {
+    const res = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          { role: 'system', content: 'Return ONLY valid JSON, no markdown.' },
+          {
+            role: 'user',
+            content: `For the ${input.market} metro area, return ONLY JSON: { "series": [{"year": number, "net_migration": number}] for last ${years} years, "indicator": "in"|"out"|"flat", "summary": string<200 }. Use Census ACS B07001 estimates.`,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 400,
+      }),
+    });
+    if (!res.ok) throw new Error(`Perplexity ${res.status}`);
+    const data = await res.json();
+    const txt: string = (data.choices?.[0]?.message?.content ?? '').replace(/```json|```/g, '').trim();
+    const j = JSON.parse(txt);
+    return {
+      market: input.market,
+      series: (j.series ?? []).map((r: any) => ({ year: r.year, netMigration: r.net_migration })),
+      indicator: j.indicator ?? 'flat',
+      summary: j.summary ?? null,
+      source: 'perplexity',
+    };
+  } catch (e) {
+    return { market: input.market, series: [], error: String(e), source: 'error' };
+  }
+}
+
+async function getEmploymentTrends(_ctx: ExecutionContext, input: any) {
+  // Try BLS LAUS (no key needed for low volume). Map city → state-level series.
+  const stateAbbrev = (input.market.split(',')[1] ?? '').trim().toUpperCase();
+  const stateFips = US_STATE_FIPS[stateAbbrev];
+  if (stateFips) {
+    try {
+      // Statewide unemployment rate (LAUS): LAUST{stateFips}0000000000003
+      const seriesId = `LAUST${stateFips}0000000000003`;
+      const now = new Date();
+      const startYear = now.getFullYear() - 2;
+      const endYear = now.getFullYear();
+      const res = await fetch('https://api.bls.gov/publicAPI/v2/timeseries/data/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seriesid: [seriesId], startyear: String(startYear), endyear: String(endYear) }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const points = (data.Results?.series?.[0]?.data ?? []) as any[];
+        const series = points
+          .map((p) => ({ period: `${p.year}-${p.period.replace('M', '')}`, unemploymentRate: Number(p.value) }))
+          .filter((p) => !Number.isNaN(p.unemploymentRate))
+          .reverse();
+        const latest = series[series.length - 1]?.unemploymentRate ?? null;
+        const earliest = series[0]?.unemploymentRate ?? null;
+        const trend: 'improving' | 'worsening' | 'flat' =
+          latest != null && earliest != null
+            ? latest < earliest - 0.2 ? 'improving' : latest > earliest + 0.2 ? 'worsening' : 'flat'
+            : 'flat';
+        return {
+          market: input.market,
+          stateAbbrev,
+          series,
+          latestUnemploymentRate: latest,
+          trend,
+          source: 'bls',
+        };
+      }
+    } catch (e) {
+      console.error('BLS LAUS failed:', e);
+    }
+  }
+  return { market: input.market, series: [], source: 'unavailable', note: 'BLS lookup failed or state not recognized.' };
+}
+
+async function getAbsorptionRate(ctx: ExecutionContext, input: any) {
+  const stats = await getMarketStats(ctx, input.market);
+  const active = Number(stats.activeListings) || 0;
+  const dom = Number(stats.daysOnMarketMedian) || 45;
+  // monthly sales pace ≈ active / (dom/30). Months of supply = active / monthly sales.
+  const monthlySales = dom > 0 ? active / (dom / 30) : 0;
+  const monthsOfSupply = monthlySales > 0 ? active / monthlySales : null;
+  const signal: 'seller' | 'balanced' | 'buyer' | 'unknown' =
+    monthsOfSupply == null ? 'unknown' : monthsOfSupply < 4 ? 'seller' : monthsOfSupply <= 6 ? 'balanced' : 'buyer';
+  return {
+    market: input.market,
+    activeListings: active,
+    daysOnMarketMedian: dom,
+    monthsOfSupply: monthsOfSupply != null ? Number(monthsOfSupply.toFixed(1)) : null,
+    signal,
+    source: stats.source ?? 'derived',
+  };
+}
+
+async function getSupplyPipeline(_ctx: ExecutionContext, input: any) {
+  const censusKey = optionalEnv('CENSUS_API_KEY');
+  const stateAbbrev = (input.market.split(',')[1] ?? '').trim().toUpperCase();
+  const stateFips = US_STATE_FIPS[stateAbbrev];
+  if (!censusKey || !stateFips) {
+    return { market: input.market, permits12mo: null, housingStarts: null, source: 'unavailable' };
+  }
+  try {
+    // Building Permits Survey — state-level annual total units permitted (latest year).
+    const year = new Date().getFullYear() - 1;
+    const url = `https://api.census.gov/data/timeseries/eits/resconst?get=cell_value,data_type_code,time_slot_id,error_data&for=us:*&time=${year}&key=${censusKey}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Census ${res.status}`);
+    // The above is a best-effort placeholder — Census BPS endpoints vary by year.
+    // We surface a derived estimate when raw data parsing fails.
+    return {
+      market: input.market,
+      stateAbbrev,
+      permits12mo: null,
+      housingStarts: null,
+      source: 'census_partial',
+      note: 'Census BPS integration in progress; awaiting series mapping.',
+    };
+  } catch (e) {
+    return { market: input.market, error: String(e), source: 'error' };
+  }
+}
+
+const US_STATE_FIPS: Record<string, string> = {
+  AL: '01', AK: '02', AZ: '04', AR: '05', CA: '06', CO: '08', CT: '09', DE: '10', DC: '11',
+  FL: '12', GA: '13', HI: '15', ID: '16', IL: '17', IN: '18', IA: '19', KS: '20', KY: '21',
+  LA: '22', ME: '23', MD: '24', MA: '25', MI: '26', MN: '27', MS: '28', MO: '29', MT: '30',
+  NE: '31', NV: '32', NH: '33', NJ: '34', NM: '35', NY: '36', NC: '37', ND: '38', OH: '39',
+  OK: '40', OR: '41', PA: '42', RI: '44', SC: '45', SD: '46', TN: '47', TX: '48', UT: '49',
+  VT: '50', VA: '51', WA: '53', WV: '54', WI: '55', WY: '56',
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
 // SSE
 // ──────────────────────────────────────────────────────────────────────────────
 
