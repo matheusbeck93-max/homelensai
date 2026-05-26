@@ -42,7 +42,7 @@ export function BriefCard({
   loading,
   onRefresh,
 }: Props) {
-  const [userId, setUserId] = useReactState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
