@@ -23,6 +23,48 @@ export const aiToolRegistry: AiToolDefinition[] = [
     description: 'Recalculate cap rate, cash-on-cash or DSCR on the fly.',
   },
   {
+    id: 'compute_roi',
+    label: 'Project ROI',
+    kind: 'read',
+    description: 'Multi-year cash flow, equity buildup and IRR.',
+  },
+  {
+    id: 'compute_buying_power',
+    label: 'Buying power',
+    kind: 'read',
+    description: 'How many listings each market puts within reach.',
+  },
+  {
+    id: 'project_amortization',
+    label: 'Amortization',
+    kind: 'read',
+    description: 'Principal vs interest year-by-year.',
+  },
+  {
+    id: 'get_market_stats',
+    label: 'Market stats',
+    kind: 'read',
+    description: 'Median price, rent, appreciation, vacancy.',
+  },
+  {
+    id: 'list_listings',
+    label: 'List listings',
+    kind: 'read',
+    description: 'Active properties matching filters.',
+  },
+  {
+    id: 'show_reduction_heatmap',
+    label: 'Reduction heatmap',
+    kind: 'read',
+    description: 'Where price cuts are clustering — ZIP × week.',
+  },
+  {
+    id: 'find_comparable_sales',
+    label: 'Comparable sales',
+    kind: 'read',
+    description: 'Recent comps for a market and unit profile.',
+  },
+  {
     id: 'compare_properties',
     label: 'Compare properties',
     kind: 'read',
