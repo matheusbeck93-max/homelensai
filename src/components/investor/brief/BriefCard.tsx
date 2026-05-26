@@ -13,7 +13,6 @@ import { useInvestorBriefSurface } from '@/contexts/InvestorBriefContext';
 import { PersonaSummary } from '@/components/preferences/PersonaSummary';
 import { usePersona } from '@/lib/personas/usePersona';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useState as useReactState } from 'react';
 import { recordPersonaEvent } from '@/lib/personas/telemetry';
 
 interface Props {
@@ -43,7 +42,7 @@ export function BriefCard({
   loading,
   onRefresh,
 }: Props) {
-  const [userId, setUserId] = useReactState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
