@@ -13,6 +13,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Navigation } from "@/components/Navigation";
+import { ConsoleSidebar } from "@/components/investor/console/ConsoleSidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -454,11 +455,16 @@ export function SavedAnalysesContent({ showHeader = true }: { showHeader?: boole
 
 export default function SavedAnalyses() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-12 max-w-5xl">
-        <SavedAnalysesContent />
-      </main>
+      <div className="flex flex-col lg:flex-row flex-1">
+        <ConsoleSidebar />
+        <main className="flex-1 min-w-0">
+          <div className="container mx-auto px-4 py-6 lg:py-8 max-w-5xl">
+            <SavedAnalysesContent />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

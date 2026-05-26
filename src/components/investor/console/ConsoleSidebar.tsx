@@ -15,41 +15,72 @@ const items = [
 
 export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
   return (
-    <aside
-      className={cn(
-        'hidden lg:flex flex-col shrink-0 border-r bg-card/40 backdrop-blur-sm',
-        expanded ? 'w-56' : 'w-14',
-      )}
-    >
-      <nav className="flex-1 py-4 space-y-1">
-        {items.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 mx-2 px-2 py-2 rounded-md text-sm transition-colors',
-                isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )
-            }
-            title={expanded ? undefined : item.label}
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {expanded && <span className="truncate">{item.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
-      {expanded && (
-        <div className="p-3 border-t text-xs text-muted-foreground">
-          <div className="flex items-center gap-2 mb-1 text-foreground/80">
-            <Pin className="h-3.5 w-3.5" /> Talking points
+    <>
+      {/* Desktop: vertical rail */}
+      <aside
+        className={cn(
+          'hidden lg:flex flex-col shrink-0 border-r bg-card/40 backdrop-blur-sm',
+          expanded ? 'w-56' : 'w-14',
+        )}
+      >
+        <nav className="flex-1 py-4 space-y-1">
+          {items.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 mx-2 px-2 py-2 rounded-md text-sm transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )
+              }
+              title={expanded ? undefined : item.label}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              {expanded && <span className="truncate">{item.label}</span>}
+            </NavLink>
+          ))}
+        </nav>
+        {expanded && (
+          <div className="p-3 border-t text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mb-1 text-foreground/80">
+              <Pin className="h-3.5 w-3.5" /> Talking points
+            </div>
+            <p className="text-[11px] leading-snug">Pin insights from your brief to reference here.</p>
           </div>
-          <p className="text-[11px] leading-snug">Pin insights from your brief to reference here.</p>
-        </div>
-      )}
-    </aside>
+        )}
+      </aside>
+
+      {/* Mobile + tablet: horizontal scrollable strip, sticky under top nav */}
+      <nav
+        className="lg:hidden sticky top-16 z-30 w-full px-4 border-b bg-background/95 backdrop-blur-md overflow-x-auto"
+        aria-label="Investor sections"
+      >
+        <ul className="flex items-center gap-2 py-2 w-max snap-x">
+          {items.map((item) => (
+            <li key={item.to} className="snap-start">
+              <NavLink
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2 px-3 min-h-11 rounded-full text-sm whitespace-nowrap border touch-manipulation transition-colors active:scale-[0.98]',
+                    isActive
+                      ? 'bg-primary/10 text-primary border-primary/30'
+                      : 'text-muted-foreground border-border hover:bg-muted hover:text-foreground',
+                  )
+                }
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span>{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </>
   );
 }
