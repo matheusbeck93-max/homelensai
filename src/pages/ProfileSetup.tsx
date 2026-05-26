@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Home } from "lucide-react";
 import { PreferencesChat } from "@/components/console/PreferencesChat";
 import { Navigation } from "@/components/Navigation";
+import { ConsoleSidebar } from "@/components/investor/console/ConsoleSidebar";
 import { PersonaPicker } from "@/components/preferences/PersonaPicker";
 import { PERSONAS, type PersonaId, getPersona } from "@/lib/personas/personaRegistry";
 import { Card } from "@/components/ui/card";
@@ -78,11 +79,14 @@ export default function ProfileSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navigation />
-      <div className="container mx-auto px-4 py-8 pt-24 pb-24 max-w-5xl">
-        {/* Header */}
-        <div className="text-center mb-10">
+      <div className="flex flex-col lg:flex-row flex-1">
+        <ConsoleSidebar />
+        <main className="flex-1 min-w-0">
+          <div className="container mx-auto px-4 py-6 lg:py-8 max-w-5xl">
+            {/* Header */}
+            <div className="text-center mb-10">
           <div className="flex items-center justify-center mb-4">
             <Home className="h-12 w-12 text-primary" />
           </div>
@@ -117,6 +121,8 @@ export default function ProfileSetup() {
             />
           </Card>
         )}
+          </div>
+        </main>
       </div>
     </div>
   );
