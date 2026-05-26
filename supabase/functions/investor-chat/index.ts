@@ -232,6 +232,125 @@ const TOOLS: Tool[] = [
   },
 ];
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Persona-priority tools (8 new) — affordability, ARV, flip spread,
+// neighborhood quality, migration, employment, absorption, supply pipeline.
+// ──────────────────────────────────────────────────────────────────────────────
+
+TOOLS.push(
+  {
+    name: 'compute_affordability_index',
+    description:
+      'Compute an affordability index for a buyer: max home price they can afford given income, debt, down payment, and rate. Returns max price, PITI breakdown, DTI, and a 0–100 score (100 = very comfortable, <50 = stretched).',
+    parameters: {
+      type: 'object',
+      properties: {
+        annualIncome: { type: 'number' },
+        monthlyDebt: { type: 'number', description: 'Existing monthly debt payments' },
+        downPayment: { type: 'number' },
+        rateApr: { type: 'number', description: 'e.g. 0.07 for 7%' },
+        termYears: { type: 'number', default: 30 },
+        propertyTaxRate: { type: 'number', description: 'Yearly, e.g. 0.018 for 1.8%' },
+        insuranceYearly: { type: 'number' },
+        hoaMonthly: { type: 'number' },
+        targetPrice: { type: 'number', description: 'Optional — score this specific price' },
+      },
+      required: ['annualIncome'],
+    },
+    execute: async (input) => computeAffordabilityIndex(input),
+  },
+  {
+    name: 'estimate_arv',
+    description:
+      'Estimate After-Repair Value for a flip. Uses recent comp medians (or supplied comps) and a renovation tier multiplier.',
+    parameters: {
+      type: 'object',
+      properties: {
+        market: { type: 'string' },
+        beds: { type: 'number' },
+        baths: { type: 'number' },
+        sqft: { type: 'number' },
+        renovationTier: { type: 'string', enum: ['light', 'standard', 'heavy'] },
+      },
+      required: ['market', 'sqft'],
+    },
+    execute: async (input, ctx) => estimateArv(ctx, input),
+  },
+  {
+    name: 'compute_flip_spread',
+    description:
+      'Compute the flip spread: ARV minus purchase, renovation, holding, and selling costs. Returns gross profit, ROI, and a go/no-go signal.',
+    parameters: {
+      type: 'object',
+      properties: {
+        purchasePrice: { type: 'number' },
+        renovationCost: { type: 'number' },
+        arv: { type: 'number' },
+        holdMonths: { type: 'number', default: 6 },
+        sellingCostPct: { type: 'number', default: 0.08 },
+        carryingCostMonthly: { type: 'number' },
+      },
+      required: ['purchasePrice', 'renovationCost', 'arv'],
+    },
+    execute: async (input) => computeFlipSpread(input),
+  },
+  {
+    name: 'get_neighborhood_quality',
+    description:
+      'Look up neighborhood-quality signals for a market or ZIP: school rating proxy, crime index, walkability. Sourced from Perplexity when external APIs unavailable.',
+    parameters: {
+      type: 'object',
+      properties: { market: { type: 'string' }, zip: { type: 'string' } },
+      required: ['market'],
+    },
+    execute: async (input, ctx) => getNeighborhoodQuality(ctx, input),
+  },
+  {
+    name: 'get_migration_trends',
+    description:
+      'Net migration into/out of a metro area over the last 5 years. Uses Census ACS B07001 (geographic mobility) when available; falls back to Perplexity.',
+    parameters: {
+      type: 'object',
+      properties: { market: { type: 'string' } },
+      required: ['market'],
+    },
+    execute: async (input, ctx) => getMigrationTrends(ctx, input),
+  },
+  {
+    name: 'get_employment_trends',
+    description:
+      'Employment & unemployment trends for a metro area over the last 24 months. Uses BLS LAUS (no key required for basic queries); falls back to Perplexity.',
+    parameters: {
+      type: 'object',
+      properties: { market: { type: 'string' } },
+      required: ['market'],
+    },
+    execute: async (input, ctx) => getEmploymentTrends(ctx, input),
+  },
+  {
+    name: 'get_absorption_rate',
+    description:
+      'Absorption rate (months of supply) for a market. Lower = seller market, higher = buyer market. Computed from active listings ÷ monthly sales pace.',
+    parameters: {
+      type: 'object',
+      properties: { market: { type: 'string' } },
+      required: ['market'],
+    },
+    execute: async (input, ctx) => getAbsorptionRate(ctx, input),
+  },
+  {
+    name: 'get_supply_pipeline',
+    description:
+      'Construction pipeline for a metro: building permits issued (last 12 months) + new housing starts. Uses Census Building Permits Survey when CENSUS_API_KEY is set.',
+    parameters: {
+      type: 'object',
+      properties: { market: { type: 'string' } },
+      required: ['market'],
+    },
+    execute: async (input, ctx) => getSupplyPipeline(ctx, input),
+  },
+);
+
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 // ──────────────────────────────────────────────────────────────────────────────
