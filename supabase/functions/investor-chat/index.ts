@@ -550,6 +550,18 @@ Deno.serve(async (req) => {
     active_card_context: activeCardContext ?? null,
   });
 
+  // Load persona for system-prompt injection (best-effort).
+  let personaContext: { persona: string; secondary: string[] } = { persona: 'mixed', secondary: [] };
+  try {
+    const { data: profile } = await userSupabase
+      .from('profiles')
+      .select('persona, persona_secondary')
+      .eq('id', userId)
+      .maybeSingle();
+    if (profile?.persona) personaContext.persona = profile.persona;
+    if (Array.isArray(profile?.persona_secondary)) personaContext.secondary = profile.persona_secondary;
+  } catch (_e) { /* ignore */ }
+
   const ctx: ExecutionContext = { userId, supabase: userSupabase, serviceSupabase };
 
   const stream = new ReadableStream({
@@ -558,7 +570,7 @@ Deno.serve(async (req) => {
       send('thread', { threadId: effectiveThreadId });
 
       let convo: any[] = [
-        { role: 'system', content: buildSystemPrompt(activeCardContext) },
+        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext) },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ];
 
@@ -668,9 +680,30 @@ Deno.serve(async (req) => {
   });
 });
 
-function buildSystemPrompt(activeCardContext?: any) {
-  if (!activeCardContext) return SYSTEM_PROMPT;
-  return `${SYSTEM_PROMPT}
+const PERSONA_PRIORITY_KPIS: Record<string, string[]> = {
+  first_time_buyer: ['affordability index', 'mortgage payment (PITI)', 'days on market', 'appreciation', 'school and crime trends'],
+  rental_investor: ['cap rate', 'cash flow', 'occupancy', 'rent growth', 'taxes and insurance'],
+  flipper: ['ARV', 'days on market', 'renovation spread', 'local appreciation', 'recent comps'],
+  institutional: ['migration', 'employment growth', 'NOI', 'vacancy', 'absorption rate', 'permits and housing starts'],
+  mixed: ['affordability', 'cap rate', 'cash flow', 'appreciation', 'market growth'],
+};
+
+function buildPersonaBlock(persona: string, secondary: string[]): string {
+  const kpis = PERSONA_PRIORITY_KPIS[persona] ?? PERSONA_PRIORITY_KPIS.mixed;
+  const secondaryNote = secondary.length
+    ? `\nSecondary interests (lower weight): ${secondary.join(', ')}.`
+    : '';
+  return `\n\nThe user's investor persona is "${persona}".${secondaryNote}
+Their priority KPIs are:
+${kpis.map((k) => `- ${k}`).join('\n')}
+
+When the user asks an open-ended question (e.g. "what should I look at?", "give me an overview"), prefer tools that surface these KPIs. For specific questions, answer those directly regardless of persona — persona is a bias, not a filter.`;
+}
+
+function buildSystemPrompt(activeCardContext?: any, personaContext?: { persona: string; secondary: string[] }) {
+  const personaBlock = personaContext ? buildPersonaBlock(personaContext.persona, personaContext.secondary) : '';
+  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock;
+  return `${SYSTEM_PROMPT}${personaBlock}
 
 The user is investigating a brief card titled "${activeCardContext?.card?.title ?? 'unknown'}". Context: ${activeCardContext?.summary ?? ''}. Ground your answer in that card when relevant.`;
 }

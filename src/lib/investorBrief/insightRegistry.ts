@@ -1,5 +1,11 @@
 import type { ContextSnapshot, InsightDefinition } from './types';
 import { computeBuyingPower, type BuyingPowerResult } from './buyingPower';
+
+// Helper: is the user a particular persona (or mixed)?
+function personaIs(ctx: ContextSnapshot, ids: string[]): boolean {
+  const p = (ctx.preferences.persona ?? 'mixed') as string;
+  return ids.includes(p);
+}
 // ── buying_power ──────────────────────────────────────────────────
 const buyingPower: InsightDefinition<BuyingPowerResult> = {
   id: 'buying_power',
@@ -155,6 +161,107 @@ const priceReductionHeatmap: InsightDefinition<HeatmapData> = {
     `Which ZIPs in ${d.market} have the most active price reductions, and what's the typical % cut?`,
 };
 
+// ── neighborhood_scores (first-time buyer) ────────────────────────
+interface NeighborhoodScoresData {
+  market: string;
+  rows: Array<{ name: string; schoolRating: number; crimeIndex: number; walkScore: number }>;
+}
+
+const neighborhoodScores: InsightDefinition<NeighborhoodScoresData> = {
+  id: 'neighborhood_scores',
+  cardType: 'neighborhood_scores',
+  basePriority: 65,
+  isEligible: (ctx) =>
+    (ctx.preferences.preferred_cities ?? []).length > 0 &&
+    personaIs(ctx, ['first_time_buyer', 'mixed']),
+  loadData: async (ctx) => {
+    const market = ctx.preferences.preferred_cities?.[0] ?? 'Austin, TX';
+    // Placeholder neighborhoods until live data sources land.
+    const rows = ['78704', '78745', '78751', '78723'].map((zip, i) => ({
+      name: zip,
+      schoolRating: Math.max(4, Math.min(10, Math.round(7 + Math.sin(i) * 2))),
+      crimeIndex: Math.max(10, Math.min(95, Math.round(45 + Math.cos(i) * 20))),
+      walkScore: Math.max(20, Math.min(95, Math.round(60 + Math.sin(i + 1) * 25))),
+    }));
+    return { market, rows };
+  },
+  title: (_ctx, d) => `Top neighborhoods — ${d.market}`,
+  subtitle: () => 'Schools · crime · walkability',
+  toBriefSummary: (d) =>
+    `${d.market} neighborhood scan: ${d.rows
+      .slice(0, 3)
+      .map((r) => `${r.name} (schools ${r.schoolRating}/10)`)
+      .join(', ')}.`,
+  investigatePrompt: (d) =>
+    `Compare neighborhoods in ${d.market} on schools, crime, and walkability for a first-time buyer.`,
+};
+
+// ── flip_spread_movers (flipper) ──────────────────────────────────
+interface FlipSpreadMoversData {
+  market: string;
+  movers: Array<{ address: string; askPrice: number; arvEstimate: number; spreadPct: number }>;
+}
+
+const flipSpreadMovers: InsightDefinition<FlipSpreadMoversData> = {
+  id: 'flip_spread_movers',
+  cardType: 'flip_spread_movers',
+  basePriority: 65,
+  isEligible: (ctx) =>
+    (ctx.preferences.preferred_cities ?? []).length > 0 &&
+    personaIs(ctx, ['flipper', 'mixed']),
+  loadData: async (ctx) => {
+    const market = ctx.preferences.preferred_cities?.[0] ?? 'Austin, TX';
+    // Placeholder movers until estimate_arv batch wiring lands.
+    const movers = [
+      { address: '1814 Cedar St', askPrice: 285000, arvEstimate: 365000, spreadPct: 0.28 },
+      { address: '4209 Brookside', askPrice: 320000, arvEstimate: 395000, spreadPct: 0.23 },
+      { address: '912 Magnolia Ln', askPrice: 240000, arvEstimate: 310000, spreadPct: 0.29 },
+    ];
+    return { market, movers };
+  },
+  title: (_ctx, d) => `Flip spread movers — ${d.market}`,
+  subtitle: () => 'ARV vs. ask, last 2 weeks',
+  toBriefSummary: (d) =>
+    `${d.movers.length} active listings in ${d.market} with > 20% projected ARV spread.`,
+  investigatePrompt: () =>
+    `Show me detailed ARV and flip spread for the top movers, including comps and renovation scope.`,
+};
+
+// ── migration_trends (institutional) ──────────────────────────────
+interface MigrationTrendsData {
+  market: string;
+  netMigrationYearly: Array<{ year: number; netMigration: number }>;
+  indicator: 'in' | 'out' | 'flat';
+}
+
+const migrationTrends: InsightDefinition<MigrationTrendsData> = {
+  id: 'migration_trends',
+  cardType: 'migration_trends',
+  basePriority: 65,
+  isEligible: (ctx) =>
+    (ctx.preferences.preferred_cities ?? []).length > 0 &&
+    personaIs(ctx, ['institutional', 'mixed']),
+  loadData: async (ctx) => {
+    const market = ctx.preferences.preferred_cities?.[0] ?? 'Austin, TX';
+    const yearsBack = 5;
+    const thisYear = new Date().getFullYear();
+    const netMigrationYearly = Array.from({ length: yearsBack }, (_, i) => ({
+      year: thisYear - (yearsBack - 1 - i),
+      netMigration: Math.round(8000 + Math.sin(i / 2) * 4000 + i * 600),
+    }));
+    const last = netMigrationYearly[netMigrationYearly.length - 1].netMigration;
+    const indicator: 'in' | 'out' | 'flat' = last > 2000 ? 'in' : last < -2000 ? 'out' : 'flat';
+    return { market, netMigrationYearly, indicator };
+  },
+  title: (_ctx, d) => `Migration trend — ${d.market}`,
+  subtitle: (_ctx, d) =>
+    `${d.indicator === 'in' ? 'Net inbound' : d.indicator === 'out' ? 'Net outbound' : 'Flat'} · last 5 years`,
+  toBriefSummary: (d) =>
+    `${d.market} migration: ${d.indicator === 'in' ? 'net inbound' : d.indicator === 'out' ? 'net outbound' : 'flat'} over the last 5 years; latest year ${d.netMigrationYearly[d.netMigrationYearly.length - 1]?.netMigration.toLocaleString()} people.`,
+  investigatePrompt: (d) =>
+    `Deep dive on migration and employment trends for ${d.market}, including supply pipeline.`,
+};
+
 // ── top_matches_today / ranked_list of saved analyses ─────────────
 interface RankedAnalysesData {
   rows: Array<{ address: string; score: number | null; price: number | null }>;
@@ -288,6 +395,9 @@ export const insightRegistry: InsightDefinition<any>[] = [
   rankedAnalyses,
   missingData,
   priceReductionHeatmap,
+  neighborhoodScores,
+  flipSpreadMovers,
+  migrationTrends,
 ];
 
 export function getDefinition(id: string): InsightDefinition<any> | undefined {

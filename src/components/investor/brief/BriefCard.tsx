@@ -10,6 +10,11 @@ import { cn } from '@/lib/utils';
 import { ContextCard } from './ContextCard';
 import { ChatMessageList } from './ChatMessageList';
 import { useInvestorBriefSurface } from '@/contexts/InvestorBriefContext';
+import { PersonaSummary } from '@/components/preferences/PersonaSummary';
+import { usePersona } from '@/lib/personas/usePersona';
+import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useState as useReactState } from 'react';
+import { recordPersonaEvent } from '@/lib/personas/telemetry';
 
 interface Props {
   introText: string;
@@ -38,6 +43,11 @@ export function BriefCard({
   loading,
   onRefresh,
 }: Props) {
+  const [userId, setUserId] = useReactState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+  const { persona, def: personaDef } = usePersona(userId);
   const {
     mode,
     activeCardContext,
@@ -97,6 +107,7 @@ export function BriefCard({
             {isStale && <span className="ml-2 text-amber-600">Refresh recommended</span>}
           </div>
         )}
+        {!inChat && <PersonaSummary persona={persona} className="mt-1" />}
       </CardHeader>
       <CardContent className="pt-4 space-y-4">
         {inChat ? (
@@ -119,6 +130,27 @@ export function BriefCard({
               className="max-h-[420px] overflow-y-auto pr-1"
             >
               <ChatMessageList turns={currentThread} pending={pending} currentTurn={currentTurn} />
+              {currentThread.filter((t) => t.role !== 'system').length === 0 &&
+                currentTurn.status !== 'streaming' && (
+                  <div className="space-y-2 pt-2">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Try asking ({personaDef.displayName})
+                    </div>
+                    {personaDef.suggestedStarterPrompts.map((prompt, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          void recordPersonaEvent(userId, persona, 'investor_persona_starter_clicked', { prompt });
+                          void sendTurn(prompt);
+                        }}
+                        className="block w-full text-left text-xs text-primary hover:underline"
+                      >
+                        → {prompt}
+                      </button>
+                    ))}
+                  </div>
+                )}
             </div>
           </div>
         ) : loading ? (

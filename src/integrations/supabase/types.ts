@@ -480,6 +480,33 @@ export type Database = {
         }
         Relationships: []
       }
+      investor_persona_telemetry: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          persona: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          persona?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          persona?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       investor_talking_points: {
         Row: {
           id: string
@@ -748,6 +775,9 @@ export type Database = {
           min_sqft: number | null
           must_have_features: string[] | null
           onboarding_completed: boolean | null
+          persona: string | null
+          persona_secondary: string[] | null
+          persona_set_at: string | null
           preferences: Json
           preferred_cities: string[] | null
           primary_goal: string | null
@@ -803,6 +833,9 @@ export type Database = {
           min_sqft?: number | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
+          persona?: string | null
+          persona_secondary?: string[] | null
+          persona_set_at?: string | null
           preferences?: Json
           preferred_cities?: string[] | null
           primary_goal?: string | null
@@ -858,6 +891,9 @@ export type Database = {
           min_sqft?: number | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
+          persona?: string | null
+          persona_secondary?: string[] | null
+          persona_set_at?: string | null
           preferences?: Json
           preferred_cities?: string[] | null
           primary_goal?: string | null
