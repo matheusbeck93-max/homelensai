@@ -7,7 +7,10 @@ export type CardType =
   | 'note'
   | 'setup'
   | 'sample'
-  | 'buying_power';
+  | 'buying_power'
+  | 'neighborhood_scores'
+  | 'flip_spread_movers'
+  | 'migration_trends';
 
 export type InsightSeverity = 'info' | 'opportunity' | 'warning';
 
@@ -25,6 +28,8 @@ export interface ContextSnapshot {
       rateApr?: number;
       termYears?: number;
     } | null;
+    persona?: string | null;
+    persona_secondary?: string[] | null;
   };
   savedProperties: Array<{
     id: string;

@@ -5,6 +5,7 @@ import type {
   ContextSnapshot,
   FeedbackSignal,
 } from './types';
+import { blendedWeights, type PersonaId } from '@/lib/personas/personaRegistry';
 
 /**
  * Build the context snapshot from the current user's recent data.
@@ -14,7 +15,7 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
     supabase
       .from('profiles')
       .select(
-        'primary_goal, preferred_cities, max_price_range, min_bedrooms, about_me, brief_card_count, cash_available, financing_defaults',
+        'primary_goal, preferred_cities, max_price_range, min_bedrooms, about_me, brief_card_count, cash_available, financing_defaults, persona, persona_secondary',
       )
       .eq('id', userId)
       .maybeSingle(),
@@ -49,6 +50,8 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
       brief_card_count: profileResp.data?.brief_card_count ?? 5,
       cash_available: (profileResp.data as any)?.cash_available ?? null,
       financing_defaults: (profileResp.data as any)?.financing_defaults ?? null,
+      persona: (profileResp.data as any)?.persona ?? 'mixed',
+      persona_secondary: (profileResp.data as any)?.persona_secondary ?? [],
     },
     savedProperties: (propsResp.data ?? []) as ContextSnapshot['savedProperties'],
     savedAnalyses: (analysesResp.data ?? []) as unknown as ContextSnapshot['savedAnalyses'],
@@ -76,6 +79,12 @@ export async function composeBriefCards(userId: string): Promise<{
     loadFeedback(userId),
   ]);
 
+  const personaId = (context.preferences.persona ?? 'mixed') as PersonaId;
+  const secondary = ((context.preferences.persona_secondary ?? []) as string[]).filter((s) =>
+    ['first_time_buyer', 'rental_investor', 'flipper', 'institutional'].includes(s),
+  ) as PersonaId[];
+  const { briefCardWeights } = blendedWeights(personaId, secondary);
+
   const eligible = insightRegistry.filter((def) => {
     try {
       return def.isEligible(context);
@@ -89,7 +98,11 @@ export async function composeBriefCards(userId: string): Promise<{
     eligible.map(async (def) => {
       try {
         const data = await def.loadData(context);
-        const priority = adjustPriority(def, context, feedback);
+        const basePriority = adjustPriority(def, context, feedback);
+        // Persona signal: weight in [0,1] mapped to a [-15, +15] bump.
+        const w = briefCardWeights[def.id] ?? 0.5;
+        const personaSignal = Math.round((w - 0.5) * 30);
+        const priority = basePriority + personaSignal;
         const card: ComposedCard = {
           id: def.id,
           cardType: def.cardType,
