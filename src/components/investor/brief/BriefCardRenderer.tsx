@@ -14,9 +14,10 @@ interface Props {
   userId: string | null;
   onPinTalkingPoint?: (text: string) => void;
   onDismiss?: (briefCardId: string) => void;
+  onInvestigate?: (card: ComposedCard) => void;
 }
 
-export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss }: Props) {
+export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, onInvestigate }: Props) {
   const body = (() => {
     switch (card.cardType) {
       case 'trend_chart':
@@ -53,6 +54,7 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss }
       summary={card.summary}
       onPinTalkingPoint={onPinTalkingPoint}
       onDismiss={onDismiss}
+      onInvestigate={onInvestigate ? () => onInvestigate(card) : undefined}
     >
       {body}
     </InsightCard>
