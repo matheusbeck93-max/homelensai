@@ -42,44 +42,30 @@ export function BriefCard({
     mode,
     activeCardContext,
     currentThread,
+    currentTurn,
     enterChatModeFromQuery,
     exitChatMode,
-    appendUserMessage,
-    appendAssistantMessage,
+    sendTurn,
   } = useInvestorBriefSurface();
   const [query, setQuery] = useState('');
-  const [pending, setPending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const pending = currentTurn.status === 'streaming';
 
   useEffect(() => {
     if (mode === 'chat' && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [mode, currentThread, pending]);
-
-  const stubAssistantReply = async (userText: string) => {
-    setPending(true);
-    // Stub — real LLM/tool execution lands in a follow-up pass.
-    await new Promise((r) => setTimeout(r, 500));
-    const ctxLine = activeCardContext
-      ? `Grounded in "${activeCardContext.card.title}". `
-      : '';
-    appendAssistantMessage(
-      `${ctxLine}I heard: "${userText}". Live tool calls (compare, list listings, recompute metrics) are coming online soon — for now I'll narrate what I'd do.`,
-    );
-    setPending(false);
-  };
+  }, [mode, currentThread, currentTurn.text, currentTurn.toolEvents.length, pending]);
 
   const submitQuery = async () => {
     const q = query.trim();
-    if (!q) return;
+    if (!q || pending) return;
     setQuery('');
     if (mode === 'brief') {
       enterChatModeFromQuery(q);
-    } else {
-      appendUserMessage(q);
+      // enterChatModeFromQuery already adds the user turn; replace with sendTurn-only flow
     }
-    void stubAssistantReply(q);
+    void sendTurn(q);
   };
 
   const inChat = mode === 'chat';
@@ -132,7 +118,7 @@ export function BriefCard({
               ref={scrollRef}
               className="max-h-[420px] overflow-y-auto pr-1"
             >
-              <ChatMessageList turns={currentThread} pending={pending} />
+              <ChatMessageList turns={currentThread} pending={pending} currentTurn={currentTurn} />
             </div>
           </div>
         ) : loading ? (
@@ -168,7 +154,7 @@ export function BriefCard({
                     key={i}
                     onClick={() => {
                       enterChatModeFromQuery(f);
-                      void stubAssistantReply(f);
+                      void sendTurn(f);
                     }}
                     className="block w-full text-left text-xs text-primary hover:underline"
                   >
