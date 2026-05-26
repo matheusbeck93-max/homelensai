@@ -9,12 +9,20 @@ import { BriefCardRenderer } from '@/components/investor/brief/BriefCardRenderer
 import { useInvestorBrief } from '@/hooks/useInvestorBrief';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import {
+  InvestorBriefProvider,
+  useInvestorBriefSurface,
+} from '@/contexts/InvestorBriefContext';
+import { DeepPanel } from '@/components/investor/brief/deep/DeepPanel';
+import type { ComposedCard } from '@/lib/investorBrief/types';
 
-export default function InvestorBrief() {
+function InvestorBriefInner() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const { mode, activeCardContext, enterChatModeFromCard, exitChatMode } =
+    useInvestorBriefSurface();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -51,6 +59,15 @@ export default function InvestorBrief() {
 
   const cards = bundle ? Object.values(bundle.composedById) : [];
 
+  const severityForCard = (cardId: string): 'info' | 'opportunity' | 'warning' => {
+    const match = effectiveInsights.find((b) => b.citedCardIds?.includes(cardId));
+    return match?.severity ?? 'info';
+  };
+
+  const handleInvestigate = (card: ComposedCard) => {
+    enterChatModeFromCard(card, severityForCard(card.id));
+  };
+
   if (!authReady) return null;
 
   return (
@@ -71,7 +88,9 @@ export default function InvestorBrief() {
             <header className="mb-6">
               <h1 className="text-3xl font-bold tracking-tight">Investor Brief</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Today's grounded read on your portfolio and markets.
+                {mode === 'chat'
+                  ? 'Deep dive — supporting data on the right, conversation on the left.'
+                  : "Today's grounded read on your portfolio and markets."}
               </p>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
@@ -86,7 +105,9 @@ export default function InvestorBrief() {
                 onRefresh={() => regenerate()}
               />
               <section>
-                {loading && cards.length === 0 ? (
+                {mode === 'chat' ? (
+                  <DeepPanel context={activeCardContext} onBack={exitChatMode} />
+                ) : loading && cards.length === 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[0, 1, 2, 3].map((i) => (
                       <Skeleton key={i} className="h-44 w-full" />
@@ -104,6 +125,7 @@ export default function InvestorBrief() {
                         card={card}
                         userId={userId}
                         onPinTalkingPoint={handlePinTalkingPoint}
+                        onInvestigate={handleInvestigate}
                       />
                     ))}
                   </div>
@@ -114,5 +136,13 @@ export default function InvestorBrief() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function InvestorBrief() {
+  return (
+    <InvestorBriefProvider>
+      <InvestorBriefInner />
+    </InvestorBriefProvider>
   );
 }
