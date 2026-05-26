@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Preferences } from "./preferencesTypes";
+import { LocationChipInput } from "./LocationChipInput";
 
 interface Props {
   open: boolean;
@@ -64,11 +65,11 @@ export function PreferencesEditDialog({ open, onOpenChange, value, onSave }: Pro
           </div>
 
           <div>
-            <Label>Locations (comma-separated, "City, ST")</Label>
-            <Input
-              value={csv(draft.locations)}
-              onChange={(e) => update((d) => ({ ...d, locations: fromCsv(e.target.value) }))}
-              placeholder="Arlington, VA, Tampa, FL"
+            <Label>Locations</Label>
+            <LocationChipInput
+              value={draft.locations ?? []}
+              onChange={(next) => update((d) => ({ ...d, locations: next }))}
+              placeholder="e.g. Las Vegas, NV"
             />
           </div>
 
