@@ -21,7 +21,7 @@ export async function recordPersonaEvent(
       user_id: userId,
       persona,
       event_type: event,
-      payload,
+      payload: payload as never,
     });
   } catch (e) {
     // best-effort

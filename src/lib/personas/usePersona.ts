@@ -64,7 +64,7 @@ export function usePersona(userId: string | null | undefined): PersonaState {
           persona: next,
           event_type:
             previous === 'mixed' && next !== 'mixed' ? 'investor_persona_set' : 'investor_persona_changed',
-          payload: { from: previous, to: next, secondary: nextSecondary },
+          payload: { from: previous, to: next, secondary: nextSecondary } as never,
         });
       }
       return { error: error ? new Error(error.message) : null };
