@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { InsightBullet } from '@/lib/investorBrief/types';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ContextCard } from './ContextCard';
+import { ChatMessageList } from './ChatMessageList';
+import { useInvestorBriefSurface } from '@/contexts/InvestorBriefContext';
 
 interface Props {
   introText: string;
@@ -36,14 +38,51 @@ export function BriefCard({
   loading,
   onRefresh,
 }: Props) {
-  const navigate = useNavigate();
+  const {
+    mode,
+    activeCardContext,
+    currentThread,
+    enterChatModeFromQuery,
+    exitChatMode,
+    appendUserMessage,
+    appendAssistantMessage,
+  } = useInvestorBriefSurface();
   const [query, setQuery] = useState('');
+  const [pending, setPending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const submitQuery = () => {
+  useEffect(() => {
+    if (mode === 'chat' && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [mode, currentThread, pending]);
+
+  const stubAssistantReply = async (userText: string) => {
+    setPending(true);
+    // Stub — real LLM/tool execution lands in a follow-up pass.
+    await new Promise((r) => setTimeout(r, 500));
+    const ctxLine = activeCardContext
+      ? `Grounded in "${activeCardContext.card.title}". `
+      : '';
+    appendAssistantMessage(
+      `${ctxLine}I heard: "${userText}". Live tool calls (compare, list listings, recompute metrics) are coming online soon — for now I'll narrate what I'd do.`,
+    );
+    setPending(false);
+  };
+
+  const submitQuery = async () => {
     const q = query.trim();
     if (!q) return;
-    navigate('/investor/console', { state: { initialMessage: q } });
+    setQuery('');
+    if (mode === 'brief') {
+      enterChatModeFromQuery(q);
+    } else {
+      appendUserMessage(q);
+    }
+    void stubAssistantReply(q);
   };
+
+  const inChat = mode === 'chat';
 
   return (
     <Card className="lg:sticky lg:top-24 self-start">
@@ -51,20 +90,22 @@ export function BriefCard({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Prepared by HomeLens
+            {inChat ? 'Investigating' : 'Prepared by HomeLens'}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 gap-1.5 text-xs"
-            onClick={onRefresh}
-            disabled={refreshing}
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
-            {refreshing ? 'Refreshing' : 'Refresh'}
-          </Button>
+          {!inChat && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+              onClick={onRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
+              {refreshing ? 'Refreshing' : 'Refresh'}
+            </Button>
+          )}
         </div>
-        {generatedAt && (
+        {!inChat && generatedAt && (
           <div className="text-[11px] text-muted-foreground">
             {format(new Date(generatedAt), 'MMM d, h:mma')}
             {isStale && <span className="ml-2 text-amber-600">Refresh recommended</span>}
@@ -72,7 +113,29 @@ export function BriefCard({
         )}
       </CardHeader>
       <CardContent className="pt-4 space-y-4">
-        {loading ? (
+        {inChat ? (
+          <div className="space-y-3">
+            {activeCardContext && (
+              <ContextCard context={activeCardContext} onBack={exitChatMode} />
+            )}
+            {!activeCardContext && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 -ml-2 px-1.5 text-xs text-muted-foreground"
+                onClick={exitChatMode}
+              >
+                ← Back to brief
+              </Button>
+            )}
+            <div
+              ref={scrollRef}
+              className="max-h-[420px] overflow-y-auto pr-1"
+            >
+              <ChatMessageList turns={currentThread} pending={pending} />
+            </div>
+          </div>
+        ) : loading ? (
           <div className="space-y-2">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-5/6" />
@@ -103,9 +166,10 @@ export function BriefCard({
                 {followups.slice(0, 3).map((f, i) => (
                   <button
                     key={i}
-                    onClick={() =>
-                      navigate('/investor/console', { state: { initialMessage: f } })
-                    }
+                    onClick={() => {
+                      enterChatModeFromQuery(f);
+                      void stubAssistantReply(f);
+                    }}
                     className="block w-full text-left text-xs text-primary hover:underline"
                   >
                     → {f}
@@ -126,7 +190,7 @@ export function BriefCard({
                   submitQuery();
                 }
               }}
-              placeholder="Ask something about your brief..."
+              placeholder={inChat ? 'Ask a follow-up...' : 'Ask something about your brief...'}
               rows={2}
               className="resize-none pr-10 text-sm"
             />
@@ -135,7 +199,7 @@ export function BriefCard({
               variant="ghost"
               className="absolute bottom-1 right-1 h-7 w-7"
               onClick={submitQuery}
-              disabled={!query.trim()}
+              disabled={!query.trim() || pending}
             >
               <Send className="h-3.5 w-3.5" />
             </Button>

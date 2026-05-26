@@ -39,6 +39,8 @@ interface InsightCardProps {
   summary: string;
   onPinTalkingPoint?: (text: string) => void;
   onDismiss?: (briefCardId: string) => void;
+  /** When provided, Investigate calls this instead of navigating to /chats. */
+  onInvestigate?: () => void;
   className?: string;
 }
 
@@ -57,6 +59,7 @@ export function InsightCard({
   summary,
   onPinTalkingPoint,
   onDismiss,
+  onInvestigate,
   className,
 }: InsightCardProps) {
   const navigate = useNavigate();
@@ -77,6 +80,10 @@ export function InsightCard({
 
   const handleInvestigate = async () => {
     await writeSignal('investigated');
+    if (onInvestigate) {
+      onInvestigate();
+      return;
+    }
     navigate('/chats', {
       state: { initialMessage: investigatePrompt },
     });
