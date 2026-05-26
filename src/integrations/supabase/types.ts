@@ -412,6 +412,74 @@ export type Database = {
           },
         ]
       }
+      investor_chat_messages: {
+        Row: {
+          active_card_context: Json | null
+          content: string
+          created_at: string
+          id: string
+          role: string
+          thread_id: string
+          tool_calls: Json
+          tool_results: Json
+        }
+        Insert: {
+          active_card_context?: Json | null
+          content?: string
+          created_at?: string
+          id?: string
+          role: string
+          thread_id: string
+          tool_calls?: Json
+          tool_results?: Json
+        }
+        Update: {
+          active_card_context?: Json | null
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          thread_id?: string
+          tool_calls?: Json
+          tool_results?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "investor_console_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_console_threads: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       investor_talking_points: {
         Row: {
           id: string
@@ -504,6 +572,48 @@ export type Database = {
           location_key?: string
           snapshot?: Json
           updated_at?: string
+        }
+        Relationships: []
+      }
+      market_stats: {
+        Row: {
+          active_listings: number | null
+          appreciation_yoy: number | null
+          days_on_market_median: number | null
+          market: string
+          median_list_price: number | null
+          median_rent_monthly: number | null
+          refreshed_at: string
+          rent_growth_yoy: number | null
+          source: string | null
+          total_sfh_listings: number | null
+          vacancy_rate: number | null
+        }
+        Insert: {
+          active_listings?: number | null
+          appreciation_yoy?: number | null
+          days_on_market_median?: number | null
+          market: string
+          median_list_price?: number | null
+          median_rent_monthly?: number | null
+          refreshed_at?: string
+          rent_growth_yoy?: number | null
+          source?: string | null
+          total_sfh_listings?: number | null
+          vacancy_rate?: number | null
+        }
+        Update: {
+          active_listings?: number | null
+          appreciation_yoy?: number | null
+          days_on_market_median?: number | null
+          market?: string
+          median_list_price?: number | null
+          median_rent_monthly?: number | null
+          refreshed_at?: string
+          rent_growth_yoy?: number | null
+          source?: string | null
+          total_sfh_listings?: number | null
+          vacancy_rate?: number | null
         }
         Relationships: []
       }
