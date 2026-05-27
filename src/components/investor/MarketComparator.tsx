@@ -527,6 +527,12 @@ export function MarketComparator() {
             <p className="text-sm text-muted-foreground">{result.verdict.rationale}</p>
           )}
 
+          {generatedAt && (
+            <p className="text-xs text-muted-foreground">
+              Generated on submit · {formatDistanceToNow(generatedAt)} ago
+            </p>
+          )}
+
           {/* TABLE */}
           <Card>
             <CardHeader>
