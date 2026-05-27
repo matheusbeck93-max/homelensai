@@ -187,6 +187,45 @@ export function useInvestorBrief(userId: string | null) {
     };
   }, [userId, loadLatest, regenerate]);
 
+  /**
+   * Auto-refresh: when the user changes preferences, saves a property/analysis,
+   * or edits their owned-property portfolio, regenerate the brief in the
+   * background (respecting the cooldown). Uses Supabase realtime.
+   */
+  useEffect(() => {
+    if (!userId) return;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = (reason: string) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.info('[investorBrief] auto-refresh trigger:', reason);
+        void regenerate();
+      }, 2500);
+    };
+
+    const tables: Array<{ table: string; filter: string }> = [
+      { table: 'profiles', filter: `id=eq.${userId}` },
+      { table: 'saved_properties', filter: `user_id=eq.${userId}` },
+      { table: 'saved_analyses', filter: `user_id=eq.${userId}` },
+      { table: 'investor_owned_properties', filter: `user_id=eq.${userId}` },
+    ];
+
+    const channel = supabase.channel(`investor-brief-${userId}`);
+    for (const { table, filter } of tables) {
+      channel.on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table, filter },
+        () => scheduleRefresh(table),
+      );
+    }
+    channel.subscribe();
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [userId, regenerate]);
+
   const isStale = bundle
     ? Date.now() - new Date(bundle.brief.generated_at).getTime() > 30 * 60 * 60 * 1000
     : false;
