@@ -83,7 +83,7 @@ export async function composeBriefCards(userId: string): Promise<{
 
   const personaId = (context.preferences.persona ?? 'mixed') as PersonaId;
   const secondary = ((context.preferences.persona_secondary ?? []) as string[]).filter((s) =>
-    ['first_time_buyer', 'rental_investor', 'flipper', 'institutional'].includes(s),
+      ['first_time_buyer', 'rental_investor', 'flipper', 'institutional', 'existing_owner'].includes(s),
   ) as PersonaId[];
   const { briefCardWeights } = blendedWeights(personaId, secondary);
 
