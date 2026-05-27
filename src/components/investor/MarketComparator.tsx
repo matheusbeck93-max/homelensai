@@ -12,6 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Plus, X, MessageSquare, TrendingUp, DollarSign, Target } from "lucide-react";
+import { Info } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDistanceToNow } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
@@ -89,6 +92,86 @@ function riskBadge(r: TableRowData["riskLevel"]) {
     unknown: "bg-muted text-muted-foreground",
   };
   return <Badge variant="outline" className={map[r]}>{r}</Badge>;
+}
+
+const ALLOWED_SOURCE_DOMAINS = [
+  "zillow.com",
+  "redfin.com",
+  "realtor.com",
+  "noradarealestate.com",
+  "rentcafe.com",
+  "neighborhoodscout.com",
+  "bestplaces.net",
+];
+
+const COLUMN_META: Record<string, { label: string; help: string }> = {
+  market: {
+    label: "Market",
+    help: "City, state pair you submitted. Normalized labels may differ slightly.",
+  },
+  medianPrice: {
+    label: "Median price",
+    help: "Median list/sale price reported for the market in the comparator window.",
+  },
+  rentalYield: {
+    label: "Rental yield",
+    help: "Annual gross rental yield estimate (median rent × 12 ÷ median price).",
+  },
+  appreciation5y: {
+    label: "5-yr appreciation",
+    help: "Approximate 5-year price appreciation for the market.",
+  },
+  inventoryTrend: {
+    label: "Inventory",
+    help: "Direction of active listing inventory: rising, flat, or falling.",
+  },
+  riskLevel: {
+    label: "Risk",
+    help: "Composite risk read based on volatility, vacancy, and insurance exposure.",
+  },
+};
+
+function HeaderInfo({ metricKey }: { metricKey: keyof typeof COLUMN_META }) {
+  const meta = COLUMN_META[metricKey];
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`About ${meta.label}`}
+          className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground align-middle"
+        >
+          <Info className="h-3 w-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-64 p-3 text-xs space-y-1.5">
+        <div className="font-semibold">{meta.label}</div>
+        <div className="text-muted-foreground">{meta.help}</div>
+        <div className="border-t pt-1.5 mt-1.5">
+          <div className="font-medium text-foreground/90 mb-0.5">Allowed sources</div>
+          <div className="text-muted-foreground">{ALLOWED_SOURCE_DOMAINS.join(", ")}</div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function NaCell() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="text-muted-foreground underline decoration-dotted underline-offset-2"
+        >
+          n/a
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-60 p-3 text-xs">
+        No source available for this market in the comparator window.
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function buildChatPrompt(args: {
