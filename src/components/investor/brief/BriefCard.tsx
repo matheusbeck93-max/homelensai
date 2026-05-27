@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { InsightBullet } from '@/lib/investorBrief/types';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { relativeAsOf } from '@/lib/investorBrief/sources';
 import { ContextCard } from './ContextCard';
 import { ChatMessageList } from './ChatMessageList';
 import { useInvestorBriefSurface } from '@/contexts/InvestorBriefContext';
@@ -103,6 +104,7 @@ export function BriefCard({
         {!inChat && generatedAt && (
           <div className="text-[11px] text-muted-foreground">
             {format(new Date(generatedAt), 'MMM d, h:mma')}
+            <span className="ml-1.5">· Last refreshed {relativeAsOf(generatedAt)}</span>
             {isStale && <span className="ml-2 text-amber-600">Refresh recommended</span>}
           </div>
         )}
