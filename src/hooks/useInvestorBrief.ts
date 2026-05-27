@@ -35,6 +35,8 @@ function buildComposedFromPersisted(cards: PersistedBriefCard[]): Record<string,
       investigatePrompt:
         (c.data_snapshot?.investigatePrompt as string) ?? 'Tell me more about this card.',
       priority: 0,
+      sources: c.data_snapshot?.sources ?? undefined,
+      isEstimate: c.data_snapshot?.isEstimate ?? undefined,
     };
   }
   return out;
@@ -114,6 +116,8 @@ export function useInvestorBrief(userId: string | null) {
             data: c.data,
             summary: c.summary,
             investigatePrompt: c.investigatePrompt,
+            sources: c.sources,
+            isEstimate: c.isEstimate,
           },
           summary: c.summary,
         })),
