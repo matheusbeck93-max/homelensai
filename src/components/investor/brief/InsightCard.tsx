@@ -37,6 +37,7 @@ interface InsightCardProps {
   children: ReactNode;
   investigatePrompt: string;
   summary: string;
+  isEstimate?: boolean;
   onPinTalkingPoint?: (text: string) => void;
   onDismiss?: (briefCardId: string) => void;
   /** When provided, Investigate calls this instead of navigating to /chats. */
@@ -57,6 +58,7 @@ export function InsightCard({
   children,
   investigatePrompt,
   summary,
+  isEstimate,
   onPinTalkingPoint,
   onDismiss,
   onInvestigate,
@@ -104,7 +106,17 @@ export function InsightCard({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <CardTitle className="text-base leading-tight">{title}</CardTitle>
+            <CardTitle className="text-base leading-tight flex items-center gap-2 flex-wrap">
+              <span>{title}</span>
+              {isEstimate && (
+                <span
+                  className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                  title="Values shown are internal estimates, not backed by a live data source."
+                >
+                  Estimate
+                </span>
+              )}
+            </CardTitle>
             {subtitle && (
               <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
             )}
