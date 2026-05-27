@@ -68,6 +68,7 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, 
       investigatePrompt={card.investigatePrompt}
       summary={card.summary}
       isEstimate={card.isEstimate}
+      sources={card.sources}
       onPinTalkingPoint={onPinTalkingPoint}
       onDismiss={onDismiss}
       onInvestigate={onInvestigate ? () => onInvestigate(card) : undefined}

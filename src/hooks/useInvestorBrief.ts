@@ -35,6 +35,8 @@ function buildComposedFromPersisted(cards: PersistedBriefCard[]): Record<string,
       investigatePrompt:
         (c.data_snapshot?.investigatePrompt as string) ?? 'Tell me more about this card.',
       priority: 0,
+      sources: c.data_snapshot?.sources ?? undefined,
+      isEstimate: c.data_snapshot?.isEstimate ?? undefined,
     };
   }
   return out;
@@ -75,10 +77,11 @@ export function useInvestorBrief(userId: string | null) {
     };
   }, [userId]);
 
-  const regenerate = useCallback(async (opts?: { force?: boolean }) => {
+  const regenerate = useCallback(async (opts?: { force?: boolean; silent?: boolean }) => {
     if (!userId) return;
     const now = Date.now();
     if (!opts?.force && now - lastRefreshRef.current < REFRESH_COOLDOWN_MS) {
+      if (opts?.silent) return;
       const waitSec = Math.ceil((REFRESH_COOLDOWN_MS - (now - lastRefreshRef.current)) / 1000);
       toast({
         title: 'Refresh available soon',
@@ -114,6 +117,8 @@ export function useInvestorBrief(userId: string | null) {
             data: c.data,
             summary: c.summary,
             investigatePrompt: c.investigatePrompt,
+            sources: c.sources,
+            isEstimate: c.isEstimate,
           },
           summary: c.summary,
         })),
@@ -182,6 +187,45 @@ export function useInvestorBrief(userId: string | null) {
       cancelled = true;
     };
   }, [userId, loadLatest, regenerate]);
+
+  /**
+   * Auto-refresh: when the user changes preferences, saves a property/analysis,
+   * or edits their owned-property portfolio, regenerate the brief in the
+   * background (respecting the cooldown). Uses Supabase realtime.
+   */
+  useEffect(() => {
+    if (!userId) return;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = (reason: string) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.info('[investorBrief] auto-refresh trigger:', reason);
+        void regenerate({ silent: true });
+      }, 2500);
+    };
+
+    const tables: Array<{ table: string; filter: string }> = [
+      { table: 'profiles', filter: `id=eq.${userId}` },
+      { table: 'saved_properties', filter: `user_id=eq.${userId}` },
+      { table: 'saved_analyses', filter: `user_id=eq.${userId}` },
+      { table: 'investor_owned_properties', filter: `user_id=eq.${userId}` },
+    ];
+
+    const channel = supabase.channel(`investor-brief-${userId}`);
+    for (const { table, filter } of tables) {
+      channel.on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table, filter },
+        () => scheduleRefresh(table),
+      );
+    }
+    channel.subscribe();
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [userId, regenerate]);
 
   const isStale = bundle
     ? Date.now() - new Date(bundle.brief.generated_at).getTime() > 30 * 60 * 60 * 1000
