@@ -1,3 +1,6 @@
+import { CardSourceFooter } from '../MetricWithSource';
+import type { CardSources } from '@/lib/investorBrief/sources';
+
 interface Row {
   address?: string;
   score?: number | null;
@@ -6,9 +9,10 @@ interface Row {
 
 interface Props {
   data: { rows?: Row[]; count?: number; cities?: string[] };
+  sources?: CardSources;
 }
 
-export function RankedListCard({ data }: Props) {
+export function RankedListCard({ data, sources }: Props) {
   const rows = data.rows ?? [];
   if (rows.length === 0) {
     return (
@@ -18,20 +22,23 @@ export function RankedListCard({ data }: Props) {
     );
   }
   return (
-    <ul className="space-y-1.5 text-sm">
-      {rows.slice(0, 5).map((r, i) => (
-        <li key={i} className="flex items-center justify-between gap-2 min-w-0">
-          <span className="truncate text-foreground/90">
-            <span className="text-muted-foreground mr-1.5">{i + 1}.</span>
-            {r.address ?? '—'}
-          </span>
-          {r.score != null && (
-            <span className="text-xs tabular-nums text-muted-foreground shrink-0">
-              {r.score}/100
+    <div>
+      <ul className="space-y-1.5 text-sm">
+        {rows.slice(0, 5).map((r, i) => (
+          <li key={i} className="flex items-center justify-between gap-2 min-w-0">
+            <span className="truncate text-foreground/90">
+              <span className="text-muted-foreground mr-1.5">{i + 1}.</span>
+              {r.address ?? '—'}
             </span>
-          )}
-        </li>
-      ))}
-    </ul>
+            {r.score != null && (
+              <span className="text-xs tabular-nums text-muted-foreground shrink-0">
+                {r.score}/100
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <CardSourceFooter sources={sources} />
+    </div>
   );
 }
