@@ -26,19 +26,19 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, 
   const body = (() => {
     switch (card.cardType) {
       case 'trend_chart':
-        return <TrendChartCard data={card.data as any} />;
+        return <TrendChartCard data={card.data as any} sources={card.sources} />;
       case 'heatmap':
         return <HeatmapCard data={card.data as any} />;
       case 'ranked_list':
-        return <RankedListCard data={card.data as any} />;
+        return <RankedListCard data={card.data as any} sources={card.sources} />;
       case 'missing_data':
-        return <MissingDataCard data={card.data as any} />;
+        return <MissingDataCard data={card.data as any} sources={card.sources} />;
       case 'setup':
         return <SetupCard data={card.data as any} />;
       case 'sample':
         return <SampleCard data={card.data as any} />;
       case 'budget_affordability':
-        return <BudgetAffordabilityCard data={card.data as any} />;
+        return <BudgetAffordabilityCard data={card.data as any} sources={card.sources} />;
       case 'anomaly':
         return <AnomalyCard data={card.data as any} />;
       case 'neighborhood_scores':
@@ -67,6 +67,7 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, 
       subtitle={card.subtitle}
       investigatePrompt={card.investigatePrompt}
       summary={card.summary}
+      isEstimate={card.isEstimate}
       onPinTalkingPoint={onPinTalkingPoint}
       onDismiss={onDismiss}
       onInvestigate={onInvestigate ? () => onInvestigate(card) : undefined}
