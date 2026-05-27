@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Home, Pencil, AlertCircle, RefreshCw } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
@@ -11,9 +11,12 @@ import { useOwnedProperty } from '@/hooks/useOwnedProperty';
 import { EditValuationDialog } from '@/components/investor/my-properties/EditValuationDialog';
 import { AlertsPanel } from '@/components/investor/my-properties/AlertsPanel';
 import { PropertyChat } from '@/components/investor/my-properties/PropertyChat';
+import { PropertyDocuments } from '@/components/investor/my-properties/PropertyDocuments';
+import { TaxExportButton } from '@/components/investor/my-properties/TaxExportButton';
 import { PROPERTY_TYPE_LABELS } from '@/lib/myProperties/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { trackOwnedPropertyEvent } from '@/lib/myProperties/telemetry';
 
 function fmtMoney(n: number, opts: { compact?: boolean; sign?: boolean } = {}) {
   if (!Number.isFinite(n)) return '$0';
@@ -45,6 +48,10 @@ export default function OwnedPropertyDetail() {
   const { data, loading, reload } = useOwnedProperty(id);
   const [editValOpen, setEditValOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (id) trackOwnedPropertyEvent('owned_property_viewed', { property_id: id });
+  }, [id]);
 
   async function handleRefreshValue() {
     if (!id) return;
@@ -125,6 +132,11 @@ export default function OwnedPropertyDetail() {
                       </div>
                     </div>
                   </div>
+                  {data.property.is_rented && (
+                    <div className="flex items-center gap-2">
+                      <TaxExportButton />
+                    </div>
+                  )}
                 </header>
 
                 {id && (
@@ -363,26 +375,12 @@ export default function OwnedPropertyDetail() {
                   </TabsContent>
 
                   <TabsContent value="documents" className="mt-4">
-                    {data.documents.length === 0 ? (
-                      <EmptyState text="No documents uploaded yet. Document uploads ship in a later update." />
-                    ) : (
-                      <Card>
-                        <CardContent className="p-0 divide-y">
-                          {data.documents.map((doc) => (
-                            <div key={doc.id} className="flex justify-between p-4 text-sm">
-                              <div>
-                                <div className="font-medium">{doc.filename}</div>
-                                <div className="text-xs text-muted-foreground capitalize">
-                                  {doc.document_type.replace(/_/g, ' ')}
-                                </div>
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {fmtDate(doc.uploaded_at)}
-                              </div>
-                            </div>
-                          ))}
-                        </CardContent>
-                      </Card>
+                    {id && (
+                      <PropertyDocuments
+                        propertyId={id}
+                        documents={data.documents}
+                        onChanged={reload}
+                      />
                     )}
                   </TabsContent>
 
