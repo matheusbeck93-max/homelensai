@@ -129,6 +129,8 @@ export async function composeBriefCards(userId: string): Promise<{
           summary: def.toBriefSummary(data),
           investigatePrompt: def.investigatePrompt(data),
           priority,
+          sources: def.getSources?.(context, data),
+          isEstimate: def.isEstimate,
         };
         return card;
       } catch (err) {
