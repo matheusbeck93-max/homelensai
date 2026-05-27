@@ -11,6 +11,8 @@ import { AnomalyCard } from './cards/AnomalyCard';
 import { NeighborhoodScoresCard } from './cards/NeighborhoodScoresCard';
 import { FlipSpreadMoversCard } from './cards/FlipSpreadMoversCard';
 import { MigrationTrendsCard } from './cards/MigrationTrendsCard';
+import { PortfolioGlanceCard } from './cards/PortfolioGlanceCard';
+import { PortfolioAlertsCard } from './cards/PortfolioAlertsCard';
 
 interface Props {
   card: ComposedCard;
@@ -45,6 +47,10 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, 
         return <FlipSpreadMoversCard data={card.data as any} />;
       case 'migration_trends':
         return <MigrationTrendsCard data={card.data as any} />;
+      case 'portfolio_glance':
+        return <PortfolioGlanceCard data={card.data as any} />;
+      case 'portfolio_alerts':
+        return <PortfolioAlertsCard data={card.data as any} />;
       default:
         return (
           <p className="text-xs text-muted-foreground">{card.summary || 'No preview available.'}</p>
