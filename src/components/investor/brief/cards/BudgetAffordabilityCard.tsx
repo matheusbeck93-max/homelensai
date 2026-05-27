@@ -1,8 +1,11 @@
 import type { BudgetAffordabilityResult } from '@/lib/investorBrief/budgetAffordability';
 import { cn } from '@/lib/utils';
+import { CardSourceFooter } from '../MetricWithSource';
+import type { CardSources } from '@/lib/investorBrief/sources';
 
 interface Props {
   data: BudgetAffordabilityResult;
+  sources?: CardSources;
 }
 
 function formatCurrency(n: number): string {
@@ -11,7 +14,7 @@ function formatCurrency(n: number): string {
   return `$${Math.round(n).toLocaleString()}`;
 }
 
-export function BudgetAffordabilityCard({ data }: Props) {
+export function BudgetAffordabilityCard({ data, sources }: Props) {
   if (data.perMarket.length === 0) {
     return (
       <div className="text-xs text-muted-foreground">
@@ -79,6 +82,7 @@ export function BudgetAffordabilityCard({ data }: Props) {
           </div>
         );
       })}
+      <CardSourceFooter sources={sources} />
     </div>
   );
 }
