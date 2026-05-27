@@ -7,7 +7,7 @@ export type CardType =
   | 'note'
   | 'setup'
   | 'sample'
-  | 'buying_power'
+  | 'budget_affordability'
   | 'neighborhood_scores'
   | 'flip_spread_movers'
   | 'migration_trends';
@@ -19,6 +19,8 @@ export interface ContextSnapshot {
     primary_goal?: string | null;
     preferred_cities?: string[] | null;
     max_price_range?: number | null;
+    budget_max?: number | null;
+    budget_min?: number | null;
     min_bedrooms?: number | null;
     about_me?: string | null;
     brief_card_count?: number | null;
