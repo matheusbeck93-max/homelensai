@@ -11,7 +11,7 @@ import { blendedWeights, type PersonaId } from '@/lib/personas/personaRegistry';
  * Build the context snapshot from the current user's recent data.
  */
 export async function loadContextSnapshot(userId: string): Promise<ContextSnapshot> {
-  const [profileResp, propsResp, analysesResp, talkingPointsResp] = await Promise.all([
+  const [profileResp, propsResp, analysesResp, talkingPointsResp, ownedResp, ownedAlertsResp] = await Promise.all([
     supabase
       .from('profiles')
       .select(
@@ -38,6 +38,18 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
       .eq('status', 'active')
       .order('pinned_at', { ascending: false })
       .limit(10),
+    supabase
+      .from('investor_owned_properties')
+      .select('id, address_line1, city, state, purchase_price, has_mortgage, loan_original_principal, loan_rate_apr, loan_term_years, loan_start_date, loan_current_balance, current_value_estimate, is_rented, is_primary_residence')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .limit(50),
+    supabase
+      .from('investor_owned_property_alerts')
+      .select('id, property_id, alert_type, severity, title, description, status')
+      .eq('status', 'active')
+      .order('surfaced_at', { ascending: false })
+      .limit(20),
   ]);
 
   return {
@@ -58,6 +70,8 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
     savedProperties: (propsResp.data ?? []) as ContextSnapshot['savedProperties'],
     savedAnalyses: (analysesResp.data ?? []) as unknown as ContextSnapshot['savedAnalyses'],
     pinnedTalkingPoints: (talkingPointsResp.data ?? []) as ContextSnapshot['pinnedTalkingPoints'],
+    ownedProperties: (ownedResp.data ?? []) as ContextSnapshot['ownedProperties'],
+    activeOwnedAlerts: (ownedAlertsResp.data ?? []) as unknown as ContextSnapshot['activeOwnedAlerts'],
   };
 }
 
@@ -83,7 +97,7 @@ export async function composeBriefCards(userId: string): Promise<{
 
   const personaId = (context.preferences.persona ?? 'mixed') as PersonaId;
   const secondary = ((context.preferences.persona_secondary ?? []) as string[]).filter((s) =>
-    ['first_time_buyer', 'rental_investor', 'flipper', 'institutional'].includes(s),
+      ['first_time_buyer', 'rental_investor', 'flipper', 'institutional', 'existing_owner'].includes(s),
   ) as PersonaId[];
   const { briefCardWeights } = blendedWeights(personaId, secondary);
 

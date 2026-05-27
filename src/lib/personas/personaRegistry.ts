@@ -12,6 +12,7 @@ export type PersonaId =
   | 'rental_investor'
   | 'flipper'
   | 'institutional'
+  | 'existing_owner'
   | 'mixed';
 
 export interface PersonaDef {
@@ -218,6 +219,59 @@ const institutional: PersonaDef = {
   preferenceDefaults: { target_cap_rate: 0.08, risk_level: 'low' },
 };
 
+const existingOwner: PersonaDef = {
+  id: 'existing_owner',
+  displayName: 'Existing Owner',
+  description:
+    'You already own one or more properties. Focus shifts to portfolio performance, equity, refi/HELOC opportunities, rent vs market, and hold-vs-sell decisions.',
+  priorityKpis: [
+    'portfolio equity',
+    'cash flow',
+    'refi savings',
+    'rent vs market',
+    'appreciation since purchase',
+  ],
+  toolWeights: {
+    compute_metrics: 0.7,
+    compute_roi: 0.7,
+    get_market_stats: 0.8,
+    list_listings: 0.3,
+    compare_properties: 0.5,
+    project_amortization: 0.9,
+    compute_budget_affordability: 0.3,
+    compute_affordability_index: 0.2,
+    estimate_arv: 0.3,
+    compute_flip_spread: 0.2,
+    get_neighborhood_quality: 0.4,
+    get_migration_trends: 0.5,
+    get_employment_trends: 0.5,
+    get_absorption_rate: 0.5,
+    get_supply_pipeline: 0.3,
+    find_comparable_sales: 0.6,
+    show_reduction_heatmap: 0.5,
+  },
+  briefCardWeights: {
+    portfolio_glance: 1.0,
+    portfolio_alerts: 1.0,
+    cap_rate_trend: 0.7,
+    watchlist_price_trend: 0.5,
+    price_reduction_heatmap: 0.5,
+    ranked_analyses: 0.5,
+    missing_data: 0.6,
+    budget_vs_market: 0.3,
+    neighborhood_scores: 0.3,
+    setup: 1.0,
+    sample: 1.0,
+  },
+  suggestedStarterPrompts: [
+    'Should I refinance any of my properties at current rates?',
+    'Which of my rentals is most below market rent?',
+    'How much HELOC could I tap across my portfolio?',
+    'If I sold my best-performing property today, what would I net?',
+  ],
+  preferenceDefaults: { risk_level: 'medium' },
+};
+
 function averageWeights(...defs: PersonaDef[]): Record<string, number> {
   const sums = new Map<string, { total: number; count: number }>();
   for (const def of defs) {
@@ -250,8 +304,8 @@ const mixed: PersonaDef = {
   description:
     "We'll show you a balanced mix and tune over time. You can switch to a specific persona any time.",
   priorityKpis: ['affordability', 'cap rate', 'cash flow', 'appreciation', 'market growth'],
-  toolWeights: averageWeights(firstTimeBuyer, rentalInvestor, flipper, institutional),
-  briefCardWeights: averageCardWeights(firstTimeBuyer, rentalInvestor, flipper, institutional),
+  toolWeights: averageWeights(firstTimeBuyer, rentalInvestor, flipper, institutional, existingOwner),
+  briefCardWeights: averageCardWeights(firstTimeBuyer, rentalInvestor, flipper, institutional, existingOwner),
   suggestedStarterPrompts: [
     'Show me an overview of my target market.',
     'What can I afford with my current preferences?',
@@ -264,6 +318,7 @@ export const PERSONAS: Record<PersonaId, PersonaDef> = {
   rental_investor: rentalInvestor,
   flipper,
   institutional,
+  existing_owner: existingOwner,
   mixed,
 };
 
@@ -272,6 +327,7 @@ export const PERSONA_ORDER: PersonaId[] = [
   'rental_investor',
   'flipper',
   'institutional',
+  'existing_owner',
   'mixed',
 ];
 

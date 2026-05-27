@@ -32,7 +32,7 @@ export function usePersona(userId: string | null | undefined): PersonaState {
       .maybeSingle();
     const p = (data?.persona ?? 'mixed') as PersonaId;
     const sec = ((data?.persona_secondary ?? []) as string[]).filter((s) =>
-      ['first_time_buyer', 'rental_investor', 'flipper', 'institutional'].includes(s),
+      ['first_time_buyer', 'rental_investor', 'flipper', 'institutional', 'existing_owner'].includes(s),
     ) as PersonaId[];
     setPersonaState(p);
     setSecondary(sec);
