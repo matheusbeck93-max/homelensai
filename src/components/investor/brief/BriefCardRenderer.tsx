@@ -6,7 +6,7 @@ import { RankedListCard } from './cards/RankedListCard';
 import { MissingDataCard } from './cards/MissingDataCard';
 import { SetupCard } from './cards/SetupCard';
 import { SampleCard } from './cards/SampleCard';
-import { BuyingPowerCard } from './cards/BuyingPowerCard';
+import { BudgetAffordabilityCard } from './cards/BudgetAffordabilityCard';
 import { AnomalyCard } from './cards/AnomalyCard';
 import { NeighborhoodScoresCard } from './cards/NeighborhoodScoresCard';
 import { FlipSpreadMoversCard } from './cards/FlipSpreadMoversCard';
@@ -35,8 +35,8 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, 
         return <SetupCard data={card.data as any} />;
       case 'sample':
         return <SampleCard data={card.data as any} />;
-      case 'buying_power':
-        return <BuyingPowerCard data={card.data as any} />;
+      case 'budget_affordability':
+        return <BudgetAffordabilityCard data={card.data as any} />;
       case 'anomaly':
         return <AnomalyCard data={card.data as any} />;
       case 'neighborhood_scores':
