@@ -46,8 +46,7 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
       .limit(50),
     supabase
       .from('investor_owned_property_alerts')
-      .select('id, property_id, alert_type, severity, title, description, status, investor_owned_properties!inner(user_id)')
-      .eq('investor_owned_properties.user_id', userId)
+      .select('id, property_id, alert_type, severity, title, description, status')
       .eq('status', 'active')
       .order('surfaced_at', { ascending: false })
       .limit(20),
