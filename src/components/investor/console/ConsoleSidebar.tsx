@@ -8,22 +8,40 @@ import {
   Settings,
   ChevronRight,
   ChevronLeft,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useOwnedPropertiesCount } from '@/hooks/useOwnedProperties';
 
 interface ConsoleSidebarProps {
   expanded?: boolean;
 }
 
-const items = [
-  { to: '/investor', icon: LayoutDashboard, label: 'Brief', end: true },
-  { to: '/saved-analyses', icon: Bookmark, label: 'Saved analyses' },
-  { to: '/investor/calculator', icon: CalcIcon, label: 'Calculator' },
-  { to: '/profile-setup', icon: Settings, label: 'Preferences' },
-];
+type RailItem = {
+  to: string;
+  icon: typeof LayoutDashboard;
+  label: string;
+  end?: boolean;
+  badge?: number;
+};
 
 export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
   const [mobileExpanded, setMobileExpanded] = useState(false);
+  const ownedCount = useOwnedPropertiesCount();
+
+  const items: RailItem[] = [
+    { to: '/investor', icon: LayoutDashboard, label: 'Brief', end: true },
+    {
+      to: '/investor/properties',
+      icon: Building2,
+      label: 'My properties',
+      badge: ownedCount > 0 ? ownedCount : undefined,
+    },
+    { to: '/saved-analyses', icon: Bookmark, label: 'Saved analyses' },
+    { to: '/investor/calculator', icon: CalcIcon, label: 'Calculator' },
+    { to: '/profile-setup', icon: Settings, label: 'Preferences' },
+  ];
+
   return (
     <>
       {/* Desktop: vertical rail */}
@@ -49,8 +67,22 @@ export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
               }
               title={expanded ? undefined : item.label}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {expanded && <span className="truncate">{item.label}</span>}
+              <span className="relative shrink-0">
+                <item.icon className="h-4 w-4" />
+                {item.badge != null && !expanded && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] leading-4 text-center font-medium">
+                    {item.badge}
+                  </span>
+                )}
+              </span>
+              {expanded && (
+                <span className="truncate flex-1">{item.label}</span>
+              )}
+              {expanded && item.badge != null && (
+                <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary/15 text-primary text-[11px] font-medium">
+                  {item.badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -102,8 +134,22 @@ export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
               }
               title={mobileExpanded ? undefined : item.label}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
-              {mobileExpanded && <span className="truncate">{item.label}</span>}
+              <span className="relative shrink-0">
+                <item.icon className="h-4 w-4" />
+                {item.badge != null && !mobileExpanded && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] leading-4 text-center font-medium">
+                    {item.badge}
+                  </span>
+                )}
+              </span>
+              {mobileExpanded && (
+                <span className="truncate flex-1">{item.label}</span>
+              )}
+              {mobileExpanded && item.badge != null && (
+                <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary/15 text-primary text-[11px] font-medium">
+                  {item.badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
