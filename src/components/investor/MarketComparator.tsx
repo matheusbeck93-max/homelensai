@@ -149,6 +149,7 @@ export function MarketComparator() {
   const [stepIdx, setStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ComparatorResult | null>(null);
+  const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!loading) return;
@@ -212,6 +213,7 @@ export function MarketComparator() {
         throw new Error((data as any)?.error ?? "No data returned");
       }
       setResult(data as ComparatorResult);
+      setGeneratedAt(new Date());
     } catch (e: any) {
       const msg = e?.message ?? "Comparison failed. Please try again.";
       setError(msg);

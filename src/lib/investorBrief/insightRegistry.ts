@@ -3,6 +3,14 @@ import {
   computeBudgetAffordability,
   type BudgetAffordabilityResult,
 } from './budgetAffordability';
+import { KNOWN_SOURCES, type CardSources } from './sources';
+
+/**
+ * Feature flag: until real market-data sources are wired, synthesized cards
+ * are hidden so we never present fabricated numbers as truth. Flip to true
+ * only after backing them with `market_stats` / `market_snapshots` / etc.
+ */
+const ENABLE_SYNTHETIC_CARDS = false;
 
 // Helper: is the user a particular persona (or mixed)?
 function personaIs(ctx: ContextSnapshot, ids: string[]): boolean {
@@ -19,7 +27,8 @@ function formatK(n: number): string {
 const budgetVsMarket: InsightDefinition<BudgetAffordabilityResult> = {
   id: 'budget_vs_market',
   cardType: 'budget_affordability',
-  basePriority: 95,
+  basePriority: 40,
+  isEstimate: true,
   isEligible: (ctx) =>
     Boolean(ctx.preferences.budget_max) &&
     (ctx.preferences.preferred_cities ?? []).length > 0,
@@ -58,6 +67,12 @@ const budgetVsMarket: InsightDefinition<BudgetAffordabilityResult> = {
     if (!top) return 'Walk me through how my budget maps to current listings in my target markets.';
     return `Surface active listings in ${top.market} within my $${formatK(d.budgetMax)} budget that also clear my cap-rate target.`;
   },
+  getSources: (): CardSources => ({
+    budgetMax: KNOWN_SOURCES.userInput('From your preferences.'),
+    medianListPrice: KNOWN_SOURCES.heuristic(
+      'Estimate derived from your max budget — pending live market median wiring.',
+    ),
+  }),
 };
 
 
@@ -80,8 +95,10 @@ interface CapRateTrendData {
 const capRateTrend: InsightDefinition<CapRateTrendData> = {
   id: 'cap_rate_trend',
   cardType: 'trend_chart',
-  basePriority: 90,
-  isEligible: (ctx) => (ctx.preferences.preferred_cities ?? []).length > 0,
+  basePriority: 30,
+  isEstimate: true,
+  isEligible: (ctx) =>
+    ENABLE_SYNTHETIC_CARDS && (ctx.preferences.preferred_cities ?? []).length > 0,
   loadData: async (ctx) => {
     const market = ctx.preferences.preferred_cities?.[0] ?? 'Austin, TX';
     // Synthesized trailing-12-month series. Real wiring will hit a market
@@ -103,6 +120,11 @@ const capRateTrend: InsightDefinition<CapRateTrendData> = {
     `${d.market} median cap rate is ${d.current.toFixed(2)}% over the trailing 12 months (target ${d.target.toFixed(2)}%).`,
   investigatePrompt: (d) =>
     `Walk me through what's driving the cap-rate trend in ${d.market} right now and which of my memorized properties benefit most.`,
+  getSources: (): CardSources => ({
+    capRate: KNOWN_SOURCES.heuristic(
+      'Synthesized 12-month series for illustration — not live market data.',
+    ),
+  }),
 };
 
 // ── watchlist_price_trend ─────────────────────────────────────────
@@ -135,6 +157,9 @@ const watchlistPriceTrend: InsightDefinition<WatchlistData> = {
     }.`,
   investigatePrompt: () =>
     'Summarize my saved-properties watchlist: which look strongest right now and where should I focus?',
+  getSources: (ctx): CardSources => ({
+    count: KNOWN_SOURCES.savedProperties(ctx.savedProperties[0]?.created_at),
+  }),
 };
 
 // ── price_reduction_heatmap ───────────────────────────────────────
@@ -148,8 +173,10 @@ interface HeatmapData {
 const priceReductionHeatmap: InsightDefinition<HeatmapData> = {
   id: 'price_reduction_heatmap',
   cardType: 'heatmap',
-  basePriority: 70,
-  isEligible: (ctx) => (ctx.preferences.preferred_cities ?? []).length > 0,
+  basePriority: 20,
+  isEstimate: true,
+  isEligible: (ctx) =>
+    ENABLE_SYNTHETIC_CARDS && (ctx.preferences.preferred_cities ?? []).length > 0,
   loadData: async (ctx) => {
     const market = ctx.preferences.preferred_cities?.[0] ?? 'Austin, TX';
     const rows = ['78704', '78745', '78702', '78751', '78723'];
@@ -175,8 +202,10 @@ interface NeighborhoodScoresData {
 const neighborhoodScores: InsightDefinition<NeighborhoodScoresData> = {
   id: 'neighborhood_scores',
   cardType: 'neighborhood_scores',
-  basePriority: 65,
+  basePriority: 20,
+  isEstimate: true,
   isEligible: (ctx) =>
+    ENABLE_SYNTHETIC_CARDS &&
     (ctx.preferences.preferred_cities ?? []).length > 0 &&
     personaIs(ctx, ['first_time_buyer', 'mixed']),
   loadData: async (ctx) => {
@@ -210,8 +239,10 @@ interface FlipSpreadMoversData {
 const flipSpreadMovers: InsightDefinition<FlipSpreadMoversData> = {
   id: 'flip_spread_movers',
   cardType: 'flip_spread_movers',
-  basePriority: 65,
+  basePriority: 20,
+  isEstimate: true,
   isEligible: (ctx) =>
+    ENABLE_SYNTHETIC_CARDS &&
     (ctx.preferences.preferred_cities ?? []).length > 0 &&
     personaIs(ctx, ['flipper', 'mixed']),
   loadData: async (ctx) => {
@@ -242,8 +273,10 @@ interface MigrationTrendsData {
 const migrationTrends: InsightDefinition<MigrationTrendsData> = {
   id: 'migration_trends',
   cardType: 'migration_trends',
-  basePriority: 65,
+  basePriority: 20,
+  isEstimate: true,
   isEligible: (ctx) =>
+    ENABLE_SYNTHETIC_CARDS &&
     (ctx.preferences.preferred_cities ?? []).length > 0 &&
     personaIs(ctx, ['institutional', 'mixed']),
   loadData: async (ctx) => {
@@ -300,6 +333,9 @@ const rankedAnalyses: InsightDefinition<RankedAnalysesData> = {
   },
   investigatePrompt: () =>
     'Compare my top-scoring saved analyses and tell me which one looks like the best buy right now.',
+  getSources: (ctx): CardSources => ({
+    rows: KNOWN_SOURCES.savedAnalyses(ctx.savedAnalyses[0]?.created_at),
+  }),
 };
 
 // ── missing_data ──────────────────────────────────────────────────
@@ -432,6 +468,30 @@ const portfolioGlance: InsightDefinition<PortfolioGlanceData> = {
   toBriefSummary: (d) =>
     `Portfolio: ${d.count} property/ies worth ~$${formatK(d.totalValue)} with ~$${formatK(d.totalEquity)} equity and ~$${formatK(d.totalAppreciation)} total appreciation.`,
   investigatePrompt: () => 'Give me a portfolio-level summary: total value, equity, cash flow, and which property is performing best.',
+  getSources: (ctx): CardSources => {
+    const props = ctx.ownedProperties ?? [];
+    const newest = props
+      .map((p) => p.current_value_refreshed_at)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    const usesRentcast = props.some((p) => p.current_value_source === 'rentcast');
+    const usesManual = props.some(
+      (p) => p.current_value_source === 'manual_override' || p.current_value_source === 'manual_appraisal',
+    );
+    return {
+      count: KNOWN_SOURCES.userInput('Properties you added to My Properties.'),
+      totalValue: usesRentcast
+        ? KNOWN_SOURCES.rentcastAvm(newest)
+        : usesManual
+          ? KNOWN_SOURCES.manualValuation(newest)
+          : KNOWN_SOURCES.userInput('Falls back to purchase price until a valuation is available.'),
+      totalEquity: KNOWN_SOURCES.amortizedLoan(newest),
+      totalAppreciation: usesRentcast
+        ? KNOWN_SOURCES.rentcastAvm(newest)
+        : KNOWN_SOURCES.userInput('Current value vs. your purchase price.'),
+    };
+  },
 };
 
 // ── portfolio_alerts ─────────────────────────────────────────────
@@ -467,6 +527,14 @@ const portfolioAlerts: InsightDefinition<PortfolioAlertsData> = {
     const first = d.alerts[0];
     if (!first) return 'Review active alerts on my properties.';
     return `Walk me through this alert and what action makes sense: "${first.title}" — ${first.description}`;
+  },
+  getSources: (ctx): CardSources => {
+    const newest = (ctx.activeOwnedAlerts ?? [])
+      .map((a) => a.surfaced_at ?? undefined)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    return { alerts: KNOWN_SOURCES.ownedAlerts(newest) };
   },
 };
 

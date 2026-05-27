@@ -70,6 +70,8 @@ export interface ContextSnapshot {
     loan_start_date: string | null;
     loan_current_balance: number | null;
     current_value_estimate: number | null;
+    current_value_source?: string | null;
+    current_value_refreshed_at?: string | null;
     is_rented: boolean;
     is_primary_residence: boolean;
   }>;
@@ -80,6 +82,7 @@ export interface ContextSnapshot {
     severity: 'info' | 'opportunity' | 'warning';
     title: string;
     description: string;
+    surfaced_at?: string | null;
   }>;
 }
 
@@ -101,6 +104,10 @@ export interface ComposedCard<TData = unknown> {
   /** Prompt routed to the chat when the user clicks Investigate on this card. */
   investigatePrompt: string;
   priority: number;
+  /** Per-metric provenance, keyed by metric id (e.g. 'totalValue'). */
+  sources?: import('./sources').CardSources;
+  /** True if the card is showing heuristic/placeholder values, not real data. */
+  isEstimate?: boolean;
 }
 
 export interface PersistedBriefCard {
@@ -140,4 +147,11 @@ export interface InsightDefinition<TData = unknown> {
   scorePriority?: (ctx: ContextSnapshot, feedback: FeedbackSignal[]) => number;
   toBriefSummary: (data: TData) => string;
   investigatePrompt: (data: TData) => string;
+  /** Optional per-metric source map. Composer attaches the result to ComposedCard.sources. */
+  getSources?: (
+    ctx: ContextSnapshot,
+    data: TData,
+  ) => import('./sources').CardSources;
+  /** Marks the card as an internal estimate so the UI can badge it. */
+  isEstimate?: boolean;
 }

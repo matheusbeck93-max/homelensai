@@ -48,9 +48,9 @@ export function BriefCardRenderer({ card, userId, onPinTalkingPoint, onDismiss, 
       case 'migration_trends':
         return <MigrationTrendsCard data={card.data as any} />;
       case 'portfolio_glance':
-        return <PortfolioGlanceCard data={card.data as any} />;
+        return <PortfolioGlanceCard data={card.data as any} sources={card.sources} />;
       case 'portfolio_alerts':
-        return <PortfolioAlertsCard data={card.data as any} />;
+        return <PortfolioAlertsCard data={card.data as any} sources={card.sources} />;
       default:
         return (
           <p className="text-xs text-muted-foreground">{card.summary || 'No preview available.'}</p>
