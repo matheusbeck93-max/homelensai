@@ -1,4 +1,6 @@
 import { Bell, TrendingUp, AlertTriangle, Info } from 'lucide-react';
+import { CardSourceFooter } from '../MetricWithSource';
+import type { CardSources } from '@/lib/investorBrief/sources';
 
 interface Alert {
   id: string;
@@ -21,7 +23,7 @@ const TONE = {
   info: 'text-sky-600',
 } as const;
 
-export function PortfolioAlertsCard({ data }: { data: { alerts: Alert[] } }) {
+export function PortfolioAlertsCard({ data, sources }: { data: { alerts: Alert[] }; sources?: CardSources }) {
   if (!data.alerts.length) {
     return (
       <div className="text-xs text-muted-foreground flex items-center gap-2">
@@ -31,6 +33,7 @@ export function PortfolioAlertsCard({ data }: { data: { alerts: Alert[] } }) {
     );
   }
   return (
+    <>
     <ul className="space-y-2">
       {data.alerts.map((a) => {
         const Icon = ICONS[a.severity] ?? Info;
@@ -45,5 +48,7 @@ export function PortfolioAlertsCard({ data }: { data: { alerts: Alert[] } }) {
         );
       })}
     </ul>
+    <CardSourceFooter sources={sources} />
+    </>
   );
 }
