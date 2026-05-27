@@ -468,6 +468,30 @@ const portfolioGlance: InsightDefinition<PortfolioGlanceData> = {
   toBriefSummary: (d) =>
     `Portfolio: ${d.count} property/ies worth ~$${formatK(d.totalValue)} with ~$${formatK(d.totalEquity)} equity and ~$${formatK(d.totalAppreciation)} total appreciation.`,
   investigatePrompt: () => 'Give me a portfolio-level summary: total value, equity, cash flow, and which property is performing best.',
+  getSources: (ctx): CardSources => {
+    const props = ctx.ownedProperties ?? [];
+    const newest = props
+      .map((p) => p.current_value_refreshed_at)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    const usesRentcast = props.some((p) => p.current_value_source === 'rentcast');
+    const usesManual = props.some(
+      (p) => p.current_value_source === 'manual_override' || p.current_value_source === 'manual_appraisal',
+    );
+    return {
+      count: KNOWN_SOURCES.userInput('Properties you added to My Properties.'),
+      totalValue: usesRentcast
+        ? KNOWN_SOURCES.rentcastAvm(newest)
+        : usesManual
+          ? KNOWN_SOURCES.manualValuation(newest)
+          : KNOWN_SOURCES.userInput('Falls back to purchase price until a valuation is available.'),
+      totalEquity: KNOWN_SOURCES.amortizedLoan(newest),
+      totalAppreciation: usesRentcast
+        ? KNOWN_SOURCES.rentcastAvm(newest)
+        : KNOWN_SOURCES.userInput('Current value vs. your purchase price.'),
+    };
+  },
 };
 
 // ── portfolio_alerts ─────────────────────────────────────────────
@@ -503,6 +527,14 @@ const portfolioAlerts: InsightDefinition<PortfolioAlertsData> = {
     const first = d.alerts[0];
     if (!first) return 'Review active alerts on my properties.';
     return `Walk me through this alert and what action makes sense: "${first.title}" — ${first.description}`;
+  },
+  getSources: (ctx): CardSources => {
+    const newest = (ctx.activeOwnedAlerts ?? [])
+      .map((a) => a.surfaced_at ?? undefined)
+      .filter(Boolean)
+      .sort()
+      .pop();
+    return { alerts: KNOWN_SOURCES.ownedAlerts(newest) };
   },
 };
 
