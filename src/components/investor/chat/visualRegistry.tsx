@@ -1,7 +1,7 @@
 import type { ToolEvent } from '@/lib/investorChat/turnTypes';
 import { MetricsGrid } from './visuals/MetricsGrid';
 import { RoiTimeline } from './visuals/RoiTimeline';
-import { BuyingPowerView } from './visuals/BuyingPowerView';
+import { BudgetAffordabilityView } from './visuals/BudgetAffordabilityView';
 import { AmortizationChart } from './visuals/AmortizationChart';
 import { MarketStatsCard } from './visuals/MarketStatsCard';
 import { PropertyTable } from './visuals/PropertyTable';
@@ -22,7 +22,7 @@ export function renderToolEvent(event: ToolEvent) {
   switch (event.name) {
     case 'compute_metrics': return <MetricsGrid event={event} />;
     case 'compute_roi': return <RoiTimeline event={event} />;
-    case 'compute_buying_power': return <BuyingPowerView event={event} />;
+    case 'compute_budget_affordability': return <BudgetAffordabilityView event={event} />;
     case 'project_amortization': return <AmortizationChart event={event} />;
     case 'get_market_stats': return <MarketStatsCard event={event} />;
     case 'list_listings': return <PropertyTable event={event} />;
