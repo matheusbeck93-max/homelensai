@@ -40,13 +40,13 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
       .limit(10),
     supabase
       .from('investor_owned_properties')
-      .select('id, address_line1, city, state, purchase_price, has_mortgage, loan_original_principal, loan_rate_apr, loan_term_years, loan_start_date, loan_current_balance, current_value_estimate, is_rented, is_primary_residence')
+      .select('id, address_line1, city, state, purchase_price, has_mortgage, loan_original_principal, loan_rate_apr, loan_term_years, loan_start_date, loan_current_balance, current_value_estimate, current_value_source, current_value_refreshed_at, is_rented, is_primary_residence')
       .eq('user_id', userId)
       .eq('status', 'active')
       .limit(50),
     supabase
       .from('investor_owned_property_alerts')
-      .select('id, property_id, alert_type, severity, title, description, status')
+      .select('id, property_id, alert_type, severity, title, description, status, surfaced_at')
       .eq('status', 'active')
       .order('surfaced_at', { ascending: false })
       .limit(20),
