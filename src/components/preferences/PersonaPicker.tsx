@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Home, Building2, Hammer, Briefcase, Shuffle } from 'lucide-react';
+import { Check, Home, Building2, Hammer, Briefcase, Shuffle, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PERSONA_ORDER, PERSONAS, type PersonaId } from '@/lib/personas/personaRegistry';
 
@@ -20,6 +20,7 @@ const ICONS: Record<PersonaId, React.ElementType> = {
   rental_investor: Building2,
   flipper: Hammer,
   institutional: Briefcase,
+  existing_owner: KeyRound,
   mixed: Shuffle,
 };
 
