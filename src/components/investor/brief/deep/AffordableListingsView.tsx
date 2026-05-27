@@ -1,8 +1,8 @@
-import type { BuyingPowerResult } from '@/lib/investorBrief/buyingPower';
+import type { BudgetAffordabilityResult } from '@/lib/investorBrief/budgetAffordability';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Props {
-  data: BuyingPowerResult;
+  data: BudgetAffordabilityResult;
 }
 
 export function AffordableListingsView({ data }: Props) {
@@ -14,11 +14,11 @@ export function AffordableListingsView({ data }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Buying power · ${Math.round(data.buyingPower).toLocaleString()}
+            Budget · ${Math.round(data.budgetMax).toLocaleString()}
+            {data.budgetMin ? ` (min $${Math.round(data.budgetMin).toLocaleString()})` : ''}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Built from ${data.cashAvailable.toLocaleString()} cash at {data.downPct}% down,{' '}
-            {data.rateApr}% APR / {data.termYears}y.
+            Pulled from your saved preferences. Edit your budget anytime in Preferences.
           </p>
         </CardHeader>
         <CardContent>
@@ -34,7 +34,7 @@ export function AffordableListingsView({ data }: Props) {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {m.listingsAffordable.toLocaleString()} of {m.totalListings.toLocaleString()}{' '}
-                  active listings within reach.{' '}
+                  active listings within budget.{' '}
                   {m.headroomPct >= 0
                     ? `You have ${Math.round(m.headroomPct * 100)}% headroom over median.`
                     : `You are ${Math.round(Math.abs(m.headroomPct) * 100)}% below median; expect tighter selection.`}
