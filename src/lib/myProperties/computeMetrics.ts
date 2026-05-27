@@ -126,3 +126,39 @@ export function computeCapRate(
   const noi = rent * 12 - (tax + ins + hoa + maint + mgmt + vac);
   return noi / value;
 }
+
+/**
+ * Total return decomposition (lifetime, not annualized) since purchase.
+ * - appreciation: current value − purchase price
+ * - principalPaydown: original loan − current loan balance
+ * - cashFlow: monthly cash flow × months held (only when rented)
+ */
+export function computeReturnsDecomposition(
+  p: OwnedProperty,
+  rental: RentalDetail | null,
+): {
+  appreciation: number;
+  principalPaydown: number;
+  cashFlow: number;
+  total: number;
+  cashInvested: number;
+  totalROI: number | null;
+} {
+  const app = computeAppreciation(p).absolute;
+  const orig = Number(p.loan_original_principal ?? 0);
+  const principalPaydown = orig > 0 ? Math.max(0, orig - computeCurrentLoanBalance(p)) : 0;
+  const months = Math.max(0, monthsBetween(p.purchase_date));
+  const cf = computeMonthlyCashFlow(p, rental) * months;
+  const total = app + principalPaydown + cf;
+  const cashInvested =
+    Number(p.down_payment ?? 0) + Number(p.closing_costs ?? 0);
+  const totalROI = cashInvested > 0 ? total / cashInvested : null;
+  return {
+    appreciation: app,
+    principalPaydown,
+    cashFlow: cf,
+    total,
+    cashInvested,
+    totalROI,
+  };
+}
