@@ -1,77 +1,67 @@
-## Goal
+## HomeLens — Investor "My Properties" (Portfolio Mode)
 
-Make all investor-area pages (Brief, Calculator, Saved Analyses, Profile Setup) share the same layout shell with the `ConsoleSidebar` visible — including on mobile/tablet, where it becomes a horizontally scrollable strip.
+Large multi-phase build. Recommend shipping in the order below; each phase is independently usable. I'll confirm before starting each phase.
 
-## Scope
+### Phase 1 — Data spine (DB + storage)
+- Migration: `investor_owned_properties` + child tables (photos, rental, valuations, improvements, events, alerts, documents) with RLS + GRANTs.
+- Add `property_id` + `scope` to `investor_console_threads`.
+- Storage buckets: `owned-property-photos` (public-read), `owned-property-documents` (private), with per-user path RLS.
 
-Frontend layout only. No business logic, no data model changes.
+### Phase 2 — My Properties UI shell
+- New rail item between Brief and Saved Analyses (building icon + count badge).
+- `MyPropertiesPanel` route at `/investor/properties`.
+- `PortfolioRollup` (4 stat cards + concentration flag).
+- `OwnedPropertyCard` grid + filter/sort pills.
+- `AddPropertyDialog` 5-step wizard (only Identity + Acquisition required).
 
-## Changes
+### Phase 3 — Property detail + metrics
+- `OwnedPropertyDetail` two-column layout (chat left, tabbed deep panel right).
+- Tabs: Overview, Acquisition+Loan, Rental, Improvements, Events, Documents.
+- `computeMetrics.ts`: equity, cash flow, cap rate, IRR, returns decomposition, amortized loan balance. Shared with `calcEngine.ts`.
+- `EditValuationDialog` with manual override + expiry + audit row.
 
-### 1. `src/components/investor/console/ConsoleSidebar.tsx` — responsive variants
+### Phase 4 — Valuation pipeline
+- Edge fn `property-valuation` (on-demand, rate-limited 1/hr/property).
+- Edge fn `property-valuation-refresh` (daily cron, all active properties).
+- Provider adapter: **RentCast** (sale + rent in one call). Requires `RENTCAST_API_KEY` — already present in secrets.
+- Loan balance recompute in same job.
 
-Currently `hidden lg:flex` → invisible below 1024px.
+### Phase 5 — Alerts engine
+- `alertsEngine.ts` with 7 alert types: refi_opportunity, heloc_eligible, rent_below_market, insurance_renewal, sell_vs_hold, tax_basis_event, appraisal_due.
+- Edge fn `property-alerts-eval` (daily cron + on user edits).
+- Dedup by `(property_id, alert_type, status=active)`. 30-day re-surface after dismiss.
+- `AlertCard` with "Run the analysis" CTA → opens chat with relevant tool pre-called.
 
-Refactor to render two variants from the same `items` array:
+### Phase 6 — AI tools (12 new)
+Registered in existing `toolRegistry.ts`:
+`list_owned_properties`, `get_property_state`, `estimate_property_value`, `compute_property_returns`, `compute_property_equity`, `analyze_refi`, `compute_heloc_borrowable`, `compare_rent_to_market`, `project_property_value`, `suggest_sell_vs_hold`, `compute_capital_gains_if_sold`, `list_active_alerts`.
+Plus visuals (OwnedPropertiesTable, RefiScenarioTable, HelocCard, etc.) wired into `visualRegistry.tsx`.
 
-- **Desktop (`lg+`)**: keep current vertical rail (`hidden lg:flex w-14 / w-56`, border-r).
-- **Mobile + tablet (`< lg`)**: a sticky horizontal bar directly under the global `Navigation`, full-width, `overflow-x-auto`, with each item as a pill (icon + label). Active item uses `bg-primary/10 text-primary`. Add `scrollbar-thin` styling and `snap-x` for smooth horizontal scroll. Touch targets ≥ 44px (matches mobile UX memory).
+### Phase 7 — Brief integration + persona
+- New brief cards: `portfolio_glance`, `portfolio_alerts` (eligible only when ≥1 owned).
+- Subscribe `InvestorBriefContext` to `investor_owned_properties` realtime; expose `ownedProperties`, `portfolioRollup`, `activeAlerts`.
+- New persona `existing_owner` in `personaRegistry.ts` with toolWeights + card weights + starter prompts.
+- Auto-suggest persona on first-property-add (Mixed users only).
 
-Export the horizontal version as either a second named export (`ConsoleTabBar`) or have `ConsoleSidebar` render both internally so consumers don't change. Internal rendering is simpler — recommended.
+### Phase 8 — Per-property chat + documents + tax export
+- Per-property thread (scope='property', property_id pinned as context card).
+- Drag-drop document upload with category, signed-URL download.
+- `scheduleE.ts` → CSV export per tax year.
+- Telemetry events.
 
-### 2. Apply shell consistently
+---
 
-#### `src/pages/ProfileSetup.tsx`
-Wrap content in the same shell as `InvestorBrief.tsx`:
-```
-<div className="min-h-screen bg-background flex flex-col">
-  <Navigation />
-  <div className="flex flex-1 pt-20 lg:pt-16">
-    <ConsoleSidebar />
-    <main className="flex-1 min-w-0">
-      <div className="container mx-auto px-4 py-6 lg:py-8 max-w-5xl">
-        ... existing header + step content ...
-      </div>
-    </main>
-  </div>
-</div>
-```
-Remove the current `pt-24 pb-24 max-w-5xl` outer container.
+### Open product decisions (confirm before I start)
 
-#### `src/pages/SavedAnalyses.tsx`
-Replace the current default-export wrapper:
-```
-<div className="min-h-screen bg-background">
-  <Navigation />
-  <main className="container mx-auto px-4 pt-24 pb-12 max-w-5xl">
-    <SavedAnalysesContent />
-  </main>
-</div>
-```
-with the same shell as Brief/Calculator (Navigation → flex pt-20 lg:pt-16 → ConsoleSidebar + main). `SavedAnalysesContent` stays untouched and is still reusable elsewhere.
+1. **Valuation provider:** proceed with **RentCast** (key already configured)? Cost ~$0.10/property/month.
+2. **Phase ordering:** ship Phase 1→8 sequentially, or do you want me to start with a thinner v1 (Phases 1–3 only, no auto-valuation/alerts/AI tools yet) to validate the UX first?
+3. **Rail order:** Home → **My Properties** → Saved Analyses → Saved Searches → Calculator → Preferences — confirm?
+4. **Auto-refresh default:** daily for premium / weekly for free — OK, or all daily for v1?
 
-#### `src/pages/InvestorBrief.tsx` and `src/pages/InvestorCalculator.tsx`
-No structural changes — they already use the shell. They automatically get the new mobile/tablet horizontal bar through the ConsoleSidebar refactor.
+### Scope notes
+- Will not touch: tenant mgmt, climate risk, 1031 flow, partnership splits, cost-seg depreciation, mobile photo capture — all explicitly out of scope per the prompt.
+- Prospecting surface stays untouched when user has zero properties.
 
-### 3. Layout cleanup (remove blank gaps)
+**Recommendation:** Start with **Phase 1 (DB migration)** so the schema is locked in, then ship Phases 2–3 (UI shell + detail + manual valuations) as a usable v0 within one or two iterations. Auto-valuation/alerts/AI tools follow once the data layer is proven.
 
-- `InvestorBrief.tsx`: header uses `mb-6`; main column already grids. No change needed beyond ensuring the new mobile tab bar sits flush (no extra top padding when horizontal variant is active — adjust `pt-20 lg:pt-16` to `pt-16` since the sticky nav handles spacing; the horizontal tab bar will add its own height under it).
-- `ProfileSetup.tsx`: drop redundant outer `pt-24 pb-24` once it's in the shell — the shell's `pt-20 lg:pt-16` already accounts for the sticky nav.
-- `SavedAnalyses.tsx`: when rendered inside the shell with `showHeader=true`, keep its existing `mb-8` header. The empty whitespace below the cards comes from the previous double-wrapping — removed by the shell refactor.
-
-### 4. Active-route highlighting on `/profile-setup`
-
-`ConsoleSidebar`'s `items` array already includes `{ to: '/profile-setup', label: 'Preferences' }`, so the active state will light up automatically once the sidebar renders on that page.
-
-## Out of scope
-
-- No new routes, no item changes in the sidebar.
-- No changes to `InvestorBriefContext`, brief cards, or chat.
-- No changes to `Navigation` (top nav stays as is).
-
-## Acceptance
-
-- Desktop ≥ 1024px: vertical icon rail visible on `/investor`, `/investor/calculator`, `/saved-analyses`, `/profile-setup`.
-- Tablet & mobile (< 1024px): horizontal scrollable pill bar visible on all four pages, just under the top nav; can scroll horizontally to reveal all four items.
-- Active route highlighted in both variants.
-- No empty/blank vertical sections between header and content on any of the four pages.
+Reply with answers to the 4 questions above and I'll start with the Phase 1 migration.

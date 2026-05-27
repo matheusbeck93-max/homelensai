@@ -458,6 +458,8 @@ export type Database = {
           archived: boolean
           created_at: string
           id: string
+          property_id: string | null
+          scope: string
           title: string
           updated_at: string
           user_id: string
@@ -466,6 +468,8 @@ export type Database = {
           archived?: boolean
           created_at?: string
           id?: string
+          property_id?: string | null
+          scope?: string
           title?: string
           updated_at?: string
           user_id: string
@@ -474,11 +478,458 @@ export type Database = {
           archived?: boolean
           created_at?: string
           id?: string
+          property_id?: string | null
+          scope?: string
           title?: string
           updated_at?: string
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "investor_console_threads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_owned_properties: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          auto_refresh_enabled: boolean
+          baths: number | null
+          beds: number | null
+          city: string
+          closing_costs: number | null
+          created_at: string
+          current_value_confidence_high: number | null
+          current_value_confidence_low: number | null
+          current_value_estimate: number | null
+          current_value_manual_expires_at: string | null
+          current_value_manual_note: string | null
+          current_value_manual_override: number | null
+          current_value_refreshed_at: string | null
+          current_value_source: string | null
+          down_payment: number | null
+          has_mortgage: boolean
+          id: string
+          is_primary_residence: boolean
+          is_rented: boolean
+          loan_current_balance: number | null
+          loan_current_balance_as_of: string | null
+          loan_original_principal: number | null
+          loan_rate_apr: number | null
+          loan_start_date: string | null
+          loan_term_years: number | null
+          lot_sqft: number | null
+          primary_photo_url: string | null
+          property_type: string
+          purchase_date: string
+          purchase_price: number
+          sold_date: string | null
+          sold_price: number | null
+          sqft: number | null
+          state: string
+          status: string
+          updated_at: string
+          user_id: string
+          year_built: number | null
+          zip: string
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          auto_refresh_enabled?: boolean
+          baths?: number | null
+          beds?: number | null
+          city: string
+          closing_costs?: number | null
+          created_at?: string
+          current_value_confidence_high?: number | null
+          current_value_confidence_low?: number | null
+          current_value_estimate?: number | null
+          current_value_manual_expires_at?: string | null
+          current_value_manual_note?: string | null
+          current_value_manual_override?: number | null
+          current_value_refreshed_at?: string | null
+          current_value_source?: string | null
+          down_payment?: number | null
+          has_mortgage?: boolean
+          id?: string
+          is_primary_residence?: boolean
+          is_rented?: boolean
+          loan_current_balance?: number | null
+          loan_current_balance_as_of?: string | null
+          loan_original_principal?: number | null
+          loan_rate_apr?: number | null
+          loan_start_date?: string | null
+          loan_term_years?: number | null
+          lot_sqft?: number | null
+          primary_photo_url?: string | null
+          property_type: string
+          purchase_date: string
+          purchase_price: number
+          sold_date?: string | null
+          sold_price?: number | null
+          sqft?: number | null
+          state: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          year_built?: number | null
+          zip: string
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          auto_refresh_enabled?: boolean
+          baths?: number | null
+          beds?: number | null
+          city?: string
+          closing_costs?: number | null
+          created_at?: string
+          current_value_confidence_high?: number | null
+          current_value_confidence_low?: number | null
+          current_value_estimate?: number | null
+          current_value_manual_expires_at?: string | null
+          current_value_manual_note?: string | null
+          current_value_manual_override?: number | null
+          current_value_refreshed_at?: string | null
+          current_value_source?: string | null
+          down_payment?: number | null
+          has_mortgage?: boolean
+          id?: string
+          is_primary_residence?: boolean
+          is_rented?: boolean
+          loan_current_balance?: number | null
+          loan_current_balance_as_of?: string | null
+          loan_original_principal?: number | null
+          loan_rate_apr?: number | null
+          loan_start_date?: string | null
+          loan_term_years?: number | null
+          lot_sqft?: number | null
+          primary_photo_url?: string | null
+          property_type?: string
+          purchase_date?: string
+          purchase_price?: number
+          sold_date?: string | null
+          sold_price?: number | null
+          sqft?: number | null
+          state?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          year_built?: number | null
+          zip?: string
+        }
         Relationships: []
+      }
+      investor_owned_property_alerts: {
+        Row: {
+          alert_type: string
+          description: string
+          dismissed_at: string | null
+          expires_at: string | null
+          id: string
+          metadata: Json
+          property_id: string
+          severity: string
+          status: string
+          surfaced_at: string
+          title: string
+        }
+        Insert: {
+          alert_type: string
+          description: string
+          dismissed_at?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          property_id: string
+          severity: string
+          status?: string
+          surfaced_at?: string
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          description?: string
+          dismissed_at?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          property_id?: string
+          severity?: string
+          status?: string
+          surfaced_at?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_owned_property_alerts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_owned_property_documents: {
+        Row: {
+          document_type: string
+          filename: string
+          id: string
+          mime_type: string | null
+          note: string | null
+          property_id: string
+          size_bytes: number | null
+          storage_path: string
+          uploaded_at: string
+        }
+        Insert: {
+          document_type: string
+          filename: string
+          id?: string
+          mime_type?: string | null
+          note?: string | null
+          property_id: string
+          size_bytes?: number | null
+          storage_path: string
+          uploaded_at?: string
+        }
+        Update: {
+          document_type?: string
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          note?: string | null
+          property_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_owned_property_documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_owned_property_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_date: string
+          event_type: string
+          id: string
+          note: string | null
+          property_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_date: string
+          event_type: string
+          id?: string
+          note?: string | null
+          property_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          note?: string | null
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_owned_property_events_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_owned_property_improvements: {
+        Row: {
+          category: string | null
+          cost: number
+          created_at: string
+          description: string
+          id: string
+          improvement_date: string
+          property_id: string
+        }
+        Insert: {
+          category?: string | null
+          cost: number
+          created_at?: string
+          description: string
+          id?: string
+          improvement_date: string
+          property_id: string
+        }
+        Update: {
+          category?: string | null
+          cost?: number
+          created_at?: string
+          description?: string
+          id?: string
+          improvement_date?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_owned_property_improvements_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_owned_property_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          ordinal: number
+          property_id: string
+          url: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          ordinal?: number
+          property_id: string
+          url: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          ordinal?: number
+          property_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_owned_property_photos_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_owned_property_rental: {
+        Row: {
+          hoa_monthly: number | null
+          insurance_renewal_date: string | null
+          insurance_yearly: number | null
+          lease_end: string | null
+          lease_start: string | null
+          maintenance_pct_of_rent: number | null
+          management_pct_of_rent: number | null
+          monthly_rent: number | null
+          property_id: string
+          property_tax_yearly: number | null
+          security_deposit: number | null
+          updated_at: string
+          vacancy_pct: number | null
+        }
+        Insert: {
+          hoa_monthly?: number | null
+          insurance_renewal_date?: string | null
+          insurance_yearly?: number | null
+          lease_end?: string | null
+          lease_start?: string | null
+          maintenance_pct_of_rent?: number | null
+          management_pct_of_rent?: number | null
+          monthly_rent?: number | null
+          property_id: string
+          property_tax_yearly?: number | null
+          security_deposit?: number | null
+          updated_at?: string
+          vacancy_pct?: number | null
+        }
+        Update: {
+          hoa_monthly?: number | null
+          insurance_renewal_date?: string | null
+          insurance_yearly?: number | null
+          lease_end?: string | null
+          lease_start?: string | null
+          maintenance_pct_of_rent?: number | null
+          management_pct_of_rent?: number | null
+          monthly_rent?: number | null
+          property_id?: string
+          property_tax_yearly?: number | null
+          security_deposit?: number | null
+          updated_at?: string
+          vacancy_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_owned_property_rental_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investor_owned_property_valuations: {
+        Row: {
+          confidence_high: number | null
+          confidence_low: number | null
+          id: string
+          note: string | null
+          observed_at: string
+          property_id: string
+          source: string
+          source_payload: Json | null
+          value: number
+        }
+        Insert: {
+          confidence_high?: number | null
+          confidence_low?: number | null
+          id?: string
+          note?: string | null
+          observed_at?: string
+          property_id: string
+          source: string
+          source_payload?: Json | null
+          value: number
+        }
+        Update: {
+          confidence_high?: number | null
+          confidence_low?: number | null
+          id?: string
+          note?: string | null
+          observed_at?: string
+          property_id?: string
+          source?: string
+          source_payload?: Json | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_owned_property_valuations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "investor_owned_properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       investor_persona_telemetry: {
         Row: {
