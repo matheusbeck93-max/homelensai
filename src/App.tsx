@@ -75,6 +75,7 @@ const Calculators = lazyWithRetry(() => import("./pages/Calculators"));
 const InvestorBrief = lazyWithRetry(() => import("./pages/InvestorBrief"));
 const InvestorCalculator = lazyWithRetry(() => import("./pages/InvestorCalculator"));
 const MyProperties = lazyWithRetry(() => import("./pages/MyProperties"));
+const OwnedPropertyDetail = lazyWithRetry(() => import("./pages/OwnedPropertyDetail"));
 
 const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
 const Console = lazyWithRetry(() => import("./pages/Console"));
@@ -128,6 +129,7 @@ function App() {
                   <Route path="/investor/console" element={<Navigate to="/investor" replace />} />
                   <Route path="/investor/calculator" element={<ProtectedRoute><InvestorCalculator /></ProtectedRoute>} />
                   <Route path="/investor/properties" element={<ProtectedRoute><MyProperties /></ProtectedRoute>} />
+                  <Route path="/investor/properties/:id" element={<ProtectedRoute><OwnedPropertyDetail /></ProtectedRoute>} />
                   <Route path="/portfolio" element={<Navigate to="/" replace />} />
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/pricing" element={<Pricing />} />
