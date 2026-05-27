@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Home, Pencil, Bell, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Home, Pencil, AlertCircle, RefreshCw } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
 import { ConsoleSidebar } from '@/components/investor/console/ConsoleSidebar';
 import { Button } from '@/components/ui/button';
