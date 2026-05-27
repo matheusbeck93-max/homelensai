@@ -187,11 +187,9 @@ export function computeRoi(input: ComputeRoiInput) {
   };
 }
 
-export interface ComputeBuyingPowerInput {
-  cashAvailable: number;
-  downPct?: number;
-  rateApr?: number;
-  termYears?: number;
+export interface ComputeBudgetAffordabilityInput {
+  budgetMax: number;
+  budgetMin?: number;
   markets: { name: string; medianListPrice: number; totalListings?: number }[];
 }
 
@@ -203,22 +201,22 @@ function defaultAffordabilityCurve(price: number, median: number, total: number)
   return Math.round(frac * total);
 }
 
-export function computeBuyingPower(input: ComputeBuyingPowerInput) {
-  const downPct = input.downPct ?? 0.25;
-  const rateApr = input.rateApr ?? 0.07;
-  const termYears = input.termYears ?? 30;
-  const buyingPower = (input.cashAvailable * (1 - 0.03)) / downPct;
+export function computeBudgetAffordability(input: ComputeBudgetAffordabilityInput) {
   const perMarket = input.markets.map((m) => {
     const total = m.totalListings ?? 100;
-    const listingsAffordable = defaultAffordabilityCurve(buyingPower, m.medianListPrice, total);
+    const maxCount = defaultAffordabilityCurve(input.budgetMax, m.medianListPrice, total);
+    const minCount =
+      input.budgetMin != null ? defaultAffordabilityCurve(input.budgetMin, m.medianListPrice, total) : 0;
+    const listingsAffordable = Math.max(0, maxCount - minCount);
     return {
       market: m.name,
       medianListPrice: m.medianListPrice,
       totalListings: total,
       listingsAffordable,
       affordabilityPct: total > 0 ? listingsAffordable / total : 0,
-      headroomPct: m.medianListPrice > 0 ? (buyingPower - m.medianListPrice) / m.medianListPrice : 0,
+      headroomPct:
+        m.medianListPrice > 0 ? (input.budgetMax - m.medianListPrice) / m.medianListPrice : 0,
     };
   });
-  return { buyingPower, cashAvailable: input.cashAvailable, downPct, rateApr, termYears, perMarket };
+  return { budgetMax: input.budgetMax, budgetMin: input.budgetMin, perMarket };
 }
