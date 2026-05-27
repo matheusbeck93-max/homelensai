@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -11,14 +11,35 @@ import {
   BillingPeriod,
 } from "@/lib/subscriptionPlans";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 
 export function PricingSection() {
   const navigate = useNavigate();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const freePlan = SUBSCRIPTION_PLANS.free;
   const buyerPlan = billingPeriod === 'monthly' ? SUBSCRIPTION_PLANS.buyer : BUYER_ANNUAL_PLAN;
   const investorPlan = billingPeriod === 'monthly' ? SUBSCRIPTION_PLANS.investor : INVESTOR_ANNUAL_PLAN;
+
+  const freeLabel = isLoggedIn ? freePlan.ctaLabel : 'Get started free';
+  const buyerLabel = isLoggedIn ? buyerPlan.ctaLabel : 'Subscribe to Buyer';
+  const investorLabel = isLoggedIn ? investorPlan.ctaLabel : 'Subscribe to Investor';
+
+  const goToPaid = (tier: 'buyer' | 'investor') => {
+    if (isLoggedIn) navigate('/pricing');
+    else navigate(`/auth?redirect=/pricing&plan=${tier}`);
+  };
 
   return (
     <section className="py-16 px-4 bg-muted/30">
@@ -32,7 +53,7 @@ export function PricingSection() {
           <div className="text-center mb-8">
             <h2 className="text-3xl sm:text-4xl font-bold mb-3">Simple, Transparent Pricing</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Start free. Upgrade to Buyer for full home-buying tools, or Investor for rental-property analysis.
+              Start free. Pick Buyer for full home-buying tools, or Investor for rental-property analysis.
             </p>
           </div>
 
@@ -87,7 +108,7 @@ export function PricingSection() {
               </CardHeader>
               <CardContent className="flex-1 pt-4 space-y-4">
                 <Button className="w-full" variant="outline" onClick={() => navigate('/auth')}>
-                  {freePlan.ctaLabel}
+                  {freeLabel}
                 </Button>
                 <ul className="space-y-2">
                   {freePlan.features.slice(0, 6).map((f, i) => (
@@ -120,8 +141,8 @@ export function PricingSection() {
                 <p className="text-xs text-muted-foreground mt-1">{buyerPlan.headerNote}</p>
               </CardHeader>
               <CardContent className="flex-1 pt-4 space-y-4">
-                <Button className="w-full" variant="default" onClick={() => navigate('/pricing')}>
-                  {buyerPlan.ctaLabel}
+                <Button className="w-full" variant="default" onClick={() => goToPaid('buyer')}>
+                  {buyerLabel}
                 </Button>
                 <ul className="space-y-2">
                   {buyerPlan.features.slice(0, 8).map((f, i) => (
@@ -151,8 +172,8 @@ export function PricingSection() {
                 <p className="text-xs text-muted-foreground mt-1">{investorPlan.headerNote}</p>
               </CardHeader>
               <CardContent className="flex-1 pt-4 space-y-4">
-                <Button className="w-full" variant="default" onClick={() => navigate('/pricing')}>
-                  {investorPlan.ctaLabel}
+                <Button className="w-full" variant="default" onClick={() => goToPaid('investor')}>
+                  {investorLabel}
                 </Button>
                 <ul className="space-y-2">
                   {investorPlan.features.slice(0, 8).map((f, i) => (
