@@ -385,6 +385,10 @@ export default function OwnedPropertyDetail() {
                       </Card>
                     )}
                   </TabsContent>
+
+                  <TabsContent value="chat" className="mt-4">
+                    {id && <PropertyChat propertyId={id} />}
+                  </TabsContent>
                 </Tabs>
 
                 <EditValuationDialog
