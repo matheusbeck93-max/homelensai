@@ -70,6 +70,8 @@ export interface ContextSnapshot {
     loan_start_date: string | null;
     loan_current_balance: number | null;
     current_value_estimate: number | null;
+    current_value_source?: string | null;
+    current_value_refreshed_at?: string | null;
     is_rented: boolean;
     is_primary_residence: boolean;
   }>;
@@ -80,6 +82,7 @@ export interface ContextSnapshot {
     severity: 'info' | 'opportunity' | 'warning';
     title: string;
     description: string;
+    surfaced_at?: string | null;
   }>;
 }
 
