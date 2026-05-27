@@ -403,6 +403,8 @@ export const insightRegistry: InsightDefinition<any>[] = [
   neighborhoodScores,
   flipSpreadMovers,
   migrationTrends,
+  portfolioGlance,
+  portfolioAlerts,
 ];
 
 export function getDefinition(id: string): InsightDefinition<any> | undefined {
