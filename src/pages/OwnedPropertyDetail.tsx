@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOwnedProperty } from '@/hooks/useOwnedProperty';
 import { EditValuationDialog } from '@/components/investor/my-properties/EditValuationDialog';
 import { AlertsPanel } from '@/components/investor/my-properties/AlertsPanel';
+import { PropertyChat } from '@/components/investor/my-properties/PropertyChat';
 import { PROPERTY_TYPE_LABELS } from '@/lib/myProperties/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -216,6 +217,7 @@ export default function OwnedPropertyDetail() {
                     <TabsTrigger value="improvements">Improvements</TabsTrigger>
                     <TabsTrigger value="events">Events</TabsTrigger>
                     <TabsTrigger value="documents">Documents</TabsTrigger>
+                    <TabsTrigger value="chat">Ask AI</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="overview" className="space-y-4 mt-4">
@@ -382,6 +384,10 @@ export default function OwnedPropertyDetail() {
                         </CardContent>
                       </Card>
                     )}
+                  </TabsContent>
+
+                  <TabsContent value="chat" className="mt-4">
+                    {id && <PropertyChat propertyId={id} />}
                   </TabsContent>
                 </Tabs>
 
