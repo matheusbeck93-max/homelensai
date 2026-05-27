@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Home, Pencil, Bell, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Home, Pencil, Bell, AlertCircle, RefreshCw } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
 import { ConsoleSidebar } from '@/components/investor/console/ConsoleSidebar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOwnedProperty } from '@/hooks/useOwnedProperty';
 import { EditValuationDialog } from '@/components/investor/my-properties/EditValuationDialog';
 import { PROPERTY_TYPE_LABELS } from '@/lib/myProperties/types';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 function fmtMoney(n: number, opts: { compact?: boolean; sign?: boolean } = {}) {
   if (!Number.isFinite(n)) return '$0';
@@ -40,6 +42,30 @@ export default function OwnedPropertyDetail() {
   const navigate = useNavigate();
   const { data, loading, reload } = useOwnedProperty(id);
   const [editValOpen, setEditValOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefreshValue() {
+    if (!id) return;
+    setRefreshing(true);
+    const { data: res, error } = await supabase.functions.invoke('property-valuation', {
+      body: { property_id: id },
+    });
+    setRefreshing(false);
+    if (error) {
+      toast.error(error.message ?? 'Could not refresh valuation');
+      return;
+    }
+    if ((res as any)?.error) {
+      toast.error((res as any).message ?? (res as any).error);
+      return;
+    }
+    if ((res as any)?.skipped) {
+      toast.info((res as any).reason);
+      return;
+    }
+    toast.success('Valuation refreshed');
+    reload();
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -126,12 +152,27 @@ export default function OwnedPropertyDetail() {
                       <div className="text-xl font-semibold mt-1">
                         {fmtMoney(data.metrics.currentValue, { compact: true })}
                       </div>
-                      <button
-                        onClick={() => setEditValOpen(true)}
-                        className="text-[11px] text-primary inline-flex items-center gap-1 mt-1 hover:underline"
-                      >
-                        <Pencil className="h-3 w-3" /> Edit
-                      </button>
+                      <div className="flex items-center gap-2 mt-1">
+                        <button
+                          onClick={() => setEditValOpen(true)}
+                          className="text-[11px] text-primary inline-flex items-center gap-1 hover:underline"
+                        >
+                          <Pencil className="h-3 w-3" /> Edit
+                        </button>
+                        <button
+                          onClick={handleRefreshValue}
+                          disabled={refreshing}
+                          className="text-[11px] text-muted-foreground inline-flex items-center gap-1 hover:text-foreground disabled:opacity-50"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+                          {refreshing ? 'Refreshing…' : 'Refresh'}
+                        </button>
+                      </div>
+                      {data.property.current_value_source && (
+                        <div className="text-[10px] text-muted-foreground mt-1 capitalize">
+                          {data.property.current_value_source.replace(/_/g, ' ')}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   <Card>
