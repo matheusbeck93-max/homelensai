@@ -1,27 +1,32 @@
 import type { ContextSnapshot, InsightDefinition } from './types';
-import { computeBuyingPower, type BuyingPowerResult } from './buyingPower';
+import {
+  computeBudgetAffordability,
+  type BudgetAffordabilityResult,
+} from './budgetAffordability';
 
 // Helper: is the user a particular persona (or mixed)?
 function personaIs(ctx: ContextSnapshot, ids: string[]): boolean {
   const p = (ctx.preferences.persona ?? 'mixed') as string;
   return ids.includes(p);
 }
-// ── buying_power ──────────────────────────────────────────────────
-const buyingPower: InsightDefinition<BuyingPowerResult> = {
-  id: 'buying_power',
-  cardType: 'buying_power',
+// ── budget_vs_market ─────────────────────────────────────────────
+function formatK(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return `${Math.round(n)}`;
+}
+
+const budgetVsMarket: InsightDefinition<BudgetAffordabilityResult> = {
+  id: 'budget_vs_market',
+  cardType: 'budget_affordability',
   basePriority: 95,
   isEligible: (ctx) =>
+    Boolean(ctx.preferences.budget_max) &&
     (ctx.preferences.preferred_cities ?? []).length > 0,
   loadData: async (ctx) => {
-    const fin = ctx.preferences.financing_defaults ?? {};
-    const cash = ctx.preferences.cash_available ?? 0;
-    const downPct = fin.downPct ?? 25;
-    const rateApr = fin.rateApr ?? 7;
-    const termYears = fin.termYears ?? 30;
     const cities = (ctx.preferences.preferred_cities ?? []).slice(0, 3);
     // Until market_snapshots is wired, approximate medians from a heuristic
-    // (max price range as soft ceiling). This keeps the card honest about
+    // (max price range as soft ceiling). Keeps the card honest about
     // assumptions without hallucinating real medians.
     const ceiling = ctx.preferences.max_price_range ?? 600_000;
     const markets = cities.map((c, i) => ({
@@ -29,29 +34,29 @@ const buyingPower: InsightDefinition<BuyingPowerResult> = {
       medianListPrice: Math.round(ceiling * (0.55 + i * 0.08)),
       totalListings: 1200 + i * 350,
     }));
-    return computeBuyingPower({
-      cashAvailable: cash,
-      downPct,
-      rateApr,
-      termYears,
+    return computeBudgetAffordability({
+      budgetMax: ctx.preferences.budget_max ?? 0,
+      budgetMin: ctx.preferences.budget_min ?? undefined,
       markets,
     });
   },
-  title: () => 'Buying power vs market',
+  title: () => 'Your budget vs market median',
   subtitle: (_ctx, d) =>
-    `$${(d.cashAvailable / 1000).toFixed(0)}k cash · ${d.downPct}% down · ${d.rateApr}% APR / ${d.termYears}y → $${(d.buyingPower / 1000).toFixed(0)}k max purchase`,
+    d.budgetMin
+      ? `Budget: $${formatK(d.budgetMin)} – $${formatK(d.budgetMax)} across target markets`
+      : `Your max $${formatK(d.budgetMax)} across target markets`,
   toBriefSummary: (d) => {
-    if (d.perMarket.length === 0) return `Buying power $${Math.round(d.buyingPower).toLocaleString()}.`;
+    if (d.perMarket.length === 0) return `Budget $${formatK(d.budgetMax)}.`;
     const parts = d.perMarket.map(
       (m) =>
         `${m.market} covers ${Math.round(m.affordabilityPct * 100)}% (${m.headroomPct >= 0 ? '+' : ''}${Math.round(m.headroomPct * 100)}% vs median)`,
     );
-    return `Buying power $${Math.round(d.buyingPower).toLocaleString()} · ${parts.join(' · ')}.`;
+    return `Budget $${formatK(d.budgetMax)} · ${parts.join(' · ')}.`;
   },
   investigatePrompt: (d) => {
     const top = [...d.perMarket].sort((a, b) => b.affordabilityPct - a.affordabilityPct)[0];
-    if (!top) return 'Walk me through how my cash on hand maps to current listings.';
-    return `Surface active listings in ${top.market} within my $${Math.round(d.buyingPower).toLocaleString()} buying power that also clear my cap-rate target.`;
+    if (!top) return 'Walk me through how my budget maps to current listings in my target markets.';
+    return `Surface active listings in ${top.market} within my $${formatK(d.budgetMax)} budget that also clear my cap-rate target.`;
   },
 };
 
@@ -389,7 +394,7 @@ const sampleCard: InsightDefinition<{ market: string }> = {
 export const insightRegistry: InsightDefinition<any>[] = [
   setupCard,
   sampleCard,
-  buyingPower,
+  budgetVsMarket,
   capRateTrend,
   watchlistPriceTrend,
   rankedAnalyses,

@@ -289,17 +289,14 @@ export function computeRoi(input: ComputeRoiInput): ComputeRoiOutput {
   };
 }
 
-export interface ComputeBuyingPowerInput {
-  cashAvailable: number;
-  downPct?: number;
-  rateApr?: number;
-  termYears?: number;
+export interface ComputeBudgetAffordabilityInput {
+  budgetMax: number;
+  budgetMin?: number;
   markets: { name: string; medianListPrice: number; totalListings?: number }[];
-  /** Optional callback-style listing distribution; if not provided, assume normal-ish around median */
   affordabilityCurve?: (price: number, median: number, total: number) => number;
 }
 
-export interface BuyingPowerMarketRow {
+export interface BudgetAffordabilityMarketRow {
   market: string;
   medianListPrice: number;
   totalListings: number;
@@ -308,13 +305,10 @@ export interface BuyingPowerMarketRow {
   headroomPct: number;
 }
 
-export interface ComputeBuyingPowerOutput {
-  buyingPower: number;
-  cashAvailable: number;
-  downPct: number;
-  rateApr: number;
-  termYears: number;
-  perMarket: BuyingPowerMarketRow[];
+export interface ComputeBudgetAffordabilityOutput {
+  budgetMax: number;
+  budgetMin?: number;
+  perMarket: BudgetAffordabilityMarketRow[];
 }
 
 /** Approximate fraction of listings at or below a target price given a median. Lognormal-ish. */
@@ -327,24 +321,24 @@ function defaultAffordabilityCurve(price: number, median: number, total: number)
   return Math.round(frac * total);
 }
 
-export function computeBuyingPower(input: ComputeBuyingPowerInput): ComputeBuyingPowerOutput {
-  const downPct = input.downPct ?? 0.25;
-  const rateApr = input.rateApr ?? 0.07;
-  const termYears = input.termYears ?? 30;
-  // Buying power = cash / downPct (down payment funds the rest via mortgage), minus a 3% closing buffer.
-  const buyingPower = (input.cashAvailable * (1 - 0.03)) / downPct;
+export function computeBudgetAffordability(
+  input: ComputeBudgetAffordabilityInput,
+): ComputeBudgetAffordabilityOutput {
   const curve = input.affordabilityCurve ?? defaultAffordabilityCurve;
-  const perMarket: BuyingPowerMarketRow[] = input.markets.map((m) => {
+  const perMarket: BudgetAffordabilityMarketRow[] = input.markets.map((m) => {
     const total = m.totalListings ?? 100;
-    const listingsAffordable = curve(buyingPower, m.medianListPrice, total);
+    const maxCount = curve(input.budgetMax, m.medianListPrice, total);
+    const minCount = input.budgetMin != null ? curve(input.budgetMin, m.medianListPrice, total) : 0;
+    const listingsAffordable = Math.max(0, maxCount - minCount);
     return {
       market: m.name,
       medianListPrice: m.medianListPrice,
       totalListings: total,
       listingsAffordable,
       affordabilityPct: total > 0 ? listingsAffordable / total : 0,
-      headroomPct: m.medianListPrice > 0 ? (buyingPower - m.medianListPrice) / m.medianListPrice : 0,
+      headroomPct:
+        m.medianListPrice > 0 ? (input.budgetMax - m.medianListPrice) / m.medianListPrice : 0,
     };
   });
-  return { buyingPower, cashAvailable: input.cashAvailable, downPct, rateApr, termYears, perMarket };
+  return { budgetMax: input.budgetMax, budgetMin: input.budgetMin, perMarket };
 }

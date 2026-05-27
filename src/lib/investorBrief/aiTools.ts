@@ -29,10 +29,10 @@ export const aiToolRegistry: AiToolDefinition[] = [
     description: 'Multi-year cash flow, equity buildup and IRR.',
   },
   {
-    id: 'compute_buying_power',
-    label: 'Buying power',
+    id: 'compute_budget_affordability',
+    label: 'Budget vs market',
     kind: 'read',
-    description: 'How many listings each market puts within reach.',
+    description: 'Compare your saved budget against median prices in each target market.',
   },
   {
     id: 'project_amortization',

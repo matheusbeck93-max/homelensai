@@ -19,7 +19,7 @@ export interface CurrentTurn {
 export const TOOL_LABEL: Record<string, string> = {
   compute_metrics: 'Metrics Grid',
   compute_roi: 'ROI Timeline',
-  compute_buying_power: 'Buying Power',
+  compute_budget_affordability: 'Budget vs Market',
   project_amortization: 'Amortization',
   get_market_stats: 'Market Stats',
   list_listings: 'Property Table',

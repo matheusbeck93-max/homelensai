@@ -4,7 +4,7 @@ import { requireEnv, optionalEnv } from '../_shared/env.ts';
 import {
   computeMetrics,
   computeRoi,
-  computeBuyingPower,
+  computeBudgetAffordability,
   projectAmortizationSchedule,
 } from '../_shared/calcEngine.ts';
 
@@ -97,30 +97,47 @@ const TOOLS: Tool[] = [
     execute: async (input) => computeRoi(input),
   },
   {
-    name: 'compute_buying_power',
+    name: 'compute_budget_affordability',
     description:
-      'Given the user\'s cash, compute how many listings in each market they can afford and where median price sits relative to their reach.',
+      "Compare the user's saved budget (budget_max from preferences) against median list prices in each target market. Returns per-market headroom and the share of active listings within budget. Use when the user asks what they can shop for given their saved budget. Do NOT call this for mortgage-payment questions on a specific property — use compute_metrics for that.",
     parameters: {
       type: 'object',
       properties: {
-        cashAvailable: { type: 'number' },
-        downPct: { type: 'number' },
-        rateApr: { type: 'number' },
-        termYears: { type: 'number' },
+        budgetMax: {
+          type: 'number',
+          description: 'Upper budget. If omitted, pulled from the user\'s saved preferences.',
+        },
+        budgetMin: { type: 'number', description: 'Optional lower budget.' },
         markets: {
           type: 'array',
           items: { type: 'string', description: 'Market name e.g. "Austin, TX"' },
         },
       },
-      required: ['cashAvailable', 'markets'],
+      required: ['markets'],
     },
     execute: async (input, ctx) => {
+      let budgetMax: number | null = typeof input.budgetMax === 'number' ? input.budgetMax : null;
+      let budgetMin: number | null = typeof input.budgetMin === 'number' ? input.budgetMin : null;
+      if (budgetMax == null) {
+        const { data: profile } = await ctx.serviceSupabase
+          .from('profiles')
+          .select('budget_max, budget_min')
+          .eq('id', ctx.userId)
+          .maybeSingle();
+        budgetMax = (profile as any)?.budget_max ?? null;
+        if (budgetMin == null) budgetMin = (profile as any)?.budget_min ?? null;
+      }
+      if (!budgetMax || budgetMax <= 0) {
+        return {
+          error: 'No budget set. Ask the user to set a Max budget in Preferences.',
+          budgetMax: null,
+          perMarket: [],
+        };
+      }
       const markets = await loadMarketSnapshots(ctx, input.markets);
-      return computeBuyingPower({
-        cashAvailable: input.cashAvailable,
-        downPct: input.downPct,
-        rateApr: input.rateApr,
-        termYears: input.termYears,
+      return computeBudgetAffordability({
+        budgetMax,
+        budgetMin: budgetMin ?? undefined,
         markets,
       });
     },
