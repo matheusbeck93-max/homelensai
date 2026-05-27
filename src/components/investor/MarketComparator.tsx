@@ -536,26 +536,26 @@ export function MarketComparator() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Market</TableHead>
-                    <TableHead>Median price</TableHead>
-                    <TableHead>Rental yield</TableHead>
-                    <TableHead>5-yr appreciation</TableHead>
-                    <TableHead>Inventory</TableHead>
-                    <TableHead>Risk</TableHead>
+                    <TableHead>Market<HeaderInfo metricKey="market" /></TableHead>
+                    <TableHead>Median price<HeaderInfo metricKey="medianPrice" /></TableHead>
+                    <TableHead>Rental yield<HeaderInfo metricKey="rentalYield" /></TableHead>
+                    <TableHead>5-yr appreciation<HeaderInfo metricKey="appreciation5y" /></TableHead>
+                    <TableHead>Inventory<HeaderInfo metricKey="inventoryTrend" /></TableHead>
+                    <TableHead>Risk<HeaderInfo metricKey="riskLevel" /></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {tableRows.map((row, i) => (
                     <TableRow key={`${row.market}-${i}`}>
                       <TableCell className="font-medium">{row.market}</TableCell>
-                      <TableCell className={row.medianPrice === "n/a" ? "text-muted-foreground" : ""}>
-                        {row.medianPrice}
+                      <TableCell>
+                        {row.medianPrice === "n/a" ? <NaCell /> : row.medianPrice}
                       </TableCell>
-                      <TableCell className={row.rentalYield === "n/a" ? "text-muted-foreground" : ""}>
-                        {row.rentalYield}
+                      <TableCell>
+                        {row.rentalYield === "n/a" ? <NaCell /> : row.rentalYield}
                       </TableCell>
-                      <TableCell className={row.appreciation5y === "n/a" ? "text-muted-foreground" : ""}>
-                        {row.appreciation5y}
+                      <TableCell>
+                        {row.appreciation5y === "n/a" ? <NaCell /> : row.appreciation5y}
                       </TableCell>
                       <TableCell>{trendBadge(row.inventoryTrend)}</TableCell>
                       <TableCell>{riskBadge(row.riskLevel)}</TableCell>
