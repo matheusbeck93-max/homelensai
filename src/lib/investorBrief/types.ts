@@ -10,7 +10,9 @@ export type CardType =
   | 'budget_affordability'
   | 'neighborhood_scores'
   | 'flip_spread_movers'
-  | 'migration_trends';
+  | 'migration_trends'
+  | 'portfolio_glance'
+  | 'portfolio_alerts';
 
 export type InsightSeverity = 'info' | 'opportunity' | 'warning';
 
@@ -54,6 +56,30 @@ export interface ContextSnapshot {
     text: string;
     source_card_type: string | null;
     pinned_at: string;
+  }>;
+  ownedProperties?: Array<{
+    id: string;
+    address_line1: string;
+    city: string;
+    state: string;
+    purchase_price: number;
+    has_mortgage: boolean;
+    loan_original_principal: number | null;
+    loan_rate_apr: number | null;
+    loan_term_years: number | null;
+    loan_start_date: string | null;
+    loan_current_balance: number | null;
+    current_value_estimate: number | null;
+    is_rented: boolean;
+    is_primary_residence: boolean;
+  }>;
+  activeOwnedAlerts?: Array<{
+    id: string;
+    property_id: string;
+    alert_type: string;
+    severity: 'info' | 'opportunity' | 'warning';
+    title: string;
+    description: string;
   }>;
 }
 
