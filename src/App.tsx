@@ -75,6 +75,7 @@ const Calculators = lazyWithRetry(() => import("./pages/Calculators"));
 const InvestorBrief = lazyWithRetry(() => import("./pages/InvestorBrief"));
 const InvestorCalculator = lazyWithRetry(() => import("./pages/InvestorCalculator"));
 const MyProperties = lazyWithRetry(() => import("./pages/MyProperties"));
+const OwnedPropertyDetail = lazyWithRetry(() => import("./pages/OwnedPropertyDetail"));
 
 const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
 const Console = lazyWithRetry(() => import("./pages/Console"));
