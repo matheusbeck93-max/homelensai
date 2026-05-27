@@ -1,4 +1,6 @@
 import { Building2, TrendingUp } from 'lucide-react';
+import { MetricWithSource } from '../MetricWithSource';
+import type { CardSources } from '@/lib/investorBrief/sources';
 
 interface Data {
   count: number;
@@ -14,14 +16,16 @@ function fmt(n: number) {
   return `$${Math.round(n)}`;
 }
 
-export function PortfolioGlanceCard({ data }: { data: Data }) {
+export function PortfolioGlanceCard({ data, sources }: { data: Data; sources?: CardSources }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-      <Stat label="Properties" value={String(data.count)} icon={<Building2 className="h-3.5 w-3.5" />} />
-      <Stat label="Total value" value={fmt(data.totalValue)} />
-      <Stat label="Equity" value={fmt(data.totalEquity)} />
+      <Stat label="Properties" metric="count" sources={sources} value={String(data.count)} icon={<Building2 className="h-3.5 w-3.5" />} />
+      <Stat label="Total value" metric="totalValue" sources={sources} value={fmt(data.totalValue)} />
+      <Stat label="Equity" metric="totalEquity" sources={sources} value={fmt(data.totalEquity)} />
       <Stat
         label="Appreciation"
+        metric="totalAppreciation"
+        sources={sources}
         value={fmt(data.totalAppreciation)}
         icon={<TrendingUp className="h-3.5 w-3.5 text-emerald-600" />}
       />
@@ -29,14 +33,28 @@ export function PortfolioGlanceCard({ data }: { data: Data }) {
   );
 }
 
-function Stat({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+function Stat({
+  label,
+  value,
+  icon,
+  metric,
+  sources,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+  metric: string;
+  sources?: CardSources;
+}) {
   return (
     <div className="rounded-md border bg-muted/30 px-3 py-2">
       <div className="text-[10px] text-muted-foreground flex items-center gap-1">
         {icon}
         {label}
       </div>
-      <div className="text-sm font-semibold mt-0.5">{value}</div>
+      <div className="text-sm font-semibold mt-0.5">
+        <MetricWithSource metric={metric} sources={sources}>{value}</MetricWithSource>
+      </div>
     </div>
   );
 }
