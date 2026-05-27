@@ -77,10 +77,11 @@ export function useInvestorBrief(userId: string | null) {
     };
   }, [userId]);
 
-  const regenerate = useCallback(async (opts?: { force?: boolean }) => {
+  const regenerate = useCallback(async (opts?: { force?: boolean; silent?: boolean }) => {
     if (!userId) return;
     const now = Date.now();
     if (!opts?.force && now - lastRefreshRef.current < REFRESH_COOLDOWN_MS) {
+      if (opts?.silent) return;
       const waitSec = Math.ceil((REFRESH_COOLDOWN_MS - (now - lastRefreshRef.current)) / 1000);
       toast({
         title: 'Refresh available soon',
@@ -199,7 +200,7 @@ export function useInvestorBrief(userId: string | null) {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         console.info('[investorBrief] auto-refresh trigger:', reason);
-        void regenerate();
+        void regenerate({ silent: true });
       }, 2500);
     };
 
