@@ -391,6 +391,85 @@ const sampleCard: InsightDefinition<{ market: string }> = {
   investigatePrompt: () => 'Show me a sample of what a daily Investor Brief contains.',
 };
 
+// ── portfolio_glance ─────────────────────────────────────────────
+interface PortfolioGlanceData {
+  count: number;
+  totalValue: number;
+  totalEquity: number;
+  totalAppreciation: number;
+  rentedCount: number;
+}
+
+const portfolioGlance: InsightDefinition<PortfolioGlanceData> = {
+  id: 'portfolio_glance',
+  cardType: 'portfolio_glance',
+  basePriority: 110,
+  isEligible: (ctx) => (ctx.ownedProperties?.length ?? 0) > 0,
+  loadData: async (ctx) => {
+    const props = ctx.ownedProperties ?? [];
+    let totalValue = 0;
+    let totalDebt = 0;
+    let totalCost = 0;
+    let rented = 0;
+    for (const p of props) {
+      const value = Number(p.current_value_estimate ?? p.purchase_price ?? 0);
+      totalValue += value;
+      totalDebt += Number(p.loan_current_balance ?? 0);
+      totalCost += Number(p.purchase_price ?? 0);
+      if (p.is_rented) rented += 1;
+    }
+    return {
+      count: props.length,
+      totalValue,
+      totalEquity: totalValue - totalDebt,
+      totalAppreciation: totalValue - totalCost,
+      rentedCount: rented,
+    };
+  },
+  title: (_ctx, d) => `Your portfolio: ${d.count} propert${d.count === 1 ? 'y' : 'ies'}`,
+  subtitle: (_ctx, d) =>
+    `$${formatK(d.totalValue)} total value · $${formatK(d.totalEquity)} equity · ${d.rentedCount} rented`,
+  toBriefSummary: (d) =>
+    `Portfolio: ${d.count} property/ies worth ~$${formatK(d.totalValue)} with ~$${formatK(d.totalEquity)} equity and ~$${formatK(d.totalAppreciation)} total appreciation.`,
+  investigatePrompt: () => 'Give me a portfolio-level summary: total value, equity, cash flow, and which property is performing best.',
+};
+
+// ── portfolio_alerts ─────────────────────────────────────────────
+interface PortfolioAlertsData {
+  alerts: Array<{
+    id: string;
+    property_id: string;
+    alert_type: string;
+    severity: 'info' | 'opportunity' | 'warning';
+    title: string;
+    description: string;
+  }>;
+}
+
+const portfolioAlerts: InsightDefinition<PortfolioAlertsData> = {
+  id: 'portfolio_alerts',
+  cardType: 'portfolio_alerts',
+  basePriority: 105,
+  isEligible: (ctx) => (ctx.activeOwnedAlerts?.length ?? 0) > 0,
+  loadData: async (ctx) => ({ alerts: (ctx.activeOwnedAlerts ?? []).slice(0, 5) }),
+  title: (_ctx, d) => `${d.alerts.length} portfolio alert${d.alerts.length === 1 ? '' : 's'}`,
+  subtitle: (_ctx, d) => {
+    const opps = d.alerts.filter((a) => a.severity === 'opportunity').length;
+    const warns = d.alerts.filter((a) => a.severity === 'warning').length;
+    const parts: string[] = [];
+    if (opps) parts.push(`${opps} opportunity${opps === 1 ? '' : 's'}`);
+    if (warns) parts.push(`${warns} warning${warns === 1 ? '' : 's'}`);
+    return parts.join(' · ') || 'Active alerts on your owned properties';
+  },
+  toBriefSummary: (d) =>
+    `Active alerts: ${d.alerts.map((a) => a.title).slice(0, 3).join('; ')}.`,
+  investigatePrompt: (d) => {
+    const first = d.alerts[0];
+    if (!first) return 'Review active alerts on my properties.';
+    return `Walk me through this alert and what action makes sense: "${first.title}" — ${first.description}`;
+  },
+};
+
 export const insightRegistry: InsightDefinition<any>[] = [
   setupCard,
   sampleCard,
