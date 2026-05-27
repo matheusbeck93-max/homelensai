@@ -15,7 +15,7 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
     supabase
       .from('profiles')
       .select(
-        'primary_goal, preferred_cities, max_price_range, min_bedrooms, about_me, brief_card_count, cash_available, financing_defaults, persona, persona_secondary',
+        'primary_goal, preferred_cities, max_price_range, budget_max, budget_min, min_bedrooms, about_me, brief_card_count, cash_available, financing_defaults, persona, persona_secondary',
       )
       .eq('id', userId)
       .maybeSingle(),
@@ -45,6 +45,8 @@ export async function loadContextSnapshot(userId: string): Promise<ContextSnapsh
       primary_goal: profileResp.data?.primary_goal ?? null,
       preferred_cities: profileResp.data?.preferred_cities ?? null,
       max_price_range: profileResp.data?.max_price_range ?? null,
+      budget_max: (profileResp.data as any)?.budget_max ?? null,
+      budget_min: (profileResp.data as any)?.budget_min ?? null,
       min_bedrooms: profileResp.data?.min_bedrooms ?? null,
       about_me: profileResp.data?.about_me ?? null,
       brief_card_count: profileResp.data?.brief_card_count ?? 5,
