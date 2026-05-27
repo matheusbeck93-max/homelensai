@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { ViewSourcesButton } from './ViewSourcesButton';
+import type { CardSources } from '@/lib/investorBrief/sources';
 
 interface InsightCardProps {
   briefCardId: string;
@@ -38,6 +40,7 @@ interface InsightCardProps {
   investigatePrompt: string;
   summary: string;
   isEstimate?: boolean;
+  sources?: CardSources;
   onPinTalkingPoint?: (text: string) => void;
   onDismiss?: (briefCardId: string) => void;
   /** When provided, Investigate calls this instead of navigating to /chats. */
@@ -59,6 +62,7 @@ export function InsightCard({
   investigatePrompt,
   summary,
   isEstimate,
+  sources,
   onPinTalkingPoint,
   onDismiss,
   onInvestigate,
@@ -153,14 +157,17 @@ export function InsightCard({
       </CardHeader>
       <CardContent className="flex-1">{children}</CardContent>
       <CardFooter className="justify-between gap-2 border-t pt-3 pb-3">
-        <Button
-          variant="default"
-          size="sm"
-          className="gap-1.5"
-          onClick={handleInvestigate}
-        >
-          <Search className="h-3.5 w-3.5" /> Investigate
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="default"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleInvestigate}
+          >
+            <Search className="h-3.5 w-3.5" /> Investigate
+          </Button>
+          <ViewSourcesButton sources={sources} />
+        </div>
         <div className="flex items-center gap-0.5">
           <Button
             variant={reaction === 'up' ? 'secondary' : 'ghost'}
