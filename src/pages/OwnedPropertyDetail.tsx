@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOwnedProperty } from '@/hooks/useOwnedProperty';
 import { EditValuationDialog } from '@/components/investor/my-properties/EditValuationDialog';
+import { AlertsPanel } from '@/components/investor/my-properties/AlertsPanel';
 import { PROPERTY_TYPE_LABELS } from '@/lib/myProperties/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -125,23 +126,12 @@ export default function OwnedPropertyDetail() {
                   </div>
                 </header>
 
-                {data.alerts.length > 0 && (
-                  <Card className="border-amber-300/50 bg-amber-50/40 dark:bg-amber-950/10">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <Bell className="h-4 w-4 text-amber-600" />
-                        {data.alerts.length} active alert{data.alerts.length === 1 ? '' : 's'}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {data.alerts.slice(0, 3).map((a) => (
-                        <div key={a.id} className="text-sm">
-                          <span className="font-medium">{a.title}</span>{' '}
-                          <span className="text-muted-foreground">— {a.description}</span>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
+                {id && (
+                  <AlertsPanel
+                    propertyId={id}
+                    alerts={data.alerts as any}
+                    onChanged={reload}
+                  />
                 )}
 
                 {/* Stat strip */}
