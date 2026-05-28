@@ -110,6 +110,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Append owned properties, saved analyses, and saved properties so the
+    // chat can answer "what's in my portfolio?" / "what did I save?" without
+    // asking the user to re-state their data.
+    try {
+      const investorCtx = await loadUserInvestorContext(req);
+      const investorBlock = buildUserInvestorContextBlock(investorCtx);
+      if (investorBlock) profileContext += investorBlock;
+    } catch (e) {
+      console.error('[perplexity-chat] investor context load failed:', e);
+    }
+
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
 
     if (!PERPLEXITY_API_KEY) {
