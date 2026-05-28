@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import {
   Card,
   CardContent,
@@ -13,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
   MoreHorizontal,
@@ -64,7 +63,6 @@ export function InsightCard({
   className,
 }: InsightCardProps) {
   const navigate = useNavigate();
-  useToast();
 
   const writeSignal = async (
     signal: 'investigated' | 'pinned' | 'dismissed',
