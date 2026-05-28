@@ -7,6 +7,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 import { loadProfile } from '../_shared/profileLoader.ts';
 import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import {
   isPropertyUrl as isPropertyUrlShared,
   containsPropertyUrl,
