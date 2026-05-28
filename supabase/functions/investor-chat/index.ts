@@ -1032,7 +1032,7 @@ Deno.serve(async (req) => {
   } catch (_e) { /* ignore */ }
 
   // Load investor preferences + saved/owned data for system-prompt injection.
-  const investorContext = await loadInvestorChatContext(userSupabase, userId);
+  const investorContext = await loadUserInvestorContext(req);
 
   const ctx: ExecutionContext = { userId, supabase: userSupabase, serviceSupabase };
 
