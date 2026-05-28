@@ -958,6 +958,17 @@ CRITICAL:
       }
     }
 
+    // Append owned properties, saved analyses, and saved properties so the
+    // chat can speak to the user's portfolio and saved work without asking
+    // for it.
+    try {
+      const investorCtx = await loadUserInvestorContext(req);
+      const investorBlock = buildUserInvestorContextBlock(investorCtx);
+      if (investorBlock) personalizationContext += investorBlock;
+    } catch (e) {
+      console.error('[ai-chat] investor context load failed:', e);
+    }
+
     const contextInfo = `
 Available First-Time Buyer Programs:
 ${programs?.map(p => `- ${p.name} (${p.jurisdiction}): ${p.eligibility}, Max benefit: $${p.max_benefit}`).join('\n') || 'None'}
