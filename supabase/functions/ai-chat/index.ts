@@ -6,6 +6,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 import { loadProfile } from '../_shared/profileLoader.ts';
 import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 
