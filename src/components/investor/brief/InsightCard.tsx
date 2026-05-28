@@ -43,14 +43,14 @@ interface InsightCardProps {
   sources?: CardSources;
   onPinTalkingPoint?: (text: string) => void;
   onDismiss?: (briefCardId: string) => void;
-  /** When provided, Investigate calls this instead of navigating to /chats. */
+  /** When provided, Deep Dive calls this instead of navigating to /chats. */
   onInvestigate?: () => void;
   className?: string;
 }
 
 /**
  * Generic card chrome used by every brief insight type.
- * Owns: header, body slot, action footer (Investigate, thumbs, copy, open-in-new, overflow).
+ * Owns: header, body slot, action footer (Deep Dive, thumbs, copy, open-in-new, overflow).
  */
 export function InsightCard({
   briefCardId,
@@ -75,6 +75,8 @@ export function InsightCard({
   const writeSignal = async (
     signal: 'up' | 'down' | 'investigated' | 'copied' | 'pinned' | 'dismissed',
   ) => {
+    // Telemetry: kept legacy "investigated" signal name for analytics continuity
+    // even though the user-facing CTA is now "Deep Dive".
     if (!userId) return;
     await supabase.from('investor_card_feedback').insert({
       user_id: userId,
@@ -163,8 +165,10 @@ export function InsightCard({
             size="sm"
             className="gap-1.5"
             onClick={handleInvestigate}
+            title="Open a deep dive on this card with AI follow-up."
+            aria-label={`Open deep dive on ${title}`}
           >
-            <Search className="h-3.5 w-3.5" /> Investigate
+            <Search className="h-3.5 w-3.5" /> Deep Dive
           </Button>
           <ViewSourcesButton sources={sources} />
         </div>
