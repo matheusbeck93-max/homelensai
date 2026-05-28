@@ -7,6 +7,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 import { loadProfile } from '../_shared/profileLoader.ts';
 import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import {
   isPropertyUrl as isPropertyUrlShared,
   containsPropertyUrl,
@@ -107,6 +108,17 @@ Deno.serve(async (req) => {
               profileContext = `\n\nFULL USER PROFILE:\n${parts.join('\n')}\nPersonalize your response based on these preferences. If user has children, emphasize school quality. If investor, focus on ROI metrics.\n`;
             }
       }
+    }
+
+    // Append owned properties, saved analyses, and saved properties so the
+    // chat can answer "what's in my portfolio?" / "what did I save?" without
+    // asking the user to re-state their data.
+    try {
+      const investorCtx = await loadUserInvestorContext(req);
+      const investorBlock = buildUserInvestorContextBlock(investorCtx);
+      if (investorBlock) profileContext += investorBlock;
+    } catch (e) {
+      console.error('[perplexity-chat] investor context load failed:', e);
     }
 
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');

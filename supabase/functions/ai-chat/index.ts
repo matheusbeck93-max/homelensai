@@ -6,6 +6,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 import { loadProfile } from '../_shared/profileLoader.ts';
 import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 
@@ -955,6 +956,17 @@ CRITICAL:
 - If safety_priority is high, prominently feature neighborhood safety data
 - If climate_preference is set, note climate alignment for suggested locations`;
       }
+    }
+
+    // Append owned properties, saved analyses, and saved properties so the
+    // chat can speak to the user's portfolio and saved work without asking
+    // for it.
+    try {
+      const investorCtx = await loadUserInvestorContext(req);
+      const investorBlock = buildUserInvestorContextBlock(investorCtx);
+      if (investorBlock) personalizationContext += investorBlock;
+    } catch (e) {
+      console.error('[ai-chat] investor context load failed:', e);
     }
 
     const contextInfo = `
