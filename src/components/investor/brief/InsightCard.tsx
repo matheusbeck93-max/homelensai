@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import {
   Card,
   CardContent,
@@ -13,16 +13,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Copy,
-  ExternalLink,
   MoreHorizontal,
   Pin,
   Search,
-  ThumbsDown,
-  ThumbsUp,
   X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -60,7 +55,6 @@ export function InsightCard({
   subtitle,
   children,
   investigatePrompt,
-  summary,
   isEstimate,
   sources,
   onPinTalkingPoint,
@@ -69,11 +63,9 @@ export function InsightCard({
   className,
 }: InsightCardProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [reaction, setReaction] = useState<'up' | 'down' | null>(null);
 
   const writeSignal = async (
-    signal: 'up' | 'down' | 'investigated' | 'copied' | 'pinned' | 'dismissed',
+    signal: 'investigated' | 'pinned' | 'dismissed',
   ) => {
     // Telemetry: kept legacy "investigated" signal name for analytics continuity
     // even though the user-facing CTA is now "Deep Dive".
@@ -95,16 +87,6 @@ export function InsightCard({
     navigate('/chats', {
       state: { initialMessage: investigatePrompt },
     });
-  };
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(`${title}\n${subtitle ?? ''}\n${summary}`);
-      await writeSignal('copied');
-      toast({ title: 'Copied to clipboard' });
-    } catch {
-      toast({ title: 'Could not copy', variant: 'destructive' });
-    }
   };
 
   return (
@@ -171,50 +153,6 @@ export function InsightCard({
             <Search className="h-3.5 w-3.5" /> Deep Dive
           </Button>
           <ViewSourcesButton sources={sources} />
-        </div>
-        <div className="flex items-center gap-0.5">
-          <Button
-            variant={reaction === 'up' ? 'secondary' : 'ghost'}
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => {
-              setReaction('up');
-              writeSignal('up');
-            }}
-            aria-label="Thumbs up"
-          >
-            <ThumbsUp className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant={reaction === 'down' ? 'secondary' : 'ghost'}
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => {
-              setReaction('down');
-              writeSignal('down');
-            }}
-            aria-label="Thumbs down"
-          >
-            <ThumbsDown className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleCopy}
-            aria-label="Copy"
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleInvestigate}
-            aria-label="Open deep dive in chat"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Button>
         </div>
       </CardFooter>
     </Card>
