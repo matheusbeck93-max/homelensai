@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { requireEnv, optionalEnv } from '../_shared/env.ts';
+import { loadUserInvestorContext, buildUserInvestorContextBlock, type UserInvestorContext } from '../_shared/userInvestorContext.ts';
 import {
   computeMetrics,
   computeRoi,
