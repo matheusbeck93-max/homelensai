@@ -211,7 +211,7 @@ export function InsightCard({
             size="icon"
             className="h-7 w-7"
             onClick={handleInvestigate}
-            aria-label="Open in chat"
+            aria-label="Open deep dive in chat"
           >
             <ExternalLink className="h-3.5 w-3.5" />
           </Button>

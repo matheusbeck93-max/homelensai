@@ -1171,7 +1171,17 @@ When the user asks an open-ended question (e.g. "what should I look at?", "give 
 function buildSystemPrompt(activeCardContext?: any, personaContext?: { persona: string; secondary: string[] }) {
   const personaBlock = personaContext ? buildPersonaBlock(personaContext.persona, personaContext.secondary) : '';
   if (!activeCardContext) return SYSTEM_PROMPT + personaBlock;
+  const title = activeCardContext?.card?.title ?? 'unknown';
+  const summary = activeCardContext?.summary ?? '';
   return `${SYSTEM_PROMPT}${personaBlock}
 
-The user is investigating a brief card titled "${activeCardContext?.card?.title ?? 'unknown'}". Context: ${activeCardContext?.summary ?? ''}. Ground your answer in that card when relevant.`;
+The user is deep-diving on a brief card titled "${title}". Context: ${summary}.
+
+The right-hand panel already shows that card's source visual at full detail — do NOT re-fetch the same underlying data the card is already showing. Instead, use follow-up tool calls to elaborate:
+- Surface a different cut of the same domain (per-ZIP, per-time-bucket, per-property breakdowns).
+- Add a comparison against the user's saved properties, saved analyses, or stated budget/target.
+- Stack a related visual (e.g., for a cap rate trend, add the user's target line or recent comps).
+- Project the trend forward.
+
+The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.`;
 }
