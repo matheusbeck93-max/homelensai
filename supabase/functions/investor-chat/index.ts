@@ -1030,6 +1030,9 @@ Deno.serve(async (req) => {
     if (Array.isArray(profile?.persona_secondary)) personaContext.secondary = profile.persona_secondary;
   } catch (_e) { /* ignore */ }
 
+  // Load investor preferences + saved/owned data for system-prompt injection.
+  const investorContext = await loadInvestorChatContext(userSupabase, userId);
+
   const ctx: ExecutionContext = { userId, supabase: userSupabase, serviceSupabase };
 
   const stream = new ReadableStream({
@@ -1038,7 +1041,7 @@ Deno.serve(async (req) => {
       send('thread', { threadId: effectiveThreadId });
 
       let convo: any[] = [
-        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext) },
+        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext, investorContext) },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ];
 
