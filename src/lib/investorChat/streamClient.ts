@@ -13,6 +13,7 @@ export interface StreamTurnArgs {
   threadId?: string;
   messages: { role: 'user' | 'assistant'; content: string }[];
   activeCardContext?: any;
+  sessionFilters?: any;
   onEvent: (ev: SseEvent) => void;
   signal?: AbortSignal;
 }
@@ -35,6 +36,7 @@ export async function streamInvestorChat(args: StreamTurnArgs): Promise<void> {
       threadId: args.threadId,
       messages: args.messages,
       activeCardContext: args.activeCardContext,
+      sessionFilters: args.sessionFilters ?? null,
     }),
     signal: args.signal,
   });
