@@ -6,6 +6,7 @@ import type { ToolEvent } from '@/lib/investorChat/turnTypes';
 import { SourceCardVisual } from './SourceCardVisual';
 import { StarterPrompts } from './StarterPrompts';
 import { defaultDeepDiveStarters } from '@/lib/investorBrief/deepDiveStarters';
+import { ExploringPill } from './ExploringPill';
 
 interface Props {
   onBack: () => void;
@@ -20,13 +21,19 @@ interface Props {
  * Subsequent AI tool calls stack below the seeded visual.
  */
 export function DeepPanel({ onBack }: Props) {
-  const { currentThread, currentTurn, activeCardContext, sendTurn } =
+  const { currentThread, currentTurn, activeCardContext, sendTurn, sessionFilters, clearSessionFilters } =
     useInvestorBriefSurface();
 
-  const historyEvents: ToolEvent[] = currentThread
-    .flatMap((t) => t.toolEvents ?? [])
-    .filter(Boolean);
-  const allEvents = [...historyEvents, ...currentTurn.toolEvents];
+  // Active turn only — prior turn visuals do not stack here.
+  // While streaming, show the in-flight turn's events.
+  // Otherwise show the most recent assistant turn's events.
+  let activeEvents: ToolEvent[] = [];
+  if (currentTurn.status === 'streaming' || currentTurn.toolEvents.length > 0) {
+    activeEvents = currentTurn.toolEvents;
+  } else {
+    const lastAssistant = [...currentThread].reverse().find((t) => t.role === 'assistant');
+    activeEvents = lastAssistant?.toolEvents ?? [];
+  }
 
   const sourceCard = activeCardContext?.card ?? null;
   const isStreaming = currentTurn.status === 'streaming';
@@ -45,6 +52,10 @@ export function DeepPanel({ onBack }: Props) {
         </div>
       </div>
 
+      {sessionFilters && (
+        <ExploringPill filters={sessionFilters} onReset={clearSessionFilters} />
+      )}
+
       {sourceCard && (
         <>
           <div className="text-xs text-muted-foreground">
@@ -52,7 +63,7 @@ export function DeepPanel({ onBack }: Props) {
             Ask a follow-up below or pick a suggestion.
           </div>
           <SourceCardVisual card={sourceCard} />
-          {allEvents.length === 0 && (
+          {activeEvents.length === 0 && (
             <StarterPrompts
               prompts={starters}
               disabled={isStreaming}
@@ -62,15 +73,15 @@ export function DeepPanel({ onBack }: Props) {
         </>
       )}
 
-      {allEvents.length > 0 && (
+      {activeEvents.length > 0 && (
         <div className="space-y-3">
-          {[...allEvents].reverse().map((ev) => (
+          {[...activeEvents].reverse().map((ev) => (
             <div key={ev.id}>{renderToolEvent(ev)}</div>
           ))}
         </div>
       )}
 
-      {!sourceCard && allEvents.length === 0 && !isStreaming && (
+      {!sourceCard && activeEvents.length === 0 && !isStreaming && (
         <div className="border border-dashed rounded-lg p-8 text-center text-sm text-muted-foreground">
           Ask anything about your portfolio or markets — supporting data and visuals will appear here.
         </div>
