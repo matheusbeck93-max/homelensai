@@ -1315,7 +1315,7 @@ Deno.serve(async (req) => {
       send('thread', { threadId: effectiveThreadId });
 
       let convo: any[] = [
-        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext, investorContext) },
+        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext, investorContext, incomingSessionFilters) },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ];
 
@@ -1449,13 +1449,17 @@ function buildSystemPrompt(
   activeCardContext?: any,
   personaContext?: { persona: string; secondary: string[] },
   investorContext?: UserInvestorContext,
+  sessionFilters?: SessionFilters | null,
 ) {
   const personaBlock = personaContext ? buildPersonaBlock(personaContext.persona, personaContext.secondary) : '';
   const contextBlock = investorContext ? buildUserInvestorContextBlock(investorContext) : '';
-  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock;
+  const sessionBlock = sessionFilters && Object.keys(sessionFilters).length
+    ? `\n\nACTIVE SESSION FILTERS (transient, this conversation only):\n${JSON.stringify(sessionFilters)}`
+    : '\n\nACTIVE SESSION FILTERS: none';
+  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock;
   const title = activeCardContext?.card?.title ?? 'unknown';
   const summary = activeCardContext?.summary ?? '';
-  return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}
+  return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}${sessionBlock}
 
 The user is deep-diving on a brief card titled "${title}". Context: ${summary}.
 
