@@ -1294,25 +1294,12 @@ Deno.serve(async (req) => {
 
   // Load investor preferences + saved/owned data for system-prompt injection.
   const investorContext = await loadUserInvestorContext(req);
-
-  // Load preferences directly so resolveMarkets/resolveBudget can use them without re-querying.
-  let prefs: { budget_max?: number | null; budget_min?: number | null; target_markets?: string[] | null } = {};
-  try {
-    const { data: profile } = await userSupabase
-      .from('profiles')
-      .select('budget_max, budget_min, target_markets')
-      .eq('id', userId)
-      .maybeSingle();
-    if (profile) {
-      prefs = {
-        budget_max: (profile as any).budget_max ?? null,
-        budget_min: (profile as any).budget_min ?? null,
-        target_markets: Array.isArray((profile as any).target_markets)
-          ? (profile as any).target_markets
-          : null,
-      };
-    }
-  } catch (_e) { /* ignore */ }
+  const profile = investorContext.profile ?? {};
+  const prefs = {
+    budget_max: profile.budget_max ?? profile.max_price_range ?? null,
+    budget_min: profile.budget_min ?? null,
+    target_markets: Array.isArray(profile.preferred_cities) ? profile.preferred_cities : null,
+  };
 
   const ctx: ExecutionContext = {
     userId,
