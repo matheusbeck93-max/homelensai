@@ -13,16 +13,64 @@ const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
 const MAX_TOOL_ITERATIONS = 5;
 
-const SYSTEM_PROMPT = `You are HomeLens Investor Console. You answer the user's US real-estate
-investment questions by calling the provided tools and narrating the result.
+const SYSTEM_PROMPT = `You are HomeLens Investor Console — a US real-estate investment assistant.
+You answer the user's questions by calling the provided tools and narrating the result concisely.
 
-Rules:
-- Prefer tools over arithmetic in prose. If the user asks for any number, call a tool.
-- Choose tools by intent. "ROI?" usually needs compute_roi + compute_metrics + get_market_stats.
-- For multi-part questions, call multiple tools in parallel before replying.
-- Be concise (2-4 short paragraphs max). Reference tool outputs by anchor in [Card Name] brackets, e.g. "see [Metrics Grid]".
-- Never invent property data. If asked about a property you cannot look up, ask which one or call list_listings.
-- Never include MATCH_SCORE prefixes; this surface is the Investor Console, not property analysis.`;
+USE LOADED CONTEXT FIRST
+- The user's preferences, persona, owned properties, saved analyses, saved properties, and any
+  active session filters are already injected below. Reference them by name.
+- NEVER ask the user for a value that is already in their loaded context. If "my budget",
+  "my cap rate target", "my markets", "my properties", "my last analysis" are referenced, resolve
+  them from context — don't ask for them.
+- If "my X" is ambiguous (multiple candidates), pick the most recent and say which you picked
+  ("Using 1814 Cedar — your most recent Austin property"). Don't bounce back to the user for a pick.
+
+EXPLORATION vs PREFERENCES (very important)
+- Phrases like "include X", "show me X", "what about X", "add X to this", "compare against Y"
+  are BROWSING. Apply a session filter with apply_session_filter and answer with the data.
+  Do NOT ask whether to update preferences.
+- Only suggest updating preferences when the user explicitly says: "save", "remember",
+  "add to my preferences", "make this permanent", "update my", "change my".
+- After applying a session filter, mention it casually in your reply ("Added Arlington for this
+  session — say 'save' to keep it"). Don't make it a confirmation prompt.
+
+TOOL SELECTION
+1. METRIC over a MARKET (price/sqft, median price, rent, vacancy, DOM, appreciation, rent growth,
+   absorption) → get_market_stats. Do NOT call list_listings for these.
+2. LISTINGS or PROPERTIES in a market → list_listings.
+3. Numbers for a SPECIFIC price/property (returns, cash flow, cap rate on a deal) → compute_metrics.
+4. Side-by-side property comparison → compare_properties.
+5. Recent SALES (sold comps, not listings) → find_comparable_sales.
+6. For multi-part questions, call multiple tools in parallel before replying.
+
+DON'T BAIL ON DERIVABLE METRICS
+- If a tool result has the components but not the exact metric, compute it. Examples:
+    median $/sqft = medianListPrice ÷ medianSqft
+    rent yield = (medianRentMonthly × 12) ÷ medianListPrice
+    monthly debt service = call compute_metrics or run the amortization formula
+- State the derivation in one short clause ("derived from median list / median sqft").
+- Only say "I don't have X" when you genuinely lack the data AND can't derive it.
+
+VOICE
+- Concise. 2–4 sentences per reply unless the user asks for depth.
+- Anchor numbers to the user's preferences when relevant ("above your 7% target").
+- Reference tool outputs by anchor in [Card Name] brackets, e.g. "see [Market Stats]".
+- Never include MATCH_SCORE prefixes; this is the Investor Console.
+- Never invent property data.
+
+FEW-SHOT EXAMPLES
+
+User: include Arlington Virginia in the visual
+Assistant action: call apply_session_filter({ marketsAdd: ["Arlington, VA"] }) then get_market_stats({ market: "Arlington, VA" }).
+Assistant reply: "Added Arlington for this session. Median $/sqft is $X — roughly N% above your Tampa target. Say 'save' to keep it in your preferences."
+
+User: what is the median price per sqft in Tampa?
+Assistant action: call get_market_stats({ market: "Tampa, FL" }).
+Assistant reply: "Median \$/sqft in Tampa is \$250 (derived from \$450k median list ÷ 1,800 sqft median). See [Market Stats]."
+
+User: compare my Austin properties by cap rate
+Assistant action: resolve the Austin property IDs from loaded context, call compare_properties with those IDs.
+Assistant reply: "Of your three Austin properties, 1814 Cedar leads at 8.2% cap (above your 7% target). See [Comparison Table]."`;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tool definitions (OpenAI/Gemini compatible JSON Schema)
@@ -41,13 +89,121 @@ interface ExecutionContext {
   userId: string;
   supabase: ReturnType<typeof createClient>;
   serviceSupabase: ReturnType<typeof createClient>;
+  sessionFilters: SessionFilters | null;
+  preferences: { budget_max?: number | null; budget_min?: number | null; target_markets?: string[] | null };
+}
+
+interface SessionFilters {
+  marketsAdd?: string[];
+  marketsReplace?: string[];
+  budgetOverride?: { min?: number; max?: number };
+  capRateOverride?: number;
+  beds?: number;
+  baths?: number;
+  note?: string;
+}
+
+function resolveMarkets(
+  input: { market?: string; markets?: string[]; filterMode?: string },
+  ctx: ExecutionContext,
+): string[] {
+  const explicit = input.markets ?? (input.market ? [input.market] : []);
+  if (input.filterMode === 'explicit') return explicit;
+  const base = ctx.preferences.target_markets ?? [];
+  if (input.filterMode === 'preferences') return base.length ? base : explicit;
+  const sf = ctx.sessionFilters;
+  if (sf?.marketsReplace?.length) return sf.marketsReplace;
+  const added = sf?.marketsAdd ?? [];
+  const merged = Array.from(new Set([...base, ...added, ...explicit]));
+  return merged.length ? merged : explicit;
+}
+
+function resolveBudget(
+  input: { budgetMax?: number; budgetMin?: number; filterMode?: string },
+  ctx: ExecutionContext,
+): { budgetMax: number | null; budgetMin: number | null } {
+  if (input.filterMode === 'explicit') {
+    return { budgetMax: input.budgetMax ?? null, budgetMin: input.budgetMin ?? null };
+  }
+  const prefMax = ctx.preferences.budget_max ?? null;
+  const prefMin = ctx.preferences.budget_min ?? null;
+  if (input.filterMode === 'preferences') {
+    return { budgetMax: prefMax, budgetMin: prefMin };
+  }
+  const sf = ctx.sessionFilters?.budgetOverride;
+  const budgetMax = input.budgetMax ?? sf?.max ?? prefMax;
+  const budgetMin = input.budgetMin ?? sf?.min ?? prefMin;
+  return { budgetMax: budgetMax ?? null, budgetMin: budgetMin ?? null };
 }
 
 const TOOLS: Tool[] = [
   {
+    name: 'apply_session_filter',
+    description: `Apply a TRANSIENT session-only filter to the current conversation. Does NOT touch
+saved preferences. Use whenever the user explores ("include X", "show me X", "what about X",
+"add Arlington", "let's look at Tampa instead", "use a $700k budget for this question").
+
+USE THIS for:
+- "include Arlington Virginia in the visual" → { marketsAdd: ["Arlington, VA"] }
+- "show me only Tampa" → { marketsReplace: ["Tampa, FL"] }
+- "what if my budget were $700k?" → { budgetOverride: { max: 700000 } }
+- "use 8% cap as the floor" → { capRateOverride: 0.08 }
+
+DO NOT USE for:
+- "save this", "add to my preferences", "remember", "update my", "make permanent" — those write
+  to preferences and are out of scope for this tool; explain that those live on the profile page.
+
+After calling, IMMEDIATELY call the relevant data tool (get_market_stats, list_listings, etc.)
+with no filterMode argument so the new session filter is applied automatically.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        marketsAdd: { type: 'array', items: { type: 'string' } },
+        marketsReplace: { type: 'array', items: { type: 'string' } },
+        budgetOverride: {
+          type: 'object',
+          properties: { min: { type: 'number' }, max: { type: 'number' } },
+        },
+        capRateOverride: { type: 'number', description: 'Decimal, e.g. 0.08 for 8%.' },
+        beds: { type: 'number' },
+        baths: { type: 'number' },
+        note: { type: 'string' },
+      },
+    },
+    execute: async (input, ctx) => {
+      // Mutate context so subsequent tools in this turn see the new filter.
+      const prev = ctx.sessionFilters ?? {};
+      const next: SessionFilters = { ...prev };
+      if (input.marketsReplace) next.marketsReplace = input.marketsReplace;
+      if (input.marketsAdd) {
+        next.marketsAdd = Array.from(
+          new Set([...(prev.marketsAdd ?? []), ...input.marketsAdd]),
+        );
+      }
+      if (input.budgetOverride)
+        next.budgetOverride = { ...(prev.budgetOverride ?? {}), ...input.budgetOverride };
+      if (input.capRateOverride != null) next.capRateOverride = input.capRateOverride;
+      if (input.beds != null) next.beds = input.beds;
+      if (input.baths != null) next.baths = input.baths;
+      if (input.note != null) next.note = input.note;
+      ctx.sessionFilters = next;
+      return next;
+    },
+  },
+  {
     name: 'compute_metrics',
-    description:
-      'Compute cap rate, cash-on-cash, NOI, and monthly cash flow for a property purchase. Use whenever the user asks about returns, cash flow, or profitability of a specific price/rent/financing combo.',
+    description: `Compute cap rate, cash-on-cash, NOI, and monthly cash flow for a SPECIFIC
+property/price combo.
+
+USE THIS for:
+- "Run the numbers on this $450k house in Tampa"
+- "What's the cap rate at $500k with $3,200/mo rent?"
+- "What would my monthly cash flow be?"
+
+DO NOT USE for:
+- Market-level metrics (use get_market_stats)
+- Multi-year ROI (use compute_roi)
+- Listing search (use list_listings)`,
     parameters: {
       type: 'object',
       properties: {
@@ -79,8 +235,14 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'compute_roi',
-    description:
-      'Compute multi-year ROI: year-by-year cash flow, equity buildup, appreciation, IRR. Use when the user asks about "ROI", "return over N years", or "if I hold for X years".',
+    description: `Compute multi-year ROI: year-by-year cash flow, equity buildup, appreciation, IRR.
+
+USE THIS for:
+- "What's my ROI if I hold for 10 years?"
+- "Project returns over 5 years"
+- "IRR on this property?"
+
+DO NOT USE for single-year metrics (use compute_metrics).`,
     parameters: {
       type: 'object',
       properties: {
@@ -99,8 +261,20 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'compute_budget_affordability',
-    description:
-      "Compare the user's saved budget (budget_max from preferences) against median list prices in each target market. Returns per-market headroom and the share of active listings within budget. Use when the user asks what they can shop for given their saved budget. Do NOT call this for mortgage-payment questions on a specific property — use compute_metrics for that.",
+    description: `Compare the user's budget against median list prices across markets. Returns
+per-market headroom and share of active listings within budget.
+
+USE THIS for:
+- "What can I afford in my markets?"
+- "Where is my budget realistic?"
+- "How much headroom do I have in Tampa?"
+
+DO NOT USE for:
+- Mortgage payments on a specific property (use compute_metrics)
+- Market-level price stats (use get_market_stats)
+
+Inputs default to the user's saved budget + target markets + active session filters. Pass
+filterMode="explicit" to ignore all of that and use only the values you supply.`,
     parameters: {
       type: 'object',
       properties: {
@@ -113,21 +287,17 @@ const TOOLS: Tool[] = [
           type: 'array',
           items: { type: 'string', description: 'Market name e.g. "Austin, TX"' },
         },
+        filterMode: {
+          type: 'string',
+          enum: ['preferences', 'session', 'explicit'],
+          description: 'Default "session". "preferences" = ignore session filters. "explicit" = use only the inputs you pass.',
+        },
       },
-      required: ['markets'],
+      required: [],
     },
     execute: async (input, ctx) => {
-      let budgetMax: number | null = typeof input.budgetMax === 'number' ? input.budgetMax : null;
-      let budgetMin: number | null = typeof input.budgetMin === 'number' ? input.budgetMin : null;
-      if (budgetMax == null) {
-        const { data: profile } = await ctx.serviceSupabase
-          .from('profiles')
-          .select('budget_max, budget_min')
-          .eq('id', ctx.userId)
-          .maybeSingle();
-        budgetMax = (profile as any)?.budget_max ?? null;
-        if (budgetMin == null) budgetMin = (profile as any)?.budget_min ?? null;
-      }
+      const { budgetMax, budgetMin } = resolveBudget(input, ctx);
+      const markets = resolveMarkets(input, ctx);
       if (!budgetMax || budgetMax <= 0) {
         return {
           error: 'No budget set. Ask the user to set a Max budget in Preferences.',
@@ -135,11 +305,18 @@ const TOOLS: Tool[] = [
           perMarket: [],
         };
       }
-      const markets = await loadMarketSnapshots(ctx, input.markets);
+      if (!markets.length) {
+        return {
+          error: 'No target markets set. Ask the user to add target markets, or pass markets explicitly.',
+          budgetMax,
+          perMarket: [],
+        };
+      }
+      const snapshots = await loadMarketSnapshots(ctx, markets);
       return computeBudgetAffordability({
         budgetMax,
         budgetMin: budgetMin ?? undefined,
-        markets,
+        markets: snapshots,
       });
     },
   },
@@ -167,22 +344,56 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_market_stats',
-    description:
-      'Look up market-level stats: median list price, median rent, appreciation, rent growth, vacancy, days on market. Cached daily. Triggers a fresh Perplexity lookup on cache miss.',
+    description: `Look up market-level stats: median list price, median sqft, median $/sqft,
+median rent, median rent $/sqft, appreciation YoY, rent growth YoY, vacancy, days on market,
+active listings. Cached daily. Triggers a Perplexity lookup on cache miss.
+
+USE THIS for any MARKET-LEVEL METRIC question. Examples:
+- "What's the median price in Tampa?"
+- "What's the median $/sqft in Austin?"
+- "How fast are homes selling in Tampa?"
+- "Appreciation in Vegas?"
+- "Rent growth in Tampa?"
+
+DO NOT USE for:
+- "Show me listings under $X" → list_listings
+- "Run the numbers on a specific property" → compute_metrics
+- "Recent sold comps" → find_comparable_sales
+
+If the user asks for $/sqft or rent $/sqft and the field is null but medianListPrice + medianSqft
+(or medianRent + medianSqft) are present, the tool derives and marks the source as "derived".`,
     parameters: {
       type: 'object',
-      properties: { market: { type: 'string' } },
+      properties: {
+        market: { type: 'string' },
+        filterMode: { type: 'string', enum: ['preferences', 'session', 'explicit'] },
+      },
       required: ['market'],
     },
     execute: async (input, ctx) => {
-      const stats = await getMarketStats(ctx, input.market);
-      return stats;
+      // For single-market lookups we honor the explicit market the model passed; session filters
+      // mainly affect list/budget calls. But we still pass through resolveMarkets so an
+      // "explicit" hint is respected.
+      const resolved = resolveMarkets({ market: input.market, filterMode: input.filterMode }, ctx);
+      const target = resolved[0] ?? input.market;
+      const stats = await getMarketStats(ctx, target);
+      return deriveMissingMarketMetrics(stats);
     },
   },
   {
     name: 'list_listings',
-    description:
-      'List active properties in a market matching the user\'s filters. Returns address, price, beds/baths/sqft, estimated cap rate.',
+    description: `List active properties in a market matching the user's filters.
+
+USE THIS for:
+- "Show me listings under $500k in Tampa"
+- "What's available with 3+ beds in Austin?"
+- "Find me properties in my target markets"
+
+DO NOT USE for:
+- Market-level stats (use get_market_stats)
+- Recent SOLD properties (use find_comparable_sales)
+
+If no market is passed, defaults to the user's session filters / target markets (first one).`,
     parameters: {
       type: 'object',
       properties: {
@@ -192,15 +403,36 @@ const TOOLS: Tool[] = [
         minBeds: { type: 'number' },
         minBaths: { type: 'number' },
         limit: { type: 'number' },
+        filterMode: { type: 'string', enum: ['preferences', 'session', 'explicit'] },
       },
-      required: ['market'],
+      required: [],
     },
-    execute: async (input, ctx) => listListings(ctx, input),
+    execute: async (input, ctx) => {
+      if (!input.market) {
+        const resolved = resolveMarkets({ market: input.market, filterMode: input.filterMode }, ctx);
+        if (resolved[0]) input = { ...input, market: resolved[0] };
+      }
+      if (input.maxPrice == null && input.minPrice == null) {
+        const { budgetMax, budgetMin } = resolveBudget(
+          { budgetMax: input.maxPrice, budgetMin: input.minPrice, filterMode: input.filterMode },
+          ctx,
+        );
+        if (budgetMax != null) input = { ...input, maxPrice: budgetMax };
+        if (budgetMin != null) input = { ...input, minPrice: budgetMin };
+      }
+      return listListings(ctx, input);
+    },
   },
   {
     name: 'compare_properties',
-    description:
-      'Compare N properties side-by-side on key metrics. Highlights the winner per metric.',
+    description: `Compare N properties side-by-side on key metrics. Highlights the winner per metric.
+
+USE THIS for:
+- "Compare my Austin properties"
+- "Which of these is the better deal?"
+
+Resolve "my X" property references from loaded context (memorizedProperties / ownedProperties /
+savedAnalyses) BEFORE calling — pass concrete IDs.`,
     parameters: {
       type: 'object',
       properties: {
@@ -231,8 +463,15 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'find_comparable_sales',
-    description:
-      'Find recent comparable sales in a market matching beds/baths/sqft range. Returns sale price, date, $/sqft.',
+    description: `Find recent SOLD comparable properties in a market.
+
+USE THIS for:
+- "Recent comps in Tampa for a 3/2"
+- "What are similar homes selling for?"
+
+DO NOT USE for:
+- Active listings (use list_listings)
+- Market-level $/sqft (use get_market_stats)`,
     parameters: {
       type: 'object',
       properties: {
@@ -433,7 +672,10 @@ function toMarketStatsOutput(row: any) {
   return {
     market: row.market,
     medianListPrice: row.median_list_price ?? null,
+    medianSqft: row.median_sqft ?? null,
+    medianPricePerSqft: row.median_price_per_sqft ?? null,
     medianRentMonthly: row.median_rent_monthly ?? null,
+    medianRentPerSqft: row.median_rent_per_sqft ?? null,
     appreciationYoy: row.appreciation_yoy ?? null,
     rentGrowthYoy: row.rent_growth_yoy ?? null,
     vacancyRate: row.vacancy_rate ?? null,
@@ -444,11 +686,28 @@ function toMarketStatsOutput(row: any) {
   };
 }
 
+function deriveMissingMarketMetrics(stats: any) {
+  const out: any = { ...stats };
+  const list = Number(out.medianListPrice);
+  const sqft = Number(out.medianSqft);
+  const rent = Number(out.medianRentMonthly);
+  if (out.medianPricePerSqft == null && list > 0 && sqft > 0) {
+    out.medianPricePerSqft = Math.round(list / sqft);
+    out.medianPricePerSqftSource = 'derived';
+  }
+  if (out.medianRentPerSqft == null && rent > 0 && sqft > 0) {
+    out.medianRentPerSqft = Number((rent / sqft).toFixed(2));
+    out.medianRentPerSqftSource = 'derived';
+  }
+  return out;
+}
+
 async function fetchMarketStatsFromPerplexity(market: string): Promise<Json | null> {
   const apiKey = optionalEnv('PERPLEXITY_API_KEY');
   if (!apiKey) return null;
   const prompt = `For the US real estate market "${market}", return ONLY a compact JSON object with these keys (no prose, no markdown):
 median_list_price (number, USD),
+median_sqft (number, square feet of the median listing),
 median_rent_monthly (number, USD),
 appreciation_yoy (number, decimal, e.g. 0.058 for 5.8%),
 rent_growth_yoy (number, decimal),
@@ -984,7 +1243,9 @@ Deno.serve(async (req) => {
     threadId?: string;
     messages: { role: 'user' | 'assistant'; content: string }[];
     activeCardContext?: any;
+    sessionFilters?: SessionFilters | null;
   };
+  const incomingSessionFilters: SessionFilters | null = (payload as any)?.sessionFilters ?? null;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages required' }), {
@@ -1033,8 +1294,20 @@ Deno.serve(async (req) => {
 
   // Load investor preferences + saved/owned data for system-prompt injection.
   const investorContext = await loadUserInvestorContext(req);
+  const profile = investorContext.profile ?? {};
+  const prefs = {
+    budget_max: profile.budget_max ?? profile.max_price_range ?? null,
+    budget_min: profile.budget_min ?? null,
+    target_markets: Array.isArray(profile.preferred_cities) ? profile.preferred_cities : null,
+  };
 
-  const ctx: ExecutionContext = { userId, supabase: userSupabase, serviceSupabase };
+  const ctx: ExecutionContext = {
+    userId,
+    supabase: userSupabase,
+    serviceSupabase,
+    sessionFilters: incomingSessionFilters,
+    preferences: prefs,
+  };
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -1042,7 +1315,7 @@ Deno.serve(async (req) => {
       send('thread', { threadId: effectiveThreadId });
 
       let convo: any[] = [
-        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext, investorContext) },
+        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext, investorContext, incomingSessionFilters) },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ];
 
@@ -1176,13 +1449,17 @@ function buildSystemPrompt(
   activeCardContext?: any,
   personaContext?: { persona: string; secondary: string[] },
   investorContext?: UserInvestorContext,
+  sessionFilters?: SessionFilters | null,
 ) {
   const personaBlock = personaContext ? buildPersonaBlock(personaContext.persona, personaContext.secondary) : '';
   const contextBlock = investorContext ? buildUserInvestorContextBlock(investorContext) : '';
-  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock;
+  const sessionBlock = sessionFilters && Object.keys(sessionFilters).length
+    ? `\n\nACTIVE SESSION FILTERS (transient, this conversation only):\n${JSON.stringify(sessionFilters)}`
+    : '\n\nACTIVE SESSION FILTERS: none';
+  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock;
   const title = activeCardContext?.card?.title ?? 'unknown';
   const summary = activeCardContext?.summary ?? '';
-  return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}
+  return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}${sessionBlock}
 
 The user is deep-diving on a brief card titled "${title}". Context: ${summary}.
 

@@ -3,6 +3,7 @@ import {
   ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -12,6 +13,51 @@ import { streamInvestorChat } from '@/lib/investorChat/streamClient';
 import { anchorFor, type CurrentTurn, type ToolEvent } from '@/lib/investorChat/turnTypes';
 
 export type BriefMode = 'brief' | 'chat';
+
+export interface SessionFilters {
+  marketsAdd?: string[];
+  marketsReplace?: string[];
+  budgetOverride?: { min?: number; max?: number };
+  capRateOverride?: number;
+  beds?: number;
+  baths?: number;
+  note?: string;
+  setAt?: string;
+}
+
+function hasAnyFilter(f: SessionFilters | null | undefined): boolean {
+  if (!f) return false;
+  return Boolean(
+    f.marketsAdd?.length ||
+      f.marketsReplace?.length ||
+      f.budgetOverride?.min != null ||
+      f.budgetOverride?.max != null ||
+      f.capRateOverride != null ||
+      f.beds != null ||
+      f.baths != null ||
+      f.note,
+  );
+}
+
+function mergeFilters(prev: SessionFilters | null, patch: SessionFilters): SessionFilters {
+  const base: SessionFilters = prev ?? {};
+  const next: SessionFilters = { ...base };
+  if (patch.marketsReplace) next.marketsReplace = patch.marketsReplace;
+  if (patch.marketsAdd) {
+    const merged = Array.from(new Set([...(base.marketsAdd ?? []), ...patch.marketsAdd]));
+    next.marketsAdd = merged;
+  }
+  if (patch.budgetOverride)
+    next.budgetOverride = { ...(base.budgetOverride ?? {}), ...patch.budgetOverride };
+  if (patch.capRateOverride != null) next.capRateOverride = patch.capRateOverride;
+  if (patch.beds != null) next.beds = patch.beds;
+  if (patch.baths != null) next.baths = patch.baths;
+  if (patch.note != null) next.note = patch.note;
+  next.setAt = new Date().toISOString();
+  return next;
+}
+
+const SESSION_FILTERS_STORAGE_PREFIX = 'homelens.investorChat.sessionFilters.v1.';
 
 export interface ChatTurn {
   id: string;
@@ -40,6 +86,8 @@ interface InvestorBriefContextValue {
   currentThread: ChatTurn[];
   currentTurn: CurrentTurn;
   threadIdByKey: Record<string, string | undefined>;
+  sessionFilters: SessionFilters | null;
+  clearSessionFilters: () => void;
   enterChatModeFromCard: (card: ComposedCard, severity?: ActiveCardContext['severity']) => void;
   enterChatModeFromQuery: (query: string) => void;
   exitChatMode: () => void;
@@ -64,6 +112,9 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
   const [activeThreadKey, setActiveThreadKey] = useState<string>(FREEFORM_KEY);
   const seededRef = useRef<Set<string>>(new Set());
   const [threadIdByKey, setThreadIdByKey] = useState<Record<string, string | undefined>>({});
+  const [sessionFiltersByKey, setSessionFiltersByKey] = useState<
+    Record<string, SessionFilters | null>
+  >({});
   const [currentTurn, setCurrentTurn] = useState<CurrentTurn>({
     status: 'idle',
     text: '',
@@ -77,6 +128,45 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
   threadsRef.current = threads;
   const threadIdRef = useRef(threadIdByKey);
   threadIdRef.current = threadIdByKey;
+  const sessionFiltersRef = useRef(sessionFiltersByKey);
+  sessionFiltersRef.current = sessionFiltersByKey;
+
+  // Hydrate persisted session filters for the active thread key.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (sessionFiltersByKey[activeThreadKey] !== undefined) return;
+    try {
+      const raw = localStorage.getItem(SESSION_FILTERS_STORAGE_PREFIX + activeThreadKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as SessionFilters;
+        setSessionFiltersByKey((prev) => ({ ...prev, [activeThreadKey]: parsed }));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [activeThreadKey, sessionFiltersByKey]);
+
+  const persistSessionFilters = useCallback(
+    (key: string, next: SessionFilters | null) => {
+      if (typeof window === 'undefined') return;
+      try {
+        if (next && hasAnyFilter(next)) {
+          localStorage.setItem(SESSION_FILTERS_STORAGE_PREFIX + key, JSON.stringify(next));
+        } else {
+          localStorage.removeItem(SESSION_FILTERS_STORAGE_PREFIX + key);
+        }
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  );
+
+  const clearSessionFilters = useCallback(() => {
+    const key = activeKeyRef.current;
+    setSessionFiltersByKey((prev) => ({ ...prev, [key]: null }));
+    persistSessionFilters(key, null);
+  }, [persistSessionFilters]);
 
   const appendTurn = useCallback((key: string, turn: ChatTurn) => {
     setThreads((prev) => {
@@ -174,6 +264,7 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
       await streamInvestorChat({
         threadId: threadIdRef.current[key],
         messages,
+        sessionFilters: sessionFiltersRef.current[key] ?? null,
         activeCardContext: activeCtxRef.current
           ? {
               card: { id: activeCtxRef.current.card.id, title: activeCtxRef.current.card.title },
@@ -207,6 +298,15 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
                 t.id === ev.id ? { ...t, output: ev.output, status: 'done' } : t,
               ),
             }));
+            // Side-effect: apply_session_filter mutates session-filter state.
+            if (ev.name === 'apply_session_filter' && ev.output && !ev.output.error) {
+              const patch = ev.output as SessionFilters;
+              setSessionFiltersByKey((prev) => {
+                const next = mergeFilters(prev[key] ?? null, patch);
+                persistSessionFilters(key, next);
+                return { ...prev, [key]: next };
+              });
+            }
           } else if (ev.type === 'tool_use_error') {
             setCurrentTurn((prev) => ({
               ...prev,
@@ -239,7 +339,7 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
       const msg = e instanceof Error ? e.message : String(e);
       setCurrentTurn({ status: 'error', text: '', toolEvents: [], error: msg });
     }
-  }, []);
+  }, [persistSessionFilters]);
 
   const value = useMemo<InvestorBriefContextValue>(
     () => ({
@@ -250,6 +350,8 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
       currentThread: threads[activeThreadKey] ?? [],
       currentTurn,
       threadIdByKey,
+      sessionFilters: sessionFiltersByKey[activeThreadKey] ?? null,
+      clearSessionFilters,
       enterChatModeFromCard,
       enterChatModeFromQuery,
       exitChatMode,
@@ -264,6 +366,8 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
       activeThreadKey,
       currentTurn,
       threadIdByKey,
+      sessionFiltersByKey,
+      clearSessionFilters,
       enterChatModeFromCard,
       enterChatModeFromQuery,
       exitChatMode,
