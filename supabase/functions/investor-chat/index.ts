@@ -707,6 +707,7 @@ async function fetchMarketStatsFromPerplexity(market: string): Promise<Json | nu
   if (!apiKey) return null;
   const prompt = `For the US real estate market "${market}", return ONLY a compact JSON object with these keys (no prose, no markdown):
 median_list_price (number, USD),
+median_sqft (number, square feet of the median listing),
 median_rent_monthly (number, USD),
 appreciation_yoy (number, decimal, e.g. 0.058 for 5.8%),
 rent_growth_yoy (number, decimal),
@@ -1242,7 +1243,9 @@ Deno.serve(async (req) => {
     threadId?: string;
     messages: { role: 'user' | 'assistant'; content: string }[];
     activeCardContext?: any;
+    sessionFilters?: SessionFilters | null;
   };
+  const incomingSessionFilters: SessionFilters | null = (payload as any)?.sessionFilters ?? null;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages required' }), {
@@ -1292,7 +1295,32 @@ Deno.serve(async (req) => {
   // Load investor preferences + saved/owned data for system-prompt injection.
   const investorContext = await loadUserInvestorContext(req);
 
-  const ctx: ExecutionContext = { userId, supabase: userSupabase, serviceSupabase };
+  // Load preferences directly so resolveMarkets/resolveBudget can use them without re-querying.
+  let prefs: { budget_max?: number | null; budget_min?: number | null; target_markets?: string[] | null } = {};
+  try {
+    const { data: profile } = await userSupabase
+      .from('profiles')
+      .select('budget_max, budget_min, target_markets')
+      .eq('id', userId)
+      .maybeSingle();
+    if (profile) {
+      prefs = {
+        budget_max: (profile as any).budget_max ?? null,
+        budget_min: (profile as any).budget_min ?? null,
+        target_markets: Array.isArray((profile as any).target_markets)
+          ? (profile as any).target_markets
+          : null,
+      };
+    }
+  } catch (_e) { /* ignore */ }
+
+  const ctx: ExecutionContext = {
+    userId,
+    supabase: userSupabase,
+    serviceSupabase,
+    sessionFilters: incomingSessionFilters,
+    preferences: prefs,
+  };
 
   const stream = new ReadableStream({
     async start(controller) {
