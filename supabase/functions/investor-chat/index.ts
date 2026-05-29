@@ -672,7 +672,10 @@ function toMarketStatsOutput(row: any) {
   return {
     market: row.market,
     medianListPrice: row.median_list_price ?? null,
+    medianSqft: row.median_sqft ?? null,
+    medianPricePerSqft: row.median_price_per_sqft ?? null,
     medianRentMonthly: row.median_rent_monthly ?? null,
+    medianRentPerSqft: row.median_rent_per_sqft ?? null,
     appreciationYoy: row.appreciation_yoy ?? null,
     rentGrowthYoy: row.rent_growth_yoy ?? null,
     vacancyRate: row.vacancy_rate ?? null,
@@ -681,6 +684,22 @@ function toMarketStatsOutput(row: any) {
     refreshedAt: row.refreshed_at,
     source: row.source ?? null,
   };
+}
+
+function deriveMissingMarketMetrics(stats: any) {
+  const out: any = { ...stats };
+  const list = Number(out.medianListPrice);
+  const sqft = Number(out.medianSqft);
+  const rent = Number(out.medianRentMonthly);
+  if (out.medianPricePerSqft == null && list > 0 && sqft > 0) {
+    out.medianPricePerSqft = Math.round(list / sqft);
+    out.medianPricePerSqftSource = 'derived';
+  }
+  if (out.medianRentPerSqft == null && rent > 0 && sqft > 0) {
+    out.medianRentPerSqft = Number((rent / sqft).toFixed(2));
+    out.medianRentPerSqftSource = 'derived';
+  }
+  return out;
 }
 
 async function fetchMarketStatsFromPerplexity(market: string): Promise<Json | null> {
