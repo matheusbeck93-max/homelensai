@@ -75,7 +75,7 @@ Deno.test("streamWithFallback retries on retryable error before any output", asy
     async complete() { return { text: "", usage: fakeUsage("gateway:standard") }; },
     async *stream(modelId: ModelId): AsyncIterable<StreamEvent> {
       calls.push(modelId);
-      if (modelId === "gateway:standard") {
+      if (modelId === "gateway:premium") {
         yield { type: "error", message: "boom", retryable: true, status: 503 };
         return;
       }
