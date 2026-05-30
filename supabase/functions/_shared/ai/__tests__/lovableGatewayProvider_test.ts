@@ -19,7 +19,7 @@ function sseResponse(events: string[]): Response {
 
 Deno.test("complete() returns text + usage and forwards reasoning_effort", async () => {
   let capturedBody: any;
-  const fetchImpl: typeof fetch = async (_url, init) => {
+  const fetchImpl: typeof fetch = async (_url, init: any) => {
     capturedBody = JSON.parse((init?.body as string) ?? "{}");
     return jsonResponse({
       choices: [{ message: { content: "Hello world" } }],
@@ -39,7 +39,7 @@ Deno.test("complete() returns text + usage and forwards reasoning_effort", async
 
 Deno.test("complete() forwards reasoning_effort=high for premium", async () => {
   let capturedBody: any;
-  const fetchImpl: typeof fetch = async (_url, init) => {
+  const fetchImpl: typeof fetch = async (_url, init: any) => {
     capturedBody = JSON.parse((init?.body as string) ?? "{}");
     return jsonResponse({
       choices: [{ message: { content: "ok" } }],
@@ -53,7 +53,7 @@ Deno.test("complete() forwards reasoning_effort=high for premium", async () => {
 
 Deno.test("complete() omits reasoning_effort for fallback model", async () => {
   let capturedBody: any;
-  const fetchImpl: typeof fetch = async (_url, init) => {
+  const fetchImpl: typeof fetch = async (_url, init: any) => {
     capturedBody = JSON.parse((init?.body as string) ?? "{}");
     return jsonResponse({
       choices: [{ message: { content: "ok" } }],
