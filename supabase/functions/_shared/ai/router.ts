@@ -103,7 +103,7 @@ export async function* streamWithFallback(
   // if it fails before producing any non-error output.
   let producedOutput = false;
   let primaryUsage: Usage | undefined;
-  let primaryError: StreamEvent | undefined;
+  let primaryError: Extract<StreamEvent, { type: "error" }> | undefined;
 
   for await (const ev of provider.stream(primary, req, ctx.signal)) {
     if (ev.type === "error") {
