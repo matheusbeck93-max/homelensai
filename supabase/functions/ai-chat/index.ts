@@ -324,6 +324,38 @@ CRITICAL:
 
       log.step('Calling AI Gateway with client property data');
       const sanitizedHistory = sanitizeHistory(messages.slice(0, -1), { maxTurns: 30, enforceAlternation: true });
+
+      // Router-gated path (general_chat). Falls through to legacy gateway on unexpected error.
+      if (creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+        try {
+          const routed = await completeWithFallback(
+            'general_chat',
+            {
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}`,
+              messages: [
+                ...sanitizedHistory.map((m: any) => ({ role: m.role, content: String(m.content ?? '') })),
+                { role: 'user', content: analysisPrompt },
+              ],
+              maxTokens: maxOutputTokensFor(creditCheck.tier),
+            },
+            { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
+          );
+          await deductAiCredits(creditCheck, {
+            prompt_tokens: routed.usage.inputTokens,
+            completion_tokens: routed.usage.outputTokens,
+            total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+          });
+          return new Response(
+            JSON.stringify({ response: routed.text, properties, hasProperties: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        } catch (err) {
+          const errResp = routerErrorResponse(err);
+          if (errResp) return errResp;
+          console.error('[ai-chat] extension router path failed, falling back:', err);
+        }
+      }
+
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
