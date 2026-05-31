@@ -645,6 +645,56 @@ async function extractPatch(
   return { ok: true, patch };
 }
 
+// Router-backed extraction. Activated via AI_ROUTER_PREFERENCES_ASSISTANT_ENABLED.
+// Same contract as `extractPatch` so the caller can swap freely.
+async function extractPatchViaRouter(
+  userId: string,
+  messages: Array<{ role: string; content: string }>,
+  prefs: Preferences,
+): Promise<
+  | { ok: true; patch: Patch }
+  | { ok: false; rateLimited: boolean; creditsExhausted: boolean }
+> {
+  const updateTool: ChatTool = {
+    name: TOOLS[0].function.name,
+    description: TOOLS[0].function.description,
+    parameters: TOOLS[0].function.parameters as Record<string, unknown>,
+  };
+  try {
+    const result = await completeWithFallback(
+      'preferences_assistant',
+      {
+        system: EXTRACTION_PROMPT,
+        messages: [
+          { role: 'system', content: `Current preferences JSON:\n${JSON.stringify(prefs, null, 2)}` },
+          ...messages.map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          })),
+        ],
+        temperature: 0,
+        tools: [updateTool],
+        toolChoice: { type: 'function', name: 'update_preferences' },
+      },
+      { userId, tier: 'free' },
+    );
+    const call = (result.toolCalls ?? []).find((tc) => tc.name === 'update_preferences');
+    const patch = (call?.arguments as Patch | undefined) ?? {};
+    return { ok: true, patch };
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      log.step('Router budget exceeded', { tier: err.tier, used: err.usedUsd, cap: err.capUsd });
+      return { ok: false, rateLimited: false, creditsExhausted: true };
+    }
+    if (err instanceof ProviderError) {
+      log.step('Router provider error', { status: err.status, retryable: err.retryable });
+      return { ok: false, rateLimited: err.status === 429, creditsExhausted: err.status === 402 };
+    }
+    log.step('Router unexpected error', { message: getErrorMessage(err) });
+    return { ok: false, rateLimited: false, creditsExhausted: false };
+  }
+}
+
 // Pass 2: generate a data-driven reply that confirms what was actually saved
 // and asks about the next-most-important missing field.
 async function generateReply(
