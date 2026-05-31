@@ -96,7 +96,13 @@ Response style:
 - Include a "next variable to test" only when it materially helps the decision — skip generic next-step suggestions.
 - Skip generic market commentary and filler.` },
       { role: 'user', content: prompt }
-    ]);
+    ], credits.userId ? {
+      router: {
+        surface: 'artifact_generation',
+        userId: credits.userId,
+        tier: credits.tier === 'unlimited' ? 'premium' : (credits.tier ?? 'free'),
+      },
+    } : {});
 
     if ('error' in aiResult) return aiResult.error;
 
