@@ -4,6 +4,8 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
+import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
+import { ProviderError, type ChatTool } from '../_shared/ai/types.ts';
 
 const log = createLogger('preferences-assistant');
 
