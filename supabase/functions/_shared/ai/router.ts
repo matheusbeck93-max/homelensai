@@ -23,8 +23,10 @@ import {
 } from "./types.ts";
 import { logUsageAsync } from "./usageLogger.ts";
 import { BudgetExceededError, checkBudget, type BudgetStatus } from "./budgetGuard.ts";
+import { getFlagDecision, isSurfaceEnabled } from "./featureFlags.ts";
 
 export { BudgetExceededError };
+export { getFlagDecision, isSurfaceEnabled };
 
 export interface RouterContext {
   userId: string;
@@ -50,12 +52,9 @@ export function pickModel(
   return { primary: tierCfg.primary, fallback: tierCfg.fallback };
 }
 
-/**
- * PR #4 will wire real flags. For now every surface is dormant — no surface
- * imports the router yet, so the stub is fine.
- */
-export function isFlagOn(_surface: SurfaceId, _userId: string): boolean {
-  return false;
+/** @deprecated Use isSurfaceEnabled from ./featureFlags.ts. Kept as a thin re-export for back-compat. */
+export function isFlagOn(surface: SurfaceId, userId: string): boolean {
+  return isSurfaceEnabled(surface, userId);
 }
 
 function logUsage(
