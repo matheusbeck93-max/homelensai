@@ -65,6 +65,66 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_log: {
+        Row: {
+          api_name: string
+          attempt: string
+          cost_usd: number
+          created_at: string
+          error_code: string | null
+          id: string
+          input_tokens: number
+          latency_ms: number | null
+          model_id: string
+          output_tokens: number
+          reasoning_tokens: number
+          request_id: string | null
+          status: string
+          surface: string
+          tier: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          api_name: string
+          attempt: string
+          cost_usd?: number
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          input_tokens?: number
+          latency_ms?: number | null
+          model_id: string
+          output_tokens?: number
+          reasoning_tokens?: number
+          request_id?: string | null
+          status?: string
+          surface: string
+          tier: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          api_name?: string
+          attempt?: string
+          cost_usd?: number
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          input_tokens?: number
+          latency_ms?: number | null
+          model_id?: string
+          output_tokens?: number
+          reasoning_tokens?: number
+          request_id?: string | null
+          status?: string
+          surface?: string
+          tier?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       alert_events: {
         Row: {
           created_at: string
