@@ -21,11 +21,14 @@ import {
   type Tier,
   type Usage,
 } from "./types.ts";
+import { logUsageAsync } from "./usageLogger.ts";
 
 export interface RouterContext {
   userId: string;
   tier: Tier;
   signal?: AbortSignal;
+  /** Optional upstream request id for correlating logs with edge requests. */
+  requestId?: string;
 }
 
 export interface RouterOptions {
@@ -50,17 +53,38 @@ export function isFlagOn(_surface: SurfaceId, _userId: string): boolean {
   return false;
 }
 
-/**
- * PR #2 will land the `ai_usage_log` table. Until then this is a no-op
- * (writes a debug log line so we can verify the hook fires in dev).
- */
-function logUsage(_surface: SurfaceId, _ctx: RouterContext, usage: Usage, attempt: "primary" | "fallback"): void {
+function logUsage(
+  surface: SurfaceId,
+  ctx: RouterContext,
+  usage: Usage,
+  attempt: "primary" | "fallback",
+  latencyMs?: number,
+  status: "ok" | "error" = "ok",
+  errorCode?: string,
+): void {
   if (Deno.env.get("AI_ROUTER_DEBUG") === "1") {
     console.log(
-      `[ai-router] surface=${_surface} model=${usage.modelId} attempt=${attempt} ` +
-        `in=${usage.inputTokens} out=${usage.outputTokens} cost=$${usage.costUsd}`,
+      `[ai-router] surface=${surface} model=${usage.modelId} attempt=${attempt} ` +
+        `in=${usage.inputTokens} out=${usage.outputTokens} cost=$${usage.costUsd} ` +
+        `latency=${latencyMs ?? "?"}ms status=${status}`,
     );
   }
+  if (!ctx.userId) return;
+  logUsageAsync({
+    userId: ctx.userId,
+    surface,
+    tier: ctx.tier,
+    usage,
+    attempt,
+    latencyMs,
+    status,
+    errorCode,
+    requestId: ctx.requestId,
+  });
+}
+
+function zeroUsage(modelId: ModelId): Usage {
+  return { inputTokens: 0, outputTokens: 0, costUsd: 0, modelId };
 }
 
 function defaultProvider(): ChatProvider {
@@ -76,16 +100,28 @@ export async function completeWithFallback(
   const provider = opts.provider ?? defaultProvider();
   const { primary, fallback } = pickModel(surface, ctx.tier);
 
+  const t0 = Date.now();
   try {
     const result = await provider.complete(primary, req, ctx.signal);
-    logUsage(surface, ctx, result.usage, "primary");
+    logUsage(surface, ctx, result.usage, "primary", Date.now() - t0);
     return result;
   } catch (err) {
+    const primaryLatency = Date.now() - t0;
     if (err instanceof ProviderError && err.retryable) {
-      const result = await provider.complete(fallback, req, ctx.signal);
-      logUsage(surface, ctx, result.usage, "fallback");
-      return result;
+      logUsage(surface, ctx, zeroUsage(primary), "primary", primaryLatency, "error", String(err.status));
+      const t1 = Date.now();
+      try {
+        const result = await provider.complete(fallback, req, ctx.signal);
+        logUsage(surface, ctx, result.usage, "fallback", Date.now() - t1);
+        return result;
+      } catch (err2) {
+        const code = err2 instanceof ProviderError ? String(err2.status) : "unknown";
+        logUsage(surface, ctx, zeroUsage(fallback), "fallback", Date.now() - t1, "error", code);
+        throw err2;
+      }
     }
+    const code = err instanceof ProviderError ? String(err.status) : "unknown";
+    logUsage(surface, ctx, zeroUsage(primary), "primary", primaryLatency, "error", code);
     throw err;
   }
 }
@@ -104,6 +140,7 @@ export async function* streamWithFallback(
   let producedOutput = false;
   let primaryUsage: Usage | undefined;
   let primaryError: Extract<StreamEvent, { type: "error" }> | undefined;
+  const t0 = Date.now();
 
   for await (const ev of provider.stream(primary, req, ctx.signal)) {
     if (ev.type === "error") {
@@ -119,7 +156,7 @@ export async function* streamWithFallback(
   }
 
   if (!primaryError) {
-    if (primaryUsage) logUsage(surface, ctx, primaryUsage, "primary");
+    if (primaryUsage) logUsage(surface, ctx, primaryUsage, "primary", Date.now() - t0);
     yield { type: "done", usage: primaryUsage };
     return;
   }
@@ -127,22 +164,51 @@ export async function* streamWithFallback(
   // Only fall through when the error is retryable AND we haven't already
   // streamed partial output (mid-stream switching would corrupt the UX).
   if (!primaryError.retryable || producedOutput) {
+    logUsage(
+      surface,
+      ctx,
+      zeroUsage(primary),
+      "primary",
+      Date.now() - t0,
+      "error",
+      primaryError.status ? String(primaryError.status) : "stream_error",
+    );
     yield primaryError;
     return;
   }
 
+  logUsage(
+    surface,
+    ctx,
+    zeroUsage(primary),
+    "primary",
+    Date.now() - t0,
+    "error",
+    primaryError.status ? String(primaryError.status) : "stream_error",
+  );
+
   let fallbackUsage: Usage | undefined;
+  const t1 = Date.now();
   for await (const ev of provider.stream(fallback, req, ctx.signal)) {
     if (ev.type === "done") {
       fallbackUsage = ev.usage;
       break;
     }
     if (ev.type === "error") {
+      logUsage(
+        surface,
+        ctx,
+        zeroUsage(fallback),
+        "fallback",
+        Date.now() - t1,
+        "error",
+        ev.status ? String(ev.status) : "stream_error",
+      );
       yield ev;
       return;
     }
     yield ev;
   }
-  if (fallbackUsage) logUsage(surface, ctx, fallbackUsage, "fallback");
+  if (fallbackUsage) logUsage(surface, ctx, fallbackUsage, "fallback", Date.now() - t1);
   yield { type: "done", usage: fallbackUsage };
 }
