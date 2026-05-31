@@ -4,6 +4,8 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { callAiGateway } from '../_shared/ai-gateway.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
+import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
 
 const sanitize = (s: unknown, max = 200) =>
   String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, max);
@@ -61,10 +63,7 @@ Provide a comprehensive analysis including:
 4. Recommended Strategy (flip, hold, pass)
 5. Plain English Summary for someone new to real estate investing`;
 
-    const aiResult = await callAiGateway([
-      {
-        role: 'system',
-        content: `You are an experienced U.S. real estate investment analyst.
+    const systemPrompt = `You are an experienced U.S. real estate investment analyst.
 
 Response style:
 - Open with the verdict (rating + recommended strategy) in the first 1–2 sentences. No preambles, no ambiguous "it depends" openers.
@@ -73,9 +72,42 @@ Response style:
 - Flat bullets, short paragraphs, no tables unless comparing 3+ scenarios.
 - Prefer bullets when they improve scanability — list 3+ supporting points as flat bullets; use short prose for 1–2 connected points.
 - Conciseness: cut filler ~15–20%; every sentence must add decision-relevant info.
-- The plain-English summary closes with a "do this next" line only when it materially helps the decision — otherwise skip follow-up suggestions.`
-      },
-      { role: 'user', content: prompt }
+- The plain-English summary closes with a "do this next" line only when it materially helps the decision — otherwise skip follow-up suggestions.`;
+
+    const userId = credits.userId ?? '';
+    const routerTier: 'free' | 'premium' = credits.tier === 'paid' ? 'premium' : 'free';
+
+    if (userId && isSurfaceEnabled('extension_listing_analysis', userId)) {
+      try {
+        const routed = await completeWithFallback(
+          'extension_listing_analysis',
+          {
+            system: systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          },
+          { userId, tier: routerTier },
+        );
+        await deductAiCredits(credits, {
+          prompt_tokens: routed.usage.inputTokens,
+          completion_tokens: routed.usage.outputTokens,
+          total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+        });
+        return jsonResponse({ analysis: routed.text });
+      } catch (err) {
+        if (err instanceof BudgetExceededError) {
+          return errorResponse('Daily AI budget reached. Try again tomorrow.', 402);
+        }
+        if (err instanceof ProviderError && err.status === 429) {
+          return errorResponse('AI is rate-limited. Please retry shortly.', 429);
+        }
+        // Fall through to legacy gateway path on unexpected router error.
+        console.error('ai-analyze router path failed, falling back:', err);
+      }
+    }
+
+    const aiResult = await callAiGateway([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt },
     ]);
 
     if ('error' in aiResult) return aiResult.error;
