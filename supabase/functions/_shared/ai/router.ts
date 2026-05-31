@@ -24,6 +24,8 @@ import {
 import { logUsageAsync } from "./usageLogger.ts";
 import { BudgetExceededError, checkBudget, type BudgetStatus } from "./budgetGuard.ts";
 
+export { BudgetExceededError };
+
 export interface RouterContext {
   userId: string;
   tier: Tier;
