@@ -325,11 +325,11 @@ CRITICAL:
       log.step('Calling AI Gateway with client property data');
       const sanitizedHistory = sanitizeHistory(messages.slice(0, -1), { maxTurns: 30, enforceAlternation: true });
 
-      // Router-gated path (general_chat). Falls through to legacy gateway on unexpected error.
-      if (creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+      // Router-gated path (extension_listing_analysis). Falls through to legacy gateway on unexpected error.
+      if (creditCheck.userId && isSurfaceEnabled('extension_listing_analysis', creditCheck.userId)) {
         try {
           const routed = await completeWithFallback(
-            'general_chat',
+            'extension_listing_analysis',
             {
               system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}`,
               messages: [
