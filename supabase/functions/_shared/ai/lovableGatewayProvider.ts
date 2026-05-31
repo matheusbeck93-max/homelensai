@@ -81,7 +81,7 @@ export class LovableGatewayProvider implements ChatProvider {
           parameters: t.parameters,
         },
       }));
-      body.tool_choice = "auto";
+      body.tool_choice = translateToolChoice(req.toolChoice);
     }
     if (stream) {
       body.stream_options = { include_usage: true };
