@@ -1,5 +1,14 @@
 import { requireEnv } from './env.ts';
 import { handleAiGatewayError } from './errors.ts';
+import {
+  completeWithFallback,
+  isSurfaceEnabled,
+  BudgetExceededError,
+} from './ai/router.ts';
+import { ProviderError } from './ai/types.ts';
+import type { SurfaceId } from './ai/surfaceConfig.ts';
+import type { Tier } from './ai/types.ts';
+import { errorResponse } from './responses.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
@@ -23,6 +32,17 @@ export interface AiRequestOptions {
   max_tokens?: number;
   tools?: AiTool[];
   tool_choice?: any;
+  /**
+   * When set and the corresponding `AI_ROUTER_<SURFACE>_ENABLED=1` env flag is on,
+   * the call is routed through `completeWithFallback` (P1 router) instead of the
+   * legacy raw-fetch gateway path. On unexpected router failures we fall through
+   * to the legacy path so the surface degrades gracefully.
+   */
+  router?: {
+    surface: SurfaceId;
+    userId: string;
+    tier: Tier;
+  };
 }
 
 export interface AiCompletionResult {
@@ -53,6 +73,53 @@ export async function callAiGateway(
   messages: AiMessage[],
   options: AiRequestOptions = {},
 ): Promise<{ result: AiCompletionResult } | { error: Response }> {
+  // Router-gated path. Falls through to legacy gateway on unexpected errors.
+  if (options.router && isSurfaceEnabled(options.router.surface, options.router.userId)) {
+    try {
+      const { system, userMessages } = splitSystemFromMessages(messages);
+      const routed = await completeWithFallback(
+        options.router.surface,
+        {
+          system,
+          messages: userMessages,
+          maxTokens: options.max_tokens,
+          temperature: options.temperature,
+          tools: options.tools?.map((t) => ({
+            name: t.function.name,
+            description: t.function.description,
+            parameters: t.function.parameters,
+          })),
+          toolChoice: options.tool_choice,
+        },
+        { userId: options.router.userId, tier: options.router.tier },
+      );
+      const result: AiCompletionResult = {
+        message: routed.text,
+        usage: {
+          prompt_tokens: routed.usage.inputTokens,
+          completion_tokens: routed.usage.outputTokens,
+          total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+        },
+        raw: routed,
+      };
+      if (routed.toolCalls?.length) {
+        result.toolCalls = routed.toolCalls.map((tc) => ({
+          name: tc.name,
+          arguments: tc.arguments ?? {},
+        }));
+      }
+      return { result };
+    } catch (err) {
+      if (err instanceof BudgetExceededError) {
+        return { error: errorResponse('Payment required, please add funds to your workspace.', 402) };
+      }
+      if (err instanceof ProviderError && err.status === 429) {
+        return { error: errorResponse('Rate limits exceeded, please try again later.', 429) };
+      }
+      console.error('[ai-gateway] router path failed, falling back:', (err as Error)?.message);
+    }
+  }
+
   const apiKey = requireEnv('LOVABLE_API_KEY');
   const model = options.model || 'google/gemini-2.5-flash';
 
@@ -111,4 +178,20 @@ export async function callAiGateway(
   }
 
   return { result };
+}
+
+function splitSystemFromMessages(messages: AiMessage[]): { system?: string; userMessages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }> } {
+  let system: string | undefined;
+  const userMessages: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string }> = [];
+  for (const m of messages) {
+    if (m.role === 'system' && system === undefined && typeof m.content === 'string') {
+      system = m.content;
+      continue;
+    }
+    userMessages.push({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    });
+  }
+  return { system, userMessages };
 }
