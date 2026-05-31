@@ -6,6 +6,12 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
+import {
+  completeWithFallback,
+  isSurfaceEnabled,
+  BudgetExceededError,
+} from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
 
 const log = createLogger('send-weekly-picks');
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
@@ -154,30 +160,54 @@ ${JSON.stringify(candidateProperties.map(p => ({
 
 Select the 5 best matches.`;
 
-        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.3,
-            max_tokens: 500,
-          }),
-        });
-
-        if (!aiResponse.ok) {
-          console.error(`AI API error for user ${user.id}:`, aiResponse.status);
-          continue;
+        let aiContent = '';
+        if (isSurfaceEnabled('alerts_engine', user.id)) {
+          try {
+            const routed = await completeWithFallback(
+              'alerts_engine',
+              {
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }],
+                temperature: 0.3,
+                maxTokens: 500,
+              },
+              { userId: user.id, tier: 'paid' },
+            );
+            aiContent = routed.text;
+          } catch (err) {
+            if (err instanceof BudgetExceededError || (err instanceof ProviderError && err.status === 429)) {
+              console.error(`AI router error for user ${user.id}:`, (err as Error).message);
+              continue;
+            }
+            console.error('[send-weekly-picks] router path failed, falling back:', (err as Error)?.message);
+          }
         }
+        if (!aiContent) {
+          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+              temperature: 0.3,
+              max_tokens: 500,
+            }),
+          });
 
-        const aiData = await aiResponse.json();
-        const aiContent = aiData.choices?.[0]?.message?.content || '';
+          if (!aiResponse.ok) {
+            console.error(`AI API error for user ${user.id}:`, aiResponse.status);
+            continue;
+          }
+
+          const aiData = await aiResponse.json();
+          aiContent = aiData.choices?.[0]?.message?.content || '';
+        }
         
         // Extract property IDs from AI response
         let selectedIds: string[] = [];

@@ -49,7 +49,17 @@ Keep it conversational, authentic, and engaging. Use specific examples when poss
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      { temperature: 0.8, max_tokens: 1500 }
+      {
+        temperature: 0.8,
+        max_tokens: 1500,
+        ...(credits.userId ? {
+          router: {
+            surface: 'artifact_generation' as const,
+            userId: credits.userId,
+            tier: credits.tier === 'unlimited' ? 'premium' as const : (credits.tier ?? 'free') as 'free' | 'paid',
+          },
+        } : {}),
+      }
     );
 
     if ('error' in aiResult) return aiResult.error;

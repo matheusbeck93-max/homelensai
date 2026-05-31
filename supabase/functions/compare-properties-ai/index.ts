@@ -108,7 +108,16 @@ Response style:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      { temperature: 0.7 }
+      {
+        temperature: 0.7,
+        ...(credits.userId ? {
+          router: {
+            surface: 'artifact_generation' as const,
+            userId: credits.userId,
+            tier: credits.tier === 'unlimited' ? 'premium' as const : (credits.tier ?? 'free') as 'free' | 'paid',
+          },
+        } : {}),
+      }
     );
 
     if ('error' in aiResult) return aiResult.error;

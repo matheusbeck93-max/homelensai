@@ -8,6 +8,12 @@ import {
   computeBudgetAffordability,
   projectAmortizationSchedule,
 } from '../_shared/calcEngine.ts';
+import {
+  completeWithFallback,
+  isSurfaceEnabled,
+  BudgetExceededError,
+} from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -1160,7 +1166,59 @@ function sseEvent(event: string, data: Json): Uint8Array {
 // LLM tool-use loop (via Lovable AI Gateway, OpenAI-compatible)
 // ──────────────────────────────────────────────────────────────────────────────
 
-async function callGateway(messages: any[], stream = false) {
+async function callGateway(messages: any[], stream = false, routerCtx?: { userId: string; tier: 'free' | 'paid' | 'premium' }) {
+  if (!stream && routerCtx && isSurfaceEnabled('investor_chat', routerCtx.userId)) {
+    try {
+      const system = messages.find((m) => m.role === 'system')?.content ?? '';
+      const rest = messages.filter((m) => m !== messages.find((mm) => mm.role === 'system'));
+      const routed = await completeWithFallback(
+        'investor_chat',
+        {
+          system: typeof system === 'string' ? system : undefined,
+          messages: rest.map((m: any) => ({
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content : (m.content == null ? '' : JSON.stringify(m.content)),
+            ...(m.tool_call_id ? { tool_call_id: m.tool_call_id } : {}),
+            ...(m.tool_calls ? { tool_calls: m.tool_calls } : {}),
+          })),
+          tools: TOOLS.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters })),
+          toolChoice: 'auto',
+        },
+        { userId: routerCtx.userId, tier: routerCtx.tier },
+      );
+      // Mirror gateway HTTP shape so the existing loop can `await res.json()`.
+      const fakeBody = {
+        choices: [{
+          message: {
+            content: routed.text,
+            tool_calls: (routed.toolCalls ?? []).map((tc) => ({
+              id: tc.id,
+              type: 'function',
+              function: { name: tc.name, arguments: JSON.stringify(tc.arguments ?? {}) },
+            })),
+          },
+        }],
+        usage: {
+          prompt_tokens: routed.usage.inputTokens,
+          completion_tokens: routed.usage.outputTokens,
+          total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+        },
+      };
+      return new Response(JSON.stringify(fakeBody), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (err) {
+      if (err instanceof BudgetExceededError) {
+        throw new Error('Payment required, please add funds to your workspace.');
+      }
+      if (err instanceof ProviderError && err.status === 429) {
+        throw new Error('Rate limits exceeded, please try again later.');
+      }
+      console.error('[investor-chat] router path failed, falling back:', (err as Error)?.message);
+    }
+  }
+
   const apiKey = requireEnv('LOVABLE_API_KEY');
   const body = {
     model: MODEL,
@@ -1325,7 +1383,7 @@ Deno.serve(async (req) => {
 
       try {
         for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-          const res = await callGateway(convo, false);
+          const res = await callGateway(convo, false, { userId, tier: 'paid' });
           const data = await res.json();
           const choice = data.choices?.[0];
           if (!choice) break;
