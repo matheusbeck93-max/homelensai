@@ -9,8 +9,30 @@ import { sanitizeHistory } from '../_shared/conversationHistory.ts';
 import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
+import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
 
 const log = createLogger('ai-chat');
+
+// --- general_chat router migration helpers (PR #9) ---
+function routerTierFor(tier?: string): 'free' | 'premium' {
+  return (tier === 'paid' || tier === 'unlimited') ? 'premium' : 'free';
+}
+function routerErrorResponse(err: unknown): Response | null {
+  if (err instanceof BudgetExceededError) {
+    return new Response(
+      JSON.stringify({ error: 'Daily AI budget reached. Try again tomorrow.' }),
+      { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+  if (err instanceof ProviderError && err.status === 429) {
+    return new Response(
+      JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+  return null;
+}
 
 // Known buyer_type values supported by `profileInstructions` below.
 // Unknown values silently coerce to 'regular-buyer' — keep this list in sync
@@ -302,6 +324,38 @@ CRITICAL:
 
       log.step('Calling AI Gateway with client property data');
       const sanitizedHistory = sanitizeHistory(messages.slice(0, -1), { maxTurns: 30, enforceAlternation: true });
+
+      // Router-gated path (general_chat). Falls through to legacy gateway on unexpected error.
+      if (creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+        try {
+          const routed = await completeWithFallback(
+            'general_chat',
+            {
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}`,
+              messages: [
+                ...sanitizedHistory.map((m: any) => ({ role: m.role, content: String(m.content ?? '') })),
+                { role: 'user', content: analysisPrompt },
+              ],
+              maxTokens: maxOutputTokensFor(creditCheck.tier),
+            },
+            { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
+          );
+          await deductAiCredits(creditCheck, {
+            prompt_tokens: routed.usage.inputTokens,
+            completion_tokens: routed.usage.outputTokens,
+            total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+          });
+          return new Response(
+            JSON.stringify({ response: routed.text, properties, hasProperties: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        } catch (err) {
+          const errResp = routerErrorResponse(err);
+          if (errResp) return errResp;
+          console.error('[ai-chat] extension router path failed, falling back:', err);
+        }
+      }
+
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -718,36 +772,83 @@ CRITICAL:
           }]
         : undefined;
 
-      const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}` },
-            { role: 'user', content: analysisPrompt }
-          ],
-          max_tokens: maxOutputTokensFor(creditCheck.tier),
-          ...(matchScoreTool ? { tools: matchScoreTool, tool_choice: 'auto' } : {}),
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        if (aiResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // Router-gated path (general_chat) for Firecrawl branch. Falls through to legacy
+      // gateway on unexpected error so the surface degrades gracefully.
+      let aiData: any = null;
+      if (creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+        try {
+          const routerTools = matchScoreTool
+            ? matchScoreTool.map((t: any) => ({
+                name: t.function.name,
+                description: t.function.description,
+                parameters: t.function.parameters,
+              }))
+            : undefined;
+          const routed = await completeWithFallback(
+            'general_chat',
+            {
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}`,
+              messages: [{ role: 'user', content: analysisPrompt }],
+              maxTokens: maxOutputTokensFor(creditCheck.tier),
+              ...(routerTools ? { tools: routerTools, toolChoice: 'auto' as const } : {}),
+            },
+            { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
+          );
+          // Mirror legacy gateway response shape so downstream parsing is unchanged.
+          aiData = {
+            choices: [{
+              message: {
+                content: routed.text,
+                tool_calls: (routed.toolCalls ?? []).map((tc) => ({
+                  function: { name: tc.name, arguments: JSON.stringify(tc.arguments ?? {}) },
+                })),
+              },
+            }],
+            usage: {
+              prompt_tokens: routed.usage.inputTokens,
+              completion_tokens: routed.usage.outputTokens,
+              total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+            },
+          };
+        } catch (err) {
+          const errResp = routerErrorResponse(err);
+          if (errResp) return errResp;
+          console.error('[ai-chat] firecrawl router path failed, falling back:', err);
         }
-        if (aiResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        const errorText = await aiResponse.text();
-        console.error(`AI Gateway failed: ${aiResponse.status}`, errorText);
-        throw new Error(`AI Gateway failed: ${aiResponse.status} - ${errorText}`);
       }
 
-      const aiData = await aiResponse.json();
+      if (!aiData) {
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}` },
+              { role: 'user', content: analysisPrompt }
+            ],
+            max_tokens: maxOutputTokensFor(creditCheck.tier),
+            ...(matchScoreTool ? { tools: matchScoreTool, tool_choice: 'auto' } : {}),
+          }),
+        });
+
+        if (!aiResponse.ok) {
+          if (aiResponse.status === 429) {
+            return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          if (aiResponse.status === 402) {
+            return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          const errorText = await aiResponse.text();
+          console.error(`AI Gateway failed: ${aiResponse.status}`, errorText);
+          throw new Error(`AI Gateway failed: ${aiResponse.status} - ${errorText}`);
+        }
+
+        aiData = await aiResponse.json();
+      }
       const choice = aiData.choices?.[0]?.message ?? {};
       let analysis: string = choice.content ?? '';
 
@@ -1619,28 +1720,80 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     const maxOut = maxOutputTokensFor(creditCheck.tier);
     if (maxOut) requestBody.max_tokens = maxOut;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Router-gated path (general_chat). Skipped when attachments are present because
+    // the router's ChatMessage contract is text-only — multimodal stays on legacy.
+    let data: any = null;
+    const hasMultimodal = allAttachments.length > 0;
+    if (!hasMultimodal && creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+      try {
+        const systemMsg = aiMessages[0]?.content;
+        const restMsgs = aiMessages.slice(1).map((m: any) => ({
+          role: m.role,
+          content: typeof m.content === 'string' ? m.content : String(m.content ?? ''),
+        }));
+        const routerTools = (tools && tools.length > 0)
+          ? tools.map((t: any) => ({
+              name: t.function?.name ?? t.name,
+              description: t.function?.description ?? t.description ?? '',
+              parameters: t.function?.parameters ?? t.parameters ?? {},
+            }))
+          : undefined;
+        const routed = await completeWithFallback(
+          'general_chat',
+          {
+            system: typeof systemMsg === 'string' ? systemMsg : '',
+            messages: restMsgs,
+            ...(maxOut ? { maxTokens: maxOut } : {}),
+            ...(routerTools ? { tools: routerTools, toolChoice: 'auto' as const } : {}),
+          },
+          { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
+        );
+        data = {
+          choices: [{
+            message: {
+              content: routed.text,
+              tool_calls: (routed.toolCalls ?? []).map((tc) => ({
+                function: { name: tc.name, arguments: JSON.stringify(tc.arguments ?? {}) },
+              })),
+            },
+          }],
+          usage: {
+            prompt_tokens: routed.usage.inputTokens,
+            completion_tokens: routed.usage.outputTokens,
+            total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+          },
+        };
+      } catch (err) {
+        const errResp = routerErrorResponse(err);
+        if (errResp) return errResp;
+        console.error('[ai-chat] general router path failed, falling back:', err);
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      throw new Error(`AI Gateway failed: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
+    if (!data) {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const errorText = await response.text();
+        console.error('AI Gateway error:', response.status, errorText);
+        throw new Error(`AI Gateway failed: ${response.status} ${errorText}`);
+      }
+
+      data = await response.json();
+    }
     await deductAiCredits(creditCheck, data.usage);
 
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
