@@ -9,8 +9,30 @@ import { sanitizeHistory } from '../_shared/conversationHistory.ts';
 import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
+import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
 
 const log = createLogger('ai-chat');
+
+// --- general_chat router migration helpers (PR #9) ---
+function routerTierFor(tier?: string): 'free' | 'premium' {
+  return (tier === 'paid' || tier === 'unlimited') ? 'premium' : 'free';
+}
+function routerErrorResponse(err: unknown): Response | null {
+  if (err instanceof BudgetExceededError) {
+    return new Response(
+      JSON.stringify({ error: 'Daily AI budget reached. Try again tomorrow.' }),
+      { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+  if (err instanceof ProviderError && err.status === 429) {
+    return new Response(
+      JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+  return null;
+}
 
 // Known buyer_type values supported by `profileInstructions` below.
 // Unknown values silently coerce to 'regular-buyer' — keep this list in sync
