@@ -36,6 +36,15 @@ export interface ChatRequest {
   system?: string;
   messages: ChatMessage[];
   tools?: ChatTool[];
+  /**
+   * OpenAI-style tool_choice. "auto" (default), "none", "required", or
+   * a forced function call: { type: "function", name: "fn_name" }.
+   */
+  toolChoice?:
+    | "auto"
+    | "none"
+    | "required"
+    | { type: "function"; name: string };
   maxTokens?: number;
   temperature?: number;
   /** When "json", asks the model to return a JSON object. */
