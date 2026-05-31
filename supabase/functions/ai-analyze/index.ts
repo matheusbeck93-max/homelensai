@@ -4,6 +4,8 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { callAiGateway } from '../_shared/ai-gateway.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
+import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
 
 const sanitize = (s: unknown, max = 200) =>
   String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, max);
