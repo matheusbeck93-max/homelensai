@@ -772,6 +772,57 @@ CRITICAL:
           }]
         : undefined;
 
+      // Router-gated path (general_chat) for Firecrawl branch. Mirrors legacy contract,
+      // including the structured submit_match_score tool. Falls through on unexpected error.
+      if (creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+        try {
+          const routerTools = matchScoreTool
+            ? matchScoreTool.map((t: any) => ({
+                name: t.function.name,
+                description: t.function.description,
+                parameters: t.function.parameters,
+              }))
+            : undefined;
+          const routed = await completeWithFallback(
+            'general_chat',
+            {
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}`,
+              messages: [{ role: 'user', content: analysisPrompt }],
+              maxTokens: maxOutputTokensFor(creditCheck.tier),
+              ...(routerTools ? { tools: routerTools, toolChoice: 'auto' as const } : {}),
+            },
+            { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
+          );
+          await deductAiCredits(creditCheck, {
+            prompt_tokens: routed.usage.inputTokens,
+            completion_tokens: routed.usage.outputTokens,
+            total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+          });
+          // Mirror legacy shape so downstream score/parse logic stays identical.
+          const aiData = {
+            choices: [{
+              message: {
+                content: routed.text,
+                tool_calls: (routed.toolCalls ?? []).map((tc) => ({
+                  function: { name: tc.name, arguments: JSON.stringify(tc.arguments ?? {}) },
+                })),
+              },
+            }],
+            usage: {
+              prompt_tokens: routed.usage.inputTokens,
+              completion_tokens: routed.usage.outputTokens,
+              total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+            },
+          };
+          var __routedAiData: any = aiData;
+          var __routedHandled = true;
+        } catch (err) {
+          const errResp = routerErrorResponse(err);
+          if (errResp) return errResp;
+          console.error('[ai-chat] firecrawl router path failed, falling back:', err);
+        }
+      }
+
       const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
