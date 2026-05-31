@@ -1720,28 +1720,80 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     const maxOut = maxOutputTokensFor(creditCheck.tier);
     if (maxOut) requestBody.max_tokens = maxOut;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Router-gated path (general_chat). Skipped when attachments are present because
+    // the router's ChatMessage contract is text-only — multimodal stays on legacy.
+    let data: any = null;
+    const hasMultimodal = allAttachments.length > 0;
+    if (!hasMultimodal && creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+      try {
+        const systemMsg = aiMessages[0]?.content;
+        const restMsgs = aiMessages.slice(1).map((m: any) => ({
+          role: m.role,
+          content: typeof m.content === 'string' ? m.content : String(m.content ?? ''),
+        }));
+        const routerTools = (tools && tools.length > 0)
+          ? tools.map((t: any) => ({
+              name: t.function?.name ?? t.name,
+              description: t.function?.description ?? t.description ?? '',
+              parameters: t.function?.parameters ?? t.parameters ?? {},
+            }))
+          : undefined;
+        const routed = await completeWithFallback(
+          'general_chat',
+          {
+            system: typeof systemMsg === 'string' ? systemMsg : '',
+            messages: restMsgs,
+            ...(maxOut ? { maxTokens: maxOut } : {}),
+            ...(routerTools ? { tools: routerTools, toolChoice: 'auto' as const } : {}),
+          },
+          { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
+        );
+        data = {
+          choices: [{
+            message: {
+              content: routed.text,
+              tool_calls: (routed.toolCalls ?? []).map((tc) => ({
+                function: { name: tc.name, arguments: JSON.stringify(tc.arguments ?? {}) },
+              })),
+            },
+          }],
+          usage: {
+            prompt_tokens: routed.usage.inputTokens,
+            completion_tokens: routed.usage.outputTokens,
+            total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+          },
+        };
+      } catch (err) {
+        const errResp = routerErrorResponse(err);
+        if (errResp) return errResp;
+        console.error('[ai-chat] general router path failed, falling back:', err);
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      throw new Error(`AI Gateway failed: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
+    if (!data) {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const errorText = await response.text();
+        console.error('AI Gateway error:', response.status, errorText);
+        throw new Error(`AI Gateway failed: ${response.status} ${errorText}`);
+      }
+
+      data = await response.json();
+    }
     await deductAiCredits(creditCheck, data.usage);
 
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
