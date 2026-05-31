@@ -24,6 +24,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { getAuthenticatedUser } from '../_shared/auth.ts';
+import { completeWithFallback, BudgetExceededError, isSurfaceEnabled } from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
 
 const MODEL = 'google/gemini-2.5-pro';
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
@@ -147,8 +149,43 @@ Deno.serve(async (req) => {
       pinnedTalkingPoints,
     });
 
-    // 4. Call Lovable AI Gateway.
+    // 4. Call Lovable AI Gateway — router path (flag-gated) or legacy.
+    const useRouter = isSurfaceEnabled('investor_brief', user.id);
+    let raw = '{}';
+    let routerHandled = false;
+    if (useRouter) {
+      try {
+        const tier = (contextSnapshot?.tier === 'premium' || contextSnapshot?.tier === 'paid')
+          ? contextSnapshot.tier
+          : 'free';
+        const result = await completeWithFallback(
+          'investor_brief',
+          {
+            system: buildSystemPrompt(),
+            messages: [{ role: 'user', content: userMessage }],
+            responseFormat: 'json',
+            temperature: 0.4,
+          },
+          { userId: user.id, tier },
+        );
+        raw = result.text || '{}';
+        routerHandled = true;
+      } catch (err) {
+        if (err instanceof BudgetExceededError) {
+          await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
+          return jsonResponse({ error: 'Credits exhausted' }, 402);
+        }
+        if (err instanceof ProviderError && err.status === 429) {
+          await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
+          return jsonResponse({ error: 'Rate limited' }, 429);
+        }
+        console.error('[investor-brief] router error, falling back to legacy', err);
+        // fall through to legacy path
+      }
+    }
+
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!routerHandled) {
     if (!apiKey) {
       await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
       return jsonResponse({ error: 'LOVABLE_API_KEY not configured' }, 500);
@@ -181,7 +218,8 @@ Deno.serve(async (req) => {
     }
 
     const aiData = await aiResp.json();
-    const raw = aiData?.choices?.[0]?.message?.content ?? '{}';
+    raw = aiData?.choices?.[0]?.message?.content ?? '{}';
+    }
 
     let parsed: { introText?: string; insights?: any[]; followups?: string[] };
     try {
