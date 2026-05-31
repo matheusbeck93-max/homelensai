@@ -132,6 +132,11 @@ Deno.serve(async (req) => {
       model: 'google/gemini-2.5-flash',
       temperature: 0.4,
       max_tokens: 800,
+      router: {
+        surface: 'my_properties_strategy',
+        userId: user.id,
+        tier: 'paid',
+      },
     });
     if ('error' in out) return out.error;
 
