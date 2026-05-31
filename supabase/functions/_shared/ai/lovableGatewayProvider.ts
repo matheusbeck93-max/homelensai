@@ -81,7 +81,7 @@ export class LovableGatewayProvider implements ChatProvider {
           parameters: t.parameters,
         },
       }));
-      body.tool_choice = "auto";
+      body.tool_choice = translateToolChoice(req.toolChoice);
     }
     if (stream) {
       body.stream_options = { include_usage: true };
@@ -248,4 +248,15 @@ function safeJsonParse(s: string | undefined): unknown {
   } catch {
     return { _raw: s };
   }
+}
+
+function translateToolChoice(
+  choice: ChatRequest["toolChoice"],
+): unknown {
+  if (!choice || choice === "auto") return "auto";
+  if (choice === "none" || choice === "required") return choice;
+  if (typeof choice === "object" && choice.type === "function") {
+    return { type: "function", function: { name: choice.name } };
+  }
+  return "auto";
 }
