@@ -22,6 +22,9 @@ import {
   type Usage,
 } from "./types.ts";
 import { logUsageAsync } from "./usageLogger.ts";
+import { BudgetExceededError, checkBudget, type BudgetStatus } from "./budgetGuard.ts";
+
+export { BudgetExceededError };
 
 export interface RouterContext {
   userId: string;
@@ -34,6 +37,8 @@ export interface RouterContext {
 export interface RouterOptions {
   /** Override the provider — used by tests. Defaults to LovableGatewayProvider. */
   provider?: ChatProvider;
+  /** Skip the daily budget guard. Used by tests and admin tools. */
+  skipBudgetCheck?: boolean;
 }
 
 export function pickModel(
@@ -91,6 +96,13 @@ function defaultProvider(): ChatProvider {
   return new LovableGatewayProvider();
 }
 
+async function enforceBudget(ctx: RouterContext, opts: RouterOptions): Promise<BudgetStatus | null> {
+  if (opts.skipBudgetCheck) return null;
+  const status = await checkBudget(ctx.userId, ctx.tier);
+  if (!status.allowed) throw new BudgetExceededError(status.tier, status.usedUsd, status.capUsd);
+  return status;
+}
+
 export async function completeWithFallback(
   surface: SurfaceId,
   req: ChatRequest,
@@ -99,6 +111,7 @@ export async function completeWithFallback(
 ): Promise<CompleteResult> {
   const provider = opts.provider ?? defaultProvider();
   const { primary, fallback } = pickModel(surface, ctx.tier);
+  await enforceBudget(ctx, opts);
 
   const t0 = Date.now();
   try {
@@ -134,6 +147,15 @@ export async function* streamWithFallback(
 ): AsyncIterable<StreamEvent> {
   const provider = opts.provider ?? defaultProvider();
   const { primary, fallback } = pickModel(surface, ctx.tier);
+  try {
+    await enforceBudget(ctx, opts);
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      yield { type: "error", message: err.message, retryable: false, status: 402 };
+      return;
+    }
+    throw err;
+  }
 
   // Buffer events from the primary stream so we can fall through cleanly
   // if it fails before producing any non-error output.

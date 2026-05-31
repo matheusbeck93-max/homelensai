@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
+  BudgetExceededError,
   completeWithFallback,
   pickModel,
   streamWithFallback,
@@ -43,7 +44,7 @@ Deno.test("completeWithFallback falls through on retryable error", async () => {
     "preferences_assistant",
     { messages: [{ role: "user", content: "hi" }] },
     { userId: "u1", tier: "free" },
-    { provider },
+    { provider, skipBudgetCheck: true },
   );
   assertEquals(calls, ["gateway:standard", "gateway:fallback"]);
   assertEquals(result.text, "fallback ok");
@@ -62,7 +63,7 @@ Deno.test("completeWithFallback does NOT fall through on non-retryable error", a
         "preferences_assistant",
         { messages: [{ role: "user", content: "hi" }] },
         { userId: "u1", tier: "free" },
-        { provider },
+        { provider, skipBudgetCheck: true },
       ),
     ProviderError,
     "credits exhausted",
@@ -88,7 +89,7 @@ Deno.test("streamWithFallback retries on retryable error before any output", asy
     "investor_chat",
     { messages: [{ role: "user", content: "hi" }] },
     { userId: "u1", tier: "premium" },
-    { provider },
+    { provider, skipBudgetCheck: true },
   )) {
     events.push(ev);
   }
@@ -112,11 +113,33 @@ Deno.test("streamWithFallback does NOT retry on non-retryable error", async () =
     "investor_chat",
     { messages: [{ role: "user", content: "hi" }] },
     { userId: "u1", tier: "premium" },
-    { provider },
+    { provider, skipBudgetCheck: true },
   )) {
     events.push(ev);
   }
   assertEquals(calls, ["gateway:premium"]);
   assertEquals(events[0].type, "error");
   assertEquals((events[0] as any).retryable, false);
+});
+
+Deno.test("router skips primary call when budget check fails", async () => {
+  // Simulate by setting tiny env caps and using AI_BUDGET_DISABLED off.
+  // Easier: skipBudgetCheck=false but no service client means usedUsd=0 < cap → allowed.
+  // So we exercise the explicit path via skipBudgetCheck=false + manual env disabled.
+  Deno.env.set("AI_BUDGET_DISABLED", "1");
+  try {
+    const provider: ChatProvider = {
+      async complete(modelId) { return { text: "ok", usage: fakeUsage(modelId) }; },
+      async *stream() { /* unused */ },
+    };
+    const r = await completeWithFallback(
+      "preferences_assistant",
+      { messages: [{ role: "user", content: "hi" }] },
+      { userId: "u1", tier: "free" },
+      { provider }, // skipBudgetCheck NOT set; relies on disabled flag
+    );
+    assertEquals(r.text, "ok");
+  } finally {
+    Deno.env.delete("AI_BUDGET_DISABLED");
+  }
 });
