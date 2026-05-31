@@ -249,3 +249,14 @@ function safeJsonParse(s: string | undefined): unknown {
     return { _raw: s };
   }
 }
+
+function translateToolChoice(
+  choice: ChatRequest["toolChoice"],
+): unknown {
+  if (!choice || choice === "auto") return "auto";
+  if (choice === "none" || choice === "required") return choice;
+  if (typeof choice === "object" && choice.type === "function") {
+    return { type: "function", function: { name: choice.name } };
+  }
+  return "auto";
+}
