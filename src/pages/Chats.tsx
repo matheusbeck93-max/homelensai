@@ -26,6 +26,9 @@ import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { CreditsExhaustedDialog } from "@/components/subscription/CreditsExhaustedDialog";
 import { parseEdgeError, isCreditsExhausted } from "@/lib/edgeErrors";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 // ── Match Score parser (tolerant) ──
 // Strict: prefix at line start. Tolerant: same pattern anywhere in first 300 chars.
@@ -495,6 +498,12 @@ export default function Chats() {
       }
     } catch (error: any) {
       console.error('Chat error:', error);
+      // Structured 402 from the AI router — populates the global cap state
+      // so the composer disables and the inline blocker renders.
+      if (await parseAndRecordBudget402(error, 'general_chat')) {
+        setLoading(false);
+        return;
+      }
       const parsed = await parseEdgeError(error);
       if (isCreditsExhausted(parsed)) {
         setCreditsDialogOpen(true);
@@ -846,13 +855,12 @@ export default function Chats() {
       </main>
 
       <div className={cn("transition-all duration-200", "md:ml-64")}>
-        <StickyChat
+        <CapAwareComposer
           onSend={handleSendMessage}
           loading={loading}
-          placeholder="Ask something..."
-          showVoice={true}
           value={pendingInput}
-          onValueChange={setPendingInput} />
+          onValueChange={setPendingInput}
+        />
       </div>
       <CreditsExhaustedDialog
         open={creditsDialogOpen}
@@ -860,4 +868,40 @@ export default function Chats() {
       />
     </div>);
 
+}
+
+function CapAwareComposer({
+  onSend,
+  loading,
+  value,
+  onValueChange,
+}: {
+  onSend: (text: string, attachments?: ChatAttachment[]) => void | Promise<void>;
+  loading: boolean;
+  value: string;
+  onValueChange: (v: string) => void;
+}) {
+  const cap = useBudgetCap();
+  const exceeded = cap.warningLevel === "exceeded";
+  return (
+    <div className="space-y-2">
+      {cap.warningLevel === "approaching" && (
+        <div className="px-4 pt-2">
+          <BudgetCapBanner surface="general_chat" />
+        </div>
+      )}
+      {exceeded && (
+        <div className="px-4 pt-2">
+          <BudgetCapBlocker surface="general_chat" />
+        </div>
+      )}
+        <StickyChat
+          onSend={onSend}
+          loading={loading || exceeded}
+          placeholder={exceeded ? "Daily assistant cap reached. Resets at midnight." : "Ask something..."}
+          showVoice={true}
+          value={value}
+          onValueChange={onValueChange} />
+    </div>
+  );
 }

@@ -5,10 +5,12 @@ import {
   isSurfaceEnabled,
   BudgetExceededError,
 } from './ai/router.ts';
+import { buildBudgetExceededPayload } from './ai/budgetGuard.ts';
 import { ProviderError } from './ai/types.ts';
 import type { SurfaceId } from './ai/surfaceConfig.ts';
 import type { Tier } from './ai/types.ts';
 import { errorResponse } from './responses.ts';
+import { corsHeaders } from './cors.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 
@@ -111,7 +113,13 @@ export async function callAiGateway(
       return { result };
     } catch (err) {
       if (err instanceof BudgetExceededError) {
-        return { error: errorResponse('Payment required, please add funds to your workspace.', 402) };
+        const body = buildBudgetExceededPayload(err);
+        return {
+          error: new Response(JSON.stringify(body), {
+            status: 402,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }),
+        };
       }
       if (err instanceof ProviderError && err.status === 429) {
         return { error: errorResponse('Rate limits exceeded, please try again later.', 429) };
