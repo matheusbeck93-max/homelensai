@@ -15,6 +15,9 @@ import { PersonaSummary } from '@/components/preferences/PersonaSummary';
 import { usePersona } from '@/lib/personas/usePersona';
 import { supabase } from '@/integrations/supabase/client';
 import { recordPersonaEvent } from '@/lib/personas/telemetry';
+import { useBudgetCap } from '@/lib/ai/budgetCap';
+import { BudgetCapBanner } from '@/components/ai/BudgetCapBanner';
+import { BudgetCapBlocker } from '@/components/ai/BudgetCapBlocker';
 
 interface Props {
   introText: string;
@@ -60,6 +63,8 @@ export function BriefCard({
   const [query, setQuery] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const pending = currentTurn.status === 'streaming';
+  const cap = useBudgetCap();
+  const capExceeded = cap.warningLevel === 'exceeded';
 
   useEffect(() => {
     if (mode === 'chat' && scrollRef.current) {
@@ -94,7 +99,8 @@ export function BriefCard({
               size="sm"
               className="h-7 gap-1.5 text-xs"
               onClick={onRefresh}
-              disabled={refreshing}
+              disabled={refreshing || capExceeded}
+              title={capExceeded ? 'Daily AI cap reached — resets at midnight UTC' : undefined}
             >
               <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
               {refreshing ? 'Refreshing' : 'Refresh'}
@@ -111,6 +117,8 @@ export function BriefCard({
         {!inChat && <PersonaSummary persona={persona} className="mt-1" />}
       </CardHeader>
       <CardContent className="pt-4 space-y-4">
+        {cap.warningLevel === 'approaching' && <BudgetCapBanner surface="investor_brief" />}
+        {capExceeded && <BudgetCapBlocker surface="investor_brief" compact />}
         {inChat ? (
           <div className="space-y-3">
             {activeCardContext && (
@@ -141,11 +149,12 @@ export function BriefCard({
                       <button
                         key={i}
                         type="button"
+                        disabled={capExceeded}
                         onClick={() => {
                           void recordPersonaEvent(userId, persona, 'investor_persona_starter_clicked', { prompt });
                           void sendTurn(prompt);
                         }}
-                        className="block w-full text-left text-xs text-primary hover:underline"
+                        className="block w-full text-left text-xs text-primary hover:underline disabled:opacity-50 disabled:no-underline"
                       >
                         → {prompt}
                       </button>
@@ -185,11 +194,12 @@ export function BriefCard({
                 {followups.slice(0, 3).map((f, i) => (
                   <button
                     key={i}
+                    disabled={capExceeded}
                     onClick={() => {
                       enterChatModeFromQuery(f);
                       void sendTurn(f);
                     }}
-                    className="block w-full text-left text-xs text-primary hover:underline"
+                    className="block w-full text-left text-xs text-primary hover:underline disabled:opacity-50 disabled:no-underline"
                   >
                     → {f}
                   </button>
@@ -209,16 +219,23 @@ export function BriefCard({
                   submitQuery();
                 }
               }}
-              placeholder={inChat ? 'Ask a follow-up...' : 'Ask something about your brief...'}
+              placeholder={
+                capExceeded
+                  ? 'Daily AI cap reached. Resets at midnight UTC.'
+                  : inChat
+                    ? 'Ask a follow-up...'
+                    : 'Ask something about your brief...'
+              }
               rows={2}
               className="resize-none pr-10 text-sm"
+              disabled={capExceeded}
             />
             <Button
               size="icon"
               variant="ghost"
               className="absolute bottom-1 right-1 h-7 w-7"
               onClick={submitQuery}
-              disabled={!query.trim() || pending}
+              disabled={!query.trim() || pending || capExceeded}
             >
               <Send className="h-3.5 w-3.5" />
             </Button>
