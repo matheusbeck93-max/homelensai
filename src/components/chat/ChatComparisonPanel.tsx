@@ -105,6 +105,8 @@ export function ChatComparisonPanel({
   const [analyzing, setAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<{ analysis: string; buyerType: string } | null>(null);
   const [loadingAiAnalysis, setLoadingAiAnalysis] = useState(false);
+  const cap = useBudgetCap();
+  const capExceeded = cap.warningLevel === "exceeded";
 
   const handleAddLink = async () => {
     if (!newUrl.trim()) return;
@@ -174,7 +176,8 @@ export function ChatComparisonPanel({
       }
     } catch (error: any) {
       console.error('AI comparison error:', error);
-      toast.error(error.message || "Failed to generate AI recommendation");
+      const wasCap = await parseAndRecordBudget402(error, "compare_properties");
+      if (!wasCap) toast.error(error.message || "Failed to generate AI recommendation");
     } finally {
       setLoadingAiAnalysis(false);
     }
@@ -311,9 +314,14 @@ export function ChatComparisonPanel({
             {/* AI Recommendation Button */}
             {properties.length >= 2 && (
               <div className="mt-4 pt-4 border-t">
+                {cap.warningLevel === "approaching" && (
+                  <div className="mb-2 flex justify-center">
+                    <BudgetCapBanner surface="compare_properties" />
+                  </div>
+                )}
                 <Button
                   onClick={handleGetAiRecommendation}
-                  disabled={loadingAiAnalysis}
+                  disabled={loadingAiAnalysis || capExceeded}
                   className="w-full gap-2"
                   variant={aiAnalysis ? "outline" : "default"}
                 >
@@ -329,9 +337,15 @@ export function ChatComparisonPanel({
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  Based on your profile (investor or buyer)
-                </p>
+                {capExceeded ? (
+                  <div className="mt-3">
+                    <BudgetCapBlocker surface="compare_properties" compact />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Based on your profile (investor or buyer)
+                  </p>
+                )}
               </div>
             )}
 
