@@ -9,6 +9,7 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import type { Tier } from "./types.ts";
+import type { SurfaceId } from "./surfaceConfig.ts";
 
 /** Per-tier daily USD ceiling. Overridable via env. */
 export interface BudgetLimits {
@@ -47,6 +48,8 @@ export class BudgetExceededError extends Error {
     public readonly tier: Tier,
     public readonly usedUsd: number,
     public readonly capUsd: number,
+    public readonly surface?: SurfaceId,
+    public readonly resetAt: string = nextUtcMidnightIso(),
   ) {
     super(`Daily AI budget exceeded for tier=${tier}: used $${usedUsd.toFixed(4)} of $${capUsd.toFixed(2)}`);
     this.name = "BudgetExceededError";
@@ -122,4 +125,119 @@ export async function checkBudget(
     capUsd,
     remainingUsd: Math.max(0, capUsd - usedUsd),
   };
+}
+
+/**
+ * ISO timestamp at the next UTC midnight. Used both for the structured
+ * 402 payload and for the budget-status endpoint so the client can render
+ * a single countdown.
+ */
+export function nextUtcMidnightIso(now: Date = new Date()): string {
+  const reset = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0, 0, 0, 0,
+  ));
+  return reset.toISOString();
+}
+
+/**
+ * User-facing tier names + upgrade map. Backend `Tier` (paid/premium) is
+ * translated into the rebrand (Buyer/Investor) for the response payload
+ * the frontend renders. When the tier migration lands the names converge.
+ */
+const DISPLAY_NAME: Record<Tier, string> = {
+  free: "Free",
+  paid: "Buyer",
+  premium: "Investor",
+};
+
+const UPGRADE_NEXT: Record<Tier, Tier | null> = {
+  free: "paid",       // Free → Buyer
+  paid: "premium",    // Buyer → Investor
+  premium: null,      // Investor is the top tier today
+};
+
+const TIER_PRICE_USD: Record<Tier, number> = {
+  free: 0,
+  paid: 9.97,
+  premium: 24.97,
+};
+
+function friendlyMessage(tier: Tier): string {
+  if (tier === "free") {
+    return "You've used today's free assistant credits. Upgrade for more or try again tomorrow.";
+  }
+  if (tier === "paid") {
+    return "You've hit today's Buyer assistant cap. Upgrade to Investor or try again tomorrow.";
+  }
+  // premium / Investor
+  return "You've used today's Investor cap — most users don't reach this. Resets at midnight.";
+}
+
+export interface BudgetExceededPayload {
+  error: "budget_exceeded";
+  tier: Tier;
+  tier_display: string;
+  surface?: SurfaceId;
+  message: string;
+  usage_today_usd: number;
+  daily_limit_usd: number;
+  reset_at: string;
+  upgrade:
+    | {
+        available: true;
+        next_tier: Tier;
+        next_tier_display: string;
+        next_tier_price_usd: number;
+        checkout_url: string;
+      }
+    | {
+        available: false;
+        next_tier: null;
+        next_tier_display: null;
+        next_tier_price_usd: null;
+        checkout_url: null;
+      };
+}
+
+/**
+ * Structured 402 body for cap-hit. Frontend `useBudgetCap` parses this and
+ * pushes the state across every AI surface in the app.
+ */
+export function buildBudgetExceededPayload(
+  err: BudgetExceededError,
+): BudgetExceededPayload {
+  const next = UPGRADE_NEXT[err.tier];
+  const upgrade: BudgetExceededPayload["upgrade"] = next
+    ? {
+        available: true,
+        next_tier: next,
+        next_tier_display: DISPLAY_NAME[next],
+        next_tier_price_usd: TIER_PRICE_USD[next],
+        checkout_url: `/pricing?plan=${next}&source=cap_hit_${err.surface ?? "general"}`,
+      }
+    : {
+        available: false,
+        next_tier: null,
+        next_tier_display: null,
+        next_tier_price_usd: null,
+        checkout_url: null,
+      };
+  return {
+    error: "budget_exceeded",
+    tier: err.tier,
+    tier_display: DISPLAY_NAME[err.tier],
+    surface: err.surface,
+    message: friendlyMessage(err.tier),
+    usage_today_usd: Number(err.usedUsd.toFixed(4)),
+    daily_limit_usd: err.capUsd,
+    reset_at: err.resetAt,
+    upgrade,
+  };
+}
+
+export function tierDailyLimitUsd(tier: Tier): number {
+  return getBudgetLimits()[tier];
 }

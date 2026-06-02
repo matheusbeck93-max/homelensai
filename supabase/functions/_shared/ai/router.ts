@@ -139,7 +139,16 @@ export async function completeWithFallback(
 ): Promise<CompleteResult> {
   const provider = opts.provider ?? defaultProvider();
   const { primary, fallback } = pickModel(surface, ctx.tier);
-  await enforceBudget(ctx, opts);
+  try {
+    await enforceBudget(ctx, opts);
+  } catch (err) {
+    // Stamp the surface so the structured 402 payload can route the user
+    // to the right upgrade-source attribution.
+    if (err instanceof BudgetExceededError && !err.surface) {
+      throw new BudgetExceededError(err.tier, err.usedUsd, err.capUsd, surface, err.resetAt);
+    }
+    throw err;
+  }
 
   const t0 = Date.now();
   try {
