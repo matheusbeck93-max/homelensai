@@ -108,8 +108,10 @@ Deno.serve(async (req) => {
         break;
       }
       case 'checkout.session.completed': {
-        // Subscription will arrive via subscription.created right after.
-        log.step('Checkout completed', { sessionId: (event.data.object as any).id });
+        const session = event.data.object as Stripe.Checkout.Session;
+        log.step('Checkout completed', { sessionId: session.id });
+        await recordCapConversion(supabase, session);
+        // Subscription tier change still arrives via subscription.created.
         break;
       }
       default:
