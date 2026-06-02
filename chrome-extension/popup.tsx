@@ -693,6 +693,32 @@ function MessageBubble({
       <div className={`hl-bubble hl-bubble-${msg.role}`}>
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
         {msg.upgradeCta && <CreditsExhaustedCard />}
+        {msg.budgetCap && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 10,
+              border: '1px solid rgba(107,141,181,0.35)',
+              borderRadius: 8,
+              background: 'rgba(107,141,181,0.08)',
+              fontSize: 12,
+              lineHeight: 1.4,
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Daily AI cap reached</div>
+            <div style={{ color: '#475569', marginBottom: 8 }}>
+              Resets at midnight UTC. Open HomeLens to upgrade for more.
+            </div>
+            <a
+              href="https://homelensais.com/console"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#1E2D3D', fontWeight: 600, textDecoration: 'underline' }}
+            >
+              Manage plan →
+            </a>
+          </div>
+        )}
         {showSave && (
           <div style={{ marginTop: 10 }}>
             {saveState === 'saved' || saveState === 'duplicate' ? (
