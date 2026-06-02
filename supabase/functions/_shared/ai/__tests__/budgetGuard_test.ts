@@ -1,59 +1,54 @@
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { checkBudget, getBudgetLimits } from "../budgetGuard.ts";
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  BudgetExceededError,
+  buildBudgetExceededPayload,
+  nextUtcMidnightIso,
+} from "../budgetGuard.ts";
 
-// Minimal fake client that returns a preset cost-row set for any query.
-function fakeClient(rows: Array<{ cost_usd: number }>): any {
-  return {
-    from() {
-      return {
-        select() { return this; },
-        eq() { return this; },
-        // Resolve to PostgREST-shaped response on the final `eq`.
-        then(resolve: any) { resolve({ data: rows, error: null }); },
-      };
-    },
-  };
-}
-
-Deno.test("checkBudget returns allowed=true when spend below cap", async () => {
-  const limits = getBudgetLimits();
-  const status = await checkBudget("user-1", "free", {
-    client: fakeClient([{ cost_usd: 0.01 }, { cost_usd: 0.02 }]),
-    limits,
-  });
-  assert(status.allowed);
-  assertEquals(status.usedUsd, 0.03);
-  assertEquals(status.capUsd, limits.free);
-});
-
-Deno.test("checkBudget returns allowed=false when spend at or above cap", async () => {
-  const status = await checkBudget("user-1", "free", {
-    client: fakeClient([{ cost_usd: 5 }]),
-    limits: { free: 1, paid: 10, premium: 100 },
-  });
-  assertEquals(status.allowed, false);
-  assertEquals(status.usedUsd, 5);
-  assertEquals(status.capUsd, 1);
-  assertEquals(status.remainingUsd, 0);
-});
-
-Deno.test("checkBudget fails open when no userId", async () => {
-  const status = await checkBudget("", "premium", {
-    client: fakeClient([{ cost_usd: 999 }]),
-    limits: { free: 1, paid: 10, premium: 100 },
-  });
-  assert(status.allowed);
-});
-
-Deno.test("checkBudget bypasses when AI_BUDGET_DISABLED=1", async () => {
-  Deno.env.set("AI_BUDGET_DISABLED", "1");
-  try {
-    const status = await checkBudget("user-1", "free", {
-      client: fakeClient([{ cost_usd: 999 }]),
-      limits: { free: 0.01, paid: 0.01, premium: 0.01 },
-    });
-    assert(status.allowed);
-  } finally {
-    Deno.env.delete("AI_BUDGET_DISABLED");
+Deno.test("buildBudgetExceededPayload — free tier offers Buyer upgrade", () => {
+  const err = new BudgetExceededError("free", 0.105, 0.10, "general_chat");
+  const payload = buildBudgetExceededPayload(err);
+  assertEquals(payload.error, "budget_exceeded");
+  assertEquals(payload.tier, "free");
+  assertEquals(payload.tier_display, "Free");
+  assertEquals(payload.surface, "general_chat");
+  assertEquals(payload.usage_today_usd, 0.105);
+  assertEquals(payload.daily_limit_usd, 0.10);
+  assertEquals(payload.upgrade.available, true);
+  if (payload.upgrade.available) {
+    assertEquals(payload.upgrade.next_tier, "paid");
+    assertEquals(payload.upgrade.next_tier_display, "Buyer");
+    assertEquals(payload.upgrade.next_tier_price_usd, 9.97);
+    assertEquals(
+      payload.upgrade.checkout_url,
+      "/pricing?plan=paid&source=cap_hit_general_chat",
+    );
   }
+});
+
+Deno.test("buildBudgetExceededPayload — paid tier offers Investor upgrade", () => {
+  const err = new BudgetExceededError("paid", 0.55, 0.50, "investor_chat");
+  const payload = buildBudgetExceededPayload(err);
+  assertEquals(payload.tier_display, "Buyer");
+  if (payload.upgrade.available) {
+    assertEquals(payload.upgrade.next_tier, "premium");
+    assertEquals(payload.upgrade.next_tier_price_usd, 24.97);
+  } else {
+    throw new Error("expected upgrade available for paid tier");
+  }
+});
+
+Deno.test("buildBudgetExceededPayload — premium has no upgrade", () => {
+  const err = new BudgetExceededError("premium", 1.6, 1.5, "general_chat");
+  const payload = buildBudgetExceededPayload(err);
+  assertEquals(payload.tier_display, "Investor");
+  assertEquals(payload.upgrade.available, false);
+  assertEquals(payload.upgrade.next_tier, null);
+  assertEquals(payload.upgrade.checkout_url, null);
+});
+
+Deno.test("nextUtcMidnightIso — returns next UTC midnight", () => {
+  const now = new Date(Date.UTC(2026, 5, 2, 14, 30, 0));
+  const iso = nextUtcMidnightIso(now);
+  assertEquals(iso, "2026-06-03T00:00:00.000Z");
 });
