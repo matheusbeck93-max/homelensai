@@ -12,6 +12,14 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   upgradeCta?: boolean;
+  /**
+   * Daily AI cap (budget_exceeded 402) hit. We render this as a friendly
+   * inline notice that links to the main app /console (where the user can
+   * upgrade or just wait for the UTC-midnight reset). Stripe checkout is
+   * intentionally NOT opened from the extension — users don't switch tabs
+   * mid-conversation for a payment flow.
+   */
+  budgetCap?: { resetAt?: string; tier?: string };
 }
 
 interface Session {
@@ -956,6 +964,21 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             return;
           }
         }
+        if (res.status === 402) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.error === 'budget_exceeded') {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content:
+                  "You've used today's HomeLens AI credits. They reset at midnight UTC — or upgrade for more.",
+                budgetCap: { resetAt: data.reset_at, tier: data.tier },
+              },
+            ]);
+            return;
+          }
+        }
         throw new Error(`Request failed (${res.status})`);
       }
 
@@ -1028,6 +1051,21 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
                 role: 'assistant',
                 content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
                 upgradeCta: true,
+              },
+            ]);
+            return;
+          }
+        }
+        if (res.status === 402) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.error === 'budget_exceeded') {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content:
+                  "You've used today's HomeLens AI credits. They reset at midnight UTC — or upgrade for more.",
+                budgetCap: { resetAt: data.reset_at, tier: data.tier },
               },
             ]);
             return;
