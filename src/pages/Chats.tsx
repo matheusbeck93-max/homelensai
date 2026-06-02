@@ -855,9 +855,10 @@ export default function Chats() {
       </main>
 
       <div className={cn("transition-all duration-200", "md:ml-64")}>
+        <CapMount />
         <StickyChat
           onSend={handleSendMessage}
-          loading={loading}
+          loading={loading || capExceeded}
           placeholder="Ask something..."
           showVoice={true}
           value={pendingInput}
