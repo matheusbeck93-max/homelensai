@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { ComposedCard } from '@/lib/investorBrief/types';
-import { streamInvestorChat } from '@/lib/investorChat/streamClient';
+import { streamInvestorChat, BudgetExceededError } from '@/lib/investorChat/streamClient';
 import { anchorFor, type CurrentTurn, type ToolEvent } from '@/lib/investorChat/turnTypes';
 
 export type BriefMode = 'brief' | 'chat';
@@ -336,6 +336,12 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
         },
       });
     } catch (e) {
+      if (e instanceof BudgetExceededError) {
+        // Cap state is already updated; suppress the generic error toast
+        // so the BudgetCapBlocker is the only signal.
+        setCurrentTurn({ status: 'done', text: '', toolEvents: [] });
+        return;
+      }
       const msg = e instanceof Error ? e.message : String(e);
       setCurrentTurn({ status: 'error', text: '', toolEvents: [], error: msg });
     }
