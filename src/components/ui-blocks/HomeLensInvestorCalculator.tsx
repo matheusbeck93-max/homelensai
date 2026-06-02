@@ -25,6 +25,9 @@ import {
 import { computeResults, computeStressScenarios } from "./investor-calc/calculations";
 import { useStateTaxData } from "./investor-calc/useStateTaxData";
 import { exportToExcel } from "./investor-calc/ExcelExport";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 interface HomeLensInvestorCalculatorProps {
   title: string;
