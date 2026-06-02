@@ -7,7 +7,8 @@
  */
 
 import { LovableGatewayProvider } from "./lovableGatewayProvider.ts";
-import type { ModelId } from "./modelRegistry.ts";
+import { AnthropicProvider } from "./anthropicProvider.ts";
+import { getModelSpec, type ModelId } from "./modelRegistry.ts";
 import {
   getSurfaceConfig,
   type SurfaceId,
@@ -92,7 +93,35 @@ function zeroUsage(modelId: ModelId): Usage {
 }
 
 function defaultProvider(): ChatProvider {
-  return new LovableGatewayProvider();
+  return new DispatchingProvider();
+}
+
+/**
+ * Dispatches each call to the concrete provider declared on the model spec.
+ * Lets the registry decide which backend (Lovable Gateway vs Anthropic
+ * direct) serves a given ModelId without surfaces or the router caring.
+ */
+class DispatchingProvider implements ChatProvider {
+  private gateway: ChatProvider | null = null;
+  private anthropic: ChatProvider | null = null;
+
+  private resolve(modelId: ModelId): ChatProvider {
+    const spec = getModelSpec(modelId);
+    if (spec.provider === "anthropic") {
+      if (!this.anthropic) this.anthropic = new AnthropicProvider();
+      return this.anthropic;
+    }
+    if (!this.gateway) this.gateway = new LovableGatewayProvider();
+    return this.gateway;
+  }
+
+  complete(modelId: ModelId, req: ChatRequest, signal?: AbortSignal) {
+    return this.resolve(modelId).complete(modelId, req, signal);
+  }
+
+  stream(modelId: ModelId, req: ChatRequest, signal?: AbortSignal) {
+    return this.resolve(modelId).stream(modelId, req, signal);
+  }
 }
 
 async function enforceBudget(ctx: RouterContext, opts: RouterOptions): Promise<BudgetStatus | null> {
