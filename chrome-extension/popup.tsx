@@ -761,7 +761,7 @@ function MessageBubble({
           </div>
         )}
       </div>
-      {msg.role === 'assistant' && !msg.upgradeCta && (
+      {msg.role === 'assistant' && !msg.upgradeCta && !msg.budgetCap && (
         <div style={{ position: 'relative' }}>
           <button
             className="hl-share-btn"
