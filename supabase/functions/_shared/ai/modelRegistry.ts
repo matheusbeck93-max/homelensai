@@ -11,8 +11,12 @@
 
 export type ModelId = "gateway:standard" | "gateway:premium" | "gateway:fallback";
 
+export type ProviderName = "lovable_gateway" | "anthropic";
+
 export interface ModelSpec {
   id: ModelId;
+  /** Which ChatProvider handles this model. */
+  provider: ProviderName;
   /** Lovable AI Gateway model string (sent in the `model` field). */
   apiName: string;
   /** Forwarded as `reasoning_effort` in the request body when set. */
@@ -25,36 +29,36 @@ export interface ModelSpec {
   costPerMTokOut: number;
 }
 
+/**
+ * All tiers/surfaces resolve to Claude Sonnet via Anthropic direct. Cost
+ * control is handled by per-tier daily $ caps in budgetGuard. The three
+ * ModelId aliases are preserved (instead of being collapsed to one) so
+ * existing surfaceConfig wiring, telemetry rows, and tests stay stable.
+ */
+const SONNET_API_NAME = "claude-sonnet-4-5";
+const SONNET_BASE = {
+  provider: "anthropic" as const,
+  apiName: SONNET_API_NAME,
+  contextWindow: 200_000,
+  supportsTools: true,
+  supportsVision: true,
+  // Anthropic published pricing for Sonnet 4.x: $3 / $15 per 1M tokens.
+  costPerMTokIn: 3,
+  costPerMTokOut: 15,
+};
+
 export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   "gateway:standard": {
     id: "gateway:standard",
-    apiName: "openai/gpt-5",
-    reasoningEffort: "medium",
-    contextWindow: 200_000,
-    supportsTools: true,
-    supportsVision: true,
-    // Placeholder — update once gateway publishes confirmed pricing.
-    costPerMTokIn: 2.5,
-    costPerMTokOut: 10,
+    ...SONNET_BASE,
   },
   "gateway:premium": {
     id: "gateway:premium",
-    apiName: "openai/gpt-5",
-    reasoningEffort: "high",
-    contextWindow: 200_000,
-    supportsTools: true,
-    supportsVision: true,
-    costPerMTokIn: 2.5,
-    costPerMTokOut: 10,
+    ...SONNET_BASE,
   },
   "gateway:fallback": {
     id: "gateway:fallback",
-    apiName: "google/gemini-2.5-pro",
-    contextWindow: 1_000_000,
-    supportsTools: true,
-    supportsVision: true,
-    costPerMTokIn: 1.25,
-    costPerMTokOut: 5,
+    ...SONNET_BASE,
   },
 };
 

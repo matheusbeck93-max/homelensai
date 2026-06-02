@@ -33,11 +33,13 @@ Deno.test("complete() returns text + usage and forwards reasoning_effort", async
   assertEquals(result.text, "Hello world");
   assertEquals(result.usage.inputTokens, 10);
   assertEquals(result.usage.outputTokens, 5);
-  assertEquals(capturedBody.model, "openai/gpt-5");
-  assertEquals(capturedBody.reasoning_effort, "medium");
+  // After the Sonnet-everywhere migration the registry resolves every
+  // ModelId to the Anthropic Sonnet apiName with no reasoning_effort.
+  assertEquals(capturedBody.model, "claude-sonnet-4-5");
+  assertEquals(capturedBody.reasoning_effort, undefined);
 });
 
-Deno.test("complete() forwards reasoning_effort=high for premium", async () => {
+Deno.test("complete() premium tier resolves to Sonnet with no reasoning_effort", async () => {
   let capturedBody: any;
   const fetchImpl: typeof fetch = async (_url, init: any) => {
     capturedBody = JSON.parse((init?.body as string) ?? "{}");
@@ -48,7 +50,8 @@ Deno.test("complete() forwards reasoning_effort=high for premium", async () => {
   };
   const provider = new LovableGatewayProvider({ apiKey: "test", fetchImpl });
   await provider.complete("gateway:premium", { messages: [{ role: "user", content: "hi" }] });
-  assertEquals(capturedBody.reasoning_effort, "high");
+  assertEquals(capturedBody.model, "claude-sonnet-4-5");
+  assertEquals(capturedBody.reasoning_effort, undefined);
 });
 
 Deno.test("complete() omits reasoning_effort for fallback model", async () => {
@@ -62,7 +65,7 @@ Deno.test("complete() omits reasoning_effort for fallback model", async () => {
   };
   const provider = new LovableGatewayProvider({ apiKey: "test", fetchImpl });
   await provider.complete("gateway:fallback", { messages: [{ role: "user", content: "hi" }] });
-  assertEquals(capturedBody.model, "google/gemini-2.5-pro");
+  assertEquals(capturedBody.model, "claude-sonnet-4-5");
   assertEquals(capturedBody.reasoning_effort, undefined);
 });
 
