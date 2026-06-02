@@ -21,7 +21,8 @@ Deno.serve(async (req) => {
   try {
     log.step("Function started");
 
-    const { priceId } = await req.json();
+    const body = await req.json().catch(() => ({} as any));
+    const { priceId, cap_session_id: capSessionId, source: capSource } = body ?? {};
     if (!priceId) throw new Error("priceId is required");
     log.step("Price ID received", { priceId });
 
@@ -54,6 +55,17 @@ Deno.serve(async (req) => {
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/pricing?checkout=canceled`,
     };
+    // Carry cap-conversion attribution through Stripe metadata so the
+    // webhook can credit the upgrade_cta_events row on completion.
+    const metadata: Record<string, string> = { user_id: user.id };
+    if (typeof capSessionId === 'string' && capSessionId) {
+      metadata.cap_session_id = capSessionId;
+    }
+    if (typeof capSource === 'string' && capSource) {
+      metadata.cap_source = capSource;
+    }
+    sessionParams.metadata = metadata;
+    sessionParams.subscription_data = { metadata };
     if (customerId) {
       sessionParams.customer = customerId;
     } else {

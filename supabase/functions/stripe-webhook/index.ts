@@ -108,8 +108,10 @@ Deno.serve(async (req) => {
         break;
       }
       case 'checkout.session.completed': {
-        // Subscription will arrive via subscription.created right after.
-        log.step('Checkout completed', { sessionId: (event.data.object as any).id });
+        const session = event.data.object as Stripe.Checkout.Session;
+        log.step('Checkout completed', { sessionId: session.id });
+        await recordCapConversion(supabase, session);
+        // Subscription tier change still arrives via subscription.created.
         break;
       }
       default:
@@ -173,4 +175,49 @@ async function updateProfileByEmail(
   }
   const { error } = await supabase.from('profiles').update(fields).eq('id', target.id);
   if (error) console.error('profile update failed', error);
+}
+
+/**
+ * Marks the matching upgrade_cta_events row as converted when the
+ * Stripe checkout session carries our `cap_session_id` metadata and the
+ * click happened within the last 24h. Best-effort — never throws.
+ */
+async function recordCapConversion(
+  supabase: ReturnType<typeof createClient>,
+  session: Stripe.Checkout.Session,
+) {
+  try {
+    const capSessionId = session.metadata?.cap_session_id;
+    if (!capSessionId) return;
+    const productId = session.line_items?.data?.[0]?.price?.product as string | undefined;
+    const toTier = productId ? (PRODUCT_TIER_MAP[productId] ?? null) : null;
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('upgrade_cta_events')
+      .update({
+        converted_at: new Date().toISOString(),
+        stripe_session_id: session.id,
+        to_tier: toTier,
+      })
+      .eq('cap_session_id', capSessionId)
+      .is('converted_at', null)
+      .gte('clicked_at', cutoff)
+      .select('id, user_id, from_tier, source');
+    if (error) {
+      console.error('cap conversion update failed', error);
+      return;
+    }
+    if (data && data.length > 0) {
+      log.step('upgrade_cta_converted', {
+        cap_session_id: capSessionId,
+        rows: data.length,
+        to_tier: toTier,
+      });
+    } else {
+      log.step('cap_session_id not matched (stale or unknown)', { capSessionId });
+    }
+  } catch (err) {
+    console.error('recordCapConversion error', err);
+  }
 }

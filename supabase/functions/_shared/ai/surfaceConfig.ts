@@ -35,8 +35,8 @@ export interface SurfaceConfig {
   description: string;
   tiers: {
     free: SurfaceTierConfig;
-    paid: SurfaceTierConfig;
-    premium: SurfaceTierConfig;
+    buyer: SurfaceTierConfig;
+    investor: SurfaceTierConfig;
   };
   maxToolIterations: number;
 }
@@ -50,8 +50,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "Main consumer chat surface — research, Q&A, light tool use.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: STD, fallback: FBK },
-      premium: { primary: PRE, fallback: STD },
+      buyer: { primary: STD, fallback: FBK },
+      investor: { primary: PRE, fallback: STD },
     },
     maxToolIterations: 5,
   },
@@ -59,8 +59,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "Short, bounded analyses of a single listing page.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: STD, fallback: FBK },
-      premium: { primary: STD, fallback: FBK },
+      buyer: { primary: STD, fallback: FBK },
+      investor: { primary: STD, fallback: FBK },
     },
     maxToolIterations: 2,
   },
@@ -68,8 +68,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "Investor deep dive — multi-tool reasoning.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: STD, fallback: FBK },
-      premium: { primary: PRE, fallback: STD },
+      buyer: { primary: STD, fallback: FBK },
+      investor: { primary: PRE, fallback: STD },
     },
     maxToolIterations: 5,
   },
@@ -77,8 +77,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "Structured brief narration over already-chosen cards.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: STD, fallback: FBK },
-      premium: { primary: PRE, fallback: STD },
+      buyer: { primary: STD, fallback: FBK },
+      investor: { primary: PRE, fallback: STD },
     },
     maxToolIterations: 0,
   },
@@ -86,8 +86,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "NL → JSON preference patch extraction.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: STD, fallback: FBK },
-      premium: { primary: STD, fallback: FBK },
+      buyer: { primary: STD, fallback: FBK },
+      investor: { primary: STD, fallback: FBK },
     },
     maxToolIterations: 0,
   },
@@ -95,8 +95,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "Sell-vs-hold, refi analysis — consequential recommendations.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: PRE, fallback: STD },
-      premium: { primary: PRE, fallback: STD },
+      buyer: { primary: PRE, fallback: STD },
+      investor: { primary: PRE, fallback: STD },
     },
     maxToolIterations: 8,
   },
@@ -108,12 +108,12 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
         fallback: FBK,
         restrictions: { maxArtifactsPerDay: 1, kinds: ["one_pager", "email_draft"] },
       },
-      paid: {
+      buyer: {
         primary: PRE,
         fallback: STD,
         restrictions: { maxArtifactsPerDay: 10 },
       },
-      premium: {
+      investor: {
         primary: PRE,
         fallback: STD,
         restrictions: { maxArtifactsPerDay: 50 },
@@ -125,8 +125,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "Short narrative descriptions for active alerts.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: STD, fallback: FBK },
-      premium: { primary: PRE, fallback: STD },
+      buyer: { primary: STD, fallback: FBK },
+      investor: { primary: PRE, fallback: STD },
     },
     maxToolIterations: 0,
   },
@@ -134,8 +134,8 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     description: "Short commentary on auto-valuation changes.",
     tiers: {
       free: { primary: STD, fallback: FBK },
-      paid: { primary: STD, fallback: FBK },
-      premium: { primary: STD, fallback: FBK },
+      buyer: { primary: STD, fallback: FBK },
+      investor: { primary: STD, fallback: FBK },
     },
     maxToolIterations: 0,
   },

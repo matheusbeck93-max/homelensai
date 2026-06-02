@@ -16,8 +16,10 @@ function validateTier(raw: unknown): SubscriptionTier {
   if (typeof raw === 'string' && VALID_TIERS.has(raw as SubscriptionTier)) {
     return raw as SubscriptionTier;
   }
-  // Backward-compat: any legacy 'premium' string maps to 'buyer'.
-  if (raw === 'premium') return 'buyer';
+  // Backward-compat: any pre-migration legacy values map to their
+  // new equivalents. (DB is already backfilled, but be defensive.)
+  if (raw === 'premium') return 'investor';
+  if (raw === 'paid') return 'buyer';
   return 'free';
 }
 

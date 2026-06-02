@@ -19,7 +19,7 @@ function fakeUsage(modelId: ModelId) {
 }
 
 Deno.test("pickModel resolves per-surface, per-tier", () => {
-  const premium = pickModel("investor_chat", "premium");
+  const premium = pickModel("investor_chat", "investor");
   assertEquals(premium.primary, "gateway:premium");
   assertEquals(premium.fallback, "gateway:standard");
 
@@ -88,7 +88,7 @@ Deno.test("streamWithFallback retries on retryable error before any output", asy
   for await (const ev of streamWithFallback(
     "investor_chat",
     { messages: [{ role: "user", content: "hi" }] },
-    { userId: "u1", tier: "premium" },
+    { userId: "u1", tier: "investor" },
     { provider, skipBudgetCheck: true },
   )) {
     events.push(ev);
@@ -112,7 +112,7 @@ Deno.test("streamWithFallback does NOT retry on non-retryable error", async () =
   for await (const ev of streamWithFallback(
     "investor_chat",
     { messages: [{ role: "user", content: "hi" }] },
-    { userId: "u1", tier: "premium" },
+    { userId: "u1", tier: "investor" },
     { provider, skipBudgetCheck: true },
   )) {
     events.push(ev);

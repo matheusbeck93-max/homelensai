@@ -1166,7 +1166,7 @@ function sseEvent(event: string, data: Json): Uint8Array {
 // LLM tool-use loop (via Lovable AI Gateway, OpenAI-compatible)
 // ──────────────────────────────────────────────────────────────────────────────
 
-async function callGateway(messages: any[], stream = false, routerCtx?: { userId: string; tier: 'free' | 'paid' | 'premium' }) {
+async function callGateway(messages: any[], stream = false, routerCtx?: { userId: string; tier: 'free' | 'buyer' | 'investor' }) {
   if (!stream && routerCtx && isSurfaceEnabled('investor_chat', routerCtx.userId)) {
     try {
       const system = messages.find((m) => m.role === 'system')?.content ?? '';
@@ -1383,7 +1383,7 @@ Deno.serve(async (req) => {
 
       try {
         for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-          const res = await callGateway(convo, false, { userId, tier: 'paid' });
+          const res = await callGateway(convo, false, { userId, tier: 'buyer' });
           const data = await res.json();
           const choice = data.choices?.[0];
           if (!choice) break;

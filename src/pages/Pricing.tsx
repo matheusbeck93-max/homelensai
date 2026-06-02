@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -22,6 +22,9 @@ export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [currentTier, setCurrentTier] = useState<SubscriptionTier>('free');
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('monthly');
+  const [searchParams] = useSearchParams();
+  const capSessionId = searchParams.get('cap');
+  const capSource = searchParams.get('source');
 
   useEffect(() => {
     const loadSubscription = async () => {
@@ -58,7 +61,11 @@ export default function Pricing() {
 
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId },
+        body: {
+          priceId,
+          ...(capSessionId ? { cap_session_id: capSessionId } : {}),
+          ...(capSource ? { source: capSource } : {}),
+        },
       });
       if (error) throw error;
       if (data?.url) {

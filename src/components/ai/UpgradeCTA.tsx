@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import type { BackendTier } from "@/lib/ai/budgetCap";
 
 interface UpgradeCTAProps {
@@ -16,12 +17,12 @@ const COPY: Record<BackendTier, { headline: string; body: string; cta: string } 
     body: "$9.97/mo — unlimited property analyses, full chat history, and HomeLens chat in the Chrome extension.",
     cta: "Upgrade to Buyer",
   },
-  paid: {
+  buyer: {
     headline: "Unlock Investor tools",
     body: "$24.97/mo — everything in Buyer, plus 20-year IRR projections, stress scenarios, the Market Comparator, and investor-grade Excel exports.",
     cta: "Upgrade to Investor",
   },
-  premium: null,
+  investor: null,
 };
 
 export function UpgradeCTA({ fromTier, source, checkoutUrl }: UpgradeCTAProps) {
@@ -29,21 +30,39 @@ export function UpgradeCTA({ fromTier, source, checkoutUrl }: UpgradeCTAProps) {
   const copy = COPY[fromTier];
   if (!copy) return null;
 
-  const href =
-    checkoutUrl ??
-    `/pricing?plan=${fromTier === "free" ? "paid" : "premium"}&source=cap_hit_${source}`;
+  const nextTier: BackendTier = fromTier === "free" ? "buyer" : "investor";
 
-  const handleClick = () => {
+  const handleClick = async () => {
+    // Generate a cap_session_id, persist the click server-side, then carry
+    // the id through Stripe checkout (via Pricing → create-checkout →
+    // Stripe metadata → webhook) so we can credit the conversion later.
+    const capSessionId =
+      (typeof crypto !== "undefined" && "randomUUID" in crypto)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     try {
-      // Lightweight analytics breadcrumb — full telemetry pipeline lands
-      // with the Stripe webhook conversion event (PR 3).
       window.dispatchEvent(
         new CustomEvent("homelens:upgrade_cta_clicked", {
-          detail: { fromTier, source },
+          detail: { fromTier, source, capSessionId },
         }),
       );
     } catch { /* ignore */ }
-    navigate(href);
+
+    // Fire-and-forget — UX shouldn't block on telemetry.
+    supabase.functions.invoke("upgrade-cta-click", {
+      body: {
+        cap_session_id: capSessionId,
+        source,
+        from_tier: fromTier,
+      },
+    }).catch(() => { /* ignore */ });
+
+    const base =
+      checkoutUrl ??
+      `/pricing?plan=${nextTier}&source=cap_hit_${source}`;
+    const sep = base.includes("?") ? "&" : "?";
+    navigate(`${base}${sep}cap=${capSessionId}`);
   };
 
   return (

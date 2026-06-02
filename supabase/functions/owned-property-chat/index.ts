@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       router: {
         surface: 'my_properties_strategy',
         userId: user.id,
-        tier: 'paid',
+        tier: 'buyer',
       },
     });
     if ('error' in out) return out.error;

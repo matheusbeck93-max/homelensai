@@ -1893,6 +1893,42 @@ export type Database = {
         }
         Relationships: []
       }
+      upgrade_cta_events: {
+        Row: {
+          cap_session_id: string
+          clicked_at: string
+          converted_at: string | null
+          from_tier: string
+          id: string
+          source: string
+          stripe_session_id: string | null
+          to_tier: string | null
+          user_id: string
+        }
+        Insert: {
+          cap_session_id: string
+          clicked_at?: string
+          converted_at?: string | null
+          from_tier: string
+          id?: string
+          source: string
+          stripe_session_id?: string | null
+          to_tier?: string | null
+          user_id: string
+        }
+        Update: {
+          cap_session_id?: string
+          clicked_at?: string
+          converted_at?: string | null
+          from_tier?: string
+          id?: string
+          source?: string
+          stripe_session_id?: string | null
+          to_tier?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

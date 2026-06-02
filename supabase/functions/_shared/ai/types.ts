@@ -8,7 +8,7 @@
 
 import type { ModelId } from "./modelRegistry.ts";
 
-export type Tier = "free" | "paid" | "premium";
+export type Tier = "free" | "buyer" | "investor";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";

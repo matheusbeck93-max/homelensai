@@ -15,8 +15,11 @@ import { ProviderError } from '../_shared/ai/types.ts';
 const log = createLogger('ai-chat');
 
 // --- general_chat router migration helpers (PR #9) ---
-function routerTierFor(tier?: string): 'free' | 'premium' {
-  return (tier === 'paid' || tier === 'unlimited') ? 'premium' : 'free';
+// aiCredits returns 'free' | 'paid' | 'unlimited'. Map to router Tier.
+// All paid-equivalent users get the 'investor' router tier on general_chat
+// (this surface uses the premium model for the top tier only).
+function routerTierFor(tier?: string): 'free' | 'investor' {
+  return (tier === 'paid' || tier === 'unlimited') ? 'investor' : 'free';
 }
 function routerErrorResponse(err: unknown): Response | null {
   if (err instanceof BudgetExceededError) {

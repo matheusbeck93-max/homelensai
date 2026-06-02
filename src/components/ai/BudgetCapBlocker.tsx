@@ -42,9 +42,9 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
   if (cap.warningLevel !== "exceeded") return null;
 
   const message =
-    cap.tier === "premium"
+    cap.tier === "investor"
       ? "You've used today's Investor cap — most users don't reach this. Resets at midnight."
-      : cap.tier === "paid"
+      : cap.tier === "buyer"
         ? "You've hit today's Buyer assistant cap. Upgrade to Investor or try again tomorrow."
         : "You've used today's free assistant credits. Upgrade for more or try again tomorrow.";
 
@@ -62,7 +62,7 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
         <Clock className="h-3.5 w-3.5" />
         <span>{formatResetCountdown(cap.resetAt, now)}</span>
       </div>
-      {cap.upgrade.available && cap.tier !== "premium" && (
+      {cap.upgrade.available && cap.tier !== "investor" && (
         <UpgradeCTA
           fromTier={cap.tier}
           source={surface}

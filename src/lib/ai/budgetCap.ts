@@ -9,14 +9,14 @@
  *      store to `exceeded` immediately. Composers across other tabs catch
  *      up on the next poll; same-tab consumers re-render instantly.
  *
- * Backend tier names (free | paid | premium) are passed through unchanged
- * — the components own the display mapping (paid → "Buyer", etc.).
+ * Backend tier names (free | buyer | investor) are passed through
+ * unchanged after the PR-2 tier rename.
  */
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type BackendTier = "free" | "paid" | "premium";
+export type BackendTier = "free" | "buyer" | "investor";
 export type WarningLevel = "ok" | "approaching" | "exceeded";
 
 export interface BudgetUpgradeInfo {
@@ -43,8 +43,8 @@ export interface BudgetCapState {
 
 const TIER_DISPLAY: Record<BackendTier, string> = {
   free: "Free",
-  paid: "Buyer",
-  premium: "Investor",
+  buyer: "Buyer",
+  investor: "Investor",
 };
 
 function defaultState(): BudgetCapState {
@@ -90,9 +90,9 @@ export function getBudgetCapState(): BudgetCapState {
 }
 
 function normalizeTier(raw: unknown): BackendTier {
-  if (raw === "free" || raw === "paid" || raw === "premium") return raw;
-  if (raw === "buyer") return "paid";
-  if (raw === "investor") return "premium";
+  if (raw === "free" || raw === "buyer" || raw === "investor") return raw;
+  if (raw === "buyer") return "buyer";
+  if (raw === "investor") return "investor";
   return "free";
 }
 
