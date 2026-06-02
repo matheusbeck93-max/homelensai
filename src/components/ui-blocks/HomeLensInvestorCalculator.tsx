@@ -25,6 +25,9 @@ import {
 import { computeResults, computeStressScenarios } from "./investor-calc/calculations";
 import { useStateTaxData } from "./investor-calc/useStateTaxData";
 import { exportToExcel } from "./investor-calc/ExcelExport";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 interface HomeLensInvestorCalculatorProps {
   title: string;
@@ -232,6 +235,8 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const insightRef = useRef<HTMLDivElement>(null);
+  const cap = useBudgetCap();
+  const isCapExceeded = cap.warningLevel === "exceeded";
 
   const handleAiInsight = useCallback(async () => {
     setAiLoading(true);
@@ -274,7 +279,8 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
       setTimeout(() => insightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } catch (err: any) {
       console.error('AI Insight error:', err);
-      setAiError(err?.message || 'Failed to generate insights');
+      const wasCap = await parseAndRecordBudget402(err, "investor_calculator_insights");
+      if (!wasCap) setAiError(err?.message || 'Failed to generate insights');
     } finally {
       setAiLoading(false);
     }
@@ -337,7 +343,13 @@ export const HomeLensInvestorCalculator: React.FC<HomeLensInvestorCalculatorProp
   // ── AI Insight section (shared) ──
   const renderAiInsight = () => (
     <div ref={insightRef} className="space-y-3">
-      <Button onClick={handleAiInsight} disabled={aiLoading} className="w-full" variant="outline" size="lg">
+      {cap.warningLevel === "approaching" && (
+        <BudgetCapBanner surface="investor_calculator_insights" />
+      )}
+      {isCapExceeded && (
+        <BudgetCapBlocker surface="investor_calculator_insights" compact />
+      )}
+      <Button onClick={handleAiInsight} disabled={aiLoading || isCapExceeded} className="w-full" variant="outline" size="lg">
         {aiLoading ? (
           <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating AI Insight...</>
         ) : (

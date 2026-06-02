@@ -8,6 +8,9 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from "react-markdown";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 interface NeighborhoodPersonalityProps {
   address: string;
@@ -23,6 +26,8 @@ export function NeighborhoodPersonality({ address, city, state, zip, onPersonali
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const { toast } = useToast();
   const { hasAccess } = useSubscription();
+  const cap = useBudgetCap();
+  const isCapExceeded = cap.warningLevel === "exceeded";
 
   const hasNeighborhoodPersonalityAccess = hasAccess('INVESTMENT_SCORE');
 
@@ -46,6 +51,8 @@ export function NeighborhoodPersonality({ address, city, state, zip, onPersonali
       }
     } catch (error: any) {
       console.error('Error generating neighborhood personality:', error);
+      const wasCap = await parseAndRecordBudget402(error, "neighborhood_personality");
+      if (wasCap) { setLoading(false); return; }
       toast({
         title: "Could not generate neighborhood personality",
         description: error.message || "Please try again later",
@@ -76,6 +83,16 @@ export function NeighborhoodPersonality({ address, city, state, zip, onPersonali
           </div>
         </CardHeader>
         <CardContent>
+          {cap.warningLevel === "approaching" && (
+            <div className="mb-3 flex justify-center">
+              <BudgetCapBanner surface="neighborhood_personality" />
+            </div>
+          )}
+          {isCapExceeded && (
+            <div className="mb-3">
+              <BudgetCapBlocker surface="neighborhood_personality" compact />
+            </div>
+          )}
           {!personality ? (
             <div className="text-center py-8">
               {!hasNeighborhoodPersonalityAccess ? (
@@ -91,7 +108,7 @@ export function NeighborhoodPersonality({ address, city, state, zip, onPersonali
               ) : (
                 <Button 
                   onClick={handleGenerate}
-                  disabled={loading}
+                  disabled={loading || isCapExceeded}
                   size="lg"
                 >
                   {loading ? (

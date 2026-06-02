@@ -20,12 +20,17 @@ import { NeighborhoodInsights as NeighborhoodInsightsType } from "@/types/neighb
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { PropertyInsights } from "@/components/PropertyInsights";
 import { MarketTrendsChart } from "@/components/MarketTrendsChart";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 export default function PropertyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isPremium } = useSubscription();
+  const cap = useBudgetCap();
+  const isCapExceeded = cap.warningLevel === "exceeded";
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -130,6 +135,8 @@ export default function PropertyDetail() {
         setAnalysis(data.analysis);
       }
     } catch (error: any) {
+      const wasCap = await parseAndRecordBudget402(error, "property_ai_analysis");
+      if (wasCap) { setAnalyzing(false); return; }
       toast({
         title: "Analysis failed",
         description: error.message,
@@ -287,7 +294,7 @@ export default function PropertyDetail() {
               className="w-full" 
               size="lg"
               onClick={handleAnalyze}
-              disabled={analyzing}
+              disabled={analyzing || isCapExceeded}
             >
               {analyzing ? (
                 <>
@@ -301,6 +308,14 @@ export default function PropertyDetail() {
                 </>
               )}
             </Button>
+            {cap.warningLevel === "approaching" && (
+              <div className="flex justify-center">
+                <BudgetCapBanner surface="property_ai_analysis" />
+              </div>
+            )}
+            {isCapExceeded && (
+              <BudgetCapBlocker surface="property_ai_analysis" compact />
+            )}
 
             
 

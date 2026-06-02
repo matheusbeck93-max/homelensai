@@ -9,6 +9,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 export default function Calculators() {
   const navigate = useNavigate();
@@ -17,6 +20,8 @@ export default function Calculators() {
   const [user, setUser] = useState<any>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState<string>("");
+  const cap = useBudgetCap();
+  const isCapExceeded = cap.warningLevel === "exceeded";
 
   // Buying Power Calculator
   const [annualIncome, setAnnualIncome] = useState(0);
@@ -206,6 +211,8 @@ export default function Calculators() {
       if (error) throw error;
       setAiInsights(data.insights);
     } catch (error: any) {
+      const wasCap = await parseAndRecordBudget402(error, "calculator_insights");
+      if (wasCap) return;
       toast({
         title: "Error",
         description: error.message,
@@ -505,6 +512,12 @@ export default function Calculators() {
                 <CardDescription>Get personalized analysis from AI</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {cap.warningLevel === "approaching" && (
+                  <BudgetCapBanner surface="calculator_insights" />
+                )}
+                {isCapExceeded && (
+                  <BudgetCapBlocker surface="calculator_insights" compact />
+                )}
                 {!aiInsights ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground mb-4">
@@ -512,7 +525,7 @@ export default function Calculators() {
                     </p>
                     <Button 
                       onClick={handleGenerateInsights}
-                      disabled={isLoadingInsights}
+                      disabled={isLoadingInsights || isCapExceeded}
                     >
                       {isLoadingInsights ? "Generating..." : "Generate Insights"}
                     </Button>
@@ -528,7 +541,7 @@ export default function Calculators() {
                       <Button 
                         variant="outline"
                         onClick={handleGenerateInsights}
-                        disabled={isLoadingInsights}
+                        disabled={isLoadingInsights || isCapExceeded}
                         className="flex-1"
                       >
                         Regenerate Insights
