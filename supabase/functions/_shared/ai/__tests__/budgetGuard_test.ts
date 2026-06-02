@@ -16,7 +16,7 @@ Deno.test("buildBudgetExceededPayload — free tier offers Buyer upgrade", () =>
   assertEquals(payload.daily_limit_usd, 0.10);
   assertEquals(payload.upgrade.available, true);
   if (payload.upgrade.available) {
-    assertEquals(payload.upgrade.next_tier, "paid");
+    assertEquals(payload.upgrade.next_tier, "buyer");
     assertEquals(payload.upgrade.next_tier_display, "Buyer");
     assertEquals(payload.upgrade.next_tier_price_usd, 9.97);
     assertEquals(
@@ -27,11 +27,11 @@ Deno.test("buildBudgetExceededPayload — free tier offers Buyer upgrade", () =>
 });
 
 Deno.test("buildBudgetExceededPayload — paid tier offers Investor upgrade", () => {
-  const err = new BudgetExceededError("paid", 0.55, 0.50, "investor_chat");
+  const err = new BudgetExceededError("buyer", 0.55, 0.50, "investor_chat");
   const payload = buildBudgetExceededPayload(err);
   assertEquals(payload.tier_display, "Buyer");
   if (payload.upgrade.available) {
-    assertEquals(payload.upgrade.next_tier, "premium");
+    assertEquals(payload.upgrade.next_tier, "investor");
     assertEquals(payload.upgrade.next_tier_price_usd, 24.97);
   } else {
     throw new Error("expected upgrade available for paid tier");
@@ -39,7 +39,7 @@ Deno.test("buildBudgetExceededPayload — paid tier offers Investor upgrade", ()
 });
 
 Deno.test("buildBudgetExceededPayload — premium has no upgrade", () => {
-  const err = new BudgetExceededError("premium", 1.6, 1.5, "general_chat");
+  const err = new BudgetExceededError("investor", 1.6, 1.5, "general_chat");
   const payload = buildBudgetExceededPayload(err);
   assertEquals(payload.tier_display, "Investor");
   assertEquals(payload.upgrade.available, false);

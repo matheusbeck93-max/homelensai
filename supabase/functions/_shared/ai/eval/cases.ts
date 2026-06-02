@@ -39,7 +39,7 @@ export const EVAL_CASES: EvalCase[] = [
   {
     id: "extension-match-score-prefix",
     surface: "extension_listing_analysis",
-    tier: "paid",
+    tier: "buyer",
     description: "Listing analysis must prefix MATCH_SCORE: X/10.",
     request: {
       system:
@@ -78,7 +78,7 @@ export const EVAL_CASES: EvalCase[] = [
   {
     id: "tone-decision-first-yes-no",
     surface: "general_chat",
-    tier: "premium",
+    tier: "investor",
     description: "Decision-style questions open with a yes/no/likely conclusion.",
     request: {
       system:
@@ -99,7 +99,7 @@ export const EVAL_CASES: EvalCase[] = [
   {
     id: "brief-length-budget",
     surface: "investor_brief",
-    tier: "premium",
+    tier: "investor",
     description: "Investor brief stays under ~1200 chars.",
     request: {
       system: "You are HomeLens. Produce a tight investor brief. Hard cap: 1200 characters total.",
@@ -120,7 +120,7 @@ export const EVAL_CASES: EvalCase[] = [
   {
     id: "artifact-json-shape",
     surface: "artifact_generation",
-    tier: "premium",
+    tier: "investor",
     description: "Artifact generation returns parseable JSON with required keys.",
     request: {
       responseFormat: "json",

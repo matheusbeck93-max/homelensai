@@ -171,7 +171,7 @@ Select the 5 best matches.`;
                 temperature: 0.3,
                 maxTokens: 500,
               },
-              { userId: user.id, tier: 'paid' },
+              { userId: user.id, tier: 'buyer' },
             );
             aiContent = routed.text;
           } catch (err) {
