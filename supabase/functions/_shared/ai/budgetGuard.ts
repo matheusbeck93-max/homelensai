@@ -17,7 +17,15 @@ export interface BudgetLimits {
   premium: number;
 }
 
-const DEFAULT_LIMITS: BudgetLimits = { free: 0.25, paid: 2.5, premium: 10 };
+/**
+ * Daily $ caps sized to the current subscription prices and Sonnet's
+ * ~$0.020 per typical turn cost. See homelens_sonnet_all_tiers_fix_prompt
+ * for the pricing math.
+ *   free    $0.00/mo  → $0.10/day  (~5 turns/day)
+ *   paid    $9.97/mo  → $0.50/day  (~25 turns/day)
+ *   premium $24.97/mo → $1.50/day  (~75 turns/day)
+ */
+const DEFAULT_LIMITS: BudgetLimits = { free: 0.10, paid: 0.50, premium: 1.50 };
 
 function envNum(name: string, fallback: number): number {
   const v = Deno.env.get(name);
