@@ -121,3 +121,31 @@ Single Zustand store keyed only by user. Mounted once at the auth provider. Any 
 3. **Existing `paid` and `premium` users.** Should `paid` rows map to `buyer` and `premium` rows map to `investor` in the rename migration? Any grandfathering rules?
 4. **Approaching threshold.** 75% (recommended) confirmed.
 5. **Investor "softer" no-upgrade copy** confirmed.
+
+---
+
+## Follow-up (post flag-on, non-blocking)
+
+### Move `PRODUCT_TIER_MAP` to env vars
+
+Today `supabase/functions/stripe-webhook/index.ts` and `supabase/functions/check-subscription/index.ts` hard-code Stripe Product IDs:
+
+```ts
+const PRODUCT_TIER_MAP = {
+  'prod_URFGRoGQyqiWSq': 'buyer',
+  'prod_URFGwmCiEV7RY9': 'buyer',
+  'prod_UZ16G46hQlRRVD': 'investor',
+  'prod_UZ17Q3M67mTUP4': 'investor',
+};
+```
+
+Swapping Stripe environments (test ↔ live, or rotating products) currently requires a code change + redeploy. Move to runtime env:
+
+- `STRIPE_PRODUCT_BUYER_MONTHLY_ID`
+- `STRIPE_PRODUCT_BUYER_ANNUAL_ID`
+- `STRIPE_PRODUCT_INVESTOR_MONTHLY_ID`
+- `STRIPE_PRODUCT_INVESTOR_ANNUAL_ID`
+
+Build the map in a tiny shared helper (`supabase/functions/_shared/stripeProductMap.ts`) and import from webhook + check-subscription + anywhere else that resolves a product → tier. Fall back to current hard-coded IDs if env vars are missing so the rollout is zero-downtime; remove the fallback once both environments have the secrets set.
+
+Ship anytime — not blocking flag-on.
