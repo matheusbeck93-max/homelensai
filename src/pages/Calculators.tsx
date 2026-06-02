@@ -511,6 +511,7 @@ export default function Calculators() {
                 <CardDescription>Get personalized analysis from AI</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <CalculatorsInsightCapUI />
                 {!aiInsights ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground mb-4">
@@ -518,7 +519,7 @@ export default function Calculators() {
                     </p>
                     <Button 
                       onClick={handleGenerateInsights}
-                      disabled={isLoadingInsights}
+                      disabled={isLoadingInsights || isCapExceeded}
                     >
                       {isLoadingInsights ? "Generating..." : "Generate Insights"}
                     </Button>
@@ -534,7 +535,7 @@ export default function Calculators() {
                       <Button 
                         variant="outline"
                         onClick={handleGenerateInsights}
-                        disabled={isLoadingInsights}
+                        disabled={isLoadingInsights || isCapExceeded}
                         className="flex-1"
                       >
                         Regenerate Insights
