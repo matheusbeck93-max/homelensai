@@ -14,19 +14,19 @@ import type { SurfaceId } from "./surfaceConfig.ts";
 /** Per-tier daily USD ceiling. Overridable via env. */
 export interface BudgetLimits {
   free: number;
-  paid: number;
-  premium: number;
+  buyer: number;
+  investor: number;
 }
 
 /**
  * Daily $ caps sized to the current subscription prices and Sonnet's
  * ~$0.020 per typical turn cost. See homelens_sonnet_all_tiers_fix_prompt
  * for the pricing math.
- *   free    $0.00/mo  → $0.10/day  (~5 turns/day)
- *   paid    $9.97/mo  → $0.50/day  (~25 turns/day)
- *   premium $24.97/mo → $1.50/day  (~75 turns/day)
+ *   free     $0.00/mo  → $0.10/day  (~5 turns/day)
+ *   buyer    $9.97/mo  → $0.50/day  (~25 turns/day)
+ *   investor $24.97/mo → $1.50/day  (~75 turns/day)
  */
-const DEFAULT_LIMITS: BudgetLimits = { free: 0.10, paid: 0.50, premium: 1.50 };
+const DEFAULT_LIMITS: BudgetLimits = { free: 0.10, buyer: 0.50, investor: 1.50 };
 
 function envNum(name: string, fallback: number): number {
   const v = Deno.env.get(name);
@@ -38,8 +38,8 @@ function envNum(name: string, fallback: number): number {
 export function getBudgetLimits(): BudgetLimits {
   return {
     free: envNum("AI_BUDGET_FREE_USD", DEFAULT_LIMITS.free),
-    paid: envNum("AI_BUDGET_PAID_USD", DEFAULT_LIMITS.paid),
-    premium: envNum("AI_BUDGET_PREMIUM_USD", DEFAULT_LIMITS.premium),
+    buyer: envNum("AI_BUDGET_BUYER_USD", DEFAULT_LIMITS.buyer),
+    investor: envNum("AI_BUDGET_INVESTOR_USD", DEFAULT_LIMITS.investor),
   };
 }
 
@@ -149,30 +149,30 @@ export function nextUtcMidnightIso(now: Date = new Date()): string {
  */
 const DISPLAY_NAME: Record<Tier, string> = {
   free: "Free",
-  paid: "Buyer",
-  premium: "Investor",
+  buyer: "Buyer",
+  investor: "Investor",
 };
 
 const UPGRADE_NEXT: Record<Tier, Tier | null> = {
-  free: "paid",       // Free → Buyer
-  paid: "premium",    // Buyer → Investor
-  premium: null,      // Investor is the top tier today
+  free: "buyer",       // Free → Buyer
+  buyer: "investor",   // Buyer → Investor
+  investor: null,      // Investor is the top tier today
 };
 
 const TIER_PRICE_USD: Record<Tier, number> = {
   free: 0,
-  paid: 9.97,
-  premium: 24.97,
+  buyer: 9.97,
+  investor: 24.97,
 };
 
 function friendlyMessage(tier: Tier): string {
   if (tier === "free") {
     return "You've used today's free assistant credits. Upgrade for more or try again tomorrow.";
   }
-  if (tier === "paid") {
+  if (tier === "buyer") {
     return "You've hit today's Buyer assistant cap. Upgrade to Investor or try again tomorrow.";
   }
-  // premium / Investor
+  // investor
   return "You've used today's Investor cap — most users don't reach this. Resets at midnight.";
 }
 
