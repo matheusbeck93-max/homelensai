@@ -90,9 +90,9 @@ export function getBudgetCapState(): BudgetCapState {
 }
 
 function normalizeTier(raw: unknown): BackendTier {
-  if (raw === "free" || raw === "paid" || raw === "premium") return raw;
-  if (raw === "buyer") return "paid";
-  if (raw === "investor") return "premium";
+  if (raw === "free" || raw === "buyer" || raw === "investor") return raw;
+  if (raw === "buyer") return "buyer";
+  if (raw === "investor") return "investor";
   return "free";
 }
 

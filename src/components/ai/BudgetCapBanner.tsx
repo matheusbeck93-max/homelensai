@@ -65,7 +65,7 @@ export function BudgetCapBanner({ surface }: BudgetCapBannerProps) {
         <div className="text-xs text-muted-foreground">
           {formatResetCountdown(cap.resetAt, now)}
         </div>
-        {cap.tier !== "premium" && (
+        {cap.tier !== "investor" && (
           <UpgradeCTA
             fromTier={cap.tier}
             source={surface}

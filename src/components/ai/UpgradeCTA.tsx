@@ -31,7 +31,7 @@ export function UpgradeCTA({ fromTier, source, checkoutUrl }: UpgradeCTAProps) {
 
   const href =
     checkoutUrl ??
-    `/pricing?plan=${fromTier === "free" ? "paid" : "premium"}&source=cap_hit_${source}`;
+    `/pricing?plan=${fromTier === "free" ? "buyer" : "investor"}&source=cap_hit_${source}`;
 
   const handleClick = () => {
     try {
