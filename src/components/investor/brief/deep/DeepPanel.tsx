@@ -7,6 +7,7 @@ import { SourceCardVisual } from './SourceCardVisual';
 import { StarterPrompts } from './StarterPrompts';
 import { defaultDeepDiveStarters } from '@/lib/investorBrief/deepDiveStarters';
 import { ExploringPill } from './ExploringPill';
+import { useBudgetCap } from '@/lib/ai/budgetCap';
 
 interface Props {
   onBack: () => void;
@@ -23,6 +24,8 @@ interface Props {
 export function DeepPanel({ onBack }: Props) {
   const { currentThread, currentTurn, activeCardContext, sendTurn, sessionFilters, clearSessionFilters } =
     useInvestorBriefSurface();
+  const cap = useBudgetCap();
+  const capExceeded = cap.warningLevel === 'exceeded';
 
   // Active turn only — prior turn visuals do not stack here.
   // While streaming, show the in-flight turn's events.
@@ -66,7 +69,7 @@ export function DeepPanel({ onBack }: Props) {
           {activeEvents.length === 0 && (
             <StarterPrompts
               prompts={starters}
-              disabled={isStreaming}
+              disabled={isStreaming || capExceeded}
               onPick={(p) => sendTurn(p)}
             />
           )}

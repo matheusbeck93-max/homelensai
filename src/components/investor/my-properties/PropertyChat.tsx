@@ -5,6 +5,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useBudgetCap, parseAndRecordBudget402 } from '@/lib/ai/budgetCap';
+import { BudgetCapBanner } from '@/components/ai/BudgetCapBanner';
+import { BudgetCapBlocker } from '@/components/ai/BudgetCapBlocker';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -46,6 +49,8 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const cap = useBudgetCap();
+  const capExceeded = cap.warningLevel === 'exceeded';
 
   useEffect(() => {
     setMessages(loadHistory(propertyId));
@@ -76,6 +81,10 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
       if (!reply) throw new Error('Empty response');
       setMessages([...next, { role: 'assistant', content: reply }]);
     } catch (e: any) {
+      if (await parseAndRecordBudget402(e, 'owned_property_chat')) {
+        setMessages(messages);
+        return;
+      }
       toast.error(e?.message ?? 'Chat failed');
       setMessages(messages);
     } finally {
@@ -111,6 +120,10 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {cap.warningLevel === 'approaching' && (
+            <BudgetCapBanner surface="owned_property_chat" />
+          )}
+          {capExceeded && <BudgetCapBlocker surface="owned_property_chat" compact />}
           {messages.length === 0 ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
@@ -121,7 +134,8 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
                   <button
                     key={s}
                     onClick={() => send(s)}
-                    className="text-left text-xs rounded-md border bg-muted/40 hover:bg-muted px-3 py-2 transition"
+                    disabled={capExceeded}
+                    className="text-left text-xs rounded-md border bg-muted/40 hover:bg-muted px-3 py-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {s}
                   </button>
@@ -157,15 +171,19 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask something about this property…"
+              placeholder={
+                capExceeded
+                  ? 'Daily AI cap reached. Resets at midnight UTC.'
+                  : 'Ask something about this property…'
+              }
               rows={2}
               className="resize-none min-h-[44px]"
-              disabled={sending}
+              disabled={sending || capExceeded}
             />
             <Button
               size="icon"
               onClick={() => send(input)}
-              disabled={sending || !input.trim()}
+              disabled={sending || !input.trim() || capExceeded}
               aria-label="Send"
             >
               <Send className="h-4 w-4" />

@@ -12,6 +12,14 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   upgradeCta?: boolean;
+  /**
+   * Daily AI cap (budget_exceeded 402) hit. We render this as a friendly
+   * inline notice that links to the main app /console (where the user can
+   * upgrade or just wait for the UTC-midnight reset). Stripe checkout is
+   * intentionally NOT opened from the extension — users don't switch tabs
+   * mid-conversation for a payment flow.
+   */
+  budgetCap?: { resetAt?: string; tier?: string };
 }
 
 interface Session {
@@ -685,6 +693,32 @@ function MessageBubble({
       <div className={`hl-bubble hl-bubble-${msg.role}`}>
         {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
         {msg.upgradeCta && <CreditsExhaustedCard />}
+        {msg.budgetCap && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 10,
+              border: '1px solid rgba(107,141,181,0.35)',
+              borderRadius: 8,
+              background: 'rgba(107,141,181,0.08)',
+              fontSize: 12,
+              lineHeight: 1.4,
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Daily AI cap reached</div>
+            <div style={{ color: '#475569', marginBottom: 8 }}>
+              Resets at midnight UTC. Open HomeLens to upgrade for more.
+            </div>
+            <a
+              href="https://homelensais.com/console"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#1E2D3D', fontWeight: 600, textDecoration: 'underline' }}
+            >
+              Manage plan →
+            </a>
+          </div>
+        )}
         {showSave && (
           <div style={{ marginTop: 10 }}>
             {saveState === 'saved' || saveState === 'duplicate' ? (
@@ -727,7 +761,7 @@ function MessageBubble({
           </div>
         )}
       </div>
-      {msg.role === 'assistant' && !msg.upgradeCta && (
+      {msg.role === 'assistant' && !msg.upgradeCta && !msg.budgetCap && (
         <div style={{ position: 'relative' }}>
           <button
             className="hl-share-btn"
@@ -956,6 +990,21 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
             return;
           }
         }
+        if (res.status === 402) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.error === 'budget_exceeded') {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content:
+                  "You've used today's HomeLens AI credits. They reset at midnight UTC — or upgrade for more.",
+                budgetCap: { resetAt: data.reset_at, tier: data.tier },
+              },
+            ]);
+            return;
+          }
+        }
         throw new Error(`Request failed (${res.status})`);
       }
 
@@ -1028,6 +1077,21 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
                 role: 'assistant',
                 content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
                 upgradeCta: true,
+              },
+            ]);
+            return;
+          }
+        }
+        if (res.status === 402) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.error === 'budget_exceeded') {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content:
+                  "You've used today's HomeLens AI credits. They reset at midnight UTC — or upgrade for more.",
+                budgetCap: { resetAt: data.reset_at, tier: data.tier },
               },
             ]);
             return;

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { recordBudgetExceededFrom402 } from '@/lib/ai/budgetCap';
 
 export type SseEvent =
   | { type: 'thread'; threadId: string }
@@ -8,6 +9,18 @@ export type SseEvent =
   | { type: 'tool_use_error'; id: string; error: string }
   | { type: 'turn_done'; messageId: string | null; threadId: string }
   | { type: 'error'; message: string };
+
+/**
+ * Thrown when the AI router returns 402 budget_exceeded. The global budget
+ * cap store is already updated before this throws; callers can short-circuit
+ * their generic error toast by checking `err.name === 'BudgetExceededError'`.
+ */
+export class BudgetExceededError extends Error {
+  constructor(message = 'Daily AI cap reached') {
+    super(message);
+    this.name = 'BudgetExceededError';
+  }
+}
 
 export interface StreamTurnArgs {
   threadId?: string;
@@ -43,6 +56,17 @@ export async function streamInvestorChat(args: StreamTurnArgs): Promise<void> {
 
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '');
+    if (res.status === 402) {
+      try {
+        const body = JSON.parse(text);
+        if (body && body.error === 'budget_exceeded') {
+          recordBudgetExceededFrom402(body, 'investor_chat');
+          throw new BudgetExceededError();
+        }
+      } catch (e) {
+        if (e instanceof BudgetExceededError) throw e;
+      }
+    }
     throw new Error(`investor-chat ${res.status}: ${text || res.statusText}`);
   }
 
