@@ -20,7 +20,8 @@ export default function Calculators() {
   const [user, setUser] = useState<any>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState<string>("");
-  // useBudgetCap is read inside the AI Insight card render
+  const cap = useBudgetCap();
+  const isCapExceeded = cap.warningLevel === "exceeded";
 
   // Buying Power Calculator
   const [annualIncome, setAnnualIncome] = useState(0);
@@ -511,7 +512,12 @@ export default function Calculators() {
                 <CardDescription>Get personalized analysis from AI</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <CalculatorsInsightCapUI />
+                {cap.warningLevel === "approaching" && (
+                  <BudgetCapBanner surface="calculator_insights" />
+                )}
+                {isCapExceeded && (
+                  <BudgetCapBlocker surface="calculator_insights" compact />
+                )}
                 {!aiInsights ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground mb-4">
