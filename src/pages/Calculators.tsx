@@ -9,6 +9,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 export default function Calculators() {
   const navigate = useNavigate();
@@ -17,6 +20,7 @@ export default function Calculators() {
   const [user, setUser] = useState<any>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState<string>("");
+  // useBudgetCap is read inside the AI Insight card render
 
   // Buying Power Calculator
   const [annualIncome, setAnnualIncome] = useState(0);
@@ -206,6 +210,8 @@ export default function Calculators() {
       if (error) throw error;
       setAiInsights(data.insights);
     } catch (error: any) {
+      const wasCap = await parseAndRecordBudget402(error, "calculator_insights");
+      if (wasCap) return;
       toast({
         title: "Error",
         description: error.message,
