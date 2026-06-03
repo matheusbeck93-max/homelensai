@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { isLegacyPriceId, isCurrentPriceId } from '../_shared/subscriptions.ts';
 
 /**
  * Stripe webhook handler.
@@ -78,7 +79,10 @@ Deno.serve(async (req) => {
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = sub.customer as string;
-        const productId = sub.items.data[0]?.price.product as string;
+        const item = sub.items.data[0];
+        const productId = item?.price.product as string;
+        const priceId = item?.price.id as string | undefined;
+        const subscriptionItemId = item?.id as string | undefined;
         const tier = sub.status === 'active'
           ? (PRODUCT_TIER_MAP[productId] ?? 'free')
           : 'free';
@@ -87,7 +91,19 @@ Deno.serve(async (req) => {
           subscription_status: tier,
           subscription_renews_at: sub.cancel_at_period_end ? null : periodEnd,
           subscription_cancel_at: sub.cancel_at_period_end ? periodEnd : null,
+          stripe_price_id: priceId ?? null,
+          stripe_subscription_id: sub.id,
+          stripe_subscription_item_id: subscriptionItemId ?? null,
         });
+
+        // Detect legacy → current upgrade and mark nudge complete.
+        if (event.type === 'customer.subscription.updated') {
+          const prevPriceId = (event.data.previous_attributes as any)
+            ?.items?.data?.[0]?.price?.id as string | undefined;
+          if (prevPriceId && priceId && isLegacyPriceId(prevPriceId) && isCurrentPriceId(priceId)) {
+            await markLegacyUpgradeComplete(supabase, customerId, prevPriceId, priceId);
+          }
+        }
         break;
       }
       case 'customer.subscription.deleted': {
