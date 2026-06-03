@@ -237,3 +237,45 @@ async function recordCapConversion(
     console.error('recordCapConversion error', err);
   }
 }
+
+/**
+ * When a subscription's Stripe Price ID moves from a legacy ID to a current
+ * one, mark the matching open legacy_upgrade_nudges row(s) as completed.
+ */
+async function markLegacyUpgradeComplete(
+  supabase: ReturnType<typeof createClient>,
+  customerId: string,
+  fromPriceId: string,
+  toPriceId: string,
+) {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('stripe_customer_id', customerId)
+      .maybeSingle();
+    if (!profile?.id) {
+      log.step('legacy upgrade: no profile for customer', { customerId });
+      return;
+    }
+    const { data, error } = await supabase
+      .from('legacy_upgrade_nudges')
+      .update({ upgrade_completed_at: new Date().toISOString() })
+      .eq('user_id', profile.id)
+      .not('accepted_at', 'is', null)
+      .is('upgrade_completed_at', null)
+      .select('id');
+    if (error) {
+      console.error('legacy upgrade complete update failed', error);
+      return;
+    }
+    log.step('legacy_upgrade_completed', {
+      user_id: profile.id,
+      from_price: fromPriceId,
+      to_price: toPriceId,
+      rows: data?.length ?? 0,
+    });
+  } catch (err) {
+    console.error('markLegacyUpgradeComplete error', err);
+  }
+}
