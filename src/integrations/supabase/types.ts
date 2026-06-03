@@ -1056,6 +1056,54 @@ export type Database = {
           },
         ]
       }
+      legacy_upgrade_nudges: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          current_tier: string
+          deferred_until: string | null
+          dismissed_at: string | null
+          id: string
+          legacy_price_id: string
+          new_stripe_session_id: string | null
+          shown_at: string | null
+          surface: string | null
+          updated_at: string
+          upgrade_completed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          current_tier: string
+          deferred_until?: string | null
+          dismissed_at?: string | null
+          id?: string
+          legacy_price_id: string
+          new_stripe_session_id?: string | null
+          shown_at?: string | null
+          surface?: string | null
+          updated_at?: string
+          upgrade_completed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          current_tier?: string
+          deferred_until?: string | null
+          dismissed_at?: string | null
+          id?: string
+          legacy_price_id?: string
+          new_stripe_session_id?: string | null
+          shown_at?: string | null
+          surface?: string | null
+          updated_at?: string
+          upgrade_completed_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       market_metrics: {
         Row: {
           created_at: string | null
@@ -1296,6 +1344,9 @@ export type Database = {
           risk_level: string | null
           safety_priority: string | null
           stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          stripe_subscription_item_id: string | null
           subscription_cancel_at: string | null
           subscription_renews_at: string | null
           subscription_status: string | null
@@ -1354,6 +1405,9 @@ export type Database = {
           risk_level?: string | null
           safety_priority?: string | null
           stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_subscription_item_id?: string | null
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
@@ -1412,6 +1466,9 @@ export type Database = {
           risk_level?: string | null
           safety_priority?: string | null
           stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          stripe_subscription_item_id?: string | null
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
