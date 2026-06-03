@@ -15,6 +15,7 @@ import {
 } from '@/contexts/InvestorBriefContext';
 import { DeepPanel } from '@/components/investor/brief/deep/DeepPanel';
 import type { ComposedCard } from '@/lib/investorBrief/types';
+import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
 
 function InvestorBriefInner() {
   const navigate = useNavigate();
@@ -135,6 +136,7 @@ function InvestorBriefInner() {
           </div>
         </main>
       </div>
+      <LegacyUpgradeModal surface="investor_brief" />
     </div>
   );
 }

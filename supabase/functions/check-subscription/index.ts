@@ -85,6 +85,8 @@ Deno.serve(async (req) => {
 
     const subscription = subscriptions.data[0];
     const productId = subscription.items.data[0].price.product as string;
+    const priceId = subscription.items.data[0].price.id as string;
+    const subscriptionItemId = subscription.items.data[0].id as string;
     const tier = PRODUCT_TIER_MAP[productId] || 'free';
     const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
     const cancelAtPeriodEnd = subscription.cancel_at_period_end;
@@ -103,7 +105,10 @@ Deno.serve(async (req) => {
       .update({ 
         subscription_status: tier,
         subscription_renews_at: cancelAtPeriodEnd ? null : subscriptionEnd,
-        subscription_cancel_at: cancelAtPeriodEnd ? subscriptionEnd : null
+        subscription_cancel_at: cancelAtPeriodEnd ? subscriptionEnd : null,
+        stripe_price_id: priceId,
+        stripe_subscription_id: subscription.id,
+        stripe_subscription_item_id: subscriptionItemId,
       })
       .eq('id', user.id);
 

@@ -16,6 +16,7 @@ import { useOwnedProperties } from '@/hooks/useOwnedProperties';
 import { PortfolioRollup } from '@/components/investor/my-properties/PortfolioRollup';
 import { OwnedPropertyCard } from '@/components/investor/my-properties/OwnedPropertyCard';
 import { AddPropertyDialog } from '@/components/investor/my-properties/AddPropertyDialog';
+import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
 
 type FilterKey = 'all' | 'rented' | 'owner_occupied';
 type SortKey = 'updated' | 'equity' | 'cashFlow' | 'purchase';
@@ -132,6 +133,7 @@ export default function MyProperties() {
       </div>
 
       <AddPropertyDialog open={addOpen} onOpenChange={setAddOpen} onCreated={() => reload()} />
+      <LegacyUpgradeModal surface="my_properties" />
     </div>
   );
 }
