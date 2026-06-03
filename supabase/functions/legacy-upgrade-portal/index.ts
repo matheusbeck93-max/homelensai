@@ -84,20 +84,8 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Mark accepted on the most recent open nudge row (best effort).
-    await supabase
-      .from('legacy_upgrade_nudges')
-      .update({
-        accepted_at: new Date().toISOString(),
-        new_stripe_session_id: session.id,
-      })
-      .eq('user_id', user.id)
-      .is('accepted_at', null)
-      .is('upgrade_completed_at', null)
-      .order('shown_at', { ascending: false, nullsFirst: false })
-      .limit(1);
-
-    // Insert a fresh "accepted" event if no nudge row exists (defensive).
+    // Record acceptance. Always insert a fresh event so we have a clean
+    // audit trail; the track endpoint owns shown/dismissed/deferred events.
     await supabase.from('legacy_upgrade_nudges').insert({
       user_id: user.id,
       legacy_price_id: profile.stripe_price_id,
