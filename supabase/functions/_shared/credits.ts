@@ -1,15 +1,20 @@
 /**
- * Top-up AI credits — shared helpers for the budget guard, Stripe webhook
- * and the `buy-credits` / `budget-status` edge functions.
+ * AI credit helpers — shared by the budget guard, Stripe webhook, and the
+ * `buy-credits` / `budget-status` edge functions.
  *
- * Mental model:
- *   - Daily caps in `budgetGuard.ts` protect every tier from runaway burn.
- *   - When a paid user (Buyer / Investor) exhausts today's cap, they can
- *     buy a one-time credit pack from Stripe. Each pack adds USD credit
- *     that's consumed FIFO (oldest active row first) and expires 30 days
- *     after purchase.
- *   - Free users never see credit packs — they're funnel-ed to upgrade.
+ * Two buckets, consumed in this order:
+ *   1. Plan credits (monthly allowance) — stored on `profiles`. Reset to
+ *      the tier allowance at every Stripe billing-cycle rollover. No
+ *      rollover of unused balance.
+ *   2. Top-up credits — one-time Stripe purchases in `user_credits`,
+ *      consumed FIFO, expiring 90 days after purchase.
+ *
+ * Daily caps in `budgetGuard.ts` still apply on top — credits cover spend
+ * once today's per-tier cap is reached.
  */
+
+/** Top-up credit expiry window. */
+export const TOPUP_CREDIT_EXPIRY_DAYS = 90;
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
