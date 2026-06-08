@@ -27,6 +27,20 @@ export interface BudgetUpgradeInfo {
   checkoutUrl: string | null;
 }
 
+export type CreditPackSize = "small" | "medium" | "large";
+
+export interface CreditPackOption {
+  size: CreditPackSize;
+  priceUsd: number;
+  creditUsd: number;
+  bonusPct: number;
+}
+
+export interface TopUpInfo {
+  available: boolean;
+  packs: CreditPackOption[];
+}
+
 export interface BudgetCapState {
   tier: BackendTier;
   tierDisplay: string;
@@ -36,6 +50,9 @@ export interface BudgetCapState {
   resetAt: Date;
   warningLevel: WarningLevel;
   upgrade: BudgetUpgradeInfo;
+  creditsBalanceUsd: number;
+  creditsNextExpiresAt: Date | null;
+  topup: TopUpInfo;
   loaded: boolean;
   /** Last surface that reported a 402 (drives `source=` tagging on CTAs). */
   lastBlockingSurface: string | null;
@@ -65,6 +82,9 @@ function defaultState(): BudgetCapState {
       nextTierPriceUsd: null,
       checkoutUrl: null,
     },
+    creditsBalanceUsd: 0,
+    creditsNextExpiresAt: null,
+    topup: { available: false, packs: [] },
     loaded: false,
     lastBlockingSurface: null,
   };
@@ -114,6 +134,11 @@ function applyStatusBody(body: Record<string, unknown>) {
     typeof body.warning_level === "string"
       ? (body.warning_level as WarningLevel)
       : levelFrom(pct);
+  const balance = Number(body.credits_balance_usd ?? 0);
+  const nextExpRaw = typeof body.credits_next_expires_at === "string"
+    ? body.credits_next_expires_at
+    : null;
+  const topup = parseTopup(body.topup);
   setState({
     tier,
     tierDisplay: TIER_DISPLAY[tier],
@@ -122,8 +147,31 @@ function applyStatusBody(body: Record<string, unknown>) {
     usagePct: pct,
     resetAt,
     warningLevel: wl,
+    creditsBalanceUsd: Number.isFinite(balance) ? balance : 0,
+    creditsNextExpiresAt: nextExpRaw ? new Date(nextExpRaw) : null,
+    topup,
     loaded: true,
   });
+}
+
+function parseTopup(raw: unknown): TopUpInfo {
+  if (!raw || typeof raw !== "object") return { available: false, packs: [] };
+  const obj = raw as Record<string, unknown>;
+  const packsRaw = Array.isArray(obj.packs) ? obj.packs : [];
+  const packs: CreditPackOption[] = [];
+  for (const p of packsRaw) {
+    if (!p || typeof p !== "object") continue;
+    const o = p as Record<string, unknown>;
+    const size = o.size as CreditPackSize;
+    if (size !== "small" && size !== "medium" && size !== "large") continue;
+    packs.push({
+      size,
+      priceUsd: Number(o.price_usd ?? 0),
+      creditUsd: Number(o.credit_usd ?? 0),
+      bonusPct: Number(o.bonus_pct ?? 0),
+    });
+  }
+  return { available: Boolean(obj.available) && packs.length > 0, packs };
 }
 
 /**
@@ -142,6 +190,8 @@ export function recordBudgetExceededFrom402(
   const upgradeRaw = (body.upgrade ?? {}) as Record<string, unknown>;
   const checkoutUrl =
     typeof upgradeRaw.checkout_url === "string" ? upgradeRaw.checkout_url : null;
+  const balance = Number(body.credits_balance_usd ?? 0);
+  const topup = parseTopup(body.topup);
   setState({
     tier,
     tierDisplay: TIER_DISPLAY[tier],
@@ -152,6 +202,8 @@ export function recordBudgetExceededFrom402(
     warningLevel: "exceeded",
     loaded: true,
     lastBlockingSurface: surface ?? (body.surface as string | undefined) ?? null,
+    creditsBalanceUsd: Number.isFinite(balance) ? balance : 0,
+    topup,
     upgrade: {
       available: Boolean(upgradeRaw.available),
       nextTier: upgradeRaw.next_tier
