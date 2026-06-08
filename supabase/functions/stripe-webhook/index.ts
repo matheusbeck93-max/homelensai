@@ -206,6 +206,37 @@ async function getCustomerEmail(stripe: Stripe, customerId: string): Promise<str
   return (customer as Stripe.Customer).email ?? null;
 }
 
+/**
+ * Resolve the profile row backing a Stripe customer. Returns key fields
+ * needed by the subscription handler — id, trial_used_at, and the prior
+ * cycle's start so we can detect billing-cycle rollovers.
+ */
+async function resolveProfile(
+  supabase: ReturnType<typeof createClient>,
+  stripe: Stripe,
+  customerId: string,
+): Promise<{ id: string; trial_used_at: string | null; current_period_start: string | null } | null> {
+  const select = 'id, trial_used_at, current_period_start';
+  const { data: byId } = await supabase
+    .from('profiles')
+    .select(select)
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle();
+  if (byId?.id) return byId as any;
+
+  const email = await getCustomerEmail(stripe, customerId);
+  if (!email) return null;
+  const { data: authResp } = await (supabase as any).auth.admin.listUsers();
+  const target = (authResp?.users ?? []).find((u: any) => u.email === email);
+  if (!target?.id) return null;
+  const { data } = await supabase
+    .from('profiles')
+    .select(select)
+    .eq('id', target.id)
+    .maybeSingle();
+  return (data as any) ?? null;
+}
+
 async function updateProfileByCustomerId(
   supabase: ReturnType<typeof createClient>,
   stripe: Stripe,
