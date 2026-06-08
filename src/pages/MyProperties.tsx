@@ -13,20 +13,61 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useOwnedProperties } from '@/hooks/useOwnedProperties';
+import type { OwnedPropertyWithMetrics } from '@/hooks/useOwnedProperties';
 import { PortfolioRollup } from '@/components/investor/my-properties/PortfolioRollup';
 import { OwnedPropertyCard } from '@/components/investor/my-properties/OwnedPropertyCard';
 import { AddPropertyDialog } from '@/components/investor/my-properties/AddPropertyDialog';
+import { EditPropertyDialog } from '@/components/investor/my-properties/EditPropertyDialog';
 import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 type FilterKey = 'all' | 'rented' | 'owner_occupied';
 type SortKey = 'updated' | 'equity' | 'cashFlow' | 'purchase';
 
 export default function MyProperties() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { properties, rollup, loading, reload } = useOwnedProperties();
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sort, setSort] = useState<SortKey>('updated');
   const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<OwnedPropertyWithMetrics | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OwnedPropertyWithMetrics | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { error } = await (supabase as any)
+        .from('investor_owned_properties')
+        .update({ status: 'archived' })
+        .eq('id', deleteTarget.id);
+      if (error) throw error;
+      toast({ title: 'Property removed', description: deleteTarget.address_line1 });
+      setDeleteTarget(null);
+      reload();
+    } catch (err: any) {
+      toast({
+        title: 'Could not delete property',
+        description: err?.message ?? String(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     let list = properties;
@@ -124,6 +165,8 @@ export default function MyProperties() {
                     key={p.id}
                     property={p}
                     onClick={() => navigate(`/investor/properties/${p.id}`)}
+                    onEdit={(prop) => setEditTarget(prop)}
+                    onDelete={(prop) => setDeleteTarget(prop)}
                   />
                 ))}
               </div>
@@ -133,6 +176,33 @@ export default function MyProperties() {
       </div>
 
       <AddPropertyDialog open={addOpen} onOpenChange={setAddOpen} onCreated={() => reload()} />
+      <EditPropertyDialog
+        property={editTarget}
+        open={!!editTarget}
+        onOpenChange={(o) => { if (!o) setEditTarget(null); }}
+        onSaved={() => reload()}
+      />
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this property?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.address_line1} will be archived and removed from your portfolio
+              metrics. You can re-add it later — historical events are preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Removing…' : 'Remove'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <LegacyUpgradeModal surface="my_properties" />
     </div>
   );
