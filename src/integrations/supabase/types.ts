@@ -1950,6 +1950,51 @@ export type Database = {
         }
         Relationships: []
       }
+      topup_events: {
+        Row: {
+          created_at: string
+          credit_usd: number | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          pack_size: string | null
+          price_usd: number | null
+          remaining_balance_usd: number | null
+          stripe_session_id: string | null
+          surface: string | null
+          tier: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          credit_usd?: number | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          pack_size?: string | null
+          price_usd?: number | null
+          remaining_balance_usd?: number | null
+          stripe_session_id?: string | null
+          surface?: string | null
+          tier?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          credit_usd?: number | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          pack_size?: string | null
+          price_usd?: number | null
+          remaining_balance_usd?: number | null
+          stripe_session_id?: string | null
+          surface?: string | null
+          tier?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       upgrade_cta_events: {
         Row: {
           cap_session_id: string
@@ -1982,6 +2027,48 @@ export type Database = {
           source?: string
           stripe_session_id?: string | null
           to_tier?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_credits: {
+        Row: {
+          amount_usd: number
+          consumed_usd: number
+          created_at: string
+          expires_at: string
+          id: string
+          pack_size: string
+          purchased_at: string
+          status: string
+          stripe_session_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_usd: number
+          consumed_usd?: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          pack_size: string
+          purchased_at?: string
+          status?: string
+          stripe_session_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_usd?: number
+          consumed_usd?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pack_size?: string
+          purchased_at?: string
+          status?: string
+          stripe_session_id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
