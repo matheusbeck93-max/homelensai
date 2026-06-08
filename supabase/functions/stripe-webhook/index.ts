@@ -4,7 +4,7 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { isLegacyPriceId, isCurrentPriceId } from '../_shared/subscriptions.ts';
-import { getCreditPackByPriceId } from '../_shared/credits.ts';
+import { getCreditPackByPriceId, TOPUP_CREDIT_EXPIRY_DAYS } from '../_shared/credits.ts';
 
 /**
  * Stripe webhook handler.
@@ -84,18 +84,73 @@ Deno.serve(async (req) => {
         const productId = item?.price.product as string;
         const priceId = item?.price.id as string | undefined;
         const subscriptionItemId = item?.id as string | undefined;
-        const tier = sub.status === 'active'
+        const tier = (sub.status === 'active' || sub.status === 'trialing')
           ? (PRODUCT_TIER_MAP[productId] ?? 'free')
           : 'free';
         const periodEnd = new Date(sub.current_period_end * 1000).toISOString();
-        await updateProfileByCustomerId(supabase, stripe, customerId, {
+        const periodStart = new Date(sub.current_period_start * 1000).toISOString();
+
+        // Look up the monthly plan-credit allowance for this tier.
+        let allowanceUsd = 0;
+        if (tier === 'buyer' || tier === 'investor') {
+          const { data: plan } = await supabase
+            .from('subscription_plans')
+            .select('monthly_credit_allowance_usd')
+            .eq('tier', tier)
+            .maybeSingle();
+          allowanceUsd = Number(plan?.monthly_credit_allowance_usd ?? 0) || 0;
+        }
+
+        // Resolve target profile so we can decide whether this is a new
+        // cycle (period_start changed) and whether to stamp trial_used_at.
+        const profile = await resolveProfile(supabase, stripe, customerId);
+
+        const fields: Record<string, unknown> = {
           subscription_status: tier,
           subscription_renews_at: sub.cancel_at_period_end ? null : periodEnd,
           subscription_cancel_at: sub.cancel_at_period_end ? periodEnd : null,
           stripe_price_id: priceId ?? null,
           stripe_subscription_id: sub.id,
           stripe_subscription_item_id: subscriptionItemId ?? null,
-        });
+          current_period_start: periodStart,
+          current_period_end: periodEnd,
+        };
+
+        // Trial lock — stamp the first time we ever see this user on a
+        // subscription, regardless of whether they actually got a trial.
+        if (profile && !profile.trial_used_at) {
+          fields.trial_used_at = new Date().toISOString();
+        }
+
+        // Plan-credit grant/reset:
+        //  - subscription.created → grant full allowance.
+        //  - subscription.updated → reset only when period_start changed
+        //    (new billing cycle), otherwise leave balance alone so mid-
+        //    cycle plan changes don't double-grant.
+        const isNewCycle = !profile?.current_period_start
+          || profile.current_period_start !== periodStart;
+        let didGrant = false;
+        if (tier === 'free') {
+          fields.plan_credits_remaining_usd = 0;
+          fields.plan_credits_allowance_usd = 0;
+        } else if (event.type === 'customer.subscription.created' || isNewCycle) {
+          fields.plan_credits_remaining_usd = allowanceUsd;
+          fields.plan_credits_allowance_usd = allowanceUsd;
+          didGrant = true;
+        }
+
+        await updateProfileByCustomerId(supabase, stripe, customerId, fields);
+
+        if (didGrant && profile?.id) {
+          await supabase.from('topup_events').insert({
+            user_id: profile.id,
+            event_type: event.type === 'customer.subscription.created'
+              ? 'plan_granted'
+              : 'plan_reset',
+            credit_usd: allowanceUsd,
+            remaining_balance_usd: allowanceUsd,
+          });
+        }
 
         // Detect legacy → current upgrade and mark nudge complete.
         if (event.type === 'customer.subscription.updated') {
@@ -114,6 +169,8 @@ Deno.serve(async (req) => {
           subscription_status: 'free',
           subscription_renews_at: null,
           subscription_cancel_at: null,
+          plan_credits_remaining_usd: 0,
+          plan_credits_allowance_usd: 0,
         });
         break;
       }
@@ -331,7 +388,9 @@ async function recordCreditPackPurchase(
       return;
     }
 
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(
+      Date.now() + TOPUP_CREDIT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const { error } = await supabase.from('user_credits').insert({
       user_id: userId,
       amount_usd: creditUsd,
