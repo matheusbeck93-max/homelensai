@@ -6,6 +6,8 @@ import { getErrorMessage, handleAiGatewayError } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
+import type { Tier } from '../_shared/ai/types.ts';
 
 const log = createLogger('property-assistant');
 
@@ -173,19 +175,33 @@ Deno.serve(async (req) => {
     const credits = await precheckAiCredits(req);
     if (!credits.allowed && credits.response) return credits.response;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    // Resolve user + tier for the budget-aware router.
+    let userId: string | undefined;
+    let tier: Tier = 'free';
+    try {
+      const authHeader = req.headers.get('Authorization') ?? '';
+      if (authHeader.startsWith('Bearer ')) {
+        const svc = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_ANON_KEY')!,
+          { global: { headers: { Authorization: authHeader } } },
+        );
+        const { data: { user } } = await svc.auth.getUser();
+        if (user) {
+          userId = user.id;
+          const { data: profile } = await svc
+            .from('profiles')
+            .select('subscription_status')
+            .eq('id', user.id)
+            .maybeSingle();
+          const status = (profile as any)?.subscription_status;
+          if (status === 'investor' || status === 'premium') tier = 'investor';
+          else if (status === 'buyer' || status === 'paid') tier = 'buyer';
+        }
+      }
+    } catch (_) { /* fall through as free/anonymous */ }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: `You are a U.S. real estate decision advisor.
+    const systemPrompt = `You are a U.S. real estate decision advisor.
 
 Response style — adapt to question type:
 
@@ -207,25 +223,20 @@ Universal rules:
 - Prefer bullets when they improve scanability — use a flat bullet list for 3+ supporting points; use prose for 1–2 connected points or the opening verdict. Never bullet simple factual answers.
 - Skip "next steps" / follow-up suggestions by default — include them only when they materially help the user act.
 - Personalization: use saved preferences only when they sharpen the answer; never echo the profile back; never force preferences into narrow factual questions.
-- Tone: professional, confident, natural — sharp advisor, not blog writer.` },
-          { role: "user", content: query },
-        ],
-      }),
+- Tone: professional, confident, natural — sharp advisor, not blog writer.`;
+
+    const aiMessages: AiMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: query },
+    ];
+
+    const out = await callAiGateway(aiMessages, {
+      model: 'google/gemini-2.5-flash',
+      router: userId ? { surface: 'general_chat', userId, tier } : undefined,
     });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      throw new Error("AI API error");
-    }
-
-    const aiData = await response.json();
-    await deductAiCredits(credits, aiData?.usage);
-    const assistantResponse = aiData.choices[0].message.content;
+    if ('error' in out) return out.error;
+    await deductAiCredits(credits, out.result.usage);
+    const assistantResponse = out.result.message;
 
     return new Response(
       JSON.stringify({ response: assistantResponse }),
