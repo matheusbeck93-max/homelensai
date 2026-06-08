@@ -282,3 +282,89 @@ async function markLegacyUpgradeComplete(
     console.error('markLegacyUpgradeComplete error', err);
   }
 }
+
+/**
+ * Handles one-time AI credit-pack checkouts.
+ * Detects pack via:
+ *   1) session metadata.kind === 'ai_credit_topup' (preferred — set by buy-credits)
+ *   2) Price ID match against the env-pinned credit-pack catalog (fallback)
+ * Inserts an active `user_credits` row with a 30-day expiration. Idempotent
+ * — the `stripe_session_id` unique index swallows webhook retries.
+ */
+async function recordCreditPackPurchase(
+  supabase: ReturnType<typeof createClient>,
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+) {
+  try {
+    if (session.mode !== 'payment') return;
+    const meta = session.metadata ?? {};
+    let userId = meta.user_id as string | undefined;
+    let packSize = meta.pack_size as 'small' | 'medium' | 'large' | undefined;
+    let creditUsd = meta.credit_usd ? Number(meta.credit_usd) : NaN;
+    let priceUsd = meta.price_usd ? Number(meta.price_usd) : NaN;
+
+    // Fallback: look up the line item's price and match against env packs.
+    if (!packSize || !Number.isFinite(creditUsd)) {
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+      const priceId = lineItems.data[0]?.price?.id as string | undefined;
+      const pack = getCreditPackByPriceId(priceId);
+      if (!pack) return; // Not a credit-pack purchase.
+      packSize = pack.size;
+      creditUsd = pack.creditUsd;
+      priceUsd = pack.priceUsd;
+    }
+    if (!Number.isFinite(creditUsd) || creditUsd <= 0) return;
+
+    // If user_id missing from metadata, resolve via customer email.
+    if (!userId) {
+      const email = (session.customer_email as string | null)
+        ?? (session.customer_details?.email as string | null);
+      if (email) {
+        const { data: authResp } = await (supabase as any).auth.admin.listUsers();
+        const target = (authResp?.users ?? []).find((u: any) => u.email === email);
+        userId = target?.id;
+      }
+    }
+    if (!userId || !packSize) {
+      log.warn('credit-pack: could not resolve user_id or pack_size', { sessionId: session.id });
+      return;
+    }
+
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from('user_credits').insert({
+      user_id: userId,
+      amount_usd: creditUsd,
+      pack_size: packSize,
+      stripe_session_id: session.id,
+      expires_at: expiresAt,
+      status: 'active',
+    });
+    if (error) {
+      // Unique violation = idempotent retry; quietly skip.
+      if (error.code === '23505') {
+        log.step('credit-pack: duplicate session, ignored', { sessionId: session.id });
+        return;
+      }
+      console.error('credit-pack insert failed', error);
+      return;
+    }
+
+    await supabase.from('topup_events').insert({
+      user_id: userId,
+      event_type: 'completed',
+      pack_size: packSize,
+      price_usd: Number.isFinite(priceUsd) ? priceUsd : null,
+      credit_usd: creditUsd,
+      stripe_session_id: session.id,
+    });
+    log.step('credit-pack purchase recorded', {
+      userId,
+      packSize,
+      creditUsd,
+      sessionId: session.id,
+    });
+  } catch (err) {
+    console.error('recordCreditPackPurchase error', err);
+  }
+}
