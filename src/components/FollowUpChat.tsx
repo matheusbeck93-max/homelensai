@@ -7,6 +7,9 @@ import { Send, Bot, User, Minimize2, Maximize2, Bed, Bath, Square, ExternalLink 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 interface PropertyLink {
   source: string;
@@ -71,6 +74,8 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const cap = useBudgetCap();
+  const capExceeded = cap.warningLevel === "exceeded";
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -113,6 +118,7 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+    if (capExceeded) return;
 
     const userMessage: Message = { role: "user", content: input, type: "text" };
     setMessages((prev) => [...prev, userMessage]);
@@ -199,6 +205,10 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
         ]);
       }
     } catch (error: any) {
+      if (await parseAndRecordBudget402(error, 'general_chat')) {
+        setLoading(false);
+        return;
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -315,7 +325,11 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
         {isExpanded && (
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
-              
+              {cap.warningLevel === "approaching" && (
+                <BudgetCapBanner surface="general_chat" />
+              )}
+              {capExceeded && <BudgetCapBlocker surface="general_chat" compact />}
+
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground text-sm py-8">
                   <Bot className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
@@ -391,14 +405,14 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
         <div className="p-3 border-t bg-background">
           <div className="flex gap-2">
             <Textarea
-              placeholder="Ask anything..."
+              placeholder={capExceeded ? "Daily AI cap reached. Resets at midnight UTC." : "Ask anything..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              disabled={loading}
+              disabled={loading || capExceeded}
               className="min-h-[60px] resize-none"
             />
-            <Button onClick={handleSend} disabled={loading || !input.trim()} size="icon" className="h-[60px]">
+            <Button onClick={handleSend} disabled={loading || capExceeded || !input.trim()} size="icon" className="h-[60px]">
               <Send className="h-4 w-4" />
             </Button>
           </div>

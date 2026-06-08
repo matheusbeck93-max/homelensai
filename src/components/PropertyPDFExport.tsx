@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { calculatePriceFairness } from "@/lib/pricingUtils";
+import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
+import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 
 interface PropertyPDFExportProps {
   property: any;
@@ -24,6 +26,8 @@ export function PropertyPDFExport({
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const { toast } = useToast();
   const { hasAccess } = useSubscription();
+  const cap = useBudgetCap();
+  const capExceeded = cap.warningLevel === "exceeded";
 
   const hasPDFExportAccess = hasAccess('EXCEL_WORKFLOW');
 
@@ -32,6 +36,7 @@ export function PropertyPDFExport({
       setUpgradeModalOpen(true);
       return;
     }
+    if (capExceeded) return;
 
     setGenerating(true);
     try {
@@ -88,6 +93,10 @@ export function PropertyPDFExport({
       });
 
     } catch (error: any) {
+      if (await parseAndRecordBudget402(error, 'artifact_generation')) {
+        setGenerating(false);
+        return;
+      }
       console.error('Error generating PDF:', error);
       toast({
         title: "Export failed",
@@ -103,7 +112,7 @@ export function PropertyPDFExport({
     <>
       <Button
         onClick={handleExportPDF}
-        disabled={generating}
+        disabled={generating || capExceeded}
         variant="outline"
         size="lg"
         className="w-full"
@@ -112,6 +121,11 @@ export function PropertyPDFExport({
           <>
             <Lock className="mr-2 h-5 w-5" />
             Export PDF Report (Pro)
+          </>
+        ) : capExceeded ? (
+          <>
+            <Lock className="mr-2 h-5 w-5" />
+            Daily AI cap reached
           </>
         ) : generating ? (
           <>
@@ -125,6 +139,12 @@ export function PropertyPDFExport({
           </>
         )}
       </Button>
+
+      {capExceeded && hasPDFExportAccess && (
+        <div className="mt-3">
+          <BudgetCapBlocker surface="artifact_generation" compact />
+        </div>
+      )}
 
       <UpgradeModal
         isOpen={upgradeModalOpen}
