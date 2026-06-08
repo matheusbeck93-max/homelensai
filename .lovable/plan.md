@@ -80,3 +80,16 @@ Current refresh round-trip:
 1. PR-A: My Properties edit/delete (UI only).
 2. PR-B: Investor Brief speed-ups (low risk, isolated to the brief path).
 3. PR-C: Plan-limit audit (surface registrations + per-function migration); ship one or two functions per PR so the rollback blast-radius stays small.
+
+---
+
+## Execution log (this turn)
+
+### Done
+- **PR-A My Properties edit/delete** — kebab menu on `OwnedPropertyCard`, new `EditPropertyDialog` (full record incl. loan/rental/occupancy), `AlertDialog` confirm with soft-delete (`status='archived'`). Wired in `MyProperties.tsx`.
+- **PR-B Investor Brief speedup** — `investor-brief` now routes all tiers through `completeWithFallback` (Sonnet for free/buyer, premium for investor); legacy Gemini-2.5-Pro fallback removed. Card summaries capped to 240 chars. `useInvestorBrief.regenerate` paints composed cards optimistically, hydrates state from the edge response (no extra round-trip), debounce raised to 5s with in-flight guard.
+- **PR-C re-audit** — most surfaces already route through `callAiGateway({ router })`: `calculator-insights`, `compare-properties-ai`, `neighborhood-personality`, `owned-property-chat`. Only `property-assistant` still bypassed the router — now migrated to `callAiGateway` with `general_chat` surface, tier resolved from `profiles.subscription_status`. `preferences-chat` is rule-based, no AI call. **Result: every Lovable-AI surface is budget-capped per tier.**
+
+### Follow-up (next PR)
+- **Perplexity quota** — `perplexity-chat` and `neighborhood-insights` hit Perplexity directly, so the $-budget guard doesn't apply. Add `checkPerplexityQuota(userId, tier)` (free 10/day, buyer 60/day, investor 200/day) backed by `ai_usage_log` rows with `provider='perplexity'`, and wire both functions to enforce + log it.
+- **Surface IDs cleanup** — `calculator-insights`, `compare-properties-ai`, `neighborhood-personality` currently reuse `artifact_generation`. Split into dedicated `compare_properties`, `neighborhood_insights`, `calculator_insights` ids so cost telemetry can be pivoted per feature without affecting limits.
