@@ -1,95 +1,88 @@
-# Plan
+# Ship Plan: Cap UX Fan-out + Top-Up Credits + Sonnet Flag-On
 
-Three independent workstreams. Each can ship on its own.
-
----
-
-## 1. My Properties — Edit & Delete
-
-Today `OwnedPropertyCard` only navigates to the detail page; there is no edit or delete path on the My Properties list, and `AddPropertyDialog` is create-only.
-
-**UI**
-- Add a "⋮" menu (shadcn `DropdownMenu`) to the top-right of `OwnedPropertyCard`, stopping propagation so it doesn't trigger the card's `onClick`. Items: **Edit details**, **Delete**.
-- New `EditPropertyDialog` (lift the field set out of `AddPropertyDialog` into a shared `OwnedPropertyForm`; reuse for both create and edit). Pre-fills from the selected property and updates `investor_owned_properties` on save. Keep the existing `EditValuationDialog` as a quick path on the detail page; the new dialog covers the full record (address, type, beds/baths, purchase, loan, rented/owner-occupied flags).
-- Delete: `AlertDialog` confirm → soft-delete by setting `status = 'archived'` (keeps history; matches the existing `.eq('status','active')` filter in `useOwnedProperties`). Mention "you can re-add it later". Hard delete is out of scope for v1.
-
-**Wiring**
-- `MyProperties.tsx` holds `editTarget` / `deleteTarget` state, renders the new dialogs once, passes setters down through `OwnedPropertyCard` via `onEdit` / `onDelete` props.
-- Both actions call `reload()` from `useOwnedProperties` on success and `toast` success/error.
-
-**Files**
-- new: `src/components/investor/my-properties/OwnedPropertyForm.tsx` (extracted from AddPropertyDialog)
-- new: `src/components/investor/my-properties/EditPropertyDialog.tsx`
-- edit: `AddPropertyDialog.tsx` (use shared form), `OwnedPropertyCard.tsx` (menu), `MyProperties.tsx` (state + dialogs)
-- RLS on `investor_owned_properties` already restricts to owner; no migration needed.
+Three PRs land together; flag-on is an ops step after merge.
 
 ---
 
-## 2. Investor Brief — Faster Refresh
+## PR A — Cap UX fan-out to remaining surfaces
 
-Current refresh round-trip:
-`composeBriefCards` (parallel data loads, fast) → `investor-brief` edge fn → insert `brief` row → insert N `cards` → Gemini 2.5 Pro narration (~3–8s, the bottleneck) → finalize → client reloads via two more selects. UI shows a skeleton on the right and nothing on the left until everything returns.
+Wire the existing `useBudgetCap` hook + `BudgetCapBanner` + `BudgetCapBlocker` into every surface that still lacks it. Each integration is ~5 lines (banner above composer, blocker on cap-hit, disable input/button).
 
-**Wins (in order of impact)**
+Surfaces to wire:
+1. **InvestorChatPanel** — composer banner + blocker, disable send.
+2. **MyPropertiesStrategy** (owned-property strategy panel) — same pattern.
+3. **OwnedPropertyChat** — same pattern.
+4. **Investor Brief refresh + Deep Dive** buttons — disable on `exceeded`, tooltip "Daily cap reached", show blocker inline.
+5. **Artifact generation** (Excel workbook + PDF generators in chat) — gate the generate button + refinement.
+6. **Chrome Extension popup** — inject blocker banner; CTA links to `https://homelensais.com/console` (not Stripe directly — extension users won't tab-switch for payment).
+7. **Background jobs** — `check-property-alerts`, `property-valuation-refresh`, `send-weekly-picks`: catch `BudgetExceededError` server-side, silent-skip, log telemetry event `budget_cap_hit_background` to `ai_usage_log` metadata (no user-visible error).
 
-1. **Model swap for free/buyer narration.** Brief narration is a short JSON over already-summarized cards — Pro is overkill. In `investor-brief/index.ts`, drop the hardcoded `google/gemini-2.5-pro` and use the router for all tiers (it's already imported and used for the flagged path). Free/buyer route to `gateway:standard` (Sonnet, fast); investor keeps `gateway:premium`. Removes the slow legacy fallback as the default.
-2. **Render cards before narration finishes.** The composed cards exist on the client before the edge call. Update `useInvestorBrief.regenerate` to call `setBundle` with the freshly composed cards (and the previous brief's intro/insights kept visible) immediately, then patch in the new intro/insights when the edge function returns. Removes the "blank right column during refresh" feeling.
-3. **One round-trip for the reload.** Return the full brief + cards from `investor-brief` (already done) and stop the post-call `loadLatest()` re-fetch — just hydrate from the response. Saves two sequential selects.
-4. **Tighten auto-refresh debounce.** Today realtime events fire `regenerate({silent})` after 2.5s; multi-table edits stack. Coalesce all four channels with a single 5s debounce and skip if `refreshing` is already true.
-5. **Trim narration prompt.** Pass only `id`, `type`, `title`, `summary` (already done) but cap each summary to 240 chars before send. Shorter prompt → faster TTFB.
-
-**Out of scope (flag for later)**: true streaming of the narration; today a non-streaming JSON response is required for parsing.
-
-**Files**
-- edit: `supabase/functions/investor-brief/index.ts` (router for all tiers, drop legacy path as default, return final shape)
-- edit: `src/hooks/useInvestorBrief.ts` (optimistic compose, hydrate from response, debounce)
+Pattern reused — no new components required.
 
 ---
 
-## 3. Plan Limits & Rate Limiting — Audit + Close Gaps
+## PR B — Top-Up Credits
 
-`budgetGuard.ts` caps spend per tier (free $0.10, buyer $0.50, investor $1.50 / UTC day) but the guard only fires on surfaces that call the router via `completeWithFallback`. Audit results:
+### B1. Database (`user_credits` table)
+- Columns: `id`, `user_id`, `amount_usd numeric(8,4)`, `consumed_usd numeric(8,4) default 0`, `pack_size text` (small/medium/large), `stripe_session_id text unique`, `purchased_at`, `expires_at` (30d), `status` (active/exhausted/expired/refunded).
+- RLS: owner read; service-role writes (webhook + budget guard).
+- Index on `(user_id, status, expires_at)`.
+- GRANTs per project rule.
 
-| Edge function | Routed through guard? |
-|---|---|
-| `ai-chat`, `ai-analyze`, `investor-chat`, `investor-brief`, `preferences-assistant`, `send-weekly-picks` | ✅ |
-| `owned-property-chat` | ❌ direct Gateway call |
-| `perplexity-chat` | ❌ (Perplexity, not Lovable AI — separate cost) |
-| `calculator-insights` | ❌ |
-| `compare-properties-ai` | ❌ |
-| `neighborhood-personality`, `neighborhood-insights` | ❌ |
-| `property-assistant` | ❌ |
-| `preferences-chat` | ❌ |
+### B2. Stripe products
+- Need three one-time Price IDs (Small $5, Medium $10, Large $25). I will create these via Stripe MCP and pin to env vars: `STRIPE_CREDIT_PACK_SMALL_PRICE_ID`, `_MEDIUM_`, `_LARGE_`.
+- Bonuses: Small $5→$5, Medium $10→$11, Large $25→$30.
 
-**Actions**
-- Add the missing surface ids to `SurfaceId` / `SURFACE_CONFIG`: `owned_property_chat`, `compare_properties`, `neighborhood_insights`, `calculator_insights`, `property_assistant`, `preferences_chat`. Map free/buyer → `gateway:standard`, investor → `gateway:premium` (`gateway:standard` fallback) by default; `compare_properties` and `property_assistant` use the buyer→PRE pattern from `my_properties_strategy`.
-- Migrate each of the above edge functions to `completeWithFallback(surfaceId, …, { userId, tier })` behind `isSurfaceEnabled` (same pattern as `investor-brief`), returning the structured 402 from `buildBudgetExceededPayload` on `BudgetExceededError`. Keep the legacy direct-gateway path as fallback when the flag is off, so this is safe to roll incrementally.
-- `perplexity-chat` is a separate provider, so the $-cap doesn't apply. Add a per-tier **request-count** ceiling for it (free 10/day, buyer 60/day, investor 200/day) using the existing `ai_usage_log` table (count rows where `provider='perplexity'`). Helper lives next to `budgetGuard.ts` as `checkPerplexityQuota(userId, tier)`.
-- Verify front-end coverage of the new 402 payloads: every page that calls these functions already either uses `useBudgetCap` (Chats, Calculators, PropertyDetail, etc.) or will after surface integration; sweep the remaining call sites (compare page, neighborhood widgets) to wire `parseAndRecordBudget402` + `<BudgetCapBlocker>` in line with the existing pattern.
-- No client rate-limiter is being added (per the no-backend-rate-limiting directive); per-tier $ caps + per-day Perplexity request caps are the enforcement mechanism, both server-side.
+### B3. `_shared/credits.ts`
+Helpers: `getActiveCreditBalance(userId)`, `consumeCredits(userId, amountUsd)` (oldest-first via FIFO on `purchased_at`; flip row to `exhausted` when fully consumed), `expireOldCredits()`.
 
-**Verification**
-- Re-run `budgetGuard_test.ts` and `router_test.ts`; add a `perplexityQuota_test.ts` (count math, reset boundary).
-- Manual: with a free account, hit chat repeatedly and confirm the cap triggers `<BudgetCapBlocker>` on each migrated surface; same for Perplexity quota.
-- Inspect `ai_usage_log` via supabase read query after a session to confirm rows for the newly-migrated surfaces carry their `surface_id`.
+### B4. `budgetGuard.ts` extension
+- After computing daily spend vs cap: if over cap, query active credit balance. If `>0`, allow; mark request to consume credits in `usageLogger` post-call.
+- Update `buildBudgetExceededPayload` to include `credits_balance_usd` and a `topup` block (packs + checkout URLs) — only for `buyer`/`investor`; `topup.available=false` for `free`.
+
+### B5. Edge functions
+- **`buy-credits`** (new): authed; body `{ pack: 'small'|'medium'|'large' }`; resolves price ID; creates Stripe Checkout `mode=payment` session with metadata `{ user_id, pack_size, credit_usd }`; returns `{ url }`.
+- **`stripe-webhook`** (extend): on `checkout.session.completed` where mode=`payment` and price matches a credit-pack ID, insert `user_credits` row with `expires_at = now() + 30 days`; emit `topup_completed` telemetry.
+
+### B6. Frontend
+- Extend `BudgetCapBlocker.tsx`: render three pack cards below upgrade CTA when `payload.topup.available`. Each card shows price, credit value, bonus label. Click → invoke `buy-credits` → `window.open(url)`.
+- Success route handling: on return to app, toast "+$X in credits added". (Existing Stripe success URL pattern; reuse `/console?topup=success`.)
+- Account section in `Console.tsx`: "AI Credits: $X.XX remaining (expires …)" with "Buy more credits" link that opens the same pack picker in a small dialog (`TopUpDialog.tsx`). Available anytime, not only on cap-hit.
+
+### B7. `useBudgetCap` hook
+Surface `creditsBalanceUsd`, `topup` from 402 payload; expose `buyPack(size)` helper.
+
+### B8. Telemetry events
+Dispatch via existing `window.dispatchEvent` pattern + log to `upgrade_cta_events`-style table (reuse if shape fits, else add columns): `topup_offered`, `topup_pack_clicked`, `topup_completed`, `topup_consumed`, `topup_expired`.
 
 ---
 
-## Suggested merge order
+## PR C — Flag-on rollout (ops, no code)
 
-1. PR-A: My Properties edit/delete (UI only).
-2. PR-B: Investor Brief speed-ups (low risk, isolated to the brief path).
-3. PR-C: Plan-limit audit (surface registrations + per-function migration); ship one or two functions per PR so the rollback blast-radius stays small.
+After PRs A + B merged and verified:
+
+1. **Pre-flight**: confirm Anthropic Tier 2, key smoke test, spend cap set, budget caps match spec (`free 0.10 / buyer 0.50 / investor 1.50 / unlimited 20`).
+2. **Batch 1**: flip `AI_ROUTER_*_ENABLED` for preferences_assistant, investor_brief, extension_listing_analysis, ai_analyze, alerts_engine → wait 1h.
+3. **Batch 2**: artifact_generation, my_properties_strategy → wait 1h.
+4. **Batch 3**: investor_chat, general_chat → watch 2h.
+5. 48h monitor; eval suite daily; legacy-path delete PRs queued for ~day 10.
+
+Abort triggers (per surface): silent-fallback >5% / 10min, Anthropic 429 spike, 5xx >2× baseline, ≥3 user reports/hr, daily spend >2× projection.
 
 ---
 
-## Execution log (this turn)
+## Technical notes
 
-### Done
-- **PR-A My Properties edit/delete** — kebab menu on `OwnedPropertyCard`, new `EditPropertyDialog` (full record incl. loan/rental/occupancy), `AlertDialog` confirm with soft-delete (`status='archived'`). Wired in `MyProperties.tsx`.
-- **PR-B Investor Brief speedup** — `investor-brief` now routes all tiers through `completeWithFallback` (Sonnet for free/buyer, premium for investor); legacy Gemini-2.5-Pro fallback removed. Card summaries capped to 240 chars. `useInvestorBrief.regenerate` paints composed cards optimistically, hydrates state from the edge response (no extra round-trip), debounce raised to 5s with in-flight guard.
-- **PR-C re-audit** — most surfaces already route through `callAiGateway({ router })`: `calculator-insights`, `compare-properties-ai`, `neighborhood-personality`, `owned-property-chat`. Only `property-assistant` still bypassed the router — now migrated to `callAiGateway` with `general_chat` surface, tier resolved from `profiles.subscription_status`. `preferences-chat` is rule-based, no AI call. **Result: every Lovable-AI surface is budget-capped per tier.**
+- **Credit consumption point**: deduct in `usageLogger.ts` after a successful AI call when the request was admitted via credits (mark via a `usedCredits: true` flag returned from `checkBudget`). Pay against oldest active row; spill across rows if needed.
+- **Atomicity**: credit consumption uses a service-role `update` with `where consumed_usd + delta <= amount_usd`; loop across rows if delta spans multiple.
+- **Refunds/expiry**: nightly cron (existing pg_cron infra) flips `status='expired'` for rows past `expires_at`.
+- **Free-tier guard**: `buy-credits` rejects free users with 403; UI hides packs for free tier.
+- **Background-job skip**: `BudgetExceededError` in non-interactive callers becomes a no-op + log entry rather than 402 response.
 
-### Follow-up (next PR)
-- **Perplexity quota** — `perplexity-chat` and `neighborhood-insights` hit Perplexity directly, so the $-budget guard doesn't apply. Add `checkPerplexityQuota(userId, tier)` (free 10/day, buyer 60/day, investor 200/day) backed by `ai_usage_log` rows with `provider='perplexity'`, and wire both functions to enforce + log it.
-- **Surface IDs cleanup** — `calculator-insights`, `compare-properties-ai`, `neighborhood-personality` currently reuse `artifact_generation`. Split into dedicated `compare_properties`, `neighborhood_insights`, `calculator_insights` ids so cost telemetry can be pivoted per feature without affecting limits.
+---
+
+## Open question for you
+
+Stripe: do you want me to **create the three one-time credit-pack products via Stripe MCP now** (recommended — they'll be pinned to live Price IDs immediately), or will you create them in Stripe Dashboard and send me the three Price IDs?
+
+If "create now", I'll provision `prod_*` + `price_*` in your live Stripe and store the three Price IDs as env-var secrets (`STRIPE_CREDIT_PACK_{SMALL,MEDIUM,LARGE}_PRICE_ID`) so swapping environments later is config-only.
