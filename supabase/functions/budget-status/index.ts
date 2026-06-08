@@ -13,6 +13,7 @@ import {
   getBudgetLimits,
   nextUtcMidnightIso,
 } from "../_shared/ai/budgetGuard.ts";
+import { getActiveCreditBalance, getCreditPacks } from "../_shared/credits.ts";
 import type { Tier } from "../_shared/ai/types.ts";
 
 type WarningLevel = "ok" | "approaching" | "exceeded";
@@ -100,6 +101,21 @@ Deno.serve(async (req) => {
     const usagePct = capUsd > 0 ? Math.min(1, usedUsd / capUsd) : 0;
     const warningLevel = levelFor(usedUsd, capUsd);
 
+    // Credits balance + top-up pack catalog. Free users never see packs.
+    const balance = await getActiveCreditBalance(user.id, svc);
+    const isPaid = tier === "paid" || tier === "premium";
+    const topup = isPaid
+      ? {
+          available: true,
+          packs: getCreditPacks().map((p) => ({
+            size: p.size,
+            price_usd: p.priceUsd,
+            credit_usd: p.creditUsd,
+            bonus_pct: Math.round(((p.creditUsd - p.priceUsd) / p.priceUsd) * 100),
+          })),
+        }
+      : { available: false, packs: [] as Array<never> };
+
     return new Response(
       JSON.stringify({
         tier,
@@ -108,6 +124,9 @@ Deno.serve(async (req) => {
         usage_pct: Number(usagePct.toFixed(4)),
         reset_at: nextUtcMidnightIso(),
         warning_level: warningLevel,
+        credits_balance_usd: balance.balanceUsd,
+        credits_next_expires_at: balance.nextExpiresAt,
+        topup,
       }),
       { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
     );

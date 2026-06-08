@@ -4,6 +4,7 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { isLegacyPriceId, isCurrentPriceId } from '../_shared/subscriptions.ts';
+import { getCreditPackByPriceId } from '../_shared/credits.ts';
 
 /**
  * Stripe webhook handler.
@@ -127,6 +128,8 @@ Deno.serve(async (req) => {
         const session = event.data.object as Stripe.Checkout.Session;
         log.step('Checkout completed', { sessionId: session.id });
         await recordCapConversion(supabase, session);
+        // One-time AI credit pack purchase: insert user_credits row.
+        await recordCreditPackPurchase(supabase, stripe, session);
         // Subscription tier change still arrives via subscription.created.
         break;
       }
