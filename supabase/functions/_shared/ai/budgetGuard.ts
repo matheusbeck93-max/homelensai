@@ -10,6 +10,7 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import type { Tier } from "./types.ts";
 import type { SurfaceId } from "./surfaceConfig.ts";
+import { getActiveCreditBalance, getCreditPacks } from "../credits.ts";
 
 /** Per-tier daily USD ceiling. Overridable via env. */
 export interface BudgetLimits {
@@ -62,6 +63,10 @@ export interface BudgetStatus {
   usedUsd: number;
   capUsd: number;
   remainingUsd: number;
+  /** True when the call was admitted against the user's credit balance. */
+  usedCredits?: boolean;
+  /** Active credit balance at decision time (best-effort). */
+  creditsBalanceUsd?: number;
 }
 
 let cachedClient: SupabaseClient | null = null;
@@ -114,16 +119,41 @@ export async function checkBudget(
   if (!userId || Deno.env.get("AI_BUDGET_DISABLED") === "1") {
     return { allowed: true, tier, usedUsd: 0, capUsd, remainingUsd: capUsd };
   }
-  const usedUsd = await getTodaySpendUsd(
-    userId,
-    opts.client ?? getServiceClient(),
-  );
+  const client = opts.client ?? getServiceClient();
+  const usedUsd = await getTodaySpendUsd(userId, client);
+  if (usedUsd < capUsd) {
+    return {
+      allowed: true,
+      tier,
+      usedUsd,
+      capUsd,
+      remainingUsd: Math.max(0, capUsd - usedUsd),
+    };
+  }
+  // Over the daily cap — see if active credits can cover this turn.
+  // Free users never get credits, so skip the lookup.
+  if (tier === "free") {
+    return { allowed: false, tier, usedUsd, capUsd, remainingUsd: 0 };
+  }
+  const balance = await getActiveCreditBalance(userId, client);
+  if (balance.balanceUsd > 0) {
+    return {
+      allowed: true,
+      tier,
+      usedUsd,
+      capUsd,
+      remainingUsd: 0,
+      usedCredits: true,
+      creditsBalanceUsd: balance.balanceUsd,
+    };
+  }
   return {
-    allowed: usedUsd < capUsd,
+    allowed: false,
     tier,
     usedUsd,
     capUsd,
-    remainingUsd: Math.max(0, capUsd - usedUsd),
+    remainingUsd: 0,
+    creditsBalanceUsd: 0,
   };
 }
 
@@ -184,6 +214,7 @@ export interface BudgetExceededPayload {
   message: string;
   usage_today_usd: number;
   daily_limit_usd: number;
+  credits_balance_usd: number;
   reset_at: string;
   upgrade:
     | {
@@ -200,15 +231,29 @@ export interface BudgetExceededPayload {
         next_tier_price_usd: null;
         checkout_url: null;
       };
+  topup:
+    | {
+        available: true;
+        packs: Array<{
+          size: "small" | "medium" | "large";
+          price_usd: number;
+          credit_usd: number;
+          bonus_pct: number;
+        }>;
+      }
+    | {
+        available: false;
+        packs: [];
+      };
 }
 
 /**
  * Structured 402 body for cap-hit. Frontend `useBudgetCap` parses this and
  * pushes the state across every AI surface in the app.
  */
-export function buildBudgetExceededPayload(
+export async function buildBudgetExceededPayload(
   err: BudgetExceededError,
-): BudgetExceededPayload {
+): Promise<BudgetExceededPayload> {
   const next = UPGRADE_NEXT[err.tier];
   const upgrade: BudgetExceededPayload["upgrade"] = next
     ? {
@@ -225,6 +270,25 @@ export function buildBudgetExceededPayload(
         next_tier_price_usd: null,
         checkout_url: null,
       };
+  // Free users never see top-up packs — funnel them to upgrade instead.
+  const topup: BudgetExceededPayload["topup"] = err.tier === "free"
+    ? { available: false, packs: [] }
+    : {
+        available: true,
+        packs: getCreditPacks().map((p) => ({
+          size: p.size,
+          price_usd: p.priceUsd,
+          credit_usd: p.creditUsd,
+          bonus_pct: Math.round(((p.creditUsd - p.priceUsd) / p.priceUsd) * 100),
+        })),
+      };
+  // Best-effort: include current credit balance (will be 0 in the
+  // common cap-hit path that triggered this error).
+  let creditsBalanceUsd = 0;
+  try {
+    const bal = await getActiveCreditBalance(err.userId ?? "");
+    creditsBalanceUsd = bal.balanceUsd;
+  } catch { /* ignore */ }
   return {
     error: "budget_exceeded",
     tier: err.tier,
@@ -233,8 +297,10 @@ export function buildBudgetExceededPayload(
     message: friendlyMessage(err.tier),
     usage_today_usd: Number(err.usedUsd.toFixed(4)),
     daily_limit_usd: err.capUsd,
+    credits_balance_usd: creditsBalanceUsd,
     reset_at: err.resetAt,
     upgrade,
+    topup,
   };
 }
 
