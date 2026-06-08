@@ -6,7 +6,7 @@ import {
   BudgetExceededError,
 } from './ai/router.ts';
 import { buildBudgetExceededPayload, checkBudget } from './ai/budgetGuard.ts';
-import { consumeCredits } from './credits.ts';
+import { consumeAnyCredits } from './credits.ts';
 import { ProviderError } from './ai/types.ts';
 import type { SurfaceId } from './ai/surfaceConfig.ts';
 import type { Tier } from './ai/types.ts';
@@ -106,8 +106,8 @@ export async function callAiGateway(
       );
       // Successful call admitted via credits → deduct after the fact.
       if (usedCredits && typeof routed.usage?.costUsd === 'number' && routed.usage.costUsd > 0) {
-        // Fire-and-forget — never block the response.
-        void consumeCredits(options.router.userId, routed.usage.costUsd);
+        // Fire-and-forget — debits plan credits first, then top-ups.
+        void consumeAnyCredits(options.router.userId, routed.usage.costUsd);
       }
       const result: AiCompletionResult = {
         message: routed.text,

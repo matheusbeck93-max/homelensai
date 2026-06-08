@@ -65,7 +65,23 @@ Deno.serve(async (req) => {
       metadata.cap_source = capSource;
     }
     sessionParams.metadata = metadata;
-    sessionParams.subscription_data = { metadata };
+
+    // 7-day trial — only for users who have never used it. The webhook
+    // stamps `trial_used_at` on subscription.created to block re-trialing.
+    const { data: profileRow } = await supabaseClient
+      .from("profiles")
+      .select("trial_used_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isFirstTimeSubscriber = !profileRow?.trial_used_at;
+    const subscriptionData: Record<string, unknown> = { metadata };
+    if (isFirstTimeSubscriber) {
+      subscriptionData.trial_period_days = 7;
+      log.step("Applying 7-day free trial");
+    } else {
+      log.step("Trial already used — no trial period applied");
+    }
+    sessionParams.subscription_data = subscriptionData;
     if (customerId) {
       sessionParams.customer = customerId;
     } else {

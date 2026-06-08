@@ -1,15 +1,20 @@
 /**
- * Top-up AI credits — shared helpers for the budget guard, Stripe webhook
- * and the `buy-credits` / `budget-status` edge functions.
+ * AI credit helpers — shared by the budget guard, Stripe webhook, and the
+ * `buy-credits` / `budget-status` edge functions.
  *
- * Mental model:
- *   - Daily caps in `budgetGuard.ts` protect every tier from runaway burn.
- *   - When a paid user (Buyer / Investor) exhausts today's cap, they can
- *     buy a one-time credit pack from Stripe. Each pack adds USD credit
- *     that's consumed FIFO (oldest active row first) and expires 30 days
- *     after purchase.
- *   - Free users never see credit packs — they're funnel-ed to upgrade.
+ * Two buckets, consumed in this order:
+ *   1. Plan credits (monthly allowance) — stored on `profiles`. Reset to
+ *      the tier allowance at every Stripe billing-cycle rollover. No
+ *      rollover of unused balance.
+ *   2. Top-up credits — one-time Stripe purchases in `user_credits`,
+ *      consumed FIFO, expiring 90 days after purchase.
+ *
+ * Daily caps in `budgetGuard.ts` still apply on top — credits cover spend
+ * once today's per-tier cap is reached.
  */
+
+/** Top-up credit expiry window. */
+export const TOPUP_CREDIT_EXPIRY_DAYS = 90;
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -131,6 +136,80 @@ export async function getActiveCreditBalance(
     if (!next || r.expires_at < next) next = r.expires_at;
   }
   return { balanceUsd: Number(balance.toFixed(4)), nextExpiresAt: next };
+}
+
+/**
+ * Plan credits live on `profiles.plan_credits_remaining_usd` (current cycle
+ * remaining) and `plan_credits_allowance_usd` (snapshot of this cycle's
+ * allowance — used for "X of Y used" UI). The Stripe webhook resets
+ * remaining = allowance on every billing-cycle rollover; no rollover of
+ * unused balance.
+ */
+export interface PlanCreditBalance {
+  remainingUsd: number;
+  allowanceUsd: number;
+}
+
+export async function getPlanCreditBalance(
+  userId: string,
+  client: SupabaseClient | null = getServiceClient(),
+): Promise<PlanCreditBalance> {
+  if (!client || !userId) return { remainingUsd: 0, allowanceUsd: 0 };
+  const { data } = await client
+    .from("profiles")
+    .select("plan_credits_remaining_usd, plan_credits_allowance_usd")
+    .eq("id", userId)
+    .maybeSingle();
+  return {
+    remainingUsd: toNum(data?.plan_credits_remaining_usd),
+    allowanceUsd: toNum(data?.plan_credits_allowance_usd),
+  };
+}
+
+/**
+ * Consume credits in order: plan credits first (from profiles), then
+ * top-up rows (FIFO). Returns the combined remaining balance.
+ */
+export async function consumeAnyCredits(
+  userId: string,
+  amountUsd: number,
+  client: SupabaseClient | null = getServiceClient(),
+): Promise<number> {
+  if (!client || !userId || !Number.isFinite(amountUsd) || amountUsd <= 0) {
+    return 0;
+  }
+  let remaining = amountUsd;
+  try {
+    const plan = await getPlanCreditBalance(userId, client);
+    if (plan.remainingUsd > 0) {
+      const take = Math.min(plan.remainingUsd, remaining);
+      const newRemaining = Number((plan.remainingUsd - take).toFixed(4));
+      const { error } = await client
+        .from("profiles")
+        .update({ plan_credits_remaining_usd: newRemaining })
+        .eq("id", userId);
+      if (!error) {
+        remaining -= take;
+        void client.from("topup_events").insert({
+          user_id: userId,
+          event_type: "consumed",
+          price_usd: null,
+          credit_usd: Number(take.toFixed(4)),
+          remaining_balance_usd: newRemaining,
+        });
+      }
+    }
+    if (remaining > 0) {
+      // Top-up FIFO fallback (already logs its own telemetry).
+      await consumeCredits(userId, remaining, client);
+    }
+    const topup = await getActiveCreditBalance(userId, client);
+    const planAfter = await getPlanCreditBalance(userId, client);
+    return Number((topup.balanceUsd + planAfter.remainingUsd).toFixed(4));
+  } catch (e) {
+    console.error("[credits] consumeAnyCredits error:", (e as Error)?.message);
+    return 0;
+  }
 }
 
 /**

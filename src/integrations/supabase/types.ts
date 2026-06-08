@@ -1313,6 +1313,8 @@ export type Database = {
           climate_preference: string | null
           commute_preferences: Json | null
           created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
           daily_analysis_count: number | null
           daily_analysis_last_reset: string | null
           desired_monthly_payment: number | null
@@ -1337,6 +1339,8 @@ export type Database = {
           persona: string | null
           persona_secondary: string[] | null
           persona_set_at: string | null
+          plan_credits_allowance_usd: number
+          plan_credits_remaining_usd: number
           preferences: Json
           preferred_cities: string[] | null
           primary_goal: string | null
@@ -1350,6 +1354,7 @@ export type Database = {
           subscription_cancel_at: string | null
           subscription_renews_at: string | null
           subscription_status: string | null
+          trial_used_at: string | null
           updated_at: string | null
           user_profile: string | null
           weekly_picks_day: string | null
@@ -1374,6 +1379,8 @@ export type Database = {
           climate_preference?: string | null
           commute_preferences?: Json | null
           created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
           daily_analysis_count?: number | null
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
@@ -1398,6 +1405,8 @@ export type Database = {
           persona?: string | null
           persona_secondary?: string[] | null
           persona_set_at?: string | null
+          plan_credits_allowance_usd?: number
+          plan_credits_remaining_usd?: number
           preferences?: Json
           preferred_cities?: string[] | null
           primary_goal?: string | null
@@ -1411,6 +1420,7 @@ export type Database = {
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
+          trial_used_at?: string | null
           updated_at?: string | null
           user_profile?: string | null
           weekly_picks_day?: string | null
@@ -1435,6 +1445,8 @@ export type Database = {
           climate_preference?: string | null
           commute_preferences?: Json | null
           created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
           daily_analysis_count?: number | null
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
@@ -1459,6 +1471,8 @@ export type Database = {
           persona?: string | null
           persona_secondary?: string[] | null
           persona_set_at?: string | null
+          plan_credits_allowance_usd?: number
+          plan_credits_remaining_usd?: number
           preferences?: Json
           preferred_cities?: string[] | null
           primary_goal?: string | null
@@ -1472,6 +1486,7 @@ export type Database = {
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
+          trial_used_at?: string | null
           updated_at?: string | null
           user_profile?: string | null
           weekly_picks_day?: string | null
@@ -1917,6 +1932,36 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          monthly_credit_allowance_usd: number | null
+          stripe_price_id_annual: string | null
+          stripe_price_id_monthly: string | null
+          tier: string
+          trial_days: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          monthly_credit_allowance_usd?: number | null
+          stripe_price_id_annual?: string | null
+          stripe_price_id_monthly?: string | null
+          tier: string
+          trial_days?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          monthly_credit_allowance_usd?: number | null
+          stripe_price_id_annual?: string | null
+          stripe_price_id_monthly?: string | null
+          tier?: string
+          trial_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tool_call_telemetry: {
         Row: {
           branch: string
@@ -2040,6 +2085,7 @@ export type Database = {
           id: string
           pack_size: string
           purchased_at: string
+          source: string
           status: string
           stripe_session_id: string
           updated_at: string
@@ -2053,6 +2099,7 @@ export type Database = {
           id?: string
           pack_size: string
           purchased_at?: string
+          source?: string
           status?: string
           stripe_session_id: string
           updated_at?: string
@@ -2066,6 +2113,7 @@ export type Database = {
           id?: string
           pack_size?: string
           purchased_at?: string
+          source?: string
           status?: string
           stripe_session_id?: string
           updated_at?: string

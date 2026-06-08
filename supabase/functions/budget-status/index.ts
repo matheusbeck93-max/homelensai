@@ -13,7 +13,7 @@ import {
   getBudgetLimits,
   nextUtcMidnightIso,
 } from "../_shared/ai/budgetGuard.ts";
-import { getActiveCreditBalance, getCreditPacks } from "../_shared/credits.ts";
+import { getActiveCreditBalance, getCreditPacks, getPlanCreditBalance, TOPUP_CREDIT_EXPIRY_DAYS } from "../_shared/credits.ts";
 import type { Tier } from "../_shared/ai/types.ts";
 
 type WarningLevel = "ok" | "approaching" | "exceeded";
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await svc
       .from("profiles")
-      .select("subscription_status")
+      .select("subscription_status, current_period_end, trial_used_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -103,6 +103,7 @@ Deno.serve(async (req) => {
 
     // Credits balance + top-up pack catalog. Free users never see packs.
     const balance = await getActiveCreditBalance(user.id, svc);
+    const planCredits = await getPlanCreditBalance(user.id, svc);
     const isPaid = tier === "paid" || tier === "premium";
     const topup = isPaid
       ? {
@@ -124,8 +125,14 @@ Deno.serve(async (req) => {
         usage_pct: Number(usagePct.toFixed(4)),
         reset_at: nextUtcMidnightIso(),
         warning_level: warningLevel,
-        credits_balance_usd: balance.balanceUsd,
+        credits_balance_usd: Number((balance.balanceUsd + planCredits.remainingUsd).toFixed(4)),
         credits_next_expires_at: balance.nextExpiresAt,
+        plan_credits_remaining_usd: planCredits.remainingUsd,
+        plan_credits_allowance_usd: planCredits.allowanceUsd,
+        topup_balance_usd: balance.balanceUsd,
+        topup_expiry_days: TOPUP_CREDIT_EXPIRY_DAYS,
+        billing_period_end: profile?.current_period_end ?? null,
+        trial_used: !!profile?.trial_used_at,
         topup,
       }),
       { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
