@@ -103,6 +103,45 @@ export function useInvestorBrief(userId: string | null) {
         return;
       }
 
+      // Optimistic render: paint freshly composed cards immediately so the
+      // user sees data while the narration is still generating. Keep prior
+      // intro/insights visible during the swap.
+      setBundle((prev) => {
+        const composedById: Record<string, ComposedCard> = {};
+        for (const c of cards) composedById[c.id] = c;
+        const placeholderCards: PersistedBriefCard[] = cards.map((c, i) => ({
+          id: c.id,
+          brief_id: prev?.brief.id ?? 'pending',
+          card_type: c.cardType,
+          position: i,
+          config: c.config,
+          data_snapshot: {
+            title: c.title,
+            subtitle: c.subtitle,
+            data: c.data,
+            summary: c.summary,
+            investigatePrompt: c.investigatePrompt,
+            sources: c.sources,
+            isEstimate: c.isEstimate,
+          },
+        })) as unknown as PersistedBriefCard[];
+        return {
+          brief: prev?.brief ?? ({
+            id: 'pending',
+            user_id: userId,
+            status: 'pending',
+            intro_text: '',
+            insights: [],
+            followups: [],
+            generated_at: new Date().toISOString(),
+            context_snapshot: null,
+          } as unknown as PersistedBrief),
+          cards: placeholderCards,
+          context: { preferences: context.preferences } as unknown as ContextSnapshot,
+          composedById,
+        };
+      });
+
       const payload = {
         contextSnapshot: {
           preferences: context.preferences,
@@ -147,8 +186,21 @@ export function useInvestorBrief(userId: string | null) {
         return;
       }
 
-      const fresh = await loadLatest();
-      setBundle(fresh);
+      // Hydrate directly from the edge function response — saves two
+      // sequential selects on the round trip.
+      const briefResp = data?.brief;
+      const cardsResp = (data?.cards ?? []) as PersistedBriefCard[];
+      if (briefResp && cardsResp.length > 0) {
+        setBundle({
+          brief: briefResp as PersistedBrief,
+          cards: cardsResp,
+          context: { preferences: context.preferences } as unknown as ContextSnapshot,
+          composedById: buildComposedFromPersisted(cardsResp),
+        });
+      } else {
+        const fresh = await loadLatest();
+        setBundle(fresh);
+      }
     } catch (err) {
       console.error('regenerate failed', err);
       toast({
@@ -196,12 +248,17 @@ export function useInvestorBrief(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let inFlight = false;
     const scheduleRefresh = (reason: string) => {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
+        if (inFlight) return;
         console.info('[investorBrief] auto-refresh trigger:', reason);
-        void regenerate({ silent: true });
-      }, 2500);
+        inFlight = true;
+        void regenerate({ silent: true }).finally(() => {
+          inFlight = false;
+        });
+      }, 5000);
     };
 
     const tables: Array<{ table: string; filter: string }> = [

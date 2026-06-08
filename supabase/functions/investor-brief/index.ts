@@ -24,11 +24,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { getAuthenticatedUser } from '../_shared/auth.ts';
-import { completeWithFallback, BudgetExceededError, isSurfaceEnabled } from '../_shared/ai/router.ts';
+import { completeWithFallback, BudgetExceededError } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 
-const MODEL = 'google/gemini-2.5-pro';
-const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+// Router decides the model per surface/tier (Sonnet for free/buyer,
+// premium for investor). Legacy direct-gateway fallback removed — it was
+// the slowest path and kept the brief stuck on Gemini 2.5 Pro for all tiers.
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -140,7 +141,8 @@ Deno.serve(async (req) => {
         id: row.id,
         type: row.card_type,
         title: selectedCards[i]?.title ?? row.card_type,
-        summary: selectedCards[i]?.summary ?? '',
+        // Cap summary length — shorter prompts = faster TTFB.
+        summary: String(selectedCards[i]?.summary ?? '').slice(0, 240),
       }));
 
     const userMessage = JSON.stringify({
@@ -149,76 +151,40 @@ Deno.serve(async (req) => {
       pinnedTalkingPoints,
     });
 
-    // 4. Call Lovable AI Gateway — router path (flag-gated) or legacy.
-    const useRouter = isSurfaceEnabled('investor_brief', user.id);
+    // 4. Call Lovable AI Gateway via the router for all tiers. The router
+    //    enforces budget caps and picks the right model per surface/tier.
     let raw = '{}';
-    let routerHandled = false;
-    if (useRouter) {
-      try {
-        const tier = (contextSnapshot?.tier === 'premium' || contextSnapshot?.tier === 'paid')
-          ? contextSnapshot.tier
-          : 'free';
-        const result = await completeWithFallback(
-          'investor_brief',
-          {
-            system: buildSystemPrompt(),
-            messages: [{ role: 'user', content: userMessage }],
-            responseFormat: 'json',
-            temperature: 0.4,
-          },
-          { userId: user.id, tier },
-        );
-        raw = result.text || '{}';
-        routerHandled = true;
-      } catch (err) {
-        if (err instanceof BudgetExceededError) {
-          await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
-          return jsonResponse({ error: 'Credits exhausted' }, 402);
-        }
-        if (err instanceof ProviderError && err.status === 429) {
-          await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
-          return jsonResponse({ error: 'Rate limited' }, 429);
-        }
-        console.error('[investor-brief] router error, falling back to legacy', err);
-        // fall through to legacy path
+    try {
+      const rawTier = contextSnapshot?.tier;
+      const tier: 'free' | 'buyer' | 'investor' =
+        rawTier === 'investor' || rawTier === 'premium'
+          ? 'investor'
+          : rawTier === 'buyer' || rawTier === 'paid'
+            ? 'buyer'
+            : 'free';
+      const result = await completeWithFallback(
+        'investor_brief',
+        {
+          system: buildSystemPrompt(),
+          messages: [{ role: 'user', content: userMessage }],
+          responseFormat: 'json',
+          temperature: 0.4,
+        },
+        { userId: user.id, tier },
+      );
+      raw = result.text || '{}';
+    } catch (err) {
+      if (err instanceof BudgetExceededError) {
+        await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
+        return jsonResponse({ error: 'Credits exhausted' }, 402);
       }
-    }
-
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!routerHandled) {
-    if (!apiKey) {
+      if (err instanceof ProviderError && err.status === 429) {
+        await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
+        return jsonResponse({ error: 'Rate limited' }, 429);
+      }
+      console.error('[investor-brief] router error', err);
       await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
-      return jsonResponse({ error: 'LOVABLE_API_KEY not configured' }, 500);
-    }
-
-    const aiResp = await fetch(GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: buildSystemPrompt() },
-          { role: 'user', content: userMessage },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.4,
-      }),
-    });
-
-    if (!aiResp.ok) {
-      const errText = await aiResp.text();
-      console.error('AI Gateway error', aiResp.status, errText);
-      await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
-      if (aiResp.status === 429) return jsonResponse({ error: 'Rate limited' }, 429);
-      if (aiResp.status === 402) return jsonResponse({ error: 'Credits exhausted' }, 402);
       return jsonResponse({ error: 'AI generation failed' }, 502);
-    }
-
-    const aiData = await aiResp.json();
-    raw = aiData?.choices?.[0]?.message?.content ?? '{}';
     }
 
     let parsed: { introText?: string; insights?: any[]; followups?: string[] };
