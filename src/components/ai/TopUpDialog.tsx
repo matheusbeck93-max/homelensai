@@ -43,7 +43,7 @@ export function TopUpDialog({
           <DialogTitle>Top up AI credits</DialogTitle>
           <DialogDescription>
             Credits are used after your daily {cap.tierDisplay} cap is reached.
-            Bigger packs include a bonus. Credits expire 30 days after purchase.
+            Bigger packs include a bonus. Credits expire 90 days after purchase.
           </DialogDescription>
         </DialogHeader>
         <TopUpPacks packs={cap.topup.packs} surface={surface} />
