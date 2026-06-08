@@ -5,7 +5,8 @@ import {
   isSurfaceEnabled,
   BudgetExceededError,
 } from './ai/router.ts';
-import { buildBudgetExceededPayload } from './ai/budgetGuard.ts';
+import { buildBudgetExceededPayload, checkBudget } from './ai/budgetGuard.ts';
+import { consumeCredits } from './credits.ts';
 import { ProviderError } from './ai/types.ts';
 import type { SurfaceId } from './ai/surfaceConfig.ts';
 import type { Tier } from './ai/types.ts';
@@ -78,6 +79,14 @@ export async function callAiGateway(
   // Router-gated path. Falls through to legacy gateway on unexpected errors.
   if (options.router && isSurfaceEnabled(options.router.surface, options.router.userId)) {
     try {
+      // Pre-check: when daily cap is hit but the user has credits, the
+      // router will admit the call. We need to remember that so we can
+      // deduct from credits after a successful response.
+      let usedCredits = false;
+      try {
+        const status = await checkBudget(options.router.userId, options.router.tier);
+        usedCredits = Boolean(status.usedCredits);
+      } catch { /* fail-open */ }
       const { system, userMessages } = splitSystemFromMessages(messages);
       const routed = await completeWithFallback(
         options.router.surface,
@@ -95,6 +104,11 @@ export async function callAiGateway(
         },
         { userId: options.router.userId, tier: options.router.tier },
       );
+      // Successful call admitted via credits → deduct after the fact.
+      if (usedCredits && typeof routed.usage?.costUsd === 'number' && routed.usage.costUsd > 0) {
+        // Fire-and-forget — never block the response.
+        void consumeCredits(options.router.userId, routed.usage.costUsd);
+      }
       const result: AiCompletionResult = {
         message: routed.text,
         usage: {
@@ -113,7 +127,7 @@ export async function callAiGateway(
       return { result };
     } catch (err) {
       if (err instanceof BudgetExceededError) {
-        const body = buildBudgetExceededPayload(err);
+        const body = await buildBudgetExceededPayload(err);
         return {
           error: new Response(JSON.stringify(body), {
             status: 402,
