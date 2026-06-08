@@ -1,6 +1,12 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Home } from 'lucide-react';
+import { Bell, Home, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PROPERTY_TYPE_LABELS } from '@/lib/myProperties/types';
 import type { OwnedPropertyWithMetrics } from '@/hooks/useOwnedProperties';
 
@@ -15,9 +21,11 @@ function fmtMoney(n: number, compact = true): string {
 interface Props {
   property: OwnedPropertyWithMetrics;
   onClick?: () => void;
+  onEdit?: (p: OwnedPropertyWithMetrics) => void;
+  onDelete?: (p: OwnedPropertyWithMetrics) => void;
 }
 
-export function OwnedPropertyCard({ property, onClick }: Props) {
+export function OwnedPropertyCard({ property, onClick, onEdit, onDelete }: Props) {
   const { metrics } = property;
   const cashFlowLabel = property.is_primary_residence
     ? 'Owner-occupied'
@@ -43,11 +51,42 @@ export function OwnedPropertyCard({ property, onClick }: Props) {
           </div>
         )}
         {metrics.activeAlertsCount > 0 && (
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 right-10">
             <Badge className="bg-amber-500/95 hover:bg-amber-500 text-white border-0 inline-flex items-center gap-1">
               <Bell className="h-3 w-3" />
               {metrics.activeAlertsCount}
             </Badge>
+          </div>
+        )}
+        {(onEdit || onDelete) && (
+          <div className="absolute top-2 right-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Property actions"
+                  className="h-8 w-8 inline-flex items-center justify-center rounded-md bg-background/90 backdrop-blur hover:bg-background border border-border/60 shadow-sm"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                {onEdit && (
+                  <DropdownMenuItem onSelect={() => onEdit(property)}>
+                    <Pencil className="h-4 w-4 mr-2" /> Edit details
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem
+                    onSelect={() => onDelete(property)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
