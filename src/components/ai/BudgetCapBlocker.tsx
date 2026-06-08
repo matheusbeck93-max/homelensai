@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Clock, Lock } from "lucide-react";
 import { useBudgetCap, formatResetCountdown } from "@/lib/ai/budgetCap";
 import { UpgradeCTA } from "./UpgradeCTA";
+import { TopUpPacks } from "./TopUpPacks";
 
 interface BudgetCapBlockerProps {
   /** Identifier baked into the upgrade CTA URL as `source=cap_hit_<surface>`. */
@@ -36,8 +37,15 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
           detail: { tier: cap.tier, surface, usage_today_usd: cap.usageTodayUsd },
         }),
       );
+      if (cap.topup.available && cap.topup.packs.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent("homelens:topup_offered", {
+            detail: { tier: cap.tier, surface },
+          }),
+        );
+      }
     } catch { /* ignore */ }
-  }, [cap.warningLevel, cap.tier, surface, cap.usageTodayUsd]);
+  }, [cap.warningLevel, cap.tier, surface, cap.usageTodayUsd, cap.topup.available, cap.topup.packs.length]);
 
   if (cap.warningLevel !== "exceeded") return null;
 
@@ -67,6 +75,14 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
           fromTier={cap.tier}
           source={surface}
           checkoutUrl={cap.upgrade.checkoutUrl}
+        />
+      )}
+      {cap.topup.available && cap.topup.packs.length > 0 && (
+        <TopUpPacks
+          packs={cap.topup.packs}
+          surface={surface}
+          compact={compact}
+          heading={cap.upgrade.available && cap.tier !== "investor" ? "Or buy more AI credits" : "Buy more AI credits"}
         />
       )}
     </div>
