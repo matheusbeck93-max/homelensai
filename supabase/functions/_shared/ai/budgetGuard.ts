@@ -10,7 +10,7 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import type { Tier } from "./types.ts";
 import type { SurfaceId } from "./surfaceConfig.ts";
-import { getActiveCreditBalance, getCreditPacks } from "../credits.ts";
+import { getActiveCreditBalance, getCreditPacks, getPlanCreditBalance } from "../credits.ts";
 
 /** Per-tier daily USD ceiling. Overridable via env. */
 export interface BudgetLimits {
@@ -135,8 +135,12 @@ export async function checkBudget(
   if (tier === "free") {
     return { allowed: false, tier, usedUsd, capUsd, remainingUsd: 0 };
   }
-  const balance = await getActiveCreditBalance(userId, client);
-  if (balance.balanceUsd > 0) {
+  const [topup, plan] = await Promise.all([
+    getActiveCreditBalance(userId, client),
+    getPlanCreditBalance(userId, client),
+  ]);
+  const combined = topup.balanceUsd + plan.remainingUsd;
+  if (combined > 0) {
     return {
       allowed: true,
       tier,
@@ -144,7 +148,7 @@ export async function checkBudget(
       capUsd,
       remainingUsd: 0,
       usedCredits: true,
-      creditsBalanceUsd: balance.balanceUsd,
+      creditsBalanceUsd: Number(combined.toFixed(4)),
     };
   }
   return {
