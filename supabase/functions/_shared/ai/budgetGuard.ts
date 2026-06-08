@@ -282,13 +282,10 @@ export async function buildBudgetExceededPayload(
           bonus_pct: Math.round(((p.creditUsd - p.priceUsd) / p.priceUsd) * 100),
         })),
       };
-  // Best-effort: include current credit balance (will be 0 in the
-  // common cap-hit path that triggered this error).
-  let creditsBalanceUsd = 0;
-  try {
-    const bal = await getActiveCreditBalance(err.userId ?? "");
-    creditsBalanceUsd = bal.balanceUsd;
-  } catch { /* ignore */ }
+  // By definition we got a BudgetExceededError because both the daily cap
+  // was hit AND credits returned 0 — so the live balance at this moment
+  // is 0. The frontend re-reads `/budget-status` after a top-up.
+  const creditsBalanceUsd = 0;
   return {
     error: "budget_exceeded",
     tier: err.tier,
