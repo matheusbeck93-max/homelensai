@@ -1171,6 +1171,14 @@ Provide balanced analysis covering:
     // Listing searches are handled by the main search bar on the homepage
     const tools: any[] = [];
 
+    // Expose Perplexity-as-a-tool to Sonnet for extension popup general
+    // queries (no property context, no URL). Lets the model fetch live
+    // web data on demand instead of relying on its training cutoff.
+    const enableWebResearch = Boolean(extensionMode) && !propertyData && detectedUrls.length === 0;
+    if (enableWebResearch) {
+      tools.push(WEB_RESEARCH_TOOL);
+    }
+
     const systemPrompt = `You are HomeLens AI, a real estate decision guide built for people navigating the U.S. housing market. Your role is to help users make informed, confident decisions.
 
 ## IDENTITY
