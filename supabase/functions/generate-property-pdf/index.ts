@@ -4,6 +4,7 @@ import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { enforceFeature } from '../_shared/tierGate.ts';
 
 const log = createLogger('generate-property-pdf');
 
@@ -12,6 +13,9 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const gate = await enforceFeature(req, 'PDF_EXPORT');
+    if (!gate.ok) return gate.error;
+
     const { property, analysis, neighborhoodSummary, priceFairness } = await req.json();
 
     log.step('Generating PDF for property', { id: property.id });

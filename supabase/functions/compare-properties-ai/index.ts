@@ -3,6 +3,7 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage } from '../_shared/errors.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { enforceFeature } from '../_shared/tierGate.ts';
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 Deno.serve(async (req) => {
@@ -10,6 +11,8 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const gate = await enforceFeature(req, 'PROPERTY_COMPARISON');
+    if (!gate.ok) return gate.error;
     const credits = await precheckAiCredits(req);
     if (!credits.allowed && credits.response) return credits.response;
 

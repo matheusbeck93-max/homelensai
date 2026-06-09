@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
 import { US_STATES, getCitiesForState } from "@/data/usStatesCities";
+import { TierGate } from "@/components/subscription/TierGate";
 
 type Goal = "cash_flow" | "appreciation" | "hybrid";
 type Horizon = "short" | "mid" | "long";
@@ -321,6 +322,11 @@ export function MarketComparator() {
   const tableRows = useMemo(() => result?.table ?? [], [result]);
 
   return (
+    <TierGate
+      feature="MARKET_COMPARATOR"
+      featureName="Market Comparator"
+      description="Compare multiple US markets head-to-head with an AI verdict — included with the Investor plan."
+    >
     <div className="space-y-6">
       {/* INPUT FORM */}
       <Card>
@@ -608,6 +614,7 @@ export function MarketComparator() {
         </>
       )}
     </div>
+    </TierGate>
   );
 }
 

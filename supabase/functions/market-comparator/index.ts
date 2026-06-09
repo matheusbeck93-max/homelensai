@@ -4,6 +4,7 @@ import { handleCors } from "../_shared/cors.ts";
 import { jsonResponse, errorResponse, validationError } from "../_shared/responses.ts";
 import { getErrorMessage } from "../_shared/errors.ts";
 import { getAuthenticatedUser } from "../_shared/auth.ts";
+import { enforceFeature } from "../_shared/tierGate.ts";
 import { createLogger } from "../_shared/logging.ts";
 
 const log = createLogger("market-comparator");
@@ -513,6 +514,9 @@ Deno.serve(async (req) => {
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) return errorResponse("Unauthorized", 401);
+
+    const gate = await enforceFeature(req, "MARKET_COMPARATOR");
+    if (!gate.ok) return gate.error;
 
     const body = await req.json().catch(() => null);
     const parsed = requestSchema.safeParse(body);
