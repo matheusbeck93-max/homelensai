@@ -1760,19 +1760,77 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
           },
           { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
         );
+        // web_research tool loop — only triggers when the model asked for live
+        // web data (extension popup general queries). One-pass loop: execute
+        // each web_research call, then re-call Sonnet with tool_result so it
+        // composes the final user-facing answer. Cap to one round to bound
+        // latency and cost.
+        let finalRouted = routed;
+        const webResearchCalls = (routed.toolCalls ?? []).filter(
+          (tc) => tc.name === 'web_research',
+        );
+        if (enableWebResearch && webResearchCalls.length > 0) {
+          const toolResults = await Promise.all(
+            webResearchCalls.map(async (tc) => ({
+              tc,
+              result: await runWebResearch(tc.arguments as { query?: unknown; recency?: unknown }),
+            })),
+          );
+          const assistantMsg = {
+            role: 'assistant' as const,
+            content: routed.text ?? '',
+            tool_calls: webResearchCalls.map((tc) => ({
+              id: tc.id,
+              type: 'function' as const,
+              function: {
+                name: tc.name,
+                arguments: JSON.stringify(tc.arguments ?? {}),
+              },
+            })),
+          };
+          const toolMsgs = toolResults.map(({ tc, result }) => ({
+            role: 'tool' as const,
+            tool_call_id: tc.id,
+            content: result.ok
+              ? JSON.stringify({ answer: result.answer, citations: result.citations })
+              : JSON.stringify({ error: result.error ?? 'web_research failed' }),
+          }));
+          try {
+            finalRouted = await completeWithFallback(
+              'general_chat',
+              {
+                system: typeof systemMsg === 'string' ? systemMsg : '',
+                messages: [...restMsgs, assistantMsg, ...toolMsgs],
+                ...(maxOut ? { maxTokens: maxOut } : {}),
+              },
+              { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
+            );
+          } catch (toolErr) {
+            console.error('[ai-chat] web_research follow-up call failed:', toolErr);
+            // Fall through with original routed (likely empty text); client
+            // will surface a graceful "couldn't fetch live data" answer below.
+            finalRouted = {
+              ...routed,
+              text: routed.text ||
+                "I tried to look that up live but couldn't reach the search backend just now. Try again in a moment.",
+            };
+          }
+        }
         data = {
           choices: [{
             message: {
-              content: routed.text,
-              tool_calls: (routed.toolCalls ?? []).map((tc) => ({
+              content: finalRouted.text,
+              tool_calls: (finalRouted.toolCalls ?? []).map((tc) => ({
                 function: { name: tc.name, arguments: JSON.stringify(tc.arguments ?? {}) },
               })),
             },
           }],
           usage: {
-            prompt_tokens: routed.usage.inputTokens,
-            completion_tokens: routed.usage.outputTokens,
-            total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
+            prompt_tokens: (routed.usage.inputTokens) + (finalRouted !== routed ? finalRouted.usage.inputTokens : 0),
+            completion_tokens: (routed.usage.outputTokens) + (finalRouted !== routed ? finalRouted.usage.outputTokens : 0),
+            total_tokens:
+              (routed.usage.inputTokens + routed.usage.outputTokens) +
+              (finalRouted !== routed ? finalRouted.usage.inputTokens + finalRouted.usage.outputTokens : 0),
           },
         };
       } catch (err) {
