@@ -4,12 +4,15 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { enforceFeature } from '../_shared/tierGate.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
   try {
+    const gate = await enforceFeature(req, 'NEIGHBORHOOD_PERSONALITY');
+    if (!gate.ok) return gate.error;
     const credits = await precheckAiCredits(req, 'neighborhood-personality');
     if (!credits.allowed && credits.response) return credits.response;
 
