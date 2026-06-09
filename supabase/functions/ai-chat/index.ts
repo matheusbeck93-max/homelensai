@@ -10,6 +10,7 @@ import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shar
 import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
+import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResearch.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 
 const log = createLogger('ai-chat');
