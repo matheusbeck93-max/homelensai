@@ -55,12 +55,12 @@ export default function Compare() {
           </Button>
         </div>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <TierGate
-            feature="PROPERTY_COMPARISON"
-            featureName="Property Comparison"
-            description="Compare properties side by side with full AI-powered insights. Available on Buyer and Investor plans."
-          >
+        <TierGate
+          feature="PROPERTY_COMPARISON"
+          featureName="Property Comparison"
+          description="Compare properties side by side with full AI-powered insights. Available on Buyer and Investor plans."
+        >
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {selectedProperties.map((property) => (
               <PropertyCard
                 key={property.id}
@@ -68,8 +68,8 @@ export default function Compare() {
                 showProLockedBadges={false}
               />
             ))}
-          </TierGate>
-        </div>
+          </div>
+        </TierGate>
       </main>
     </div>
   );
