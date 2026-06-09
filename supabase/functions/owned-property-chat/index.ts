@@ -129,7 +129,6 @@ Deno.serve(async (req) => {
     ];
 
     const out = await callAiGateway(aiMessages, {
-      model: 'google/gemini-2.5-flash',
       temperature: 0.4,
       max_tokens: 800,
       router: {

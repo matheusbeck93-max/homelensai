@@ -231,7 +231,6 @@ Universal rules:
     ];
 
     const out = await callAiGateway(aiMessages, {
-      model: 'google/gemini-2.5-flash',
       router: userId ? { surface: 'general_chat', userId, tier } : undefined,
     });
     if ('error' in out) return out.error;

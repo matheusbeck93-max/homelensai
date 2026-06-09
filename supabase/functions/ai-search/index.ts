@@ -2,10 +2,10 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
-import { getErrorMessage, handleAiGatewayError } from '../_shared/errors.ts';
-import { requireEnv } from '../_shared/env.ts';
+import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { callAiGateway } from '../_shared/ai-gateway.ts';
 
 const log = createLogger('ai-search');
 
@@ -18,7 +18,6 @@ Deno.serve(async (req) => {
     if (!credits.allowed && credits.response) return credits.response;
 
     const { query, categories } = await req.json();
-    const LOVABLE_API_KEY = requireEnv('LOVABLE_API_KEY');
     const authHeader = req.headers.get('Authorization');
 
     // Initialize Supabase client
@@ -91,31 +90,22 @@ Example: "3-bedroom homes under $650k in Arlington VA" ->
 
 If user profile preferences exist and user query doesn't specify certain filters, apply profile defaults intelligently.`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: query }
-        ],
-      }),
-    });
-
-    const gatewayError = handleAiGatewayError(aiResponse);
-    if (gatewayError) return gatewayError;
-
-    if (!aiResponse.ok) {
-      throw new Error(`AI Gateway error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    await deductAiCredits(credits, aiData?.usage);
-    let content = aiData.choices[0].message.content;
+    const aiResult = await callAiGateway(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: query },
+      ],
+      credits.userId ? {
+        router: {
+          surface: 'general_chat',
+          userId: credits.userId,
+          tier: credits.tier === 'unlimited' ? 'investor' as const : (credits.tier === 'paid' ? 'buyer' as const : 'free' as const),
+        },
+      } : {},
+    );
+    if ('error' in aiResult) return aiResult.error;
+    await deductAiCredits(credits, aiResult.result.usage);
+    let content = aiResult.result.message;
     content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
     const parsedFilters = JSON.parse(content);
