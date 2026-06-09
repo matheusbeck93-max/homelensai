@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { composeBriefCards } from '@/lib/investorBrief/briefComposer';
+import { parseAndRecordBudget402 } from '@/lib/ai/budgetCap';
 import type {
   ComposedCard,
   ContextSnapshot,
@@ -169,6 +170,11 @@ export function useInvestorBrief(userId: string | null) {
       });
 
       if (error) {
+        // Daily cap hit — record state so the BudgetCapBanner / Blocker
+        // show, suppress the generic destructive toast.
+        if (await parseAndRecordBudget402(error, 'investor_brief')) {
+          return;
+        }
         toast({
           title: 'Brief generation failed',
           description: error.message ?? 'Please try again.',
