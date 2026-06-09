@@ -5,6 +5,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
 import { amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
+import { enforceFeature } from '../_shared/tierGate.ts';
 
 const log = createLogger('owned-property-chat');
 
@@ -82,6 +83,9 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const gate = await enforceFeature(req, 'INVESTOR_CALCULATOR');
+    if (!gate.ok) return gate.error;
+
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader.startsWith('Bearer ')) return errorResponse('Unauthorized', 401, req);
 
