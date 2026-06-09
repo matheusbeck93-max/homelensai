@@ -26,6 +26,24 @@ Deno.serve(async (req) => {
     if (!priceId) throw new Error("priceId is required");
     log.step("Price ID received", { priceId });
 
+    // Server-side validation: only allow price IDs we've explicitly configured
+    // as backend secrets. Prevents clients from passing arbitrary Stripe prices.
+    const allowedPriceIds = new Set(
+      [
+        Deno.env.get("STRIPE_BUYER_MONTHLY_PRICE_ID"),
+        Deno.env.get("STRIPE_BUYER_ANNUAL_PRICE_ID"),
+        Deno.env.get("STRIPE_INVESTOR_MONTHLY_PRICE_ID"),
+        Deno.env.get("STRIPE_INVESTOR_ANNUAL_PRICE_ID"),
+        Deno.env.get("STRIPE_CREDIT_PACK_SMALL_PRICE_ID"),
+        Deno.env.get("STRIPE_CREDIT_PACK_MEDIUM_PRICE_ID"),
+        Deno.env.get("STRIPE_CREDIT_PACK_LARGE_PRICE_ID"),
+      ].filter((v): v is string => typeof v === "string" && v.length > 0),
+    );
+    if (!allowedPriceIds.has(priceId)) {
+      log.step("Rejected unknown priceId");
+      return errorResponse("Invalid priceId", 400);
+    }
+
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
 
