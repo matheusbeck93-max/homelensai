@@ -5,6 +5,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from 'https://esm.sh/zod@3.23.8';
+import { enforceFeature } from '../_shared/tierGate.ts';
 
 const log = createLogger('save-analysis');
 
@@ -28,6 +29,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const gate = await enforceFeature(req, 'SAVED_ANALYSES');
+    if (!gate.ok) return gate.error;
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return errorResponse('Missing authorization header', 401);
     const token = authHeader.replace('Bearer ', '');
@@ -50,24 +54,6 @@ Deno.serve(async (req) => {
       return validationError('Invalid request body', parsed.error.flatten().fieldErrors);
     }
     const body = parsed.data;
-
-    // Premium gate
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('subscription_status')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      log.step('profile lookup error', { error: profileError.message });
-      return errorResponse('Failed to verify subscription', 500);
-    }
-    if (!profile || profile.subscription_status === 'free') {
-      return new Response(
-        JSON.stringify({ error: 'premium_required' }),
-        { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
-    }
 
     // Duplicate check (by URL)
     if (body.propertyUrl) {
