@@ -1187,12 +1187,10 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       }
     }
 
-    if (propertyForChat) {
-      const apiMessages = buildChatMessages(messages, text);
-      await callAiChat(apiMessages, propertyForChat);
-    } else {
-      await callPerplexityChat(text, messages);
-    }
+    // All extension queries route to ai-chat (Sonnet). Property context is
+    // attached when available; Sonnet handles general Q&A directly.
+    const apiMessages = buildChatMessages(messages, text);
+    await callAiChat(apiMessages, propertyForChat ?? null);
   };
 
   const handleAnalyzeNow = () => {
