@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { useSavedAnalyses, type SavedAnalysis } from "@/hooks/useSavedAnalyses";
 import { useSubscription } from "@/hooks/useSubscription";
+import { TierGate } from "@/components/subscription/TierGate";
 import { chatMarkdownComponents } from "@/components/chat/markdownComponents";
 import { useToast } from "@/hooks/use-toast";
 
@@ -228,7 +229,7 @@ function AnalysisCard({
 export function SavedAnalysesContent({ showHeader = true }: { showHeader?: boolean } = {}) {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isPremium, loading: subLoading } = useSubscription();
+  const { loading: subLoading } = useSubscription();
   const {
     analyses,
     loading,
@@ -287,28 +288,14 @@ export function SavedAnalysesContent({ showHeader = true }: { showHeader?: boole
         </header>
       )}
 
-        {!subLoading && !isPremium ? (
-          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
-            <CardContent className="p-10 text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Lock className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">
-                  Saved Analyses is a Premium feature
-                </h2>
-                <p className="text-muted-foreground mt-1 max-w-md mx-auto">
-                  Keep track of every property you analyze. Build your
-                  investment due diligence history.
-                </p>
-              </div>
-              <Button onClick={() => navigate("/pricing")} className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Upgrade to Premium
-              </Button>
-            </CardContent>
-          </Card>
+        {subLoading ? (
+          <Card className="h-96 animate-pulse bg-muted/30" />
         ) : (
+          <TierGate
+            feature="SAVED_ANALYSES"
+            featureName="Saved Analyses"
+            description="Keep every AI property analysis in one due-diligence history — from the app and the Chrome extension. Included with the Buyer plan."
+          >
           <>
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-6">
               <div className="text-sm text-muted-foreground">
