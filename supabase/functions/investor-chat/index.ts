@@ -14,6 +14,7 @@ import {
   BudgetExceededError,
 } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { enforceFeature } from '../_shared/tierGate.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
