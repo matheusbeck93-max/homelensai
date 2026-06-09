@@ -77,7 +77,7 @@ Response style:
     const userId = credits.userId ?? '';
     const routerTier: 'free' | 'premium' = credits.tier === 'paid' ? 'premium' : 'free';
 
-    if (userId && isSurfaceEnabled('extension_listing_analysis', userId)) {
+    if (userId /* router always on */) {
       try {
         const routed = await completeWithFallback(
           'extension_listing_analysis',
