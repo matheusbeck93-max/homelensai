@@ -29,7 +29,7 @@ export function PropertyPDFExport({
   const cap = useBudgetCap();
   const capExceeded = cap.warningLevel === "exceeded";
 
-  const hasPDFExportAccess = hasAccess('EXCEL_WORKFLOW');
+  const hasPDFExportAccess = hasAccess('PDF_EXPORT');
 
   const handleExportPDF = async () => {
     if (!hasPDFExportAccess) {
