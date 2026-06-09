@@ -1,88 +1,85 @@
-# Migrate Group A surfaces to Sonnet via router
+# Persist extension chat + keep requests running on popup close
 
-Goal: every chat/assistant edge function returns `claude-sonnet-4-5` (Anthropic direct) rows in `ai_usage_log`. Gemini 2.5 Flash usage → 0. Perplexity remains, but only as a tool Sonnet calls — never as a user-facing assistant.
+## Problem
 
-## Code changes
+The Chrome extension popup is destroyed every time it loses focus (Chrome standard behavior). Today this causes two visible bugs:
 
-### 1. Add missing surfaces to `_shared/ai/surfaceConfig.ts`
-Existing surfaces cover everything except a few. Add (if not already mapped):
-- `calculator_insights`
-- `compare_properties_ai`
-- `neighborhood_personality`
-- `property_assistant`
-- `owned_property_chat` (alias for my_properties_strategy if we want — but a dedicated id keeps logs clean)
-- `send_weekly_picks`
-- `ai_chat` (general consumer chat — distinct from `general_chat` only if we want to keep telemetry split; otherwise reuse `general_chat`)
-- `ai_search`
-- `ai_analyze` (reuse `extension_listing_analysis` since it's the same bounded-analysis shape)
+1. **Conversation resets** when the user switches windows and reopens the popup, because the popup re-mounts from scratch and re-reads only the auth/property context — message state lives in React component memory.
+2. **In-flight AI requests are aborted** when the popup closes mid-stream, because the `fetch()` to `ai-chat` is owned by the popup window.
 
-All map to `gateway:standard` primary (Sonnet) / `gateway:fallback` (Gemini) for free+buyer, premium for investor where it matters.
+`background.ts` already has the right scaffolding for fix #1 — a `tabConvos: Map<tabId, TabConvoState>` cache with `GET_TAB_CONVO` / `SET_TAB_CONVO` / `CLEAR_TAB_CONVO` messages, and a `tabs.onUpdated` listener that clears the entry only on URL change. But the popup does not actually persist its `messages` array into it on every turn, and there is no concept of an in-flight request that survives popup close.
 
-### 2. Add shared `web_research` Perplexity tool
-New file `_shared/ai/tools/webResearch.ts`:
-- Exports an AI SDK `tool` (or router-compatible tool spec) with input `{ query: string, recency?: "day"|"week"|"month"|"year" }`.
-- `execute` calls `perplexity-chat`'s underlying Perplexity Sonar fetch (extract the existing call into a `_shared/perplexity.ts` helper) and returns `{ answer: string, citations: string[] }`.
-- Strips citations from `answer` using the same regex `perplexity-chat` already uses.
-- 25s timeout, fail-soft → returns `{ answer: "Live data unavailable.", citations: [] }` on error so Sonnet can keep answering.
+Persistence scope stays as today's spec: **until URL changes or tab closes** (in-memory only on the service worker).
 
-### 3. Migrate each function (mechanical, ~10–20 lines each)
-Pattern, copied from `investor-brief`:
+## Changes
+
+### 1. Background service worker owns the AI request (`chrome-extension/background.ts`)
+
+Add a per-tab in-flight request store and message handlers:
 
 ```ts
-import { completeWithFallback, BudgetExceededError } from '../_shared/ai/router.ts';
-import { ProviderError } from '../_shared/ai/types.ts';
+interface PendingRequest {
+  id: string;          // crypto.randomUUID()
+  tabId: number;
+  url: string;         // page URL request belongs to; drop if tab navigates
+  startedAt: number;
+  status: 'pending' | 'done' | 'error';
+  result?: { content: string; matchScore?: number | null };
+  error?: { message: string; budgetCap?: any };
+}
 
-const result = await completeWithFallback(
-  '<surface_id>',
-  { system, messages, temperature, responseFormat, tools },
-  { userId, tier },
-);
+const pendingByTab = new Map<number, PendingRequest>();
 ```
 
-Drop the direct `fetch(GATEWAY_URL, ...)` and the `'google/gemini-2.5-flash'` literal. Keep prompts, validation, persistence, response shape untouched. Map `BudgetExceededError → 402`, `ProviderError(429) → 429`, other → 502.
+New message types:
 
-Per-function notes:
-- **`ai-chat`** — biggest function. Keep the structured-tool path (`MATCH_SCORE`, property tools); just swap the model call. Surface: `general_chat`. Add `web_research` tool to its tool list so Sonnet can pull live market data when needed.
-- **`ai-search`** — surface: `general_chat` (or `ai_search` if we want separate telemetry).
-- **`ai-analyze`** — already half-migrated (router path exists behind flag). Remove legacy `callAiGateway` fallback so it's router-only. Surface stays `extension_listing_analysis`.
-- **`calculator-insights`**, **`compare-properties-ai`**, **`neighborhood-personality`** — all currently `callAiGateway()`. Swap to `completeWithFallback`. Compare keeps `artifact_generation` surface (already wired); the other two get their new surface ids.
-- **`owned-property-chat`** — already passes `router` opts to `callAiGateway`. Replace with direct `completeWithFallback('my_properties_strategy', ...)`; drop the `model: 'google/gemini-2.5-flash'` literal.
-- **`property-assistant`** — surface: `property_assistant` (new).
-- **`preferences-assistant`** — surface: `preferences_assistant` (exists). Direct fetch → router.
-- **`send-weekly-picks`** — surface: `alerts_engine` (closest existing fit) or new `send_weekly_picks`. Use `alerts_engine` to avoid surface bloat.
-- **`investor-chat`** — keep dual-call architecture; replace the Gemini side with `completeWithFallback('investor_chat', ...)` and add `web_research` tool. Perplexity is no longer called for the user-facing answer — only when Sonnet invokes the tool. Surface: `investor_chat`.
+- `START_AI_REQUEST` — `{ tabId, url, endpoint, body, authHeader }`. Background does the `fetch`, awaits the JSON, on success appends the assistant message to `tabConvos.get(tabId).messages` and stores the result on `pendingByTab`. Returns `{ ok: true, requestId }` synchronously so the popup can correlate.
+- `GET_PENDING_REQUEST` — `{ tabId }` → returns the current `PendingRequest` for that tab (or null). Used on popup mount to detect "a response is still cooking".
+- `CLEAR_PENDING_REQUEST` — `{ tabId, requestId }` — called by popup after it consumes a `done`/`error` result so the next turn starts clean.
+- Broadcast a `runtime.sendMessage({ type: 'AI_REQUEST_COMPLETE', tabId, requestId })` when the fetch resolves so an open popup updates immediately instead of polling.
 
-### 4. Chrome extension routing change
-`chrome-extension/background.ts` currently picks `perplexity-chat` vs `ai-chat` per request. Change to: every extension call goes to `ai-chat` with an extension marker (`{ source: 'extension', surface: 'extension_listing_analysis' }`). Inside `ai-chat`, when `source === 'extension'`, use surface `extension_listing_analysis` and expose the `web_research` tool. No client-side classification.
+URL drift handling: in the existing `tabs.onUpdated` URL-change branch, also drop any `pendingByTab` entry whose `url` no longer matches — matches the "Until URL changes or tab closes" persistence rule. Same for `tabs.onRemoved`.
 
-Update the dual-route memory afterwards.
+### 2. Popup delegates the fetch and re-hydrates on mount (`chrome-extension/popup.tsx`)
 
-## Rollout (2 batches, 1h soak)
+Today the popup builds the request body, calls `fetch(...)` itself, then updates React state. Refactor the AI-call helper to:
 
-All flag secrets follow `AI_ROUTER_<SURFACE>_ENABLED=1` + `AI_ROUTER_<SURFACE>_ROLLOUT_PCT=100`. Already deployed: `preferences_assistant`, `extension_listing_analysis`, `property_valuation_commentary`.
+1. Compute `endpoint`, `body`, `Authorization` header as today.
+2. Send `START_AI_REQUEST` to background; receive `requestId`.
+3. Show the existing typing indicator. Listen for `AI_REQUEST_COMPLETE` (or poll `GET_PENDING_REQUEST` once per second as a fallback) for this `requestId`.
+4. When it resolves, read the assistant message from `tabConvos` (background already appended it), update React state, call `CLEAR_PENDING_REQUEST`.
 
-**Batch 1 (T+0):** Flip all surfaces except `investor_chat` and `extension_listing_analysis`. Set `ENABLED=1` and `ROLLOUT_PCT=100` for: `general_chat`, `my_properties_strategy`, `property_assistant`, `artifact_generation`, `alerts_engine`, plus new ones (`calculator_insights`, `compare_properties_ai`, `neighborhood_personality`). `extension_listing_analysis` already on — leave it.
+On popup mount (existing `useEffect` that calls `GET_TAB_CONVO`):
 
-Soak 1h. Watch `ai_usage_log` (Sonnet % climbing), router 5xx rate, 402 spikes, per-tier daily cap hits.
+- After restoring `messages`, `scrollTop`, `draftInput`, also call `GET_PENDING_REQUEST`. If one exists:
+  - Status `pending` → show typing indicator and subscribe as above.
+  - Status `done` → pull the assistant message out of `tabConvos` (already appended by background), render it, call `CLEAR_PENDING_REQUEST`.
+  - Status `error` → render the existing error UI (including `budgetCap` path), call `CLEAR_PENDING_REQUEST`.
 
-**Batch 2 (T+1h):** Flip `investor_chat` and bump extension behavior (extension already on `extension_listing_analysis` surface; this batch ships the `web_research` tool + extension routing change).
+### 3. Persist messages on every turn, not only on unmount
 
-**Abort triggers (same as investor-brief ship):**
-- Router 5xx > 3% over 5 min
-- p95 latency > 12s for any surface
-- 402 rate > 2× baseline
-- Anthropic spend cap alarm
-Action: drop the offending surface's `ROLLOUT_PCT` to 0 (kill-switch via env var, no redeploy).
+Audit the existing `SET_TAB_CONVO` calls. Today the popup writes back on some transitions but the bug suggests at least one path (user-sent message → assistant reply) does not persist before the popup can be closed. Make it idempotent: after **any** mutation to `messages`, `scrollTop`, or `draftInput`, send `SET_TAB_CONVO` with the latest snapshot. Easiest pattern is a `useEffect([messages, draftInput])` that debounces a single `SET_TAB_CONVO` call.
 
-## Done definition
-- `ai_usage_log` last hour: ≥99% rows model = `claude-sonnet-4-5`, provider = `anthropic` (rest = Perplexity tool calls, image, voice).
-- No edge function imports `'google/gemini-2.5-flash'` as a literal (rg check).
-- Extension makes one outbound call per user turn (to `ai-chat`), not two.
-- Memory updated: drop `arquitetura/estrategia-de-ia-hibrida` Gemini-primary line and `arquitetura/roteamento-de-api-da-extensao-chrome-dual-path`; replace with Sonnet-orchestrates-Perplexity notes.
+### 4. No changes to edge functions, auth, or detection
 
-## Technical details
+This is purely an extension-side refactor. `ai-chat` keeps the same contract. Auth refresh in `refreshAccessTokenIfNeeded` runs in the popup before `START_AI_REQUEST` so the background gets a fresh `Authorization` header.
 
-- `_shared/perplexity.ts` extracted from `perplexity-chat/index.ts` — same timeout, same citation regex, same Zod validation. `perplexity-chat` endpoint stays deployed (used by `web_research` tool internally + legacy callers like `market-comparator`/`market-trends`/`neighborhood-insights`/`get-state-tax-data` which are Group B and keep their direct Perplexity calls).
-- Tier mapping helper (already in investor-brief) extracted to `_shared/ai/tier.ts` so every migrated function uses the same `free | buyer | investor` derivation.
-- No DB migration required. No new secrets except the per-surface enable/pct env vars (set post-deploy in the rollout step).
-- Tests: extend `_shared/ai/__tests__/router_test.ts` with one case per new surface id (asserts `pickModel` returns Sonnet primary for free tier).
+## Out of scope
+
+- Streaming the response progressively into the popup (we still wait for the full JSON, just in the background instead of the popup). Streaming would require a different architecture and is not needed for this bug.
+- Persisting beyond URL change / tab close. Existing spec is preserved.
+- Touching the website chat — those conversations already survive because they live on a real page, not a popup.
+
+## Acceptance checks
+
+1. Open extension on a Zillow listing, send a message, wait for reply, switch to another window, switch back → full conversation still visible, scroll position preserved.
+2. Open extension, send a message, immediately switch to another window before the reply arrives, wait ~10s, switch back → reply is already there (or typing indicator still showing if not yet done), no duplicate request was fired.
+3. Send a message, close popup, navigate the tab to a different URL → on next open, conversation is cleared (matches "Until URL changes" rule).
+4. Send a message that triggers a `budget_exceeded` 402 while popup is closed → reopening shows the existing CreditsExhaustedCard UI, not a silent failure.
+5. Bump `chrome-extension/manifest.json` patch version (→ 1.0.4) and rebuild before zipping for the Web Store.
+
+## Files touched
+
+- `chrome-extension/background.ts` — add `pendingByTab`, three new message handlers, completion broadcast, URL-drift cleanup.
+- `chrome-extension/popup.tsx` — replace inline `fetch` with `START_AI_REQUEST` round-trip; add pending-request rehydration in the mount effect; add debounced `SET_TAB_CONVO` persistence effect.
+- `chrome-extension/manifest.json` — version bump to `1.0.4`.

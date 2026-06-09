@@ -797,6 +797,18 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef<number | null>(null);
+  // Tracks the in-flight AI request handed off to the background
+  // service worker, so we can correlate the AI_REQUEST_COMPLETE
+  // broadcast and ignore stale ones from prior turns.
+  const pendingRequestIdRef = useRef<string | null>(null);
+  // Latest tab id/url available to async callbacks (state may be stale
+  // inside the chrome.runtime.onMessage listener closure).
+  const currentTabIdRef = useRef<number | null>(null);
+  const currentTabUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentTabIdRef.current = currentTabId;
+    currentTabUrlRef.current = currentTabUrl;
+  }, [currentTabId, currentTabUrl]);
 
   useEffect(() => {
     // When restoring a cached session, honor the saved scroll position
@@ -830,9 +842,79 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           if (typeof state.scrollTop === 'number') restoredScrollRef.current = state.scrollTop;
         }
         setRestored(true);
+
+        // After restoring messages, check whether an AI request is
+        // still cooking in the background (popup was closed mid-turn).
+        chrome.runtime.sendMessage(
+          { type: 'GET_PENDING_REQUEST', tabId: currentTabId },
+          (pendResp) => {
+            const pending = pendResp?.pending;
+            if (!pending) return;
+            if (pending.status === 'pending') {
+              // Subscribe and show the typing indicator. The
+              // AI_REQUEST_COMPLETE listener below will sync once it
+              // resolves.
+              pendingRequestIdRef.current = pending.id;
+              setLoading(true);
+            } else {
+              // Already done while popup was closed — pull the fresh
+              // tab convo (which now contains the assistant reply)
+              // and clear the pending slot.
+              syncFromTabConvo(currentTabId, currentTabUrl);
+              chrome.runtime.sendMessage({
+                type: 'CLEAR_PENDING_REQUEST',
+                tabId: currentTabId,
+                requestId: pending.id,
+              });
+            }
+          },
+        );
       },
     );
   }, [currentTabId, currentTabUrl, restored]);
+
+  // Re-fetch the persisted convo from the background cache and apply
+  // it to local state. Used after a background AI request finishes.
+  const syncFromTabConvo = (tabId: number, url: string) => {
+    chrome.runtime.sendMessage(
+      { type: 'GET_TAB_CONVO', tabId, url },
+      (resp) => {
+        const state = resp?.state;
+        if (!state || state.url !== url) return;
+        if (Array.isArray(state.messages)) setMessages(state.messages as Message[]);
+        if (typeof state.matchScore === 'number') setMatchScore(state.matchScore);
+        setLoading(false);
+      },
+    );
+  };
+
+  // Listen for AI request completion broadcasts from the background
+  // service worker. Only act when the requestId matches the one we
+  // started (or when we restored a pending request on mount).
+  useEffect(() => {
+    const listener = (msg: any) => {
+      if (msg?.type !== 'AI_REQUEST_COMPLETE') return;
+      const tabId = currentTabIdRef.current;
+      const url = currentTabUrlRef.current;
+      if (!tabId || !url) return;
+      if (Number(msg.tabId) !== tabId) return;
+      if (
+        pendingRequestIdRef.current &&
+        msg.requestId !== pendingRequestIdRef.current
+      ) {
+        return;
+      }
+      pendingRequestIdRef.current = null;
+      syncFromTabConvo(tabId, url);
+      chrome.runtime.sendMessage({
+        type: 'CLEAR_PENDING_REQUEST',
+        tabId,
+        requestId: msg.requestId,
+      });
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
+  }, []);
 
   // Push state to background cache after restore is complete. Debounced
   // through React's batching; the cache is in-memory so cost is trivial.
@@ -943,203 +1025,68 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     });
   };
 
-  // Use perplexity-chat for general queries (matching main system behavior)
-  const callPerplexityChat = async (query: string, history: Message[]) => {
+  // Hand the AI fetch off to the background service worker so it
+  // survives the popup closing mid-stream. The popup just shows the
+  // typing indicator and waits for AI_REQUEST_COMPLETE.
+  const dispatchToBackground = async (
+    endpoint: 'ai-chat' | 'perplexity-chat',
+    body: Record<string, unknown>,
+    snapshotIncludingUserMsg: Message[],
+  ) => {
+    if (!currentTabId || !currentTabUrl) {
+      // No tab context — surface a friendly error instead of silently failing.
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: 'Error: Could not detect the active tab. Please try again.' },
+      ]);
+      return;
+    }
     setLoading(true);
     setMatchScore(null);
 
-    // Refresh access_token if near expiry (handles the case where the popup
-    // is left open for >1 hour mid-session). If refresh fails the user gets
-    // the existing 'Please sign in' error path below.
     const activeSession = (await refreshAccessTokenIfNeeded(session)) ?? session;
 
-    try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/perplexity-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${activeSession.access_token}`,
-        },
-        body: JSON.stringify({
-          query,
-          conversationHistory: history.map((m) => ({ role: m.role, content: m.content })),
-          userGoal: userProfile?.primary_goal || null,
-        }),
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
+    chrome.runtime.sendMessage(
+      {
+        type: 'START_AI_REQUEST',
+        tabId: currentTabId,
+        url: currentTabUrl,
+        endpoint,
+        authHeader: `Bearer ${activeSession.access_token}`,
+        body,
+        messagesSnapshot: snapshotIncludingUserMsg,
+      },
+      (resp) => {
+        if (resp?.ok && resp.requestId) {
+          pendingRequestIdRef.current = resp.requestId;
+        } else {
+          setLoading(false);
           setMessages((prev) => [
             ...prev,
-            { role: 'assistant', content: 'Please sign in to HomeLens to use the assistant.' },
+            { role: 'assistant', content: 'Error: Could not start the request. Please try again.' },
           ]);
-          return;
         }
-        if (res.status === 429) {
-          const data = await res.json().catch(() => ({}));
-          if (data?.limitReached) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: 'assistant',
-                content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
-                upgradeCta: true,
-              },
-            ]);
-            return;
-          }
-        }
-        if (res.status === 402) {
-          const data = await res.json().catch(() => ({}));
-          if (data?.error === 'budget_exceeded') {
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: 'assistant',
-                content:
-                  "You've used today's HomeLens AI credits. They reset at midnight UTC — or upgrade for more.",
-                budgetCap: { resetAt: data.reset_at, tier: data.tier },
-              },
-            ]);
-            return;
-          }
-        }
-        throw new Error(`Request failed (${res.status})`);
-      }
-
-      const data = await res.json();
-      const rawMessage = data?.message || 'I could not process that request.';
-      const { score, cleanContent } = parseMatchScore(rawMessage);
-      if (score !== null) setMatchScore(score);
-      setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
-    } catch (err: any) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: `Error: ${err.message}. Please try again.` },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+      },
+    );
   };
 
-  // Use ai-chat for property URL analysis (with propertyData context)
   const callAiChat = async (
     apiMessages: { role: string; content: string }[],
     selectedProperty?: PropertyContext | null,
   ) => {
-    setLoading(true);
-    setMatchScore(null);
-
-    // Refresh access_token if near expiry (see callPerplexityChat note).
-    const activeSession = (await refreshAccessTokenIfNeeded(session)) ?? session;
-
     const requestBody: Record<string, unknown> = {
       messages: apiMessages,
       conversationMode: true,
       extensionMode: true,
     };
-
-    if (selectedProperty) {
-      requestBody.propertyData = selectedProperty;
-    }
-
-    // Include user profile for personalized analysis
+    if (selectedProperty) requestBody.propertyData = selectedProperty;
     if (userProfile && userProfile.onboarding_completed) {
       requestBody.userProfile = userProfile;
     }
-
-    try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${activeSession.access_token}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          setMessages((prev) => [
-            ...prev,
-            { role: 'assistant', content: 'Please sign in to HomeLens to use the assistant.' },
-          ]);
-          return;
-        }
-        if (res.status === 429) {
-          const data = await res.json().catch(() => ({}));
-          if (data?.limitReached) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: 'assistant',
-                content: "You've reached your daily limit for this feature. Upgrade to Premium for unlimited access.",
-                upgradeCta: true,
-              },
-            ]);
-            return;
-          }
-        }
-        if (res.status === 402) {
-          const data = await res.json().catch(() => ({}));
-          if (data?.error === 'budget_exceeded') {
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: 'assistant',
-                content:
-                  "You've used today's HomeLens AI credits. They reset at midnight UTC — or upgrade for more.",
-                budgetCap: { resetAt: data.reset_at, tier: data.tier },
-              },
-            ]);
-            return;
-          }
-        }
-        throw new Error(`Request failed (${res.status})`);
-      }
-
-      const data = await res.json();
-
-      const rawContent = extractMessageContent(data);
-      const { score, cleanContent } = parseMatchScore(rawContent);
-      if (score !== null) setMatchScore(score);
-      setMessages((prev) => [...prev, { role: 'assistant', content: cleanContent }]);
-    } catch (err: any) {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: `Error: ${err.message}. Please try again.` },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    // `messages` here is the current state snapshot — it already
+    // contains the user message just appended by the caller.
+    await dispatchToBackground('ai-chat', requestBody, messages);
   };
-
-  function extractMessageContent(data: any): string {
-    const resp = data.response;
-    
-    if (!resp) {
-      return data.message || "Sorry, I couldn't process your request.";
-    }
-
-    if (typeof resp === 'string') {
-      try {
-        const parsed = JSON.parse(resp);
-        if (parsed.message) return parsed.message;
-        return resp;
-      } catch {
-        return resp;
-      }
-    }
-
-    if (typeof resp === 'object') {
-      if (resp.message) return resp.message;
-      return JSON.stringify(resp);
-    }
-
-    return String(resp);
-  }
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
