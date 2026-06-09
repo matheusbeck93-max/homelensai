@@ -16,6 +16,8 @@ import {
 import { DeepPanel } from '@/components/investor/brief/deep/DeepPanel';
 import type { ComposedCard } from '@/lib/investorBrief/types';
 import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
+import { TierGate } from '@/components/subscription/TierGate';
+import { useSubscription } from '@/hooks/useSubscription';
 
 function InvestorBriefInner() {
   const navigate = useNavigate();
@@ -24,6 +26,7 @@ function InvestorBriefInner() {
   const [authReady, setAuthReady] = useState(false);
   const { mode, activeCardContext, enterChatModeFromCard, exitChatMode } =
     useInvestorBriefSurface();
+  const { loading: subLoading } = useSubscription();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -94,6 +97,14 @@ function InvestorBriefInner() {
                   : "Today's grounded read on your portfolio and markets."}
               </p>
             </header>
+            {subLoading ? (
+              <Skeleton className="h-96 w-full" />
+            ) : (
+            <TierGate
+              feature="INVESTOR_CALCULATOR"
+              featureName="Investor Brief"
+              description="Your daily investor intelligence — cap-rate trends, watchlist signals and grounded insights on your portfolio. Included with the Investor plan."
+            >
             <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
               <BriefCard
                 introText={effectiveIntro}
@@ -133,6 +144,8 @@ function InvestorBriefInner() {
                 )}
               </section>
             </div>
+            </TierGate>
+            )}
           </div>
         </main>
       </div>

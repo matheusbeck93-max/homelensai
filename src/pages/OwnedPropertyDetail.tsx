@@ -17,6 +17,8 @@ import { PROPERTY_TYPE_LABELS } from '@/lib/myProperties/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { trackOwnedPropertyEvent } from '@/lib/myProperties/telemetry';
+import { TierGate } from '@/components/subscription/TierGate';
+import { useSubscription } from '@/hooks/useSubscription';
 
 function fmtMoney(n: number, opts: { compact?: boolean; sign?: boolean } = {}) {
   if (!Number.isFinite(n)) return '$0';
@@ -48,6 +50,7 @@ export default function OwnedPropertyDetail() {
   const { data, loading, reload } = useOwnedProperty(id);
   const [editValOpen, setEditValOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { loading: subLoading } = useSubscription();
 
   useEffect(() => {
     if (id) trackOwnedPropertyEvent('owned_property_viewed', { property_id: id });
@@ -93,7 +96,14 @@ export default function OwnedPropertyDetail() {
                 <ArrowLeft className="h-4 w-4" /> My properties
               </Button>
             </div>
-
+            {subLoading ? (
+              <Card className="h-96 animate-pulse bg-muted/30" />
+            ) : (
+            <TierGate
+              feature="INVESTOR_CALCULATOR"
+              featureName="Property Details"
+              description="Track equity, refi opportunities, rental income, alerts and tax exports for this property — included with the Investor plan."
+            >
             {loading || !data ? (
               <Card className="h-96 animate-pulse bg-muted/30" />
             ) : (
@@ -396,6 +406,8 @@ export default function OwnedPropertyDetail() {
                   onSaved={() => reload()}
                 />
               </>
+            )}
+            </TierGate>
             )}
           </div>
         </main>

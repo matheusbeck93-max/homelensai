@@ -29,7 +29,7 @@ export function NeighborhoodPersonality({ address, city, state, zip, onPersonali
   const cap = useBudgetCap();
   const isCapExceeded = cap.warningLevel === "exceeded";
 
-  const hasNeighborhoodPersonalityAccess = hasAccess('INVESTMENT_SCORE');
+  const hasNeighborhoodPersonalityAccess = hasAccess('NEIGHBORHOOD_PERSONALITY');
 
   const handleGenerate = async () => {
     if (!hasNeighborhoodPersonalityAccess) {

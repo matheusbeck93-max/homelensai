@@ -20,7 +20,7 @@ export function AlertSettings() {
   const { toast } = useToast();
   const { hasAccess, isPremium } = useSubscription();
 
-  const hasSmartAlertsAccess = hasAccess('UNLIMITED_EXTENSION_ANALYSIS');
+  const hasSmartAlertsAccess = hasAccess('PROPERTY_ALERTS');
 
   useEffect(() => {
     loadAlertPreferences();

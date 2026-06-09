@@ -19,6 +19,8 @@ import { OwnedPropertyCard } from '@/components/investor/my-properties/OwnedProp
 import { AddPropertyDialog } from '@/components/investor/my-properties/AddPropertyDialog';
 import { EditPropertyDialog } from '@/components/investor/my-properties/EditPropertyDialog';
 import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
+import { TierGate } from '@/components/subscription/TierGate';
+import { useSubscription } from '@/hooks/useSubscription';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +41,7 @@ export default function MyProperties() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { properties, rollup, loading, reload } = useOwnedProperties();
+  const { loading: subLoading } = useSubscription();
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sort, setSort] = useState<SortKey>('updated');
   const [addOpen, setAddOpen] = useState(false);
@@ -96,13 +99,24 @@ export default function MyProperties() {
                   Track equity, cash flow, and strategic opportunities across what you own.
                 </p>
               </div>
-              <Button onClick={() => setAddOpen(true)} className="gap-1">
-                <Plus className="h-4 w-4" />
-                Add property
-              </Button>
             </header>
+            {subLoading ? (
+              <Card className="h-96 animate-pulse bg-muted/30" />
+            ) : (
+              <TierGate
+                feature="INVESTOR_CALCULATOR"
+                featureName="My Properties"
+                description="Track equity, cash flow, refi opportunities and tax exports across every property you own — included with the Investor plan."
+              >
+                <div className="space-y-6">
+                  <div className="flex justify-end">
+                    <Button onClick={() => setAddOpen(true)} className="gap-1">
+                      <Plus className="h-4 w-4" />
+                      Add property
+                    </Button>
+                  </div>
 
-            {properties.length > 0 && <PortfolioRollup rollup={rollup} />}
+                  {properties.length > 0 && <PortfolioRollup rollup={rollup} />}
 
             {properties.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
@@ -170,6 +184,9 @@ export default function MyProperties() {
                   />
                 ))}
               </div>
+            )}
+                </div>
+              </TierGate>
             )}
           </div>
         </main>
