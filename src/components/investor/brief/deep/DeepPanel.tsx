@@ -8,6 +8,8 @@ import { StarterPrompts } from './StarterPrompts';
 import { defaultDeepDiveStarters } from '@/lib/investorBrief/deepDiveStarters';
 import { ExploringPill } from './ExploringPill';
 import { useBudgetCap } from '@/lib/ai/budgetCap';
+import { BudgetCapBanner } from '@/components/ai/BudgetCapBanner';
+import { BudgetCapBlocker } from '@/components/ai/BudgetCapBlocker';
 
 interface Props {
   onBack: () => void;
@@ -58,6 +60,9 @@ export function DeepPanel({ onBack }: Props) {
       {sessionFilters && (
         <ExploringPill filters={sessionFilters} onReset={clearSessionFilters} />
       )}
+
+      {cap.warningLevel === 'approaching' && <BudgetCapBanner surface="investor_chat" />}
+      {capExceeded && <BudgetCapBlocker surface="investor_chat" compact />}
 
       {sourceCard && (
         <>
