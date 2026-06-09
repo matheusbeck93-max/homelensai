@@ -1177,7 +1177,7 @@ Deno.serve(async (req) => {
     const latestUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
     const detPatch = deterministicParse(latestUser);
 
-    const useRouter = isSurfaceEnabled('preferences_assistant', user.id);
+    const useRouter = true /* router always on */;
     const extraction = useRouter
       ? await extractPatchViaRouter(user.id, messages, currentPrefs)
       : await extractPatch(messages, currentPrefs);
