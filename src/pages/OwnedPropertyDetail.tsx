@@ -407,6 +407,8 @@ export default function OwnedPropertyDetail() {
                 />
               </>
             )}
+            </TierGate>
+            )}
           </div>
         </main>
       </div>
