@@ -161,7 +161,7 @@ ${JSON.stringify(candidateProperties.map(p => ({
 Select the 5 best matches.`;
 
         let aiContent = '';
-        if (isSurfaceEnabled('alerts_engine', user.id)) {
+        if (true /* router always on */) {
           try {
             const routed = await completeWithFallback(
               'alerts_engine',

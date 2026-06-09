@@ -2,7 +2,6 @@ import { requireEnv } from './env.ts';
 import { handleAiGatewayError } from './errors.ts';
 import {
   completeWithFallback,
-  isSurfaceEnabled,
   BudgetExceededError,
 } from './ai/router.ts';
 import { buildBudgetExceededPayload, checkBudget } from './ai/budgetGuard.ts';
@@ -76,8 +75,12 @@ export async function callAiGateway(
   messages: AiMessage[],
   options: AiRequestOptions = {},
 ): Promise<{ result: AiCompletionResult } | { error: Response }> {
-  // Router-gated path. Falls through to legacy gateway on unexpected errors.
-  if (options.router && isSurfaceEnabled(options.router.surface, options.router.userId)) {
+  // Router path. When `router` is supplied we always route through
+  // completeWithFallback so every surface lands on the canonical Sonnet
+  // model (legacy `isSurfaceEnabled` gating removed — Sonnet is now the
+  // default for the entire app). Falls through to legacy gateway only on
+  // unexpected router errors.
+  if (options.router) {
     try {
       // Pre-check: when daily cap is hit but the user has credits, the
       // router will admit the call. We need to remember that so we can

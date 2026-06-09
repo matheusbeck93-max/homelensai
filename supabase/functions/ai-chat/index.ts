@@ -329,7 +329,7 @@ CRITICAL:
       const sanitizedHistory = sanitizeHistory(messages.slice(0, -1), { maxTurns: 30, enforceAlternation: true });
 
       // Router-gated path (extension_listing_analysis). Falls through to legacy gateway on unexpected error.
-      if (creditCheck.userId && isSurfaceEnabled('extension_listing_analysis', creditCheck.userId)) {
+      if (creditCheck.userId /* router always on */) {
         try {
           const routed = await completeWithFallback(
             'extension_listing_analysis',
@@ -778,7 +778,7 @@ CRITICAL:
       // Router-gated path (general_chat) for Firecrawl branch. Falls through to legacy
       // gateway on unexpected error so the surface degrades gracefully.
       let aiData: any = null;
-      if (creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+      if (creditCheck.userId /* router always on */) {
         try {
           const routerTools = matchScoreTool
             ? matchScoreTool.map((t: any) => ({
@@ -1727,7 +1727,7 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     // the router's ChatMessage contract is text-only — multimodal stays on legacy.
     let data: any = null;
     const hasMultimodal = allAttachments.length > 0;
-    if (!hasMultimodal && creditCheck.userId && isSurfaceEnabled('general_chat', creditCheck.userId)) {
+    if (!hasMultimodal && creditCheck.userId /* router always on */) {
       try {
         const systemMsg = aiMessages[0]?.content;
         const restMsgs = aiMessages.slice(1).map((m: any) => ({

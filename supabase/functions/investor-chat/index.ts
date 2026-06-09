@@ -1167,7 +1167,7 @@ function sseEvent(event: string, data: Json): Uint8Array {
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function callGateway(messages: any[], stream = false, routerCtx?: { userId: string; tier: 'free' | 'buyer' | 'investor' }) {
-  if (!stream && routerCtx && isSurfaceEnabled('investor_chat', routerCtx.userId)) {
+  if (!stream && routerCtx && true /* router always on */) {
     try {
       const system = messages.find((m) => m.role === 'system')?.content ?? '';
       const rest = messages.filter((m) => m !== messages.find((mm) => mm.role === 'system'));

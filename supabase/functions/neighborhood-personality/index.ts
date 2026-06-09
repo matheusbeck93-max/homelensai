@@ -56,7 +56,7 @@ Keep it conversational, authentic, and engaging. Use specific examples when poss
           router: {
             surface: 'artifact_generation' as const,
             userId: credits.userId,
-            tier: credits.tier === 'unlimited' ? 'premium' as const : (credits.tier ?? 'free') as 'free' | 'paid',
+            tier: credits.tier === 'unlimited' ? 'investor' as const : (credits.tier === 'paid' ? 'buyer' as const : 'free' as const),
           },
         } : {}),
       }

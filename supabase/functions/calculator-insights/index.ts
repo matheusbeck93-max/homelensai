@@ -100,7 +100,7 @@ Response style:
       router: {
         surface: 'artifact_generation',
         userId: credits.userId,
-        tier: credits.tier === 'unlimited' ? 'premium' : (credits.tier ?? 'free'),
+        tier: credits.tier === 'unlimited' ? 'investor' as const : (credits.tier === 'paid' ? 'buyer' as const : 'free' as const),
       },
     } : {});
 
