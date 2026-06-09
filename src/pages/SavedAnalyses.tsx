@@ -360,6 +360,7 @@ export function SavedAnalysesContent({ showHeader = true }: { showHeader?: boole
               </div>
             )}
           </>
+          </TierGate>
         )}
 
         <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
