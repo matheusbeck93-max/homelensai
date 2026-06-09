@@ -24,6 +24,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { getAuthenticatedUser } from '../_shared/auth.ts';
+import { enforceFeature } from '../_shared/tierGate.ts';
 import { completeWithFallback, BudgetExceededError } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 
@@ -76,6 +77,9 @@ Deno.serve(async (req) => {
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) return jsonResponse({ error: 'Unauthorized' }, 401);
+
+    const gate = await enforceFeature(req, 'INVESTOR_CALCULATOR');
+    if (!gate.ok) return gate.error;
 
     const body = await req.json();
     const contextSnapshot = body?.contextSnapshot ?? {};
