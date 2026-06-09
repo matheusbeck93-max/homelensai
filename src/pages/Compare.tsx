@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { PropertyCard } from "@/components/property/PropertyCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TierGate } from "@/components/subscription/TierGate";
 
 export default function Compare() {
   const navigate = useNavigate();
@@ -55,13 +56,19 @@ export default function Compare() {
         </div>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {selectedProperties.map((property) => (
-            <PropertyCard
-              key={property.id}
-              property={property}
-              showProLockedBadges={false}
-            />
-          ))}
+          <TierGate
+            feature="PROPERTY_COMPARISON"
+            featureName="Property Comparison"
+            description="Compare properties side by side with full AI-powered insights. Available on Buyer and Investor plans."
+          >
+            {selectedProperties.map((property) => (
+              <PropertyCard
+                key={property.id}
+                property={property}
+                showProLockedBadges={false}
+              />
+            ))}
+          </TierGate>
         </div>
       </main>
     </div>
