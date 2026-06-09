@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navigation } from '@/components/Navigation';
 import { ConsoleSidebar } from '@/components/investor/console/ConsoleSidebar';
 import { HomeLensInvestorCalculator } from '@/components/ui-blocks/HomeLensInvestorCalculator';
+import { TierGate } from '@/components/subscription/TierGate';
 
 export default function InvestorCalculator() {
   const navigate = useNavigate();
@@ -47,7 +48,12 @@ export default function InvestorCalculator() {
                 Professional-grade investment analysis for residential real estate.
               </p>
             </header>
-            <HomeLensInvestorCalculator
+            <TierGate
+              feature="INVESTOR_CALCULATOR"
+              featureName="Investor Calculator"
+              description="Cash flow, cap rate, IRR, stress scenarios and tax modeling — included with the Investor plan."
+            >
+              <HomeLensInvestorCalculator
               title="HomeLens Investor Calculator"
               inputs={{
                 price: 0,
