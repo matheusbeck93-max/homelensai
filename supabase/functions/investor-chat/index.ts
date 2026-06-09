@@ -1288,6 +1288,9 @@ Deno.serve(async (req) => {
   }
   const userId = userData.user.id;
 
+  const gate = await enforceFeature(req, 'INVESTOR_CALCULATOR');
+  if (!gate.ok) return gate.error;
+
   let payload: any;
   try {
     payload = await req.json();
