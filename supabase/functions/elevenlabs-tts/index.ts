@@ -3,6 +3,7 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { enforceFeature } from '../_shared/tierGate.ts';
 
 // Cap text at the ElevenLabs streaming endpoint's effective limit. Reject
 // anything longer instead of silently truncating (the old behavior was
@@ -22,6 +23,8 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    const gate = await enforceFeature(req, 'VOICE_MODE');
+    if (!gate.ok) return gate.error;
     // Auth + credits in one call. Rejects unauthenticated with 401.
     // Previously this function had NO auth and NO rate limiting — anyone
     // could POST { text: '...' } and burn HomeLens's ElevenLabs API quota.
