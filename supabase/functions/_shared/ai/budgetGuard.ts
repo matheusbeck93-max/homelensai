@@ -29,6 +29,15 @@ export interface BudgetLimits {
  */
 const DEFAULT_LIMITS: BudgetLimits = { free: 0.10, buyer: 0.50, investor: 1.50 };
 
+/**
+ * Per-tier monthly USD ceiling. Defense-in-depth on top of daily caps,
+ * sized below daily × 30 to protect margin on subscriptions.
+ *   free     $3 / month
+ *   buyer    $12 / month   (subscription $9.97/mo)
+ *   investor $40 / month   (subscription $24.97/mo)
+ */
+const DEFAULT_MONTHLY_LIMITS: BudgetLimits = { free: 3, buyer: 12, investor: 40 };
+
 function envNum(name: string, fallback: number): number {
   const v = Deno.env.get(name);
   if (!v) return fallback;
@@ -44,6 +53,16 @@ export function getBudgetLimits(): BudgetLimits {
   };
 }
 
+export function getMonthlyBudgetLimits(): BudgetLimits {
+  return {
+    free: envNum("AI_BUDGET_MONTHLY_FREE_USD", DEFAULT_MONTHLY_LIMITS.free),
+    buyer: envNum("AI_BUDGET_MONTHLY_BUYER_USD", DEFAULT_MONTHLY_LIMITS.buyer),
+    investor: envNum("AI_BUDGET_MONTHLY_INVESTOR_USD", DEFAULT_MONTHLY_LIMITS.investor),
+  };
+}
+
+export type CapType = "daily" | "monthly";
+
 export class BudgetExceededError extends Error {
   constructor(
     public readonly tier: Tier,
@@ -51,8 +70,11 @@ export class BudgetExceededError extends Error {
     public readonly capUsd: number,
     public readonly surface?: SurfaceId,
     public readonly resetAt: string = nextUtcMidnightIso(),
+    public readonly capType: CapType = "daily",
+    public readonly monthlyUsedUsd: number = 0,
+    public readonly monthlyCapUsd: number = 0,
   ) {
-    super(`Daily AI budget exceeded for tier=${tier}: used $${usedUsd.toFixed(4)} of $${capUsd.toFixed(2)}`);
+    super(`${capType === "monthly" ? "Monthly" : "Daily"} AI budget exceeded for tier=${tier}: used $${usedUsd.toFixed(4)} of $${capUsd.toFixed(2)}`);
     this.name = "BudgetExceededError";
   }
 }
@@ -67,6 +89,12 @@ export interface BudgetStatus {
   usedCredits?: boolean;
   /** Active credit balance at decision time (best-effort). */
   creditsBalanceUsd?: number;
+  /** Set when the user is an internal/staff account — caps fully bypassed. */
+  isStaff?: boolean;
+  /** Which cap a BudgetExceededError would describe (only set on failure). */
+  capType?: CapType;
+  monthlyUsedUsd?: number;
+  monthlyCapUsd?: number;
 }
 
 let cachedClient: SupabaseClient | null = null;
@@ -108,32 +136,111 @@ export async function getTodaySpendUsd(
   return total;
 }
 
+/**
+ * Returns this month's spend (UTC) in USD for the given user. First day
+ * of the current UTC month → now. Fail-open on errors.
+ */
+export async function getMonthSpendUsd(
+  userId: string,
+  client: SupabaseClient | null = getServiceClient(),
+): Promise<number> {
+  if (!client || !userId) return 0;
+  const now = new Date();
+  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    .toISOString()
+    .slice(0, 10);
+  const { data, error } = await client
+    .from("ai_usage_log")
+    .select("cost_usd")
+    .eq("user_id", userId)
+    .gte("usage_date", firstOfMonth);
+  if (error) {
+    console.error("[ai-router] monthly budget read failed:", error.message);
+    return 0;
+  }
+  let total = 0;
+  for (const row of (data ?? []) as Array<{ cost_usd: number | string | null }>) {
+    const v = typeof row.cost_usd === "string" ? Number(row.cost_usd) : row.cost_usd;
+    if (typeof v === "number" && Number.isFinite(v)) total += v;
+  }
+  return total;
+}
+
+/** Per-request staff lookup. Best-effort; defaults false. */
+export async function isStaffUser(
+  userId: string,
+  client: SupabaseClient | null = getServiceClient(),
+): Promise<boolean> {
+  if (!client || !userId) return false;
+  const { data, error } = await client
+    .from("profiles")
+    .select("is_staff")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) return false;
+  return Boolean((data as { is_staff?: boolean } | null)?.is_staff);
+}
+
 export async function checkBudget(
   userId: string,
   tier: Tier,
-  opts: { client?: SupabaseClient | null; limits?: BudgetLimits } = {},
+  opts: {
+    client?: SupabaseClient | null;
+    limits?: BudgetLimits;
+    monthlyLimits?: BudgetLimits;
+  } = {},
 ): Promise<BudgetStatus> {
   const limits = opts.limits ?? getBudgetLimits();
+  const monthlyLimits = opts.monthlyLimits ?? getMonthlyBudgetLimits();
   const capUsd = limits[tier];
+  const monthlyCap = monthlyLimits[tier];
   // Bypass: allow when budgeting is disabled or no userId attached.
   if (!userId || Deno.env.get("AI_BUDGET_DISABLED") === "1") {
     return { allowed: true, tier, usedUsd: 0, capUsd, remainingUsd: capUsd };
   }
   const client = opts.client ?? getServiceClient();
-  const usedUsd = await getTodaySpendUsd(userId, client);
-  if (usedUsd < capUsd) {
+  // Staff bypass — internal accounts have no caps.
+  if (await isStaffUser(userId, client)) {
+    return {
+      allowed: true,
+      tier,
+      usedUsd: 0,
+      capUsd,
+      remainingUsd: capUsd,
+      isStaff: true,
+    };
+  }
+  const [usedUsd, monthlyUsed] = await Promise.all([
+    getTodaySpendUsd(userId, client),
+    getMonthSpendUsd(userId, client),
+  ]);
+  const overDaily = usedUsd >= capUsd;
+  const overMonthly = monthlyUsed >= monthlyCap;
+  if (!overDaily && !overMonthly) {
     return {
       allowed: true,
       tier,
       usedUsd,
       capUsd,
       remainingUsd: Math.max(0, capUsd - usedUsd),
+      monthlyUsedUsd: monthlyUsed,
+      monthlyCapUsd: monthlyCap,
     };
   }
-  // Over the daily cap — see if active credits can cover this turn.
+  // Over daily and/or monthly cap — see if credits can cover.
   // Free users never get credits, so skip the lookup.
+  const capType: CapType = overMonthly ? "monthly" : "daily";
   if (tier === "free") {
-    return { allowed: false, tier, usedUsd, capUsd, remainingUsd: 0 };
+    return {
+      allowed: false,
+      tier,
+      usedUsd,
+      capUsd,
+      remainingUsd: 0,
+      capType,
+      monthlyUsedUsd: monthlyUsed,
+      monthlyCapUsd: monthlyCap,
+    };
   }
   const [topup, plan] = await Promise.all([
     getActiveCreditBalance(userId, client),
@@ -149,6 +256,8 @@ export async function checkBudget(
       remainingUsd: 0,
       usedCredits: true,
       creditsBalanceUsd: Number(combined.toFixed(4)),
+      monthlyUsedUsd: monthlyUsed,
+      monthlyCapUsd: monthlyCap,
     };
   }
   return {
@@ -158,6 +267,9 @@ export async function checkBudget(
     capUsd,
     remainingUsd: 0,
     creditsBalanceUsd: 0,
+    capType,
+    monthlyUsedUsd: monthlyUsed,
+    monthlyCapUsd: monthlyCap,
   };
 }
 
@@ -171,6 +283,17 @@ export function nextUtcMidnightIso(now: Date = new Date()): string {
     now.getUTCFullYear(),
     now.getUTCMonth(),
     now.getUTCDate() + 1,
+    0, 0, 0, 0,
+  ));
+  return reset.toISOString();
+}
+
+/** ISO timestamp at the first day of next month (UTC midnight). */
+export function firstOfNextMonthIso(now: Date = new Date()): string {
+  const reset = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth() + 1,
+    1,
     0, 0, 0, 0,
   ));
   return reset.toISOString();
@@ -216,8 +339,11 @@ export interface BudgetExceededPayload {
   tier_display: string;
   surface?: SurfaceId;
   message: string;
+  cap_type: CapType;
   usage_today_usd: number;
   daily_limit_usd: number;
+  usage_month_usd: number;
+  monthly_limit_usd: number;
   credits_balance_usd: number;
   reset_at: string;
   upgrade:
@@ -290,16 +416,20 @@ export async function buildBudgetExceededPayload(
   // was hit AND credits returned 0 — so the live balance at this moment
   // is 0. The frontend re-reads `/budget-status` after a top-up.
   const creditsBalanceUsd = 0;
+  const resetAt = err.capType === "monthly" ? firstOfNextMonthIso() : err.resetAt;
   return {
     error: "budget_exceeded",
     tier: err.tier,
     tier_display: DISPLAY_NAME[err.tier],
     surface: err.surface,
-    message: friendlyMessage(err.tier),
+    message: friendlyMessage(err.tier, err.capType, resetAt),
+    cap_type: err.capType,
     usage_today_usd: Number(err.usedUsd.toFixed(4)),
     daily_limit_usd: err.capUsd,
+    usage_month_usd: Number(err.monthlyUsedUsd.toFixed(4)),
+    monthly_limit_usd: err.monthlyCapUsd,
     credits_balance_usd: creditsBalanceUsd,
-    reset_at: err.resetAt,
+    reset_at: resetAt,
     upgrade,
     topup,
   };
@@ -307,4 +437,8 @@ export async function buildBudgetExceededPayload(
 
 export function tierDailyLimitUsd(tier: Tier): number {
   return getBudgetLimits()[tier];
+}
+
+export function tierMonthlyLimitUsd(tier: Tier): number {
+  return getMonthlyBudgetLimits()[tier];
 }
