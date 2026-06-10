@@ -1328,6 +1328,7 @@ export type Database = {
           id: string
           investment_strategies: string[] | null
           investment_strategy: string | null
+          is_staff: boolean
           location_preferences: Json | null
           max_price_range: number | null
           max_sqft: number | null
@@ -1394,6 +1395,7 @@ export type Database = {
           id: string
           investment_strategies?: string[] | null
           investment_strategy?: string | null
+          is_staff?: boolean
           location_preferences?: Json | null
           max_price_range?: number | null
           max_sqft?: number | null
@@ -1460,6 +1462,7 @@ export type Database = {
           id?: string
           investment_strategies?: string[] | null
           investment_strategy?: string | null
+          is_staff?: boolean
           location_preferences?: Json | null
           max_price_range?: number | null
           max_sqft?: number | null
@@ -2171,7 +2174,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_user_usage_daily: {
+        Row: {
+          calls: number | null
+          day: string | null
+          surface: string | null
+          usage_usd: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
