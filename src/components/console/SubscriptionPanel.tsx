@@ -155,6 +155,13 @@ export function SubscriptionPanel() {
               </div>
               <ManageSubscriptionButton />
             </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Billing questions? Email{" "}
+              <a href="mailto:h2@homelens-ai.com" className="text-primary hover:underline">
+                h2@homelens-ai.com
+              </a>
+              .
+            </p>
           </CardContent>
         </Card>
       )}

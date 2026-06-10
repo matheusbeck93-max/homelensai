@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Save, Trash2, AlertTriangle, Lock } from "lucide-react";
+import { User, Mail, Save, Trash2, AlertTriangle, Lock, LifeBuoy } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   AlertDialog,
@@ -187,6 +187,27 @@ export function AccountPreferencesPanel() {
             </div>
             <ThemeToggle />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Support */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LifeBuoy className="h-5 w-5" />
+            Support
+          </CardTitle>
+          <CardDescription>
+            Questions, feedback, or account issues? Our team typically replies within 1 business day.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a href="mailto:h2@homelens-ai.com">
+            <Button variant="outline">
+              <Mail className="mr-2 h-4 w-4" />
+              h2@homelens-ai.com
+            </Button>
+          </a>
         </CardContent>
       </Card>
 
