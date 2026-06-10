@@ -30,6 +30,30 @@ export interface CreditPack {
   stripePriceId: string | null;
 }
 
+const CREDIT_PACK_PRICE_IDS: Record<CreditPackSize, string> = {
+  small: "price_1Tg9YjPfVIpcDpxSQWmxZsVq",
+  medium: "price_1Tg9cJPfVIpcDpxSyp6hII7E",
+  large: "price_1Tg9eAPfVIpcDpxSv7wXLAXO",
+};
+
+const LEGACY_CREDIT_PACK_PRODUCT_IDS: Record<CreditPackSize, string> = {
+  small: "prod_UfUXCVqmJisJJR",
+  medium: "prod_UfUbJdVXgsViLh",
+  large: "prod_UfUd6OlSpjtbLn",
+};
+
+function resolveCreditPackPriceId(size: CreditPackSize): string | null {
+  const envName = `STRIPE_CREDIT_PACK_${size.toUpperCase()}_PRICE_ID`;
+  const configured = Deno.env.get(envName)?.trim() ?? null;
+  if (!configured) return null;
+  if (configured.startsWith("price_")) return configured;
+  if (configured === LEGACY_CREDIT_PACK_PRODUCT_IDS[size]) {
+    console.warn(`[credits] ${envName} contains a Stripe product ID; using the matching Price ID.`);
+    return CREDIT_PACK_PRICE_IDS[size];
+  }
+  return configured;
+}
+
 /**
  * Pack catalog. Price IDs come from env so swapping Stripe environments
  * is config-only (no code change required).
@@ -40,19 +64,19 @@ export function getCreditPacks(): CreditPack[] {
       size: "small",
       priceUsd: 5,
       creditUsd: 5,
-      stripePriceId: Deno.env.get("STRIPE_CREDIT_PACK_SMALL_PRICE_ID") ?? null,
+      stripePriceId: resolveCreditPackPriceId("small"),
     },
     {
       size: "medium",
       priceUsd: 10,
       creditUsd: 11,
-      stripePriceId: Deno.env.get("STRIPE_CREDIT_PACK_MEDIUM_PRICE_ID") ?? null,
+      stripePriceId: resolveCreditPackPriceId("medium"),
     },
     {
       size: "large",
       priceUsd: 25,
       creditUsd: 30,
-      stripePriceId: Deno.env.get("STRIPE_CREDIT_PACK_LARGE_PRICE_ID") ?? null,
+      stripePriceId: resolveCreditPackPriceId("large"),
     },
   ];
 }
