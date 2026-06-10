@@ -28,3 +28,9 @@ Chrome extension (`chrome-extension/popup.tsx`):
 - No client-side counter; the extension only reacts to backend responses.
 
 **TODO when re-enabling:** also add a 429 handler in the main app chat (`src/pages/Chats.tsx`) showing a friendly "Daily limit reached — Upgrade to Premium" message with CTA to `/pricing`. The extension already has this; the app currently shows a generic toast.
+
+## Budget caps include Perplexity
+
+`perplexity-chat` participates in the same per-tier daily + monthly $ caps as the Lovable AI router (`ai-chat`). It calls `checkBudget` before each Perplexity API call (returning the standard `402 { error: "budget_exceeded" }` payload on overage) and writes one row per successful call to `ai_usage_log` via `_shared/ai/perplexityUsage.ts` (`model_id: "perplexity:<model>"`, `api_name: <model>`). The Usage page, Overview `UsageSummaryCard`, header chip, and `BudgetCapBlocker` all read from `ai_usage_log`, so Perplexity spend is now visible everywhere alongside Gateway/Sonnet/Gemini spend.
+
+**Extension note:** the Chrome extension only ever dispatches to `ai-chat` (which today calls `google/gemini-2.5-flash` via the gateway, not Claude Sonnet). It does not call `perplexity-chat`, so this change does not affect extension behavior — but extension `ai-chat` calls were already counting against the cap.

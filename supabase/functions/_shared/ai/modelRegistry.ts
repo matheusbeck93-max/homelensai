@@ -78,3 +78,28 @@ export function estimateCostUsd(
   const outCost = (outputTokens / 1_000_000) * spec.costPerMTokOut;
   return Number((inCost + outCost).toFixed(6));
 }
+
+/**
+ * Perplexity pricing — USD per 1K tokens. The `perplexity-chat` edge
+ * function does not use the Lovable router, so it logs to `ai_usage_log`
+ * directly via this helper. Source: https://docs.perplexity.ai/guides/pricing
+ * (values current as of 2026-06; update here if Perplexity revises).
+ */
+export const PERPLEXITY_PRICING: Record<string, { inputPer1k: number; outputPer1k: number }> = {
+  "sonar":              { inputPer1k: 0.001, outputPer1k: 0.001 },
+  "sonar-pro":          { inputPer1k: 0.003, outputPer1k: 0.015 },
+  "sonar-reasoning":    { inputPer1k: 0.001, outputPer1k: 0.005 },
+  "sonar-reasoning-pro":{ inputPer1k: 0.002, outputPer1k: 0.008 },
+  "sonar-deep-research":{ inputPer1k: 0.002, outputPer1k: 0.008 },
+};
+
+export function perplexityCostUsd(
+  model: string,
+  usage: { prompt_tokens?: number; completion_tokens?: number } | undefined | null,
+): number {
+  const price = PERPLEXITY_PRICING[model] ?? PERPLEXITY_PRICING["sonar"];
+  const promptTokens = Number(usage?.prompt_tokens ?? 0) || 0;
+  const completionTokens = Number(usage?.completion_tokens ?? 0) || 0;
+  const cost = (promptTokens / 1000) * price.inputPer1k + (completionTokens / 1000) * price.outputPer1k;
+  return Number(cost.toFixed(6));
+}

@@ -52,3 +52,19 @@ emitUsageEvent("homelens:upgrade_cta_clicked", {
 - Server-side analytics tables (e.g. `upgrade_cta_events`) keep their own
   contract; the helper does not insert rows for you.
 - Non-usage events (chat history, properties, etc.) are not covered here.
+## Backend usage rows
+
+The `ai_usage_log` table is the single source of truth for cap usage on the
+Usage page, Overview `UsageSummaryCard`, header chip, and `BudgetCapBlocker`.
+Rows are written by:
+
+- `_shared/ai/usageLogger.ts` for any call that goes through the Lovable AI
+  router (Gateway / Sonnet / Gemini). `model_id` is a `ModelId` enum value
+  (`gateway:standard`, etc.).
+- `_shared/ai/perplexityUsage.ts` for `perplexity-chat` calls, which bypass
+  the router. `model_id` is prefixed `perplexity:<model>` (e.g.
+  `perplexity:sonar`) and `api_name` is the raw Perplexity model name.
+
+Both writers use the same `surface` ids defined in `_shared/ai/surfaceConfig.ts`,
+so `surface` filtering on the Usage page treats Perplexity and Gateway spend
+uniformly.
