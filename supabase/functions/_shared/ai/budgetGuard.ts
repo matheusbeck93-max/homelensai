@@ -322,14 +322,28 @@ const TIER_PRICE_USD: Record<Tier, number> = {
   investor: 24.97,
 };
 
-function friendlyMessage(tier: Tier): string {
+function friendlyMessage(tier: Tier, capType: CapType = "daily", resetAtIso?: string): string {
+  if (capType === "monthly") {
+    const display = DISPLAY_NAME[tier];
+    const resetDate = resetAtIso ? new Date(resetAtIso) : new Date();
+    const resetLabel = resetDate.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+    });
+    if (tier === "free") {
+      return `You've used this month's free assistant credits. Upgrade for more or come back ${resetLabel}.`;
+    }
+    if (tier === "investor") {
+      return `You've used this month's Investor allowance — most users don't reach this. Resets ${resetLabel}.`;
+    }
+    return `You've used this month's ${display} assistant credits. Resets ${resetLabel}.`;
+  }
   if (tier === "free") {
     return "You've used today's free assistant credits. Upgrade for more or try again tomorrow.";
   }
   if (tier === "buyer") {
     return "You've hit today's Buyer assistant cap. Upgrade to Investor or try again tomorrow.";
   }
-  // investor
   return "You've used today's Investor cap — most users don't reach this. Resets at midnight.";
 }
 
