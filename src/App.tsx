@@ -148,6 +148,7 @@ function App() {
                   <Route path="/dmca" element={<DMCAPolicy />} />
                   <Route path="/do-not-sell" element={<DoNotSell />} />
                   <Route path="/admin/telemetry" element={<AdminTelemetry />} />
+                  <Route path="/account/usage" element={<ProtectedRoute><AccountUsage /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 </main>
