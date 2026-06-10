@@ -7,6 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { TopUpDialog } from "@/components/ai/TopUpDialog";
 
 /**
  * Compact ⚡ chip in the header showing current AI-budget consumption.
@@ -24,6 +25,19 @@ export function HeaderUsageIndicator() {
   const monthlyPct = Math.round((state.monthlyUsagePct ?? 0) * 100);
   const pct = Math.max(dailyPct, monthlyPct);
   const driver = monthlyPct > dailyPct ? "monthly" : "daily";
+  const showTopUpShortcut =
+    state.tier !== "free" && state.topup.available && pct >= 50;
+
+  const handleViewUsage = () => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("homelens:usage_indicator_clicked", {
+          detail: { tier: state.tier, source: "header_chip", driver, pct },
+        }),
+      );
+    } catch { /* ignore */ }
+    navigate("/account/usage");
+  };
 
   let color = "text-muted-foreground border-border";
   if (pct >= 100) color = "text-destructive border-destructive/40 bg-destructive/5";
@@ -77,14 +91,25 @@ export function HeaderUsageIndicator() {
               Credit balance: ${state.creditsBalanceUsd.toFixed(2)}
             </div>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            onClick={() => navigate("/account/usage")}
-          >
-            View usage details
-          </Button>
+          <div className="space-y-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={handleViewUsage}
+            >
+              View usage details
+            </Button>
+            {showTopUpShortcut && (
+              <div className="flex justify-center">
+                <TopUpDialog
+                  surface="header_chip"
+                  triggerLabel="Buy credits"
+                  triggerVariant="default"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>

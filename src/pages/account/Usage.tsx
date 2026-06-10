@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { TopUpPacks } from "@/components/ai/TopUpPacks";
-import type { CreditPackOption, CreditPackSize } from "@/lib/ai/budgetCap";
+import type { CreditPackOption } from "@/lib/ai/budgetCap";
+import { UsageHero } from "@/components/account/usage/UsageHero";
+import { MonthlyUsageCard } from "@/components/account/usage/MonthlyUsageCard";
+import { UsageTrendChart } from "@/components/account/usage/UsageTrendChart";
+import { SurfaceBreakdown } from "@/components/account/usage/SurfaceBreakdown";
+import { CreditsCard } from "@/components/account/usage/CreditsCard";
+import { NextTierCompare } from "@/components/account/usage/NextTierCompare";
 
 interface UsageSummary {
   tier: "free" | "buyer" | "investor";
@@ -63,10 +65,6 @@ const PACK_DEFAULTS: CreditPackOption[] = [
   { size: "large", priceUsd: 25, creditUsd: 30, bonusPct: 20 },
 ];
 
-function fmtUsd(n: number) {
-  return `$${n.toFixed(2)}`;
-}
-
 export default function UsagePage() {
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,107 +110,19 @@ export default function UsagePage() {
 
         {summary && !summary.is_staff && summary.today && summary.this_month && (
           <>
-            {summary.credits.expires_soon && summary.credits.expires_at && (
-              <Card className="p-4 border-amber-500/50 bg-amber-500/10">
-                <p className="text-sm">
-                  {fmtUsd(summary.credits.balance_usd)} in credits expire{" "}
-                  {new Date(summary.credits.expires_at).toLocaleDateString()}.
-                </p>
-              </Card>
-            )}
-
-            <Card className="p-6">
-              <div className="flex items-baseline justify-between flex-wrap gap-2">
-                <h2 className="font-semibold text-lg">
-                  Today — {summary.tier_display_name} plan
-                </h2>
-                <span className="text-sm text-muted-foreground">
-                  Resets {new Date(summary.today.reset_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                </span>
-              </div>
-              <div className="mt-3 flex items-baseline justify-between text-sm">
-                <span>
-                  <strong className="text-xl">{fmtUsd(summary.today.usage_usd)}</strong> used
-                </span>
-                <span className="text-muted-foreground">
-                  {fmtUsd(Math.max(0, summary.today.daily_limit_usd - summary.today.usage_usd))} remaining
-                </span>
-              </div>
-              <Progress value={summary.today.usage_pct} className="mt-2" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                ~{summary.today.remaining_turns_estimate} chat turns remaining today
-              </p>
-            </Card>
-
-            <Card className="p-6">
-              <h2 className="font-semibold text-lg">This month</h2>
-              <div className="mt-3 flex items-baseline justify-between text-sm">
-                <span>
-                  <strong className="text-xl">{fmtUsd(summary.this_month.usage_usd)}</strong> of {fmtUsd(summary.this_month.monthly_limit_usd)}
-                </span>
-                <span className="text-muted-foreground">
-                  {summary.this_month.days_remaining} days remaining
-                </span>
-              </div>
-              <Progress value={summary.this_month.usage_pct} className="mt-2" />
-              <p className="mt-3 text-sm">
-                {summary.this_month.projected_to_hit_cap
-                  ? `At your current pace, you'll hit the monthly cap around ${summary.this_month.projected_cap_hit_date ? new Date(summary.this_month.projected_cap_hit_date).toLocaleDateString() : "later this month"}.`
-                  : "You're well within your monthly limit — no action needed."}
-              </p>
-            </Card>
-
-            {summary.per_surface_30d.length > 0 && (
-              <Card className="p-6">
-                <h2 className="font-semibold text-lg">Where your AI usage goes (30 days)</h2>
-                <ul className="mt-3 space-y-2">
-                  {summary.per_surface_30d.slice(0, 8).map((s) => (
-                    <li key={s.surface} className="flex items-center justify-between text-sm">
-                      <span className="capitalize">{s.surface.replace(/_/g, " ")}</span>
-                      <span className="text-muted-foreground">
-                        {fmtUsd(s.usage_usd)} · {s.calls} calls
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-
-            <Card className="p-6">
-              <h2 className="font-semibold text-lg">AI Credits</h2>
-              <p className="mt-1 text-2xl font-semibold">{fmtUsd(summary.credits.balance_usd)}</p>
-              {summary.credits.expires_at && (
-                <p className="text-sm text-muted-foreground">
-                  Expires {new Date(summary.credits.expires_at).toLocaleDateString()}
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground mt-2">
-                Credits are used after your daily/monthly cap.
-              </p>
-              {summary.tier !== "free" && (
-                <div className="mt-4">
-                  <TopUpPacks packs={PACK_DEFAULTS} surface="usage_page" heading="Buy more credits" />
-                </div>
-              )}
-            </Card>
-
-            {summary.next_tier && (
-              <Card className="p-6">
-                <h2 className="font-semibold text-lg">
-                  Upgrade to {summary.next_tier.display_name} — ${summary.next_tier.price_usd}/mo
-                </h2>
-                <ul className="mt-3 space-y-1 text-sm">
-                  <li>Daily: {fmtUsd(summary.next_tier.daily_limit_usd)}</li>
-                  <li>Monthly: {fmtUsd(summary.next_tier.monthly_limit_usd)}</li>
-                  {summary.next_tier.additional_features.map((f) => (
-                    <li key={f}>• {f}</li>
-                  ))}
-                </ul>
-                <Button asChild className="mt-4">
-                  <Link to={summary.next_tier.checkout_url}>Upgrade</Link>
-                </Button>
-              </Card>
-            )}
+            <UsageHero
+              tierDisplayName={summary.tier_display_name}
+              today={summary.today}
+            />
+            <MonthlyUsageCard thisMonth={summary.this_month} />
+            <UsageTrendChart data={summary.month_trend} />
+            <SurfaceBreakdown surfaces={summary.per_surface_30d} />
+            <CreditsCard
+              tier={summary.tier}
+              credits={summary.credits}
+              packs={PACK_DEFAULTS}
+            />
+            {summary.next_tier && <NextTierCompare nextTier={summary.next_tier} />}
           </>
         )}
       </main>
