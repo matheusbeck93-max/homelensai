@@ -43,7 +43,7 @@ export default function InvestorCalculator() {
         <main className="flex-1 min-w-0">
           <div className="container mx-auto px-4 py-6 lg:py-8 max-w-5xl">
             <header className="mb-6">
-              <h1 className="text-3xl font-bold tracking-tight">Investor Calculator</h1>
+              <h1 className="text-4xl font-bold mb-2">Investor Calculator</h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Professional-grade investment analysis for residential real estate.
               </p>

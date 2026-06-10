@@ -106,7 +106,7 @@ export default function Profile() {
             <div className="flex items-center justify-center mb-4">
               <Home className="h-12 w-12 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold mb-2">Set Up Your Profile</h1>
+            <h1 className="text-4xl font-bold mb-2">Set Up Your Profile</h1>
             <p className="text-lg text-muted-foreground">
               Have a personalized experience with HomeLens.
             </p>
@@ -154,7 +154,7 @@ export default function Profile() {
                 <User className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">My Profile</h1>
+                <h1 className="text-4xl font-bold mb-2">My Profile</h1>
                 <p className="text-muted-foreground">{user?.email}</p>
               </div>
             </div>

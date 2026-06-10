@@ -241,7 +241,7 @@ export default function Calculators() {
       <div className="container mx-auto px-4 py-8 pb-24 lg:pb-8">
         <div className="mb-8 space-y-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold mb-2">Financial Calculators</h1>
+            <h1 className="text-4xl font-bold mb-2">Financial Calculators</h1>
             <p className="text-muted-foreground">
               Calculate your buying power and mortgage payments
             </p>

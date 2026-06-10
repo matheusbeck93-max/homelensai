@@ -193,7 +193,7 @@ export default function Settings() {
           Back
         </Button>
 
-        <h1 className="text-4xl font-bold mb-8">Settings</h1>
+        <h1 className="text-4xl font-bold mb-2">Settings</h1>
 
         <div className="space-y-6">
           {/* Profile Settings */}
