@@ -278,7 +278,7 @@ export function SavedAnalysesContent({ showHeader = true }: { showHeader?: boole
     <div>
       {showHeader && (
         <header className="mb-8">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-2">
             <Bookmark className="h-7 w-7 text-primary" />
             Saved Analyses
           </h1>

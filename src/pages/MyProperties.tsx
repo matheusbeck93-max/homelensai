@@ -94,7 +94,7 @@ export default function MyProperties() {
           <div className="container mx-auto px-4 py-6 lg:py-8 max-w-6xl space-y-6">
             <header className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight">My properties</h1>
+                <h1 className="text-4xl font-bold mb-2">My properties</h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   Track equity, cash flow, and strategic opportunities across what you own.
                 </p>

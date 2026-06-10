@@ -47,7 +47,7 @@ export default function Compare() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <h1 className="text-2xl font-bold">Compare Properties ({selectedProperties.length})</h1>
+            <h1 className="text-4xl font-bold mb-2">Compare Properties ({selectedProperties.length})</h1>
           </div>
           <Button variant="outline" onClick={clearComparison}>
             <Trash2 className="h-4 w-4 mr-2" />

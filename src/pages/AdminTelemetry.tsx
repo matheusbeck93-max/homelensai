@@ -78,7 +78,7 @@ export default function AdminTelemetry() {
       <Navigation />
       <main className="container mx-auto px-4 pb-12 max-w-5xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Tool-Call Telemetry</h1>
+          <h1 className="text-4xl font-bold mb-2 text-foreground">Tool-Call Telemetry</h1>
           <p className="text-muted-foreground mt-2">
             Adoption of the <code>submit_match_score</code> tool on the ai-chat firecrawl branch. Step C ships when adoption is ≥ 95% over a 7-day window.
           </p>
