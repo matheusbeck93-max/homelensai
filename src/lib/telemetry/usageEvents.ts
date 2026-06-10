@@ -21,6 +21,7 @@ export type UsageEventSource =
   | "topup_packs"
   | "next_tier_compare"
   | "console_plan"
+  | "overview_card"
   | "chat_inline";
 
 interface BaseShown {
