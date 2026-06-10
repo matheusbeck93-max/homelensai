@@ -699,6 +699,7 @@ export type Database = {
           status: string
           surfaced_at: string
           title: string
+          user_id: string
         }
         Insert: {
           alert_type: string
@@ -712,6 +713,7 @@ export type Database = {
           status?: string
           surfaced_at?: string
           title: string
+          user_id: string
         }
         Update: {
           alert_type?: string
@@ -725,6 +727,7 @@ export type Database = {
           status?: string
           surfaced_at?: string
           title?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -747,6 +750,7 @@ export type Database = {
           size_bytes: number | null
           storage_path: string
           uploaded_at: string
+          user_id: string
         }
         Insert: {
           document_type: string
@@ -758,6 +762,7 @@ export type Database = {
           size_bytes?: number | null
           storage_path: string
           uploaded_at?: string
+          user_id: string
         }
         Update: {
           document_type?: string
@@ -769,6 +774,7 @@ export type Database = {
           size_bytes?: number | null
           storage_path?: string
           uploaded_at?: string
+          user_id?: string
         }
         Relationships: [
           {
