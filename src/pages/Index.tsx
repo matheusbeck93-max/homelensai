@@ -690,10 +690,10 @@ export default function Index() {
       }
 
       {/* Pricing Section */}
-      {!hasStartedConversation && <PricingSection />}
+      {!hasStartedConversation && !user && <PricingSection />}
 
       {/* FAQ Section */}
-      {!hasStartedConversation &&
+      {!hasStartedConversation && !user &&
       <section className="py-16 px-4 bg-background">
           <div className="max-w-3xl mx-auto">
             <motion.div
@@ -805,7 +805,7 @@ export default function Index() {
       }
 
       {/* Footer */}
-      {!hasStartedConversation && <Footer />}
+      {!hasStartedConversation && !user && <Footer />}
     </div>);
 
 }
