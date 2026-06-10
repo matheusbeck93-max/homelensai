@@ -115,6 +115,14 @@ export default function Console() {
 
           <TabsContent value="subscription">
             <SubscriptionPanel />
+            <div className="mt-4 text-sm">
+              <a
+                href="/account/usage"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                View detailed AI usage →
+              </a>
+            </div>
           </TabsContent>
 
           <TabsContent value="account">

@@ -5,6 +5,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { Home, Calculator, TrendingUp, Menu, Sparkles, LayoutDashboard, MessageSquare, UserPlus } from "lucide-react";
 import { tierDisplayName } from "@/lib/subscriptionPlans";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { HeaderUsageIndicator } from "@/components/layout/HeaderUsageIndicator";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,7 +111,8 @@ export function Navigation() {
 
             <InstallPrompt />
             <ThemeToggle />
-            
+            {user && <HeaderUsageIndicator />}
+
             {user && !subscriptionLoading && isFree && (
               <Button
                 variant="outline"
@@ -152,6 +154,7 @@ export function Navigation() {
             <div className="flex items-center gap-2">
               <InstallPrompt />
               <ThemeToggle />
+              {user && <HeaderUsageIndicator />}
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon">
