@@ -7,6 +7,7 @@ import {
   getMonthlyBudgetLimits,
   nextUtcMidnightIso,
 } from "../budgetGuard.ts";
+import { perplexityCostUsd, PERPLEXITY_PRICING } from "../modelRegistry.ts";
 
 Deno.test("buildBudgetExceededPayload — free tier offers Buyer upgrade", async () => {
   const err = new BudgetExceededError("free", 0.105, 0.10, "general_chat");
@@ -110,4 +111,30 @@ Deno.test("getBudgetLimits / getMonthlyBudgetLimits — default tier thresholds"
   assertEquals(monthly.free, 3);
   assertEquals(monthly.buyer, 12);
   assertEquals(monthly.investor, 40);
+});
+
+Deno.test("perplexityCostUsd — computes input + output cost for sonar", () => {
+  const cost = perplexityCostUsd("sonar", { prompt_tokens: 1000, completion_tokens: 500 });
+  const expected = (1000 / 1000) * PERPLEXITY_PRICING["sonar"].inputPer1k
+    + (500 / 1000) * PERPLEXITY_PRICING["sonar"].outputPer1k;
+  assertEquals(cost, Number(expected.toFixed(6)));
+});
+
+Deno.test("perplexityCostUsd — sonar-pro uses higher output rate", () => {
+  const cost = perplexityCostUsd("sonar-pro", { prompt_tokens: 2000, completion_tokens: 1000 });
+  const expected = (2000 / 1000) * PERPLEXITY_PRICING["sonar-pro"].inputPer1k
+    + (1000 / 1000) * PERPLEXITY_PRICING["sonar-pro"].outputPer1k;
+  assertEquals(cost, Number(expected.toFixed(6)));
+});
+
+Deno.test("perplexityCostUsd — missing usage returns 0", () => {
+  assertEquals(perplexityCostUsd("sonar", undefined), 0);
+  assertEquals(perplexityCostUsd("sonar", {}), 0);
+});
+
+Deno.test("perplexityCostUsd — unknown model falls back to sonar pricing", () => {
+  const cost = perplexityCostUsd("nonexistent-model", { prompt_tokens: 1000, completion_tokens: 1000 });
+  const expected = (1000 / 1000) * PERPLEXITY_PRICING["sonar"].inputPer1k
+    + (1000 / 1000) * PERPLEXITY_PRICING["sonar"].outputPer1k;
+  assertEquals(cost, Number(expected.toFixed(6)));
 });
