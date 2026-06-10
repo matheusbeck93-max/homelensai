@@ -34,18 +34,36 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
     try {
       window.dispatchEvent(
         new CustomEvent("homelens:budget_cap_hit_shown", {
-          detail: { tier: cap.tier, surface, usage_today_usd: cap.usageTodayUsd },
+          detail: {
+            tier: cap.tier,
+            surface,
+            cap_type: cap.capType ?? "daily",
+            source: `cap_blocker_${cap.capType ?? "daily"}`,
+            usage_today_usd: cap.usageTodayUsd,
+          },
         }),
       );
       if (cap.topup.available && cap.topup.packs.length > 0) {
         window.dispatchEvent(
           new CustomEvent("homelens:topup_offered", {
-            detail: { tier: cap.tier, surface },
+            detail: {
+              tier: cap.tier,
+              surface,
+              cap_type: cap.capType ?? "daily",
+            },
           }),
         );
       }
     } catch { /* ignore */ }
-  }, [cap.warningLevel, cap.tier, surface, cap.usageTodayUsd, cap.topup.available, cap.topup.packs.length]);
+  }, [
+    cap.warningLevel,
+    cap.tier,
+    surface,
+    cap.usageTodayUsd,
+    cap.capType,
+    cap.topup.available,
+    cap.topup.packs.length,
+  ]);
 
   if (cap.warningLevel !== "exceeded") return null;
 
