@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Save, Trash2, AlertTriangle, Lock } from "lucide-react";
+import { User, Mail, Save, Trash2, AlertTriangle, Lock, LifeBuoy } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   AlertDialog,
