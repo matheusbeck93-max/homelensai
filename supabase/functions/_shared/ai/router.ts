@@ -127,7 +127,21 @@ class DispatchingProvider implements ChatProvider {
 async function enforceBudget(ctx: RouterContext, opts: RouterOptions): Promise<BudgetStatus | null> {
   if (opts.skipBudgetCheck) return null;
   const status = await checkBudget(ctx.userId, ctx.tier);
-  if (!status.allowed) throw new BudgetExceededError(status.tier, status.usedUsd, status.capUsd);
+  if (!status.allowed) {
+    const capType = status.capType ?? "daily";
+    const used = capType === "monthly" ? (status.monthlyUsedUsd ?? 0) : status.usedUsd;
+    const cap = capType === "monthly" ? (status.monthlyCapUsd ?? 0) : status.capUsd;
+    throw new BudgetExceededError(
+      status.tier,
+      used,
+      cap,
+      undefined,
+      undefined,
+      capType,
+      status.monthlyUsedUsd ?? 0,
+      status.monthlyCapUsd ?? 0,
+    );
+  }
   return status;
 }
 
@@ -145,7 +159,16 @@ export async function completeWithFallback(
     // Stamp the surface so the structured 402 payload can route the user
     // to the right upgrade-source attribution.
     if (err instanceof BudgetExceededError && !err.surface) {
-      throw new BudgetExceededError(err.tier, err.usedUsd, err.capUsd, surface, err.resetAt);
+      throw new BudgetExceededError(
+        err.tier,
+        err.usedUsd,
+        err.capUsd,
+        surface,
+        err.resetAt,
+        err.capType,
+        err.monthlyUsedUsd,
+        err.monthlyCapUsd,
+      );
     }
     throw err;
   }
