@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Target, MessageSquare, Sparkles, Calculator, ArrowRight, CreditCard, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SavedCalculatorsPanel } from "@/components/console/SavedCalculatorsPanel";
-import { AiCreditsCard } from "@/components/console/AiCreditsCard";
+import { UsageSummaryCard } from "@/components/console/UsageSummaryCard";
 
 const GOAL_LABELS: Record<string, string> = {
   buy_home: "Buy a home to live in",
@@ -141,7 +141,7 @@ export function OverviewPanel() {
 
       {showSavedCalcs && <SavedCalculatorsPanel />}
 
-      <AiCreditsCard />
+      <UsageSummaryCard />
 
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardContent className="flex items-center justify-between p-6">
