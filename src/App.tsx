@@ -93,6 +93,7 @@ const CCPANotice = lazyWithRetry(() => import("./pages/CCPANotice"));
 const DMCAPolicy = lazyWithRetry(() => import("./pages/DMCAPolicy"));
 const DoNotSell = lazyWithRetry(() => import("./pages/DoNotSell"));
 const AdminTelemetry = lazyWithRetry(() => import("./pages/AdminTelemetry"));
+const AccountUsage = lazyWithRetry(() => import("./pages/account/Usage"));
 
 const queryClient = new QueryClient();
 
