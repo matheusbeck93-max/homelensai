@@ -101,7 +101,7 @@ export default function UsagePage() {
       <Navigation />
       <main className="flex-1 container mx-auto px-4 pb-12 max-w-4xl space-y-6">
         <header>
-          <h1 className="text-3xl font-bold">AI Usage</h1>
+          <h1 className="text-4xl font-bold mb-2">AI Usage</h1>
           <p className="text-muted-foreground mt-1">
             Track your daily and monthly AI consumption.
           </p>
