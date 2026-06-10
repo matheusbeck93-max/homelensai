@@ -7,6 +7,11 @@ import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits, maxOutputTokensFor } from '../_shared/aiCredits.ts';
 import { loadProfile } from '../_shared/profileLoader.ts';
 import { sanitizeHistory } from '../_shared/conversationHistory.ts';
+import {
+  enforcePerplexityBudget,
+  logPerplexityUsageAsync,
+  resolvePerplexityCaller,
+} from '../_shared/ai/perplexityUsage.ts';
 import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import {
   isPropertyUrl as isPropertyUrlShared,
@@ -63,6 +68,11 @@ Deno.serve(async (req) => {
     if (!creditCheck.allowed) {
       return creditCheck.response!;
     }
+
+    // Budget cap gate — same daily/monthly caps that the Lovable AI
+    // router enforces for `ai-chat`. Perplexity bypasses the router, so
+    // we run the gate inline before each model call below.
+    const caller = await resolvePerplexityCaller(req);
 
     const body = await req.json();
     const validation = requestSchema.safeParse(body);
