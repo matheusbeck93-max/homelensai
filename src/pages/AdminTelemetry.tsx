@@ -76,7 +76,7 @@ export default function AdminTelemetry() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="container mx-auto px-4 pt-24 pb-12 max-w-5xl">
+      <main className="container mx-auto px-4 pb-12 max-w-5xl">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Tool-Call Telemetry</h1>
           <p className="text-muted-foreground mt-2">
