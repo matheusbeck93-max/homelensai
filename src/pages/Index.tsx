@@ -489,6 +489,7 @@ export default function Index() {
             </form>
 
             {/* Feature Cards with Animations */}
+            {!user && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-10 max-w-6xl mx-auto px-4">
               <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -582,6 +583,7 @@ export default function Index() {
                 </div>
               </motion.div>
             </div>
+            )}
           </div>
         </section> :
 
@@ -688,10 +690,10 @@ export default function Index() {
       }
 
       {/* Pricing Section */}
-      {!hasStartedConversation && <PricingSection />}
+      {!hasStartedConversation && !user && <PricingSection />}
 
       {/* FAQ Section */}
-      {!hasStartedConversation &&
+      {!hasStartedConversation && !user &&
       <section className="py-16 px-4 bg-background">
           <div className="max-w-3xl mx-auto">
             <motion.div
@@ -803,7 +805,7 @@ export default function Index() {
       }
 
       {/* Footer */}
-      {!hasStartedConversation && <Footer />}
+      {!hasStartedConversation && !user && <Footer />}
     </div>);
 
 }
