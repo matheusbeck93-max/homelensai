@@ -2,6 +2,9 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   BudgetExceededError,
   buildBudgetExceededPayload,
+  firstOfNextMonthIso,
+  getBudgetLimits,
+  getMonthlyBudgetLimits,
   nextUtcMidnightIso,
 } from "../budgetGuard.ts";
 
@@ -72,4 +75,39 @@ Deno.test("buildBudgetExceededPayload — monthly cap_type passes through", asyn
   assertEquals(payload.cap_type, "monthly");
   assertEquals(payload.usage_month_usd, 12.10);
   assertEquals(payload.monthly_limit_usd, 12.00);
+});
+
+Deno.test("buildBudgetExceededPayload — monthly reset_at points to next UTC month", async () => {
+  const err = new BudgetExceededError(
+    "buyer", 0.05, 0.50, "general_chat", undefined, "monthly", 12.00, 12.00,
+  );
+  const payload = await buildBudgetExceededPayload(err);
+  assertEquals(payload.reset_at, firstOfNextMonthIso());
+});
+
+Deno.test("buildBudgetExceededPayload — monthly free tier still routes to upgrade, no topup", async () => {
+  const err = new BudgetExceededError(
+    "free", 0.01, 0.10, "general_chat", undefined, "monthly", 3.10, 3.00,
+  );
+  const payload = await buildBudgetExceededPayload(err);
+  assertEquals(payload.cap_type, "monthly");
+  assertEquals(payload.upgrade.available, true);
+  assertEquals(payload.topup.available, false);
+});
+
+Deno.test("firstOfNextMonthIso — wraps year on December", () => {
+  const now = new Date(Date.UTC(2026, 11, 15, 10, 0, 0));
+  assertEquals(firstOfNextMonthIso(now), "2027-01-01T00:00:00.000Z");
+});
+
+Deno.test("getBudgetLimits / getMonthlyBudgetLimits — default tier thresholds", () => {
+  const daily = getBudgetLimits();
+  assertEquals(daily.free, 0.10);
+  assertEquals(daily.buyer, 0.50);
+  assertEquals(daily.investor, 1.50);
+
+  const monthly = getMonthlyBudgetLimits();
+  assertEquals(monthly.free, 3);
+  assertEquals(monthly.buyer, 12);
+  assertEquals(monthly.investor, 40);
 });
