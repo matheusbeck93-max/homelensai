@@ -49,8 +49,18 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
 
   if (cap.warningLevel !== "exceeded") return null;
 
-  const message =
-    cap.tier === "investor"
+  const isMonthly = cap.capType === "monthly";
+  const resetDateLabel = (isMonthly ? cap.monthlyResetAt : cap.resetAt).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+  });
+  const message = isMonthly
+    ? cap.tier === "investor"
+      ? `You've used this month's Investor allowance — most users don't reach this. Resets ${resetDateLabel}.`
+      : cap.tier === "buyer"
+        ? `You've used this month's Buyer assistant credits. Resets ${resetDateLabel}.`
+        : `You've used this month's free assistant credits. Upgrade for more or come back ${resetDateLabel}.`
+    : cap.tier === "investor"
       ? "You've used today's Investor cap — most users don't reach this. Resets at midnight."
       : cap.tier === "buyer"
         ? "You've hit today's Buyer assistant cap. Upgrade to Investor or try again tomorrow."
@@ -68,7 +78,7 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
       </div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Clock className="h-3.5 w-3.5" />
-        <span>{formatResetCountdown(cap.resetAt, now)}</span>
+        <span>{isMonthly ? `Resets ${resetDateLabel}` : formatResetCountdown(cap.resetAt, now)}</span>
       </div>
       {cap.upgrade.available && cap.tier !== "investor" && (
         <UpgradeCTA

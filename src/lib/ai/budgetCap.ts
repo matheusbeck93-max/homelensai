@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type BackendTier = "free" | "buyer" | "investor";
 export type WarningLevel = "ok" | "approaching" | "exceeded";
+export type CapType = "daily" | "monthly";
 
 export interface BudgetUpgradeInfo {
   available: boolean;
@@ -54,6 +55,14 @@ export interface BudgetCapState {
   creditsNextExpiresAt: Date | null;
   topup: TopUpInfo;
   loaded: boolean;
+  /** Internal/staff account — caps are bypassed; UI hides the chip. */
+  isStaff: boolean;
+  /** Which cap fired (when warningLevel === "exceeded"). */
+  capType: CapType | null;
+  usageMonthUsd: number;
+  monthlyLimitUsd: number;
+  monthlyUsagePct: number;
+  monthlyResetAt: Date;
   /** Last surface that reported a 402 (drives `source=` tagging on CTAs). */
   lastBlockingSurface: string | null;
 }
@@ -67,6 +76,9 @@ const TIER_DISPLAY: Record<BackendTier, string> = {
 function defaultState(): BudgetCapState {
   const reset = new Date();
   reset.setUTCHours(24, 0, 0, 0);
+  const monthReset = new Date();
+  monthReset.setUTCMonth(monthReset.getUTCMonth() + 1, 1);
+  monthReset.setUTCHours(0, 0, 0, 0);
   return {
     tier: "free",
     tierDisplay: "Free",
@@ -86,6 +98,12 @@ function defaultState(): BudgetCapState {
     creditsNextExpiresAt: null,
     topup: { available: false, packs: [] },
     loaded: false,
+    isStaff: false,
+    capType: null,
+    usageMonthUsd: 0,
+    monthlyLimitUsd: 0,
+    monthlyUsagePct: 0,
+    monthlyResetAt: monthReset,
     lastBlockingSurface: null,
   };
 }
@@ -139,6 +157,15 @@ function applyStatusBody(body: Record<string, unknown>) {
     ? body.credits_next_expires_at
     : null;
   const topup = parseTopup(body.topup);
+  const monthUsed = Number(body.usage_month_usd ?? 0);
+  const monthCap = Number(body.monthly_limit_usd ?? 0);
+  const monthPct = monthCap > 0 ? Math.min(1, monthUsed / monthCap) : 0;
+  const monthResetRaw = typeof body.monthly_reset_at === "string"
+    ? body.monthly_reset_at
+    : null;
+  const capType = (body.cap_type === "monthly" || body.cap_type === "daily")
+    ? (body.cap_type as CapType)
+    : null;
   setState({
     tier,
     tierDisplay: TIER_DISPLAY[tier],
@@ -151,6 +178,12 @@ function applyStatusBody(body: Record<string, unknown>) {
     creditsNextExpiresAt: nextExpRaw ? new Date(nextExpRaw) : null,
     topup,
     loaded: true,
+    isStaff: Boolean(body.is_staff),
+    capType,
+    usageMonthUsd: monthUsed,
+    monthlyLimitUsd: monthCap,
+    monthlyUsagePct: monthPct,
+    monthlyResetAt: monthResetRaw ? new Date(monthResetRaw) : _state.monthlyResetAt,
   });
 }
 
@@ -192,6 +225,9 @@ export function recordBudgetExceededFrom402(
     typeof upgradeRaw.checkout_url === "string" ? upgradeRaw.checkout_url : null;
   const balance = Number(body.credits_balance_usd ?? 0);
   const topup = parseTopup(body.topup);
+  const monthUsed = Number(body.usage_month_usd ?? 0);
+  const monthCap = Number(body.monthly_limit_usd ?? 0);
+  const capType = body.cap_type === "monthly" ? "monthly" : "daily";
   setState({
     tier,
     tierDisplay: TIER_DISPLAY[tier],
@@ -204,6 +240,10 @@ export function recordBudgetExceededFrom402(
     lastBlockingSurface: surface ?? (body.surface as string | undefined) ?? null,
     creditsBalanceUsd: Number.isFinite(balance) ? balance : 0,
     topup,
+    capType,
+    usageMonthUsd: monthUsed,
+    monthlyLimitUsd: monthCap,
+    monthlyUsagePct: monthCap > 0 ? Math.min(1, monthUsed / monthCap) : 1,
     upgrade: {
       available: Boolean(upgradeRaw.available),
       nextTier: upgradeRaw.next_tier
