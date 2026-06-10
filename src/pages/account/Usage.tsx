@@ -110,11 +110,6 @@ export default function UsagePage() {
 
         {summary && !summary.is_staff && summary.today && summary.this_month && (
           <>
-            <CreditsCard
-              tier={summary.tier}
-              credits={summary.credits}
-              packs={PACK_DEFAULTS}
-            />
             <UsageHero
               tierDisplayName={summary.tier_display_name}
               today={summary.today}
@@ -122,6 +117,11 @@ export default function UsagePage() {
             <MonthlyUsageCard thisMonth={summary.this_month} />
             <UsageTrendChart data={summary.month_trend} />
             <SurfaceBreakdown surfaces={summary.per_surface_30d} />
+            <CreditsCard
+              tier={summary.tier}
+              credits={summary.credits}
+              packs={PACK_DEFAULTS}
+            />
             {summary.next_tier && <NextTierCompare nextTier={summary.next_tier} />}
           </>
         )}
