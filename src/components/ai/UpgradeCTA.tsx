@@ -2,11 +2,20 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { BackendTier } from "@/lib/ai/budgetCap";
+import {
+  emitUsageEvent,
+  type CapType,
+  type UsageEventSource,
+} from "@/lib/telemetry/usageEvents";
 
 interface UpgradeCTAProps {
   fromTier: BackendTier;
-  /** Surface that triggered the cap hit — appended to checkout URL as `source=cap_hit_<surface>`. */
-  source: string;
+  /** Real AI surface id (e.g. `general_chat`) — appended to checkout URL as `source=cap_hit_<surface>`. */
+  surface: string;
+  /** Canonical telemetry source enum. */
+  eventSource: UsageEventSource;
+  /** Which cap fired, when applicable. */
+  capType?: CapType;
   /** Optional override of the next-tier checkout URL from the 402 payload. */
   checkoutUrl?: string | null;
 }
@@ -25,7 +34,13 @@ const COPY: Record<BackendTier, { headline: string; body: string; cta: string } 
   investor: null,
 };
 
-export function UpgradeCTA({ fromTier, source, checkoutUrl }: UpgradeCTAProps) {
+export function UpgradeCTA({
+  fromTier,
+  surface,
+  eventSource,
+  capType,
+  checkoutUrl,
+}: UpgradeCTAProps) {
   const navigate = useNavigate();
   const copy = COPY[fromTier];
   if (!copy) return null;
@@ -41,26 +56,27 @@ export function UpgradeCTA({ fromTier, source, checkoutUrl }: UpgradeCTAProps) {
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    try {
-      window.dispatchEvent(
-        new CustomEvent("homelens:upgrade_cta_clicked", {
-          detail: { fromTier, source, capSessionId },
-        }),
-      );
-    } catch { /* ignore */ }
+    emitUsageEvent("homelens:upgrade_cta_clicked", {
+      tier: fromTier,
+      source: eventSource,
+      to_tier: nextTier,
+      cap_session_id: capSessionId,
+      cap_type: capType,
+      surface,
+    });
 
     // Fire-and-forget — UX shouldn't block on telemetry.
     supabase.functions.invoke("upgrade-cta-click", {
       body: {
         cap_session_id: capSessionId,
-        source,
+        source: surface,
         from_tier: fromTier,
       },
     }).catch(() => { /* ignore */ });
 
     const base =
       checkoutUrl ??
-      `/pricing?plan=${nextTier}&source=cap_hit_${source}`;
+      `/pricing?plan=${nextTier}&source=cap_hit_${surface}`;
     const sep = base.includes("?") ? "&" : "?";
     navigate(`${base}${sep}cap=${capSessionId}`);
   };

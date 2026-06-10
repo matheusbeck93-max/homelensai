@@ -10,6 +10,7 @@ import { UsageTrendChart } from "@/components/account/usage/UsageTrendChart";
 import { SurfaceBreakdown } from "@/components/account/usage/SurfaceBreakdown";
 import { CreditsCard } from "@/components/account/usage/CreditsCard";
 import { NextTierCompare } from "@/components/account/usage/NextTierCompare";
+import { emitUsageEvent } from "@/lib/telemetry/usageEvents";
 
 interface UsageSummary {
   tier: "free" | "buyer" | "investor";
@@ -80,11 +81,20 @@ export default function UsagePage() {
     const id = window.setInterval(() => {
       if (document.visibilityState === "visible") load();
     }, 60_000);
-    try {
-      window.dispatchEvent(new CustomEvent("homelens:usage_page_viewed"));
-    } catch { /* ignore */ }
     return () => window.clearInterval(id);
   }, []);
+
+  // Fire the page-viewed event once we have the summary in hand so the
+  // payload includes tier + percentages.
+  useEffect(() => {
+    if (!summary) return;
+    emitUsageEvent("homelens:usage_page_viewed", {
+      tier: summary.tier,
+      pct_day: summary.today?.usage_pct,
+      pct_month: summary.this_month?.usage_pct,
+      credits_balance: summary.credits?.balance_usd,
+    });
+  }, [summary?.tier]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

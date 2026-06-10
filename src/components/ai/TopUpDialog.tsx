@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { useBudgetCap } from "@/lib/ai/budgetCap";
 import { TopUpPacks } from "./TopUpPacks";
+import type { UsageEventSource } from "@/lib/telemetry/usageEvents";
 
 interface TopUpDialogProps {
-  /** Surface label for telemetry. */
-  surface?: string;
+  /** Canonical telemetry source for this dialog. */
+  source?: UsageEventSource;
   triggerLabel?: string;
   triggerVariant?: "default" | "outline" | "secondary" | "ghost" | "link";
 }
@@ -23,7 +24,7 @@ interface TopUpDialogProps {
  * paid users can buy credits before they hit the cap.
  */
 export function TopUpDialog({
-  surface = "console_plan",
+  source = "console_plan",
   triggerLabel = "Buy AI credits",
   triggerVariant = "outline",
 }: TopUpDialogProps) {
@@ -46,7 +47,7 @@ export function TopUpDialog({
             Bigger packs include a bonus. Credits expire 90 days after purchase.
           </DialogDescription>
         </DialogHeader>
-        <TopUpPacks packs={cap.topup.packs} surface={surface} />
+        <TopUpPacks packs={cap.topup.packs} source={source} />
       </DialogContent>
     </Dialog>
   );
