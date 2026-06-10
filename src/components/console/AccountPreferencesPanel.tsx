@@ -190,6 +190,27 @@ export function AccountPreferencesPanel() {
         </CardContent>
       </Card>
 
+      {/* Support */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LifeBuoy className="h-5 w-5" />
+            Support
+          </CardTitle>
+          <CardDescription>
+            Questions, feedback, or account issues? Our team typically replies within 1 business day.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <a href="mailto:h2@homelens-ai.com">
+            <Button variant="outline">
+              <Mail className="mr-2 h-4 w-4" />
+              h2@homelens-ai.com
+            </Button>
+          </a>
+        </CardContent>
+      </Card>
+
       {/* Danger Zone */}
       <Card className="border-destructive">
         <CardHeader>
