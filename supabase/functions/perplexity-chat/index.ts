@@ -178,6 +178,16 @@ RULES:
 
       console.log(`[perplexity-chat] Mode: INSIGHT_${insightOrigin.toUpperCase()}, Query length: ${query.length}`);
 
+      const insightBudgetBlock = await enforcePerplexityBudget({
+        userId: caller.userId,
+        tier: caller.tier,
+        surface: 'general_chat',
+        corsHeaders,
+      });
+      if (insightBudgetBlock) return insightBudgetBlock;
+
+      const insightStartedAt = Date.now();
+      const insightModel = 'sonar';
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
@@ -185,7 +195,7 @@ RULES:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'sonar',
+          model: insightModel,
           messages,
           max_tokens: maxOutputTokensFor(creditCheck.tier) ?? 2000,
           temperature: 0.3,
@@ -201,6 +211,15 @@ RULES:
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || '';
       await deductAiCredits(creditCheck, data.usage);
+      logPerplexityUsageAsync({
+        userId: caller.userId,
+        tier: caller.tier,
+        surface: 'general_chat',
+        model: insightModel,
+        usage: data.usage,
+        latencyMs: Date.now() - insightStartedAt,
+        status: 'ok',
+      });
 
       return new Response(
         JSON.stringify({
@@ -504,6 +523,16 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
     console.log(`[perplexity-chat] Mode: ${isUrl ? 'URL_ANALYSIS' : isSearch ? 'SEARCH' : 'GENERAL'}, Query: ${query.substring(0, 100)}...`);
     console.log(`[perplexity-chat] Message roles: ${messages.map(m => m.role).join(' -> ')}`);
 
+    const mainBudgetBlock = await enforcePerplexityBudget({
+      userId: caller.userId,
+      tier: caller.tier,
+      surface: 'general_chat',
+      corsHeaders,
+    });
+    if (mainBudgetBlock) return mainBudgetBlock;
+
+    const mainStartedAt = Date.now();
+    const mainModel = 'sonar';
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
@@ -511,7 +540,7 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar',
+        model: mainModel,
         messages,
         max_tokens: maxOutputTokensFor(creditCheck.tier) ?? 2000,
         temperature: 0.2,
@@ -530,6 +559,15 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
     const content = data.choices?.[0]?.message?.content || '';
     const citations = data.citations || [];
     await deductAiCredits(creditCheck, data.usage);
+    logPerplexityUsageAsync({
+      userId: caller.userId,
+      tier: caller.tier,
+      surface: 'general_chat',
+      model: mainModel,
+      usage: data.usage,
+      latencyMs: Date.now() - mainStartedAt,
+      status: 'ok',
+    });
 
     console.log(`[perplexity-chat] Response received, citations: ${citations.length}`);
 
