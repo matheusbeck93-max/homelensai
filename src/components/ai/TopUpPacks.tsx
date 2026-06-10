@@ -4,11 +4,21 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { CreditPackOption, CreditPackSize } from "@/lib/ai/budgetCap";
+import { useBudgetCap } from "@/lib/ai/budgetCap";
+import {
+  emitUsageEvent,
+  type CapType,
+  type UsageEventSource,
+} from "@/lib/telemetry/usageEvents";
 
 interface TopUpPacksProps {
   packs: CreditPackOption[];
-  /** Surface that triggered this picker — used for telemetry attribution. */
-  surface: string;
+  /** Canonical telemetry source enum (where this picker is mounted). */
+  source: UsageEventSource;
+  /** Real AI surface id, when invoked from inside a chat composer. */
+  surface?: string;
+  /** Cap that fired, when invoked from a cap-hit flow. */
+  capType?: CapType;
   /** Tightens spacing for inline use inside the cap blocker. */
   compact?: boolean;
   /** Optional caption above the cards. */
@@ -20,24 +30,32 @@ interface TopUpPacksProps {
  * flow) and inside `TopUpDialog` (proactive purchase from Console).
  * Click → `buy-credits` edge function → Stripe Checkout in a new tab.
  */
-export function TopUpPacks({ packs, surface, compact, heading }: TopUpPacksProps) {
+export function TopUpPacks({
+  packs,
+  source,
+  surface,
+  capType,
+  compact,
+  heading,
+}: TopUpPacksProps) {
   const { toast } = useToast();
   const [pending, setPending] = useState<CreditPackSize | null>(null);
+  const cap = useBudgetCap();
 
   if (!packs || packs.length === 0) return null;
 
   const handleBuy = async (size: CreditPackSize) => {
     setPending(size);
     try {
-      try {
-        window.dispatchEvent(
-          new CustomEvent("homelens:topup_pack_clicked", {
-            detail: { pack_size: size, surface },
-          }),
-        );
-      } catch { /* ignore */ }
+      emitUsageEvent("homelens:topup_pack_clicked", {
+        tier: cap.tier,
+        source,
+        pack_size: size,
+        surface,
+        cap_type: capType,
+      });
       const { data, error } = await supabase.functions.invoke("buy-credits", {
-        body: { pack: size, source: surface },
+        body: { pack: size, source: surface ?? source },
       });
       if (error) {
         toast({

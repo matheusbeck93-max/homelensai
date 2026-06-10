@@ -3,6 +3,7 @@ import { Clock, Lock } from "lucide-react";
 import { useBudgetCap, formatResetCountdown } from "@/lib/ai/budgetCap";
 import { UpgradeCTA } from "./UpgradeCTA";
 import { TopUpPacks } from "./TopUpPacks";
+import { emitUsageEvent, type UsageEventSource } from "@/lib/telemetry/usageEvents";
 
 interface BudgetCapBlockerProps {
   /** Identifier baked into the upgrade CTA URL as `source=cap_hit_<surface>`. */
@@ -31,30 +32,24 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
   // re-mount the blocker when the cap actually flips.
   useEffect(() => {
     if (cap.warningLevel !== "exceeded") return;
-    try {
-      window.dispatchEvent(
-        new CustomEvent("homelens:budget_cap_hit_shown", {
-          detail: {
-            tier: cap.tier,
-            surface,
-            cap_type: cap.capType ?? "daily",
-            source: `cap_blocker_${cap.capType ?? "daily"}`,
-            usage_today_usd: cap.usageTodayUsd,
-          },
-        }),
-      );
-      if (cap.topup.available && cap.topup.packs.length > 0) {
-        window.dispatchEvent(
-          new CustomEvent("homelens:topup_offered", {
-            detail: {
-              tier: cap.tier,
-              surface,
-              cap_type: cap.capType ?? "daily",
-            },
-          }),
-        );
-      }
-    } catch { /* ignore */ }
+    const capType = cap.capType ?? "daily";
+    const source: UsageEventSource =
+      capType === "monthly" ? "cap_blocker_monthly" : "cap_blocker_daily";
+    emitUsageEvent("homelens:budget_cap_hit_shown", {
+      tier: cap.tier,
+      surface,
+      source,
+      cap_type: capType,
+      usage_today_usd: cap.usageTodayUsd,
+    });
+    if (cap.topup.available && cap.topup.packs.length > 0) {
+      emitUsageEvent("homelens:topup_offered", {
+        tier: cap.tier,
+        surface,
+        source,
+        cap_type: capType,
+      });
+    }
   }, [
     cap.warningLevel,
     cap.tier,
@@ -101,7 +96,9 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
       {cap.upgrade.available && cap.tier !== "investor" && (
         <UpgradeCTA
           fromTier={cap.tier}
-          source={surface}
+          surface={surface}
+          eventSource={isMonthly ? "cap_blocker_monthly" : "cap_blocker_daily"}
+          capType={isMonthly ? "monthly" : "daily"}
           checkoutUrl={cap.upgrade.checkoutUrl}
         />
       )}
@@ -109,6 +106,8 @@ export function BudgetCapBlocker({ surface, compact }: BudgetCapBlockerProps) {
         <TopUpPacks
           packs={cap.topup.packs}
           surface={surface}
+          source={isMonthly ? "cap_blocker_monthly" : "cap_blocker_daily"}
+          capType={isMonthly ? "monthly" : "daily"}
           compact={compact}
           heading={cap.upgrade.available && cap.tier !== "investor" ? "Or buy more AI credits" : "Buy more AI credits"}
         />

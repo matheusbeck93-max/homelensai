@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/popover";
 import { useBudgetCap, formatResetCountdown } from "@/lib/ai/budgetCap";
 import { UpgradeCTA } from "./UpgradeCTA";
+import { emitUsageEvent } from "@/lib/telemetry/usageEvents";
 
 interface BudgetCapBannerProps {
   surface: string;
@@ -29,13 +30,13 @@ export function BudgetCapBanner({ surface }: BudgetCapBannerProps) {
 
   useEffect(() => {
     if (cap.warningLevel !== "approaching") return;
-    try {
-      window.dispatchEvent(
-        new CustomEvent("homelens:budget_cap_approaching_shown", {
-          detail: { tier: cap.tier, surface, usage_pct: cap.usagePct },
-        }),
-      );
-    } catch { /* ignore */ }
+    emitUsageEvent("homelens:budget_cap_approaching_shown", {
+      tier: cap.tier,
+      surface,
+      source: "cap_banner",
+      cap_type: "daily",
+      usage_pct: cap.usagePct,
+    });
   }, [cap.warningLevel, cap.tier, surface, cap.usagePct]);
 
   if (cap.warningLevel !== "approaching") return null;
@@ -68,7 +69,9 @@ export function BudgetCapBanner({ surface }: BudgetCapBannerProps) {
         {cap.tier !== "investor" && (
           <UpgradeCTA
             fromTier={cap.tier}
-            source={surface}
+            surface={surface}
+            eventSource="cap_banner"
+            capType="daily"
             checkoutUrl={cap.upgrade.checkoutUrl}
           />
         )}

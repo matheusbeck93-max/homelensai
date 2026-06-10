@@ -75,7 +75,7 @@ export function CreditsCard({ tier, credits, packs }: CreditsCardProps) {
         </p>
         {tier !== "free" && (
           <div className="mt-4">
-            <TopUpPacks packs={packs} surface="usage_page" heading="Buy more credits" />
+            <TopUpPacks packs={packs} source="usage_page" heading="Buy more credits" />
           </div>
         )}
         {credits.recent_purchases.length > 0 && (

@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { TopUpDialog } from "@/components/ai/TopUpDialog";
+import { emitUsageEvent } from "@/lib/telemetry/usageEvents";
 
 /**
  * Compact ⚡ chip in the header showing current AI-budget consumption.
@@ -29,13 +30,12 @@ export function HeaderUsageIndicator() {
     state.tier !== "free" && state.topup.available && pct >= 50;
 
   const handleViewUsage = () => {
-    try {
-      window.dispatchEvent(
-        new CustomEvent("homelens:usage_indicator_clicked", {
-          detail: { tier: state.tier, source: "header_chip", driver, pct },
-        }),
-      );
-    } catch { /* ignore */ }
+    emitUsageEvent("homelens:usage_indicator_clicked", {
+      tier: state.tier,
+      source: "header_chip",
+      pct,
+      driver,
+    });
     navigate("/account/usage");
   };
 
@@ -103,7 +103,7 @@ export function HeaderUsageIndicator() {
             {showTopUpShortcut && (
               <div className="flex justify-center">
                 <TopUpDialog
-                  surface="header_chip"
+                  source="header_chip"
                   triggerLabel="Buy credits"
                   triggerVariant="default"
                 />

@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { emitUsageEvent } from "@/lib/telemetry/usageEvents";
+import { useBudgetCap } from "@/lib/ai/budgetCap";
 
 interface NextTierCompareProps {
   nextTier: {
@@ -19,14 +21,13 @@ function fmtUsd(n: number) {
 }
 
 export function NextTierCompare({ nextTier }: NextTierCompareProps) {
+  const cap = useBudgetCap();
   const handleClick = () => {
-    try {
-      window.dispatchEvent(
-        new CustomEvent("homelens:upgrade_cta_clicked", {
-          detail: { source: "usage_page", to_tier: nextTier.name },
-        }),
-      );
-    } catch { /* ignore */ }
+    emitUsageEvent("homelens:upgrade_cta_clicked", {
+      tier: cap.tier,
+      source: "next_tier_compare",
+      to_tier: nextTier.name,
+    });
   };
 
   return (
