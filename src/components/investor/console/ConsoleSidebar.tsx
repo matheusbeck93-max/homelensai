@@ -25,7 +25,7 @@ type RailItem = {
   badge?: number;
 };
 
-export function ConsoleSidebar({ expanded = false }: ConsoleSidebarProps) {
+export function ConsoleSidebar({ expanded = true }: ConsoleSidebarProps) {
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const ownedCount = useOwnedPropertiesCount();
 
