@@ -11,6 +11,9 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { handleCors, buildCorsHeaders } from "../_shared/cors.ts";
 import {
   getBudgetLimits,
+  getMonthlyBudgetLimits,
+  getMonthSpendUsd,
+  firstOfNextMonthIso,
   nextUtcMidnightIso,
 } from "../_shared/ai/budgetGuard.ts";
 import { getActiveCreditBalance, getCreditPacks, getPlanCreditBalance, TOPUP_CREDIT_EXPIRY_DAYS } from "../_shared/credits.ts";
@@ -18,14 +21,14 @@ import type { Tier } from "../_shared/ai/types.ts";
 
 type WarningLevel = "ok" | "approaching" | "exceeded";
 
-const VALID_TIERS: ReadonlySet<Tier> = new Set<Tier>(["free", "paid", "premium"]);
+const VALID_TIERS: ReadonlySet<Tier> = new Set<Tier>(["free", "buyer", "investor"]);
 
 function normalizeTier(raw: unknown): Tier {
   if (typeof raw !== "string") return "free";
   if (VALID_TIERS.has(raw as Tier)) return raw as Tier;
-  // Frontend uses buyer/investor — translate for the budget guard.
-  if (raw === "buyer") return "paid";
-  if (raw === "investor") return "premium";
+  // Legacy backfill: pre-rename values map to current tiers.
+  if (raw === "paid") return "buyer";
+  if (raw === "premium") return "investor";
   return "free";
 }
 
@@ -77,13 +80,16 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await svc
       .from("profiles")
-      .select("subscription_status, current_period_end, trial_used_at")
+      .select("subscription_status, current_period_end, trial_used_at, is_staff")
       .eq("id", user.id)
       .maybeSingle();
 
     const tier = normalizeTier(profile?.subscription_status);
+    const isStaff = Boolean((profile as { is_staff?: boolean } | null)?.is_staff);
     const limits = getBudgetLimits();
+    const monthlyLimits = getMonthlyBudgetLimits();
     const capUsd = limits[tier];
+    const monthlyCap = monthlyLimits[tier];
     const today = new Date().toISOString().slice(0, 10);
 
     const { data: rows } = await svc
@@ -98,13 +104,25 @@ Deno.serve(async (req) => {
       if (typeof v === "number" && Number.isFinite(v)) usedUsd += v;
     }
 
+    const monthlyUsedUsd = await getMonthSpendUsd(user.id, svc);
+
     const usagePct = capUsd > 0 ? Math.min(1, usedUsd / capUsd) : 0;
-    const warningLevel = levelFor(usedUsd, capUsd);
+    const monthlyPct = monthlyCap > 0 ? Math.min(1, monthlyUsedUsd / monthlyCap) : 0;
+    // Worst-of for the warning chip; cap_type below tells the UI which.
+    const dailyLevel = levelFor(usedUsd, capUsd);
+    const monthlyLevel = levelFor(monthlyUsedUsd, monthlyCap);
+    const rank = { ok: 0, approaching: 1, exceeded: 2 } as const;
+    const warningLevel: WarningLevel =
+      rank[monthlyLevel] > rank[dailyLevel] ? monthlyLevel : dailyLevel;
+    const capType: "daily" | "monthly" | null =
+      warningLevel === "exceeded"
+        ? (monthlyLevel === "exceeded" ? "monthly" : "daily")
+        : null;
 
     // Credits balance + top-up pack catalog. Free users never see packs.
     const balance = await getActiveCreditBalance(user.id, svc);
     const planCredits = await getPlanCreditBalance(user.id, svc);
-    const isPaid = tier === "paid" || tier === "premium";
+    const isPaid = tier === "buyer" || tier === "investor";
     const topup = isPaid
       ? {
           available: true,
@@ -120,11 +138,17 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         tier,
+        is_staff: isStaff,
         usage_today_usd: Number(usedUsd.toFixed(4)),
         daily_limit_usd: capUsd,
         usage_pct: Number(usagePct.toFixed(4)),
+        usage_month_usd: Number(monthlyUsedUsd.toFixed(4)),
+        monthly_limit_usd: monthlyCap,
+        monthly_usage_pct: Number(monthlyPct.toFixed(4)),
         reset_at: nextUtcMidnightIso(),
+        monthly_reset_at: firstOfNextMonthIso(),
         warning_level: warningLevel,
+        cap_type: capType,
         credits_balance_usd: Number((balance.balanceUsd + planCredits.remainingUsd).toFixed(4)),
         credits_next_expires_at: balance.nextExpiresAt,
         plan_credits_remaining_usd: planCredits.remainingUsd,
