@@ -698,7 +698,7 @@ export default function Index() {
       {!hasStartedConversation && !user && <PricingSection />}
 
       {/* Chrome Extension + Investor feature sections */}
-      {!hasStartedConversation && (
+      {!hasStartedConversation && !user && (
         <>
           <section className="py-16 sm:py-24 px-4 bg-background border-t">
             <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
