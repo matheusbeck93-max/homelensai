@@ -60,6 +60,8 @@ interface Conversation {
   title: string;
   createdAt: string;
   updatedAt: string;
+  source?: 'main_app' | 'chrome_extension' | null;
+  propertyUrl?: string | null;
 }
 
 export function useSavedChats() {
@@ -110,7 +112,9 @@ export function useSavedChats() {
         id: c.id,
         title: c.title,
         createdAt: c.created_at,
-        updatedAt: c.updated_at
+        updatedAt: c.updated_at,
+        source: (c as any).source ?? 'main_app',
+        propertyUrl: (c as any).property_url ?? null,
       })) || []);
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -189,7 +193,9 @@ export function useSavedChats() {
         id: data.id,
         title: data.title,
         createdAt: data.created_at,
-        updatedAt: data.updated_at
+        updatedAt: data.updated_at,
+        source: (data as any).source ?? 'main_app',
+        propertyUrl: (data as any).property_url ?? null,
       };
       
       setConversations(prev => [newConversation, ...prev]);
