@@ -228,12 +228,15 @@ export default function PropertyDetail() {
 
           <div className="space-y-6">
             <div>
-              <h1 className="text-4xl font-bold text-primary mb-2">
-                {formatPrice(property.price)}
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                <span className="text-primary">{formatPrice(property.price)}</span>
+                <span className="block text-xl md:text-2xl font-semibold text-foreground mt-1">
+                  {property.address}, {property.city}, {property.state} {property.zip}
+                </span>
               </h1>
               <p className="flex items-center gap-2 text-lg text-muted-foreground">
                 <MapPin className="h-5 w-5" />
-                {property.address}, {property.city}, {property.state} {property.zip}
+                {property.city}, {property.state}
               </p>
             </div>
 
