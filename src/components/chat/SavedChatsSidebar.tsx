@@ -46,6 +46,8 @@ interface Conversation {
   title: string;
   createdAt: string;
   updatedAt: string;
+  source?: 'main_app' | 'chrome_extension' | null;
+  propertyUrl?: string | null;
 }
 
 interface SavedChatsSidebarProps {
@@ -286,7 +288,7 @@ export function SavedChatsSidebar({
                     onClick={() => editingId !== conversation.id && onSelectConversation(conversation.id)}
                   >
                     <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0 mr-2" />
-                    <span className="flex-1 text-sm font-medium truncate min-w-0" title={conversation.title}>
+                    <span className="flex-1 text-sm font-medium truncate min-w-0 flex items-center gap-1.5" title={conversation.title}>
                       {editingId === conversation.id ? (
                         <Input
                           value={editTitle}
@@ -297,7 +299,17 @@ export function SavedChatsSidebar({
                           autoFocus
                         />
                       ) : (
-                        conversation.title
+                        <>
+                          <span className="truncate">{conversation.title}</span>
+                          {conversation.source === 'chrome_extension' && (
+                            <span
+                              className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary"
+                              title="Started in the Chrome extension"
+                            >
+                              Ext
+                            </span>
+                          )}
+                        </>
                       )}
                     </span>
                     

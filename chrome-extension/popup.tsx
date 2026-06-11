@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { saveProperty, saveChat, SaveResult, SavePropertyResponse, SaveChatResponse } from './saveActions';
 
 // ── Supabase config (public/anon keys — safe to include) ──
 const SUPABASE_URL = 'https://yckcdxtatwolzilboahx.supabase.co';
@@ -794,6 +795,103 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
   const [currentTabId, setCurrentTabId] = useState<number | null>(null);
   const [restored, setRestored] = useState(false);
+  // Save-to-HomeLens UI state
+  const [savedPropertyUrl, setSavedPropertyUrl] = useState<string | null>(null);
+  const [savingProperty, setSavingProperty] = useState(false);
+  const [chatSavedAtCount, setChatSavedAtCount] = useState<number | null>(null);
+  const [savingChat, setSavingChat] = useState(false);
+  const [toast, setToast] = useState<{ text: string; href?: string; tone: 'ok' | 'err' } | null>(null);
+  const clientThreadIdRef = useRef<string | null>(null);
+
+  const showToast = (text: string, href?: string, tone: 'ok' | 'err' = 'ok') => {
+    setToast({ text, href, tone });
+    window.setTimeout(() => setToast(null), 4000);
+  };
+
+  const ensureClientThreadId = (): string => {
+    if (clientThreadIdRef.current) return clientThreadIdRef.current;
+    const id =
+      (globalThis.crypto?.randomUUID?.() as string | undefined) ||
+      `ext_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    clientThreadIdRef.current = id;
+    return id;
+  };
+
+  // The current active property URL — prefer the structured propertyData
+  // captured by the content script, fall back to the active tab URL when
+  // a listing-shaped tab is open.
+  const activePropertyUrl =
+    activeProperty?.externalUrl ||
+    pendingProperty?.externalUrl ||
+    (pendingUrl && !bannerDismissed ? pendingUrl : null) ||
+    null;
+  const activePropertyData = activeProperty || pendingProperty || null;
+  const isPropertySaved = !!(activePropertyUrl && savedPropertyUrl === activePropertyUrl);
+
+  const handleSaveProperty = async () => {
+    if (!activePropertyUrl || !activePropertyData || savingProperty) return;
+    setSavingProperty(true);
+    const fresh = (await refreshAccessTokenIfNeeded(session)) ?? session;
+    const res = await saveProperty(
+      {
+        listing_url: activePropertyUrl,
+        scraped_data: {
+          address: activePropertyData.address || activePropertyUrl,
+          city: activePropertyData.city ?? null,
+          state: activePropertyData.state ?? null,
+          price: activePropertyData.price ?? null,
+          beds: activePropertyData.beds ?? null,
+          baths: activePropertyData.baths ?? null,
+          sqft: activePropertyData.sqft ?? null,
+          primary_photo_url: activePropertyData.imageUrl ?? null,
+        },
+        ai_analysis: null,
+      },
+      `Bearer ${fresh.access_token}`,
+    );
+    setSavingProperty(false);
+    if (res.ok) {
+      setSavedPropertyUrl(activePropertyUrl);
+      const href = `https://homelensais.com${res.data.view_url}`;
+      showToast(res.data.is_new ? 'Saved to HomeLens' : 'Already saved · refreshed', href);
+    } else if (res.status === 401) {
+      showToast('Sign in to HomeLens', undefined, 'err');
+    } else {
+      showToast("Couldn't save. Try again", undefined, 'err');
+    }
+  };
+
+  const handleSaveChat = async () => {
+    if (messages.length === 0 || savingChat) return;
+    setSavingChat(true);
+    const fresh = (await refreshAccessTokenIfNeeded(session)) ?? session;
+    const res = await saveChat(
+      {
+        thread_id_client: ensureClientThreadId(),
+        title: undefined,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        property_context: activePropertyUrl ? { listing_url: activePropertyUrl } : null,
+      },
+      `Bearer ${fresh.access_token}`,
+    );
+    setSavingChat(false);
+    if (res.ok) {
+      setChatSavedAtCount(messages.length);
+      const href = `https://homelensais.com${res.data.view_url}`;
+      showToast(res.data.is_new ? 'Conversation saved' : 'Conversation updated', href);
+    } else if (res.status === 401) {
+      showToast('Sign in to HomeLens', undefined, 'err');
+    } else {
+      showToast("Couldn't save chat. Try again", undefined, 'err');
+    }
+  };
+
+  const chatSaveLabel =
+    chatSavedAtCount === null
+      ? 'Save chat'
+      : chatSavedAtCount === messages.length
+      ? 'Saved'
+      : 'Save updated';
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef<number | null>(null);
@@ -1322,6 +1420,97 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           <SendIcon />
         </button>
       </div>
+
+      {/* Save row (only shown when there's something to save) */}
+      {(activePropertyUrl || messages.length > 0) && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+            padding: '6px 12px 10px',
+            borderTop: '1px solid #2a3a4e',
+            background: '#0f1722',
+          }}
+        >
+          {activePropertyUrl && (
+            <button
+              onClick={handleSaveProperty}
+              disabled={savingProperty || isPropertySaved}
+              title={isPropertySaved ? 'Saved to HomeLens' : 'Save this property'}
+              style={{
+                fontSize: 11,
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid ' + (isPropertySaved ? '#22c55e' : '#2a3a4e'),
+                background: isPropertySaved ? 'rgba(34,197,94,0.12)' : '#1a2332',
+                color: isPropertySaved ? '#22c55e' : '#cbd5e1',
+                cursor: savingProperty || isPropertySaved ? 'default' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill={isPropertySaved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              {savingProperty ? 'Saving…' : isPropertySaved ? 'Property saved' : 'Save property'}
+            </button>
+          )}
+          {messages.length > 0 && (
+            <button
+              onClick={handleSaveChat}
+              disabled={savingChat || chatSaveLabel === 'Saved'}
+              title="Save this conversation to your HomeLens account"
+              style={{
+                fontSize: 11,
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid #2a3a4e',
+                background: '#1a2332',
+                color: chatSaveLabel === 'Saved' ? '#22c55e' : '#cbd5e1',
+                cursor: savingChat || chatSaveLabel === 'Saved' ? 'default' : 'pointer',
+              }}
+            >
+              {savingChat ? 'Saving…' : chatSaveLabel}
+            </button>
+          )}
+        </div>
+      )}
+
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 12,
+            left: 12,
+            right: 12,
+            padding: '10px 12px',
+            borderRadius: 8,
+            background: toast.tone === 'err' ? '#3b1a1a' : '#1a3329',
+            border: '1px solid ' + (toast.tone === 'err' ? '#7f1d1d' : '#15803d'),
+            color: '#e5e7eb',
+            fontSize: 12,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <span>{toast.text}</span>
+          {toast.href && (
+            <a
+              href={toast.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#60a5fa', textDecoration: 'underline' }}
+              onClick={() => setToast(null)}
+            >
+              Open
+            </a>
+          )}
+        </div>
+      )}
     </>
   );
 }

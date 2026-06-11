@@ -9,6 +9,14 @@ export interface SavedProperty {
   city: string | null;
   state: string | null;
   created_at: string;
+  source?: 'main_app' | 'chrome_extension' | 'investor_console' | null;
+  ai_analysis?: Record<string, any> | null;
+  price?: number | null;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
+  image_url?: string | null;
+  updated_at?: string | null;
 }
 
 export interface SavePropertyInput {
@@ -49,6 +57,31 @@ export function useSavedProperties(user: { id: string } | null | undefined) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Realtime: refresh the list when a row is inserted or updated for this
+  // user (e.g. Save Property in the Chrome extension while the main app is
+  // open in another tab).
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`saved_properties:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'saved_properties',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          refresh();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, refresh]);
 
   const saveProperty = useCallback(
     async (input: SavePropertyInput): Promise<SavePropertyResult> => {
