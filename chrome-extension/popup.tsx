@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { saveProperty, saveChat, SaveResult, SavePropertyResponse, SaveChatResponse } from './saveActions';
 
 // ── Supabase config (public/anon keys — safe to include) ──
 const SUPABASE_URL = 'https://yckcdxtatwolzilboahx.supabase.co';
