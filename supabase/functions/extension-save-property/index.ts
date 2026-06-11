@@ -23,10 +23,11 @@ const BodySchema = z.object({
 });
 
 function viewUrlForTier(tier?: string | null): string {
-  // Investor → console overview shelf; everyone else → /chats (sidebar
-  // shelf is reachable from there) since /my-homelens may be tier-gated.
-  if (tier === 'investor' || tier === 'paid' || tier === 'unlimited') {
-    return '/console?tab=overview';
+  // Investor → Console Properties tab; Free / Buyer → /chats sidebar.
+  // Single source of truth is the saved_properties table; this just
+  // chooses which surface to deep-link the user into after saving.
+  if (tier === 'investor') {
+    return '/console?tab=properties';
   }
   return '/chats';
 }
