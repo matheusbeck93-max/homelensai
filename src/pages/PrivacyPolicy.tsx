@@ -1,4 +1,5 @@
 import { Navigation } from "@/components/Navigation";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +9,14 @@ export default function PrivacyPolicy() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Privacy Policy — HomeLens</title>
+        <meta name="description" content="How HomeLens collects, uses, discloses, and protects your personal information across the platform and Chrome extension." />
+        <link rel="canonical" href="https://homelensais.com/privacy" />
+        <meta property="og:title" content="HomeLens Privacy Policy" />
+        <meta property="og:description" content="How HomeLens collects, uses, and protects your personal information." />
+        <meta property="og:url" content="https://homelensais.com/privacy" />
+      </Helmet>
       <Navigation />
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">

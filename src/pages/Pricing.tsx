@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -164,6 +165,16 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Pricing — HomeLens Plans for Buyers & Investors</title>
+        <meta name="description" content="Compare HomeLens plans. Start free, upgrade to Buyer or Investor for deeper AI property analysis, saved analyses, and advanced calculators." />
+        <link rel="canonical" href="https://homelensais.com/pricing" />
+        <meta property="og:title" content="HomeLens Pricing — Plans for Buyers & Investors" />
+        <meta property="og:description" content="Free, Buyer, and Investor tiers. Pick the plan that fits how you analyze homes." />
+        <meta property="og:url" content="https://homelensais.com/pricing" />
+        <meta name="twitter:title" content="HomeLens Pricing — Plans for Buyers & Investors" />
+        <meta name="twitter:description" content="Free, Buyer, and Investor tiers. Pick the plan that fits how you analyze homes." />
+      </Helmet>
       <Navigation />
 
       <main className="container mx-auto px-4 py-12 pb-24 md:pb-12">

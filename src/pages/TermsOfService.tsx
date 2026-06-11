@@ -1,4 +1,5 @@
 import { Navigation } from "@/components/Navigation";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +9,14 @@ export default function TermsOfService() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Terms of Service — HomeLens</title>
+        <meta name="description" content="HomeLens Terms of Service. Read the rules that govern access to and use of the HomeLens AI real estate platform." />
+        <link rel="canonical" href="https://homelensais.com/terms" />
+        <meta property="og:title" content="HomeLens Terms of Service" />
+        <meta property="og:description" content="The rules that govern access to and use of the HomeLens platform." />
+        <meta property="og:url" content="https://homelensais.com/terms" />
+      </Helmet>
       <Navigation />
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
