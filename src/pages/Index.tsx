@@ -23,8 +23,8 @@ import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
-import chromeExtensionImg from "@/assets/chrome-store/screenshot-2-chat-analysis.png";
-import investorToolsImg from "@/assets/chrome-store/screenshot-4-financials.png";
+import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
+import investorToolsImg from "@/assets/investor-home.jpg.asset.json";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
@@ -694,9 +694,6 @@ export default function Index() {
 
       }
 
-      {/* Pricing Section */}
-      {!hasStartedConversation && !user && <PricingSection />}
-
       {/* Chrome Extension + Investor feature sections */}
       {!hasStartedConversation && !user && (
         <>
@@ -734,7 +731,7 @@ export default function Index() {
               >
                 <div className="absolute -inset-4 bg-gradient-to-br from-primary/10 to-transparent rounded-3xl blur-2xl" />
                 <img
-                  src={chromeExtensionImg}
+                  src={chromeExtensionImg.url}
                   alt="HomeLens Chrome extension showing AI property analysis on a Zillow listing"
                   loading="lazy"
                   width={1280}
@@ -756,7 +753,7 @@ export default function Index() {
               >
                 <div className="absolute -inset-4 bg-gradient-to-tr from-secondary/10 to-transparent rounded-3xl blur-2xl" />
                 <img
-                  src={investorToolsImg}
+                  src={investorToolsImg.url}
                   alt="HomeLens investor dashboard with cash-on-cash return, IRR projection, and cap rate"
                   loading="lazy"
                   width={1280}
@@ -789,6 +786,9 @@ export default function Index() {
           </section>
         </>
       )}
+
+      {/* Pricing Section */}
+      {!hasStartedConversation && !user && <PricingSection />}
 
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
