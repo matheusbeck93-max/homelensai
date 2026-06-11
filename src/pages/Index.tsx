@@ -23,8 +23,8 @@ import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
-import chromeExtensionImg from "@/assets/home-chrome-extension.jpg";
-import investorToolsImg from "@/assets/home-investor-tools.jpg";
+import chromeExtensionImg from "@/assets/chrome-store/screenshot-2-chat-analysis.png";
+import investorToolsImg from "@/assets/chrome-store/screenshot-4-financials.png";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
