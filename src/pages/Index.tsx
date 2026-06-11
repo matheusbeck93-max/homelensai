@@ -694,9 +694,6 @@ export default function Index() {
 
       }
 
-      {/* Pricing Section */}
-      {!hasStartedConversation && !user && <PricingSection />}
-
       {/* Chrome Extension + Investor feature sections */}
       {!hasStartedConversation && !user && (
         <>
@@ -789,6 +786,9 @@ export default function Index() {
           </section>
         </>
       )}
+
+      {/* Pricing Section */}
+      {!hasStartedConversation && !user && <PricingSection />}
 
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
