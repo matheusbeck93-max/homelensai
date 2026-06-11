@@ -259,22 +259,31 @@ export type Database = {
       }
       conversations: {
         Row: {
+          client_thread_id: string | null
           created_at: string
           id: string
+          property_url: string | null
+          source: string
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          client_thread_id?: string | null
           created_at?: string
           id?: string
+          property_url?: string | null
+          source?: string
           title?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          client_thread_id?: string | null
           created_at?: string
           id?: string
+          property_url?: string | null
+          source?: string
           title?: string
           updated_at?: string
           user_id?: string
@@ -1780,30 +1789,54 @@ export type Database = {
       }
       saved_properties: {
         Row: {
+          ai_analysis: Json | null
+          baths: number | null
+          beds: number | null
           city: string | null
           created_at: string
           id: string
+          image_url: string | null
+          price: number | null
           property_address: string
           property_url: string
+          source: string
+          sqft: number | null
           state: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
+          ai_analysis?: Json | null
+          baths?: number | null
+          beds?: number | null
           city?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
+          price?: number | null
           property_address: string
           property_url: string
+          source?: string
+          sqft?: number | null
           state?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
+          ai_analysis?: Json | null
+          baths?: number | null
+          beds?: number | null
           city?: string | null
           created_at?: string
           id?: string
+          image_url?: string | null
+          price?: number | null
           property_address?: string
           property_url?: string
+          source?: string
+          sqft?: number | null
           state?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
