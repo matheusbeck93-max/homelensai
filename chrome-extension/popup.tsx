@@ -1420,6 +1420,97 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           <SendIcon />
         </button>
       </div>
+
+      {/* Save row (only shown when there's something to save) */}
+      {(activePropertyUrl || messages.length > 0) && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+            padding: '6px 12px 10px',
+            borderTop: '1px solid #2a3a4e',
+            background: '#0f1722',
+          }}
+        >
+          {activePropertyUrl && (
+            <button
+              onClick={handleSaveProperty}
+              disabled={savingProperty || isPropertySaved}
+              title={isPropertySaved ? 'Saved to HomeLens' : 'Save this property'}
+              style={{
+                fontSize: 11,
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid ' + (isPropertySaved ? '#22c55e' : '#2a3a4e'),
+                background: isPropertySaved ? 'rgba(34,197,94,0.12)' : '#1a2332',
+                color: isPropertySaved ? '#22c55e' : '#cbd5e1',
+                cursor: savingProperty || isPropertySaved ? 'default' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill={isPropertySaved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              {savingProperty ? 'Saving…' : isPropertySaved ? 'Property saved' : 'Save property'}
+            </button>
+          )}
+          {messages.length > 0 && (
+            <button
+              onClick={handleSaveChat}
+              disabled={savingChat || chatSaveLabel === 'Saved'}
+              title="Save this conversation to your HomeLens account"
+              style={{
+                fontSize: 11,
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid #2a3a4e',
+                background: '#1a2332',
+                color: chatSaveLabel === 'Saved' ? '#22c55e' : '#cbd5e1',
+                cursor: savingChat || chatSaveLabel === 'Saved' ? 'default' : 'pointer',
+              }}
+            >
+              {savingChat ? 'Saving…' : chatSaveLabel}
+            </button>
+          )}
+        </div>
+      )}
+
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 12,
+            left: 12,
+            right: 12,
+            padding: '10px 12px',
+            borderRadius: 8,
+            background: toast.tone === 'err' ? '#3b1a1a' : '#1a3329',
+            border: '1px solid ' + (toast.tone === 'err' ? '#7f1d1d' : '#15803d'),
+            color: '#e5e7eb',
+            fontSize: 12,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <span>{toast.text}</span>
+          {toast.href && (
+            <a
+              href={toast.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#60a5fa', textDecoration: 'underline' }}
+              onClick={() => setToast(null)}
+            >
+              Open
+            </a>
+          )}
+        </div>
+      )}
     </>
   );
 }
