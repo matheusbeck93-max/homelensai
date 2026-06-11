@@ -795,6 +795,103 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
   const [currentTabId, setCurrentTabId] = useState<number | null>(null);
   const [restored, setRestored] = useState(false);
+  // Save-to-HomeLens UI state
+  const [savedPropertyUrl, setSavedPropertyUrl] = useState<string | null>(null);
+  const [savingProperty, setSavingProperty] = useState(false);
+  const [chatSavedAtCount, setChatSavedAtCount] = useState<number | null>(null);
+  const [savingChat, setSavingChat] = useState(false);
+  const [toast, setToast] = useState<{ text: string; href?: string; tone: 'ok' | 'err' } | null>(null);
+  const clientThreadIdRef = useRef<string | null>(null);
+
+  const showToast = (text: string, href?: string, tone: 'ok' | 'err' = 'ok') => {
+    setToast({ text, href, tone });
+    window.setTimeout(() => setToast(null), 4000);
+  };
+
+  const ensureClientThreadId = (): string => {
+    if (clientThreadIdRef.current) return clientThreadIdRef.current;
+    const id =
+      (globalThis.crypto?.randomUUID?.() as string | undefined) ||
+      `ext_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    clientThreadIdRef.current = id;
+    return id;
+  };
+
+  // The current active property URL — prefer the structured propertyData
+  // captured by the content script, fall back to the active tab URL when
+  // a listing-shaped tab is open.
+  const activePropertyUrl =
+    activeProperty?.externalUrl ||
+    pendingProperty?.externalUrl ||
+    (pendingUrl && !bannerDismissed ? pendingUrl : null) ||
+    null;
+  const activePropertyData = activeProperty || pendingProperty || null;
+  const isPropertySaved = !!(activePropertyUrl && savedPropertyUrl === activePropertyUrl);
+
+  const handleSaveProperty = async () => {
+    if (!activePropertyUrl || !activePropertyData || savingProperty) return;
+    setSavingProperty(true);
+    const fresh = (await refreshAccessTokenIfNeeded(session)) ?? session;
+    const res = await saveProperty(
+      {
+        listing_url: activePropertyUrl,
+        scraped_data: {
+          address: activePropertyData.address || activePropertyUrl,
+          city: activePropertyData.city ?? null,
+          state: activePropertyData.state ?? null,
+          price: activePropertyData.price ?? null,
+          beds: activePropertyData.beds ?? null,
+          baths: activePropertyData.baths ?? null,
+          sqft: activePropertyData.sqft ?? null,
+          primary_photo_url: activePropertyData.imageUrl ?? null,
+        },
+        ai_analysis: null,
+      },
+      `Bearer ${fresh.access_token}`,
+    );
+    setSavingProperty(false);
+    if (res.ok) {
+      setSavedPropertyUrl(activePropertyUrl);
+      const href = `https://homelensais.com${res.data.view_url}`;
+      showToast(res.data.is_new ? 'Saved to HomeLens' : 'Already saved · refreshed', href);
+    } else if (res.status === 401) {
+      showToast('Sign in to HomeLens', undefined, 'err');
+    } else {
+      showToast("Couldn't save. Try again", undefined, 'err');
+    }
+  };
+
+  const handleSaveChat = async () => {
+    if (messages.length === 0 || savingChat) return;
+    setSavingChat(true);
+    const fresh = (await refreshAccessTokenIfNeeded(session)) ?? session;
+    const res = await saveChat(
+      {
+        thread_id_client: ensureClientThreadId(),
+        title: undefined,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        property_context: activePropertyUrl ? { listing_url: activePropertyUrl } : null,
+      },
+      `Bearer ${fresh.access_token}`,
+    );
+    setSavingChat(false);
+    if (res.ok) {
+      setChatSavedAtCount(messages.length);
+      const href = `https://homelensais.com${res.data.view_url}`;
+      showToast(res.data.is_new ? 'Conversation saved' : 'Conversation updated', href);
+    } else if (res.status === 401) {
+      showToast('Sign in to HomeLens', undefined, 'err');
+    } else {
+      showToast("Couldn't save chat. Try again", undefined, 'err');
+    }
+  };
+
+  const chatSaveLabel =
+    chatSavedAtCount === null
+      ? 'Save chat'
+      : chatSavedAtCount === messages.length
+      ? 'Saved'
+      : 'Save updated';
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef<number | null>(null);
