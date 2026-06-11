@@ -77,6 +77,14 @@ export function SavedPropertiesShelf({ properties, onDelete }: SavedPropertiesSh
                           {[p.city, p.state].filter(Boolean).join(", ")}
                         </span>
                       )}
+                      {p.source === 'chrome_extension' && (
+                        <span
+                          className="mt-0.5 inline-flex w-fit items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary"
+                          title="Saved from the Chrome extension"
+                        >
+                          Extension
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
