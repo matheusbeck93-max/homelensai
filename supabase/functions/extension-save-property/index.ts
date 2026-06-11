@@ -112,15 +112,6 @@ Deno.serve(async (req) => {
       isNew = true;
     }
 
-    // Telemetry (best-effort).
-    try {
-      await supabase.from('tool_call_telemetry').insert({
-        user_id: auth.user.id,
-        tool_name: 'extension_save_property',
-        payload: { is_new: isNew, has_analysis: !!ai_analysis },
-      });
-    } catch (_) { /* ignore telemetry failures */ }
-
     const tier = auth.profile?.subscription_status as string | undefined;
     const body = {
       saved_property_id: savedId,
