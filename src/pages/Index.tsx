@@ -713,7 +713,7 @@ export default function Index() {
                   Analyze any listing without leaving the page.
                 </h2>
                 <p className="text-base sm:text-lg text-muted-foreground mb-6 max-w-lg">
-                  Get instant AI insights and a personalized Match Score on Zillow, Redfin, and Realtor.com — one click, zero copy-paste.
+                  Get instant AI insights and a personalized Match Score on any listing website — one click, zero copy-paste.
                 </p>
                 <Button asChild size="lg">
                   <a href={CHROME_EXTENSION_URL} target="_blank" rel="noopener noreferrer">
