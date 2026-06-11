@@ -23,8 +23,8 @@ import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
-import chromeExtensionImg from "@/assets/home-chrome-extension.jpg";
-import investorToolsImg from "@/assets/home-investor-tools.jpg";
+import chromeExtensionImg from "@/assets/chrome-store/screenshot-2-chat-analysis.png";
+import investorToolsImg from "@/assets/chrome-store/screenshot-4-financials.png";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
@@ -698,7 +698,7 @@ export default function Index() {
       {!hasStartedConversation && !user && <PricingSection />}
 
       {/* Chrome Extension + Investor feature sections */}
-      {!hasStartedConversation && (
+      {!hasStartedConversation && !user && (
         <>
           <section className="py-16 sm:py-24 px-4 bg-background border-t">
             <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
