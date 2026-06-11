@@ -3,6 +3,10 @@
   <url><loc>https://homelensais.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://homelensais.com/calculators</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://homelensais.com/investor</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://homelensais.com/investor/properties</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://homelensais.com/investor/calculator</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://homelensais.com/chats</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://homelensais.com/console</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
   <url><loc>https://homelensais.com/pricing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://homelensais.com/compare</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://homelensais.com/auth</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
