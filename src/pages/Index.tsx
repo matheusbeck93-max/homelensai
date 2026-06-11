@@ -23,6 +23,8 @@ import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
+import chromeExtensionImg from "@/assets/home-chrome-extension.jpg";
+import investorToolsImg from "@/assets/home-investor-tools.jpg";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
@@ -694,6 +696,99 @@ export default function Index() {
 
       {/* Pricing Section */}
       {!hasStartedConversation && !user && <PricingSection />}
+
+      {/* Chrome Extension + Investor feature sections */}
+      {!hasStartedConversation && (
+        <>
+          <section className="py-16 sm:py-24 px-4 bg-background border-t">
+            <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-4">
+                  <Chrome className="h-3.5 w-3.5" />
+                  Chrome Extension
+                </div>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
+                  Analyze any listing without leaving the page.
+                </h2>
+                <p className="text-base sm:text-lg text-muted-foreground mb-6 max-w-lg">
+                  Get instant AI insights and a personalized Match Score on Zillow, Redfin, and Realtor.com — one click, zero copy-paste.
+                </p>
+                <Button asChild size="lg">
+                  <a href={CHROME_EXTENSION_URL} target="_blank" rel="noopener noreferrer">
+                    <Chrome className="h-4 w-4" />
+                    Add to Chrome
+                  </a>
+                </Button>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="relative"
+              >
+                <div className="absolute -inset-4 bg-gradient-to-br from-primary/10 to-transparent rounded-3xl blur-2xl" />
+                <img
+                  src={chromeExtensionImg}
+                  alt="HomeLens Chrome extension showing AI property analysis on a Zillow listing"
+                  loading="lazy"
+                  width={1280}
+                  height={896}
+                  className="relative rounded-2xl shadow-2xl border border-border/50 w-full"
+                />
+              </motion.div>
+            </div>
+          </section>
+
+          <section className="py-16 sm:py-24 px-4 bg-muted/30 border-t">
+            <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="relative order-2 lg:order-1"
+              >
+                <div className="absolute -inset-4 bg-gradient-to-tr from-secondary/10 to-transparent rounded-3xl blur-2xl" />
+                <img
+                  src={investorToolsImg}
+                  alt="HomeLens investor dashboard with cash-on-cash return, IRR projection, and cap rate"
+                  loading="lazy"
+                  width={1280}
+                  height={896}
+                  className="relative rounded-2xl shadow-2xl border border-border/50 w-full"
+                />
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="order-1 lg:order-2"
+              >
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-medium mb-4">
+                  <Calculator className="h-3.5 w-3.5" />
+                  For Investors
+                </div>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
+                  Underwrite deals with investor-grade math.
+                </h2>
+                <p className="text-base sm:text-lg text-muted-foreground mb-6 max-w-lg">
+                  Cash-on-cash return, 20-year IRR projections, stress scenarios, and Excel exports — built for serious buyers.
+                </p>
+                <Button asChild size="lg" variant="outline">
+                  <a href="/investor/calculator">Explore Investor Tools</a>
+                </Button>
+              </motion.div>
+            </div>
+          </section>
+        </>
+      )}
 
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
