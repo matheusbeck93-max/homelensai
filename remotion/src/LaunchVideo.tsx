@@ -372,7 +372,7 @@ export const LaunchVideo = () => {
 
       <Sequence from={90} durationInFrames={150}>
         <ScreenshotScene
-          src={staticFile("launch-images/Captura_de_Tela_2026-05-27_às_10.28.40.jpg")}
+          src={staticFile("launch-images/hello-matthew.jpg")}
           durationInFrames={150}
           eyebrow="Your AI copilot"
           caption="Ask anything about any home — in plain English."
