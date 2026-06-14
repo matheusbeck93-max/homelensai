@@ -442,6 +442,13 @@ Deno.serve(async (req) => {
       mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       ext = 'xlsx';
       baseName = body.address ? `mortgage-${body.address.slice(0, 40)}` : 'mortgage';
+    } else if (body.kind === 'purchase_plan_pdf') {
+      bytes = await renderPurchasePlanPdf(body);
+      mime = 'application/pdf';
+      ext = 'pdf';
+      const addr = body.address ?? [body.city, body.state].filter(Boolean).join('-');
+      baseName = `purchase-plan-${(addr || 'home').slice(0, 40)}-${new Date()
+        .toISOString().slice(0, 10).replace(/-/g, '')}`;
     } else {
       return errorResponse('unsupported_kind', 400, req);
     }
