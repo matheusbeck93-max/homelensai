@@ -59,7 +59,51 @@ const PurchasePlanInput = z.object({
   source_thread_id: z.string().uuid().optional(),
 });
 
-const BodySchema = z.discriminatedUnion('kind', [MortgageInput, PurchasePlanInput]);
+const PropertyReportInput = z.object({
+  kind: z.literal('property_report_pdf'),
+  address: z.string().min(1).max(200),
+  price: z.number().positive(),
+  beds: z.number().min(0).max(50).optional(),
+  baths: z.number().min(0).max(50).optional(),
+  sqft: z.number().min(0).max(1_000_000).optional(),
+  year_built: z.number().int().min(1700).max(2100).optional(),
+  lot_sqft: z.number().min(0).max(50_000_000).optional(),
+  hoa_monthly: z.number().min(0).optional(),
+  property_tax_annual: z.number().min(0).optional(),
+  zestimate: z.number().min(0).optional(),
+  days_on_market: z.number().int().min(0).max(10_000).optional(),
+  school_score: z.number().min(0).max(10).optional(),
+  walk_score: z.number().min(0).max(100).optional(),
+  summary_text: z.string().max(2000).optional(),
+  surface: z.string().max(40).optional(),
+  source_thread_id: z.string().uuid().optional(),
+});
+
+const ChartImageInput = z.object({
+  kind: z.literal('chart_image'),
+  chart_type: z.enum(['bar', 'line', 'donut']),
+  title: z.string().min(1).max(120),
+  x_label: z.string().max(60).optional(),
+  y_label: z.string().max(60).optional(),
+  series: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(40),
+        value: z.number().finite(),
+      }),
+    )
+    .min(1)
+    .max(24),
+  surface: z.string().max(40).optional(),
+  source_thread_id: z.string().uuid().optional(),
+});
+
+const BodySchema = z.discriminatedUnion('kind', [
+  MortgageInput,
+  PurchasePlanInput,
+  PropertyReportInput,
+  ChartImageInput,
+]);
 
 // ── Tier caps (per kind per day) ─────────────────────────────────────
 // Generous so the chip flow does not feel punitive; tightens if abused.
