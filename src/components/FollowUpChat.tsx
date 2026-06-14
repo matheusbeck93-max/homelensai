@@ -10,6 +10,11 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
 import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
 import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
+import {
+  ConversationalIntelligence,
+  useConversationalIntelligenceState,
+  type ChatTurn,
+} from "@/lib/conversationalIntelligence";
 
 interface PropertyLink {
   source: string;
@@ -76,6 +81,16 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
   const { toast } = useToast();
   const cap = useBudgetCap();
   const capExceeded = cap.warningLevel === "exceeded";
+
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setUserId(data.user?.id ?? null);
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const ci = useConversationalIntelligenceState(userId);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -403,6 +418,21 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
 
         {/* INPUT AREA */}
         <div className="p-3 border-t bg-background">
+          {ci.loaded && ci.smartSuggestionsEnabled && (
+            <div className="mb-2">
+              <ConversationalIntelligence
+                active={{ kind: "deep_dive" }}
+                thread={messages.map((m) => ({ role: m.role, content: m.content })) as ChatTurn[]}
+                preferences={ci.preferences}
+                dismissals={ci.dismissals}
+                enabled={ci.smartSuggestionsEnabled}
+                onSendMessage={(t) => setInput(t)}
+                onAcceptFollowup={ci.onAccept}
+                onDismissFollowup={ci.onDismiss}
+                onSaveException={ci.onSaveException}
+              />
+            </div>
+          )}
           <div className="flex gap-2">
             <Textarea
               placeholder={capExceeded ? "Daily AI cap reached. Resets at midnight UTC." : "Ask anything..."}
