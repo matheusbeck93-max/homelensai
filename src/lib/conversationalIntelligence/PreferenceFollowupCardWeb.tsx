@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
 import type { MismatchFollowup } from "./detectMismatches";
+import { trackCiEvent } from "./telemetry";
+import type { SurfaceKind } from "./types";
 
 type State =
   | { kind: "idle" }
@@ -23,6 +25,8 @@ export interface PreferenceFollowupCardWebProps {
   onDismiss: (f: MismatchFollowup) => Promise<{ ok: boolean }>;
   onSaveException: (f: MismatchFollowup, note: string) => Promise<{ ok: boolean; error?: string }>;
   onChatPrompt?: (text: string) => void;
+  /** Surface origin for telemetry attribution. */
+  surface?: SurfaceKind;
 }
 
 export function PreferenceFollowupCardWeb({
@@ -31,6 +35,7 @@ export function PreferenceFollowupCardWeb({
   onDismiss,
   onSaveException,
   onChatPrompt,
+  surface = "general_chat",
 }: PreferenceFollowupCardWebProps) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [note, setNote] = useState("");
@@ -50,6 +55,10 @@ export function PreferenceFollowupCardWeb({
   const handleAccept = async () => {
     setState({ kind: "saving" });
     const r = await onAccept(followup);
+    void trackCiEvent("web_followup_mismatch_accepted", surface, {
+      mismatch_type: followup.type,
+      ok: r.ok,
+    });
     setState(
       r.ok
         ? { kind: "saved", text: followup.confirmation || "Updated" }
@@ -59,6 +68,9 @@ export function PreferenceFollowupCardWeb({
 
   const handleDismiss = async () => {
     setState({ kind: "dismissed" });
+    void trackCiEvent("web_followup_mismatch_dismissed", surface, {
+      mismatch_type: followup.type,
+    });
     onDismiss(followup);
   };
 
