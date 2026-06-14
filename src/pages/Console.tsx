@@ -5,12 +5,13 @@ import { Navigation } from "@/components/Navigation";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal, Bookmark } from "lucide-react";
+import { LayoutDashboard, CreditCard, Settings, SlidersHorizontal, Bookmark, FileText } from "lucide-react";
 import { OverviewPanel } from "@/components/console/OverviewPanel";
 import { SubscriptionPanel } from "@/components/console/SubscriptionPanel";
 import { AccountPreferencesPanel } from "@/components/console/AccountPreferencesPanel";
 import { PreferencesChat } from "@/components/console/PreferencesChat";
 import { SavedPropertiesPanel } from "@/components/console/SavedPropertiesPanel";
+import { SavedArtifactsPanel } from "@/components/console/SavedArtifactsPanel";
 
 export default function Console() {
   const navigate = useNavigate();
@@ -86,7 +87,7 @@ export default function Console() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="overflow-x-auto mb-8 -mx-4 px-4">
-            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-5 gap-1">
+            <TabsList className="inline-flex w-auto min-w-full lg:grid lg:w-full lg:grid-cols-6 gap-1">
               <TabsTrigger value="overview" className="gap-2 flex-shrink-0">
                 <LayoutDashboard className="h-4 w-4" />
                 <span>Overview</span>
@@ -94,6 +95,10 @@ export default function Console() {
               <TabsTrigger value="properties" className="gap-2 flex-shrink-0">
                 <Bookmark className="h-4 w-4" />
                 <span>Properties</span>
+              </TabsTrigger>
+              <TabsTrigger value="artifacts" className="gap-2 flex-shrink-0">
+                <FileText className="h-4 w-4" />
+                <span>Artifacts</span>
               </TabsTrigger>
               <TabsTrigger value="preferences" className="gap-2 flex-shrink-0">
                 <SlidersHorizontal className="h-4 w-4" />
@@ -116,6 +121,10 @@ export default function Console() {
 
           <TabsContent value="properties">
             <SavedPropertiesPanel />
+          </TabsContent>
+
+          <TabsContent value="artifacts">
+            <SavedArtifactsPanel />
           </TabsContent>
 
           <TabsContent value="preferences">
