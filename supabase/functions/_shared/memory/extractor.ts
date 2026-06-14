@@ -69,13 +69,14 @@ export async function summarizeConversation(
   const provider = new AnthropicProvider();
   let raw: string;
   try {
-    const result = await provider.complete('anthropic:sonnet-4', {
+    const result = await provider.complete('gateway:standard', {
       system: SYSTEM_PROMPT,
       messages: [
         { role: 'user', content: `Transcript:\n\n${transcript}` },
       ],
-      maxOutputTokens: 800,
+      maxTokens: 800,
       temperature: 0.1,
+      responseFormat: 'json',
     });
     raw = result.text ?? '';
   } catch (err) {
