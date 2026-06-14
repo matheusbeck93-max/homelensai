@@ -133,12 +133,18 @@ export default function Console() {
 
           <TabsContent value="subscription">
             <SubscriptionPanel />
-            <div className="mt-4 text-sm">
+            <div className="mt-4 text-sm flex flex-col gap-2">
               <a
                 href="/account/usage"
                 className="text-primary underline-offset-4 hover:underline"
               >
                 View detailed AI usage →
+              </a>
+              <a
+                href="/account/memory"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                What HomeLens remembers about you →
               </a>
             </div>
           </TabsContent>
