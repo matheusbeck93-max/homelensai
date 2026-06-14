@@ -160,13 +160,11 @@ export function ConversationalIntelligence({
       };
       const r = await onGenerateArtifact(kind, inputWithCtx);
       setCards((cs) =>
-        cs.map((c) =>
-          c.id !== cardId
-            ? c
-            : r.ok
-              ? { id: cardId, status: "ready", artifact: r.artifact }
-              : { id: cardId, status: "error", label, error: r.error },
-        ),
+        cs.map((c) => {
+          if (c.id !== cardId) return c;
+          if (r.ok) return { id: cardId, status: "ready", artifact: r.artifact };
+          return { id: cardId, status: "error", label, error: r.error };
+        }),
       );
     }
   };
