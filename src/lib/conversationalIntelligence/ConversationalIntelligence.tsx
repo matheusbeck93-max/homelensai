@@ -53,7 +53,10 @@ export interface ConversationalIntelligenceProps {
     f: MismatchFollowup,
     note: string,
     snapshot?: ListingSnapshot,
+    propertyUrl?: string,
   ) => Promise<{ ok: boolean; error?: string }>;
+  /** Optional listing URL passed to save_exception. */
+  propertyUrl?: string;
 }
 
 /**
@@ -78,6 +81,7 @@ export function ConversationalIntelligence({
   onAcceptFollowup,
   onDismissFollowup,
   onSaveException,
+  propertyUrl,
 }: ConversationalIntelligenceProps) {
   const lastAssistant = useMemo(
     () => [...thread].reverse().find((t) => t.role === "assistant"),
@@ -125,7 +129,9 @@ export function ConversationalIntelligence({
               followup={f}
               onAccept={onAcceptFollowup}
               onDismiss={onDismissFollowup}
-              onSaveException={(ff, note) => onSaveException(ff, note, active.snapshot)}
+              onSaveException={(ff, note) =>
+                onSaveException(ff, note, active.snapshot, propertyUrl ?? active.propertyUrl)
+              }
               onChatPrompt={onSendMessage}
             />
           ))}
