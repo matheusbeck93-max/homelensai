@@ -949,18 +949,9 @@ function ChatsConversationalIntelligence({
 }) {
   const thread: ChatTurn[] = useMemo(
     () => messages.map((m) => {
-      const ci = (m.metadata as { ciSignals?: unknown } | undefined)?.ciSignals as
-        | { mismatch_signals?: unknown[]; suggested_followups?: unknown[] }
-        | undefined;
+      const ci = (m.metadata as { ciSignals?: { mismatch_signals?: unknown[]; suggested_followups?: unknown[] } } | undefined)?.ciSignals;
       const turn: ChatTurn = { role: m.role, content: m.content };
-      if (ci) {
-        turn.signals = {
-          mismatch_signals: (ci.mismatch_signals ?? []) as ChatTurn['signals'] extends infer _ ? never : never,
-        } as ChatTurn['signals'];
-        // Use a runtime-safe assignment to avoid deep generic gymnastics.
-        (turn.signals as Record<string, unknown>).mismatch_signals = ci.mismatch_signals ?? [];
-        (turn.signals as Record<string, unknown>).suggested_followups = ci.suggested_followups ?? [];
-      }
+      if (ci) turn.signals = ci as ChatTurn['signals'];
       return turn;
     }),
     [messages],
