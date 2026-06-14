@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedProperties, type SavedProperty } from "@/hooks/useSavedProperties";
+import { useExceptionProperties, type ExceptionProperty } from "@/hooks/useExceptionProperties";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bookmark, ExternalLink, Trash2 } from "lucide-react";
+import { Bookmark, ExternalLink, Trash2, Sparkles } from "lucide-react";
 
 /**
  * Console "Properties" tab — reads the same `saved_properties` table that
@@ -20,6 +21,8 @@ export function SavedPropertiesPanel() {
   }, []);
 
   const { properties, loading, deleteProperty } = useSavedProperties(user);
+  const { exceptions, loading: exceptionsLoading, remove: removeException } =
+    useExceptionProperties(user);
 
   return (
     <Card>
@@ -46,6 +49,36 @@ export function SavedPropertiesPanel() {
             ))}
           </div>
         )}
+
+        {/* Exceptions — properties saved despite not matching saved preferences */}
+        <div className="mt-6 pt-6 border-t border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
+              Outside your usual preferences
+            </h3>
+            {exceptions.length > 0 && (
+              <span className="text-xs text-muted-foreground">({exceptions.length})</span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Listings you flagged as interesting from the Chrome extension even though they didn't
+            match your saved criteria.
+          </p>
+          {exceptionsLoading && exceptions.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-3 text-center">Loading…</p>
+          ) : exceptions.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-3 text-center">
+              Nothing here yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {exceptions.map((e) => (
+                <ExceptionRow key={e.id} exception={e} onDelete={() => removeException(e.id)} />
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -100,6 +133,57 @@ function PropertyRow({ property: p, onDelete }: { property: SavedProperty; onDel
           onClick={onDelete}
           className="text-muted-foreground hover:text-destructive"
           aria-label="Remove saved property"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ExceptionRow({
+  exception: e,
+  onDelete,
+}: {
+  exception: ExceptionProperty;
+  onDelete: () => void;
+}) {
+  const snap = (e.listing_snapshot ?? {}) as Record<string, any>;
+  const title = snap.address || e.property_url;
+  const meta = [snap.city, snap.state].filter(Boolean).join(", ");
+  const facts = [
+    snap.price ? `$${Number(snap.price).toLocaleString()}` : null,
+    snap.beds ? `${snap.beds} bd` : null,
+    snap.baths ? `${snap.baths} ba` : null,
+    snap.sqft ? `${Number(snap.sqft).toLocaleString()} sqft` : null,
+  ].filter(Boolean).join(" · ");
+
+  return (
+    <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/30 transition-colors">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-foreground truncate">{title}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          {[meta, facts].filter(Boolean).join(" · ")}
+        </div>
+        {e.reason && (
+          <div className="text-xs text-muted-foreground mt-1">{e.reason}</div>
+        )}
+        {e.note && (
+          <div className="text-xs text-foreground/80 italic mt-1">"{e.note}"</div>
+        )}
+      </div>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <Button asChild variant="ghost" size="sm">
+          <a href={e.property_url} target="_blank" rel="noopener noreferrer" aria-label="Open listing">
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDelete}
+          className="text-muted-foreground hover:text-destructive"
+          aria-label="Remove exception"
         >
           <Trash2 className="h-4 w-4" />
         </Button>

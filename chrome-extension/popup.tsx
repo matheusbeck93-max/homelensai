@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { saveProperty, saveChat, SaveResult, SavePropertyResponse, SaveChatResponse } from './saveActions';
+import {
+  detectMismatches,
+  shouldShow,
+  type MismatchFollowup,
+  type Preferences as FollowupPreferences,
+  type DismissalRow,
+} from './lib/detectMismatches';
+import {
+  getFollowupState,
+  updatePreferences,
+  dismissFollowup as dismissFollowupApi,
+  saveException,
+  type FollowupState,
+} from './lib/preferenceUpdate';
+import { PreferenceFollowupCard } from './components/PreferenceFollowupCard';
 
 // ── Supabase config (public/anon keys — safe to include) ──
 const SUPABASE_URL = 'https://yckcdxtatwolzilboahx.supabase.co';
@@ -1366,6 +1381,14 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         </div>
       )}
 
+      {/* Smart Preference Follow-ups */}
+      <FollowupsSection
+        session={session}
+        listing={activePropertyData}
+        propertyUrl={activePropertyUrl}
+        onChatPrompt={(text) => sendMessage(text)}
+      />
+
       {/* Messages */}
       <div className="hl-messages" ref={messagesScrollRef}>
         {messages.length === 0 && (
@@ -1518,6 +1541,179 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
 // ══════════════════════════════════════
 // App Root
 // ══════════════════════════════════════
+
+/**
+ * Smart Preference Follow-ups section. Fetches { preferences, dismissals,
+ * settings } once per (session, property URL) pair, runs the local detector,
+ * filters via shouldShow(), caps to top-2, and renders cards.
+ *
+ * Hidden entirely when:
+ *   - no listing data on the page
+ *   - user has the toggle off
+ *   - no mismatches survive the dismissal gate
+ */
+function FollowupsSection({
+  session,
+  listing,
+  propertyUrl,
+  onChatPrompt,
+}: {
+  session: Session;
+  listing: PropertyContext | null;
+  propertyUrl: string | null;
+  onChatPrompt: (text: string) => void;
+}) {
+  const [state, setState] = useState<FollowupState | null>(null);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const loadedForUserRef = useRef<string | null>(null);
+  const loggedForUrlRef = useRef<string | null>(null);
+
+  // Load follow-up state once per session/user (cached for 60s in chrome.storage.session).
+  useEffect(() => {
+    if (!session?.user_id) return;
+    if (loadedForUserRef.current === session.user_id && state) return;
+    loadedForUserRef.current = session.user_id;
+
+    const cacheKey = `homelens_followup_state_${session.user_id}`;
+    const TTL_MS = 60_000;
+
+    chrome.storage.session.get(cacheKey, (cached) => {
+      const hit = cached?.[cacheKey];
+      if (hit && typeof hit.ts === 'number' && Date.now() - hit.ts < TTL_MS && hit.state) {
+        setState(hit.state as FollowupState);
+        return;
+      }
+      (async () => {
+        const fresh = (await refreshAccessTokenIfNeeded(session)) ?? session;
+        const res = await getFollowupState(`Bearer ${fresh.access_token}`);
+        if (res.ok) {
+          setState(res.data);
+          chrome.storage.session.set({ [cacheKey]: { ts: Date.now(), state: res.data } });
+        }
+      })();
+    });
+  }, [session, state]);
+
+  if (!listing || !state) return null;
+  if (!state.settings.extension_smart_suggestions_enabled) return null;
+
+  const followups: MismatchFollowup[] = detectMismatches(
+    {
+      city: listing.city,
+      state: listing.state,
+      price: listing.price,
+      beds: listing.beds,
+      baths: listing.baths,
+      sqft: listing.sqft,
+      propertyType: listing.propertyType,
+      capRate: null,
+    },
+    state.preferences as FollowupPreferences,
+  );
+
+  const visible = followups
+    .filter((f) => shouldShow(f.type, state.dismissals as DismissalRow[]))
+    .filter((f) => !hidden.has(f.type))
+    .slice(0, 2);
+
+  if (visible.length === 0) return null;
+
+  if (loggedForUrlRef.current !== propertyUrl) {
+    loggedForUrlRef.current = propertyUrl;
+    console.info('[homelens] extension_followup_shown', {
+      url: propertyUrl,
+      types: visible.map((v) => v.type),
+      scores: visible.map((v) => v.severity),
+    });
+  }
+
+  const auth = async () => {
+    const fresh = (await refreshAccessTokenIfNeeded(session)) ?? session;
+    return `Bearer ${fresh.access_token}`;
+  };
+
+  const handleAccept = async (f: MismatchFollowup) => {
+    if (!f.update_payload) return { ok: false, error: 'no_payload' };
+    const authHeader = await auth();
+    const res = await updatePreferences(
+      {
+        ...f.update_payload,
+        source: 'chrome_extension',
+        source_listing_url: propertyUrl ?? undefined,
+        mismatch_type: f.type,
+      },
+      authHeader,
+    );
+    if (res.ok) {
+      // Invalidate cache so subsequent popups reflect the change.
+      if (session.user_id) {
+        chrome.storage.session.remove(`homelens_followup_state_${session.user_id}`);
+      }
+      console.info('[homelens] extension_followup_accepted', { type: f.type });
+      return { ok: true };
+    }
+    return { ok: false, error: res.error };
+  };
+
+  const handleDismiss = async (f: MismatchFollowup) => {
+    setHidden((prev) => new Set(prev).add(f.type));
+    const authHeader = await auth();
+    await dismissFollowupApi(f.type, authHeader);
+    return { ok: true };
+  };
+
+  const handleSaveException = async (f: MismatchFollowup, note: string) => {
+    if (!propertyUrl) return { ok: false, error: 'no_url' };
+    const authHeader = await auth();
+    const snapshot = {
+      address: listing.address,
+      city: listing.city,
+      state: listing.state,
+      price: listing.price,
+      beds: listing.beds,
+      baths: listing.baths,
+      sqft: listing.sqft,
+      propertyType: listing.propertyType,
+      imageUrl: listing.imageUrl,
+    };
+    const res = await saveException(
+      {
+        property_url: propertyUrl,
+        listing_snapshot: snapshot,
+        reason: f.prompt,
+        note: note || undefined,
+      },
+      authHeader,
+    );
+    if (res.ok) {
+      console.info('[homelens] extension_followup_saved_as_exception', {
+        type: f.type,
+        has_note: Boolean(note),
+      });
+      return { ok: true };
+    }
+    return { ok: false, error: res.error };
+  };
+
+  return (
+    <div style={{ padding: '8px 12px', borderBottom: '1px solid #2a3a4e' }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>
+        Smart suggestions
+      </div>
+      {visible.map((f) => (
+        <PreferenceFollowupCard
+          key={f.type}
+          followup={f}
+          onAccept={handleAccept}
+          onDismiss={handleDismiss}
+          onSaveException={handleSaveException}
+          onChatPrompt={onChatPrompt}
+        />
+      ))}
+    </div>
+  );
+}
+
 function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);

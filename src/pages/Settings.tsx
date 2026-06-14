@@ -12,6 +12,7 @@ import { Navigation } from "@/components/Navigation";
 import { SubscriptionSettings } from "@/components/subscription/SubscriptionSettings";
 import { AlertSettings } from "@/components/subscription/AlertSettings";
 import { WeeklyPicksSettings } from "@/components/subscription/WeeklyPicksSettings";
+import { ExtensionSuggestionsSettings } from "@/components/subscription/ExtensionSuggestionsSettings";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -323,6 +324,9 @@ export default function Settings() {
 
           {/* Weekly Picks */}
           <WeeklyPicksSettings />
+
+          {/* Chrome Extension preferences */}
+          <ExtensionSuggestionsSettings />
 
           {/* Danger Zone */}
           <Card className="border-destructive">
