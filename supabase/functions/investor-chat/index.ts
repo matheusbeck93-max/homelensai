@@ -1400,8 +1400,21 @@ Deno.serve(async (req) => {
           const toolCalls: any[] = assistantMsg?.tool_calls ?? [];
 
           if (content) {
-            send('text_delta', { delta: content });
-            finalText += content;
+            // On the final iteration (no more tool calls), strip the
+            // trailing ci-signals fence before showing text to the user
+            // and emit a `signals` SSE event so the client can render
+            // mismatch cards / follow-up chips.
+            if (!toolCalls.length) {
+              const { cleanText, signals } = extractCiSignals(content);
+              if (cleanText) {
+                send('text_delta', { delta: cleanText });
+                finalText += cleanText;
+              }
+              if (signals) send('signals', signals as unknown as Json);
+            } else {
+              send('text_delta', { delta: content });
+              finalText += content;
+            }
           }
 
           if (!toolCalls.length) break;
