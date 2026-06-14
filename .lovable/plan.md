@@ -107,6 +107,8 @@ GRANTs in same migration per project rules. Default-row trigger creates `email_p
 
 ## Phase 3 — Engagement streaks + nudges + cross-feature orchestrator (≈3 days)
 
+**Status: shipped.** `user_engagement_streaks` table + `profiles.streak_tracking_disabled` migrated. Shared modules live under `_shared/streaks/` (`engagement`, `tierRewards`) and `_shared/stickiness/orchestrator.ts`. Edge functions `streak-engagement-record` (auth, called from `EngagementPing` on app open) and `streak-protection-nudge` (hourly cron, filters to 18:00–20:00 user-local) deployed. Streak-tier crossings flow through the orchestrator: write `delivered_milestones` row (rendered by the existing `MilestoneBanner` + share dialog), apply tier reward (free 30d sample brief flag in milestone metadata, buyer 90d → `+$5` to `plan_credits_remaining_usd`, investor 180d badge in metadata), enqueue `streak-milestone` email. Frontend `StreakIndicator` pill mounted in `Navigation` with `StreakPopover` (inline opt-out), `WeeklyReviewCard` rendered in Console overview (Sunday 14:00–20:00 local, cached per week). `useStickiness` extended with `streak` + `recordEngagement`. Email templates `streak-milestone` and `streak-protection-nudge` registered.
+
 **DB migration** — `user_engagement_streaks` per spec. Singleton row per user; insert-on-first-engagement. RLS user-owned read; service_role full.
 
 **Shared modules** (`supabase/functions/_shared/streaks/`):

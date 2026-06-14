@@ -11,6 +11,7 @@ import { BackToTop } from "@/components/BackToTop";
 import { CookieConsent } from "@/components/CookieConsent";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MilestoneBanner } from "@/components/stickiness/MilestoneBanner";
+import { EngagementPing } from "@/components/stickiness/EngagementPing";
 
 // Eagerly loaded routes (critical path)
 import Index from "./pages/Index";
@@ -161,6 +162,7 @@ function App() {
               <ComparisonFloatingBar />
               <BackToTop />
               <MilestoneBanner />
+              <EngagementPing />
               <CookieConsent />
             </BrowserRouter>
           </TooltipProvider>
