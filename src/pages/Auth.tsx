@@ -182,7 +182,7 @@ export default function Auth() {
               <ShieldCheck className="h-5 w-5 text-primary mt-0.5 shrink-0" aria-hidden="true" />
               <div>
                 <p className="font-medium text-foreground">Free to start</p>
-                <p className="text-sm text-muted-foreground">No credit card. Premium ($4.97) unlocks saved analyses and history.</p>
+                <p className="text-sm text-muted-foreground">No credit card. Buyer ($9.97/mo) unlocks saved analyses and history.</p>
               </div>
             </li>
           </ul>
