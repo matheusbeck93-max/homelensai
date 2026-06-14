@@ -7,6 +7,13 @@ import { resolve } from 'path';
  */
 export default defineConfig({
   root: resolve(__dirname),
+  server: {
+    fs: {
+      // Allow popup bundle to reach the shared mismatch detector at
+      // ../src/lib/conversationalIntelligence/detectMismatches.ts.
+      allow: [resolve(__dirname, '..')],
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: false,
