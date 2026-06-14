@@ -323,6 +323,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ci_web_events: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: string
+          props: Json
+          surface: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: string
+          props?: Json
+          surface: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: string
+          props?: Json
+          surface?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       compare_sets: {
         Row: {
           created_at: string
