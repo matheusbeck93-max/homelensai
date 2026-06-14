@@ -557,7 +557,9 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const rawContent = data.choices?.[0]?.message?.content || '';
+    // Strip the ci-signals fence (if any) before the text reaches the UI.
+    const { cleanText: content, signals: ciSignals } = extractCiSignals(rawContent);
     const citations = data.citations || [];
     await deductAiCredits(creditCheck, data.usage);
     logPerplexityUsageAsync({
