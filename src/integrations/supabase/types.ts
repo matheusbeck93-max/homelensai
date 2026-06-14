@@ -379,6 +379,7 @@ export type Database = {
           client_thread_id: string | null
           created_at: string
           id: string
+          last_summarized_at: string | null
           property_url: string | null
           source: string
           title: string
@@ -389,6 +390,7 @@ export type Database = {
           client_thread_id?: string | null
           created_at?: string
           id?: string
+          last_summarized_at?: string | null
           property_url?: string | null
           source?: string
           title?: string
@@ -399,6 +401,7 @@ export type Database = {
           client_thread_id?: string | null
           created_at?: string
           id?: string
+          last_summarized_at?: string | null
           property_url?: string | null
           source?: string
           title?: string
@@ -2522,6 +2525,57 @@ export type Database = {
           property_url?: string
           reason?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_memories: {
+        Row: {
+          category: string
+          content: string
+          contradicted_count: number
+          created_at: string
+          id: string
+          importance: number
+          last_used_at: string
+          metadata: Json
+          reinforced_count: number
+          source: string
+          source_conversation_id: string | null
+          updated_at: string
+          user_deleted: boolean
+          user_id: string
+        }
+        Insert: {
+          category: string
+          content: string
+          contradicted_count?: number
+          created_at?: string
+          id?: string
+          importance?: number
+          last_used_at?: string
+          metadata?: Json
+          reinforced_count?: number
+          source?: string
+          source_conversation_id?: string | null
+          updated_at?: string
+          user_deleted?: boolean
+          user_id: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          contradicted_count?: number
+          created_at?: string
+          id?: string
+          importance?: number
+          last_used_at?: string
+          metadata?: Json
+          reinforced_count?: number
+          source?: string
+          source_conversation_id?: string | null
+          updated_at?: string
+          user_deleted?: boolean
           user_id?: string
         }
         Relationships: []
