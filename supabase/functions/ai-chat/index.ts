@@ -868,6 +868,9 @@ CRITICAL:
       }
       const choice = aiData.choices?.[0]?.message ?? {};
       let analysis: string = choice.content ?? '';
+      // Strip trailing ci-signals fence before any downstream prose handling.
+      const ciFc = extractCiSignals(analysis);
+      analysis = ciFc.cleanText;
 
       // Extract structured match score from tool call if present.
       let structuredMatchScore: { score: number; rationale: string } | null = null;
@@ -931,6 +934,7 @@ CRITICAL:
           properties: properties, // Include properties for calculator option
           hasProperties: true,
           ...(structuredMatchScore ? { matchScore: structuredMatchScore } : {}),
+          ...(ciFc.signals ? { signals: ciFc.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
