@@ -102,13 +102,6 @@ export async function recordEngagement(
   let weeklySkipUsed = existing?.weekly_skip_used ?? false;
   let currentWeekStart = existing?.current_week_start ?? thisWeek;
   const lastDate = parseDate(existing?.last_engagement_date);
-  console.log('[streaks] debug', {
-    today,
-    last: existing?.last_engagement_date,
-    lastParsed: lastDate?.toISOString() ?? null,
-    diff: lastDate ? Math.round((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate())) / 86_400_000) : null,
-    daily_current_in: existing?.daily_current,
-  });
   const totalActions = (existing?.total_actions ?? 0) + 1;
 
   // Reset weekly skip when a new week begins.
