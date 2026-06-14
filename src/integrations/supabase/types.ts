@@ -474,6 +474,7 @@ export type Database = {
           enabled: boolean
           memory_tracking_enabled: boolean
           milestone_celebrations_enabled: boolean
+          open_house_digest: boolean
           quiet_hours_end: string | null
           quiet_hours_start: string | null
           streak_reminders_enabled: boolean
@@ -488,6 +489,7 @@ export type Database = {
           enabled?: boolean
           memory_tracking_enabled?: boolean
           milestone_celebrations_enabled?: boolean
+          open_house_digest?: boolean
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
           streak_reminders_enabled?: boolean
@@ -502,6 +504,7 @@ export type Database = {
           enabled?: boolean
           memory_tracking_enabled?: boolean
           milestone_celebrations_enabled?: boolean
+          open_house_digest?: boolean
           quiet_hours_end?: string | null
           quiet_hours_start?: string | null
           streak_reminders_enabled?: boolean
@@ -1559,6 +1562,75 @@ export type Database = {
           },
         ]
       }
+      open_house_alerts: {
+        Row: {
+          city: string | null
+          country: string
+          created_at: string
+          enabled: boolean
+          filters: Json
+          frequency: string
+          id: string
+          last_sent_at: string | null
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          country?: string
+          created_at?: string
+          enabled?: boolean
+          filters?: Json
+          frequency?: string
+          id?: string
+          last_sent_at?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          country?: string
+          created_at?: string
+          enabled?: boolean
+          filters?: Json
+          frequency?: string
+          id?: string
+          last_sent_at?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      open_house_cache: {
+        Row: {
+          city: string | null
+          country: string
+          fetched_at: string
+          filter_hash: string
+          results: Json
+          state: string | null
+        }
+        Insert: {
+          city?: string | null
+          country: string
+          fetched_at?: string
+          filter_hash: string
+          results?: Json
+          state?: string | null
+        }
+        Update: {
+          city?: string | null
+          country?: string
+          fetched_at?: string
+          filter_hash?: string
+          results?: Json
+          state?: string | null
+        }
+        Relationships: []
+      }
       portfolio_properties: {
         Row: {
           added_at: string
@@ -1656,6 +1728,8 @@ export type Database = {
           current_period_start: string | null
           daily_analysis_count: number | null
           daily_analysis_last_reset: string | null
+          daily_open_house_searches: number
+          daily_open_house_searches_reset_at: string | null
           desired_monthly_payment: number | null
           email: string | null
           extension_smart_suggestions_enabled: boolean
@@ -1727,6 +1801,8 @@ export type Database = {
           current_period_start?: string | null
           daily_analysis_count?: number | null
           daily_analysis_last_reset?: string | null
+          daily_open_house_searches?: number
+          daily_open_house_searches_reset_at?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
           extension_smart_suggestions_enabled?: boolean
@@ -1798,6 +1874,8 @@ export type Database = {
           current_period_start?: string | null
           daily_analysis_count?: number | null
           daily_analysis_last_reset?: string | null
+          daily_open_house_searches?: number
+          daily_open_house_searches_reset_at?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
           extension_smart_suggestions_enabled?: boolean
