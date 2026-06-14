@@ -96,6 +96,7 @@ const DoNotSell = lazyWithRetry(() => import("./pages/DoNotSell"));
 const AdminTelemetry = lazyWithRetry(() => import("./pages/AdminTelemetry"));
 const AccountUsage = lazyWithRetry(() => import("./pages/account/Usage"));
 const EmailUnsubscribe = lazyWithRetry(() => import("./pages/account/EmailUnsubscribe"));
+const AccountMemory = lazyWithRetry(() => import("./pages/account/Memory"));
 
 const queryClient = new QueryClient();
 
@@ -152,6 +153,7 @@ function App() {
                   <Route path="/admin/telemetry" element={<AdminTelemetry />} />
                   <Route path="/account/usage" element={<ProtectedRoute><AccountUsage /></ProtectedRoute>} />
                   <Route path="/account/email-unsubscribe" element={<EmailUnsubscribe />} />
+                  <Route path="/account/memory" element={<ProtectedRoute><AccountMemory /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 </main>

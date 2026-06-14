@@ -76,6 +76,8 @@ GRANTs in same migration per project rules. Default-row trigger creates `email_p
 
 ## Phase 2 — Persistent AI memory (≈5 days)
 
+**Status: shipped.** `user_memories` table + `conversations.last_summarized_at` migrated. Shared modules (`extractor`, `retriever`, `prune`, `updater`) live under `_shared/memory/`. Edge functions `memory-summarize-session` (user + cron callable) and `memory-session-sweeper` (every 10 min, cron-auth gated) deployed. Memory injection wired into `ai-chat`'s main path; other chat surfaces can adopt `loadMemoriesForContext` + `renderMemoriesBlock` the same way. Frontend route `/account/memory` live with edit/delete + "forget everything"; Console subscription tab links to it.
+
 **DB migration** — `user_memories` per spec. Add CHECK on category, `(user_id, importance desc, last_used_at desc) WHERE NOT user_deleted` index. RLS: user reads/updates/deletes own; service_role full. Tier caps enforced in code, not DB.
 
 **Shared modules** (`supabase/functions/_shared/memory/`):
