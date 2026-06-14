@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Preferences, MismatchFollowup, DismissalRow, ListingSnapshot } from "./detectMismatches";
+import type { GeneratedArtifact } from "./types";
 
 interface State {
   preferences: Preferences | null;
@@ -106,5 +107,41 @@ export function useConversationalIntelligenceState(userId: string | null | undef
     [],
   );
 
-  return { ...state, refresh, onAccept, onDismiss, onSaveException };
+  const generateArtifact = useCallback(
+    async (
+      kind: GeneratedArtifact["kind"],
+      input: Record<string, unknown>,
+    ): Promise<
+      | { ok: true; artifact: GeneratedArtifact; cap: { used: number; limit: number; tier: string } }
+      | { ok: false; error: string; cap_reached?: boolean }
+    > => {
+      const { data, error } = await supabase.functions.invoke("generate-artifact", {
+        body: { kind, ...input },
+      });
+      if (error) return { ok: false, error: error.message ?? "Network error" };
+      if (data?.error === "daily_cap_reached") {
+        return { ok: false, error: "Daily artifact cap reached for your plan.", cap_reached: true };
+      }
+      if (data?.error || !data?.artifact) {
+        return { ok: false, error: String(data?.error ?? "Unknown error") };
+      }
+      const a = data.artifact;
+      return {
+        ok: true,
+        artifact: {
+          id: a.id,
+          kind: a.kind,
+          filename: a.filename,
+          downloadUrl: a.download_url,
+          downloadUrlExpiresAt: a.download_url_expires_at,
+          sizeBytes: a.size_bytes,
+          createdAt: new Date().toISOString(),
+        },
+        cap: data.cap,
+      };
+    },
+    [],
+  );
+
+  return { ...state, refresh, onAccept, onDismiss, onSaveException, generateArtifact };
 }

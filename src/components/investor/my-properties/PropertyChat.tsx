@@ -192,6 +192,7 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
               onAcceptFollowup={ci.onAccept}
               onDismissFollowup={ci.onDismiss}
               onSaveException={ci.onSaveException}
+              onGenerateArtifact={ci.generateArtifact}
             />
           )}
           <div className="flex items-end gap-2">
