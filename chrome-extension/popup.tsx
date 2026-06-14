@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { saveProperty, saveChat, SaveResult, SavePropertyResponse, SaveChatResponse } from './saveActions';
+import {
+  detectMismatches,
+  shouldShow,
+  type MismatchFollowup,
+  type Preferences as FollowupPreferences,
+  type DismissalRow,
+} from './lib/detectMismatches';
+import {
+  getFollowupState,
+  updatePreferences,
+  dismissFollowup as dismissFollowupApi,
+  saveException,
+  type FollowupState,
+} from './lib/preferenceUpdate';
+import { PreferenceFollowupCard } from './components/PreferenceFollowupCard';
 
 // ── Supabase config (public/anon keys — safe to include) ──
 const SUPABASE_URL = 'https://yckcdxtatwolzilboahx.supabase.co';
@@ -1365,6 +1380,14 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
           <MatchScoreBadge score={matchScore} />
         </div>
       )}
+
+      {/* Smart Preference Follow-ups */}
+      <FollowupsSection
+        session={session}
+        listing={activePropertyData}
+        propertyUrl={activePropertyUrl}
+        onChatPrompt={(text) => sendMessage(text)}
+      />
 
       {/* Messages */}
       <div className="hl-messages" ref={messagesScrollRef}>
