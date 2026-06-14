@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Preferences, MismatchFollowup, DismissalRow } from "./detectMismatches";
+import type { Preferences, MismatchFollowup, DismissalRow, ListingSnapshot } from "./detectMismatches";
 
 interface State {
   preferences: Preferences | null;
@@ -73,7 +73,11 @@ export function useConversationalIntelligenceState(userId: string | null | undef
 
   const onAccept = useCallback(async (f: MismatchFollowup) => {
     if (!f.update_payload) return { ok: true as const };
-    const r = await invoke("update", { patch: f.update_payload });
+    const r = await invoke("update", {
+      ...f.update_payload,
+      source: "web_chat",
+      mismatch_type: f.type,
+    });
     if (r.ok) void refresh();
     return r;
   }, [refresh]);
@@ -85,11 +89,17 @@ export function useConversationalIntelligenceState(userId: string | null | undef
   }, [refresh]);
 
   const onSaveException = useCallback(
-    async (f: MismatchFollowup, note: string, listingSnapshot?: Record<string, unknown>) => {
+    async (
+      f: MismatchFollowup,
+      note: string,
+      listingSnapshot?: ListingSnapshot,
+      propertyUrl?: string,
+    ) => {
       const r = await invoke("save_exception", {
-        mismatch_type: f.type,
+        property_url: propertyUrl ?? "",
+        listing_snapshot: (listingSnapshot ?? {}) as Record<string, unknown>,
         note,
-        listing_snapshot: listingSnapshot ?? null,
+        reason: f.type,
       });
       return r;
     },
