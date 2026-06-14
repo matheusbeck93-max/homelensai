@@ -16,6 +16,7 @@ import {
 import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -623,7 +624,6 @@ TOOLS.push(
 // investor-tier users. Reuses the shared tool that's also exposed in
 // ai-chat and the chat-surface intercepts so a single tier/cache path
 // is enforced.
-import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
 TOOLS.push({
   name: 'find_open_houses',
   description:
