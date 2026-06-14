@@ -646,8 +646,6 @@ TOOLS.push({
 
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
-const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
-
 // ──────────────────────────────────────────────────────────────────────────────
 // DB-backed tool helpers
 // ──────────────────────────────────────────────────────────────────────────────
