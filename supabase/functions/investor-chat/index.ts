@@ -1373,6 +1373,7 @@ Deno.serve(async (req) => {
     serviceSupabase,
     sessionFilters: incomingSessionFilters,
     preferences: prefs,
+    authHeader,
   };
 
   const stream = new ReadableStream({
