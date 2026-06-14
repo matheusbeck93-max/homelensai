@@ -78,7 +78,7 @@ export function BriefCard({
     .map((t) => ({
       role: t.role as 'user' | 'assistant',
       content: t.content,
-      signals: t.signals as CiChatTurn['signals'],
+      signals: t.signals as unknown as CiChatTurn['signals'],
     }));
 
   useEffect(() => {
