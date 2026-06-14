@@ -19,6 +19,7 @@
 import { z } from 'https://esm.sh/zod@3.23.8';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import ExcelJS from 'https://esm.sh/exceljs@4.4.0?target=deno';
+import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { createLogger } from '../_shared/logging.ts';
@@ -40,7 +41,25 @@ const MortgageInput = z.object({
   source_thread_id: z.string().uuid().optional(),
 });
 
-const BodySchema = z.discriminatedUnion('kind', [MortgageInput]);
+const PurchasePlanInput = z.object({
+  kind: z.literal('purchase_plan_pdf'),
+  home_price: z.number().positive(),
+  down_payment_pct: z.number().min(0).max(1).optional(), // 0.0 - 1.0 (e.g. 0.20 = 20%)
+  interest_rate: z.number().min(0).max(30).optional(),   // annual %
+  term_years: z.number().int().min(5).max(50).optional(),
+  address: z.string().max(200).optional(),
+  city: z.string().max(120).optional(),
+  state: z.string().max(40).optional(),
+  // PITI helpers (optional — fall back to rule-of-thumb estimates).
+  property_tax_annual: z.number().min(0).optional(),
+  insurance_annual: z.number().min(0).optional(),
+  hoa_monthly: z.number().min(0).optional(),
+  monthly_income: z.number().min(0).optional(),
+  surface: z.string().max(40).optional(),
+  source_thread_id: z.string().uuid().optional(),
+});
+
+const BodySchema = z.discriminatedUnion('kind', [MortgageInput, PurchasePlanInput]);
 
 // ── Tier caps (per kind per day) ─────────────────────────────────────
 // Generous so the chip flow does not feel punitive; tightens if abused.
