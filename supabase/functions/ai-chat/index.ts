@@ -12,6 +12,10 @@ import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts
 import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
 import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResearch.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+
+const CI_BLOCK_EXTENSION = '\n\n' + ciSignalsPromptBlock();
+const CI_BLOCK_FIRECRAWL = '\n\n' + ciSignalsPromptBlock();
 
 const log = createLogger('ai-chat');
 
