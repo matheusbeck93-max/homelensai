@@ -815,6 +815,17 @@ Deno.serve(async (req) => {
       const addr = body.address ?? [body.city, body.state].filter(Boolean).join('-');
       baseName = `purchase-plan-${(addr || 'home').slice(0, 40)}-${new Date()
         .toISOString().slice(0, 10).replace(/-/g, '')}`;
+    } else if (body.kind === 'property_report_pdf') {
+      bytes = await renderPropertyReportPdf(body);
+      mime = 'application/pdf';
+      ext = 'pdf';
+      baseName = `property-report-${body.address.slice(0, 40)}-${new Date()
+        .toISOString().slice(0, 10).replace(/-/g, '')}`;
+    } else if (body.kind === 'chart_image') {
+      bytes = renderChartSvg(body);
+      mime = 'image/svg+xml';
+      ext = 'svg';
+      baseName = `chart-${body.chart_type}-${body.title.slice(0, 40)}`;
     } else {
       return errorResponse('unsupported_kind', 400, req);
     }
