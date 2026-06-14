@@ -1688,6 +1688,7 @@ export type Database = {
           property_types: string[] | null
           risk_level: string | null
           safety_priority: string | null
+          streak_tracking_disabled: boolean
           stripe_customer_id: string | null
           stripe_price_id: string | null
           stripe_subscription_id: string | null
@@ -1758,6 +1759,7 @@ export type Database = {
           property_types?: string[] | null
           risk_level?: string | null
           safety_priority?: string | null
+          streak_tracking_disabled?: boolean
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
@@ -1828,6 +1830,7 @@ export type Database = {
           property_types?: string[] | null
           risk_level?: string | null
           safety_priority?: string | null
+          streak_tracking_disabled?: boolean
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
@@ -2493,6 +2496,48 @@ export type Database = {
           stripe_session_id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_engagement_streaks: {
+        Row: {
+          created_at: string
+          current_week_start: string | null
+          daily_current: number
+          daily_longest: number
+          highest_milestone_reached: number
+          last_action: string | null
+          last_engagement_date: string | null
+          total_actions: number
+          updated_at: string
+          user_id: string
+          weekly_skip_used: boolean
+        }
+        Insert: {
+          created_at?: string
+          current_week_start?: string | null
+          daily_current?: number
+          daily_longest?: number
+          highest_milestone_reached?: number
+          last_action?: string | null
+          last_engagement_date?: string | null
+          total_actions?: number
+          updated_at?: string
+          user_id: string
+          weekly_skip_used?: boolean
+        }
+        Update: {
+          created_at?: string
+          current_week_start?: string | null
+          daily_current?: number
+          daily_longest?: number
+          highest_milestone_reached?: number
+          last_action?: string | null
+          last_engagement_date?: string | null
+          total_actions?: number
+          updated_at?: string
+          user_id?: string
+          weekly_skip_used?: boolean
         }
         Relationships: []
       }
