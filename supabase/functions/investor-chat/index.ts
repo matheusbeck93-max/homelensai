@@ -1521,7 +1521,7 @@ function buildSystemPrompt(
   const sessionBlock = sessionFilters && Object.keys(sessionFilters).length
     ? `\n\nACTIVE SESSION FILTERS (transient, this conversation only):\n${JSON.stringify(sessionFilters)}`
     : '\n\nACTIVE SESSION FILTERS: none';
-  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock;
+  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock + '\n\n' + CI_SIGNALS_BLOCK;
   const title = activeCardContext?.card?.title ?? 'unknown';
   const summary = activeCardContext?.summary ?? '';
   return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}${sessionBlock}
@@ -1534,5 +1534,7 @@ The right-hand panel already shows that card's source visual at full detail — 
 - Stack a related visual (e.g., for a cap rate trend, add the user's target line or recent comps).
 - Project the trend forward.
 
-The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.`;
+The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.
+
+${CI_SIGNALS_BLOCK}`;
 }
