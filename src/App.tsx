@@ -84,6 +84,7 @@ const Console = lazyWithRetry(() => import("./pages/Console"));
 const ProfileSetup = lazyWithRetry(() => import("./pages/ProfileSetup"));
 const Compare = lazyWithRetry(() => import("./pages/Compare"));
 const Chats = lazyWithRetry(() => import("./pages/Chats"));
+const OpenHouses = lazyWithRetry(() => import("./pages/OpenHouses"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
@@ -137,6 +138,7 @@ function App() {
                   <Route path="/investor/properties/:id" element={<ProtectedRoute><OwnedPropertyDetail /></ProtectedRoute>} />
                   <Route path="/portfolio" element={<Navigate to="/" replace />} />
                   <Route path="/compare" element={<Compare />} />
+                  <Route path="/open-houses" element={<OpenHouses />} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />

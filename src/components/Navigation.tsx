@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Sparkles, LayoutDashboard, MessageSquare, UserPlus } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Sparkles, LayoutDashboard, MessageSquare, UserPlus, DoorOpen } from "lucide-react";
 import { tierDisplayName } from "@/lib/subscriptionPlans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { HeaderUsageIndicator } from "@/components/layout/HeaderUsageIndicator";
@@ -59,6 +59,7 @@ export function Navigation() {
   const navItems = [
     { label: 'My HomeLens', path: '/console', icon: LayoutDashboard },
     { label: 'Chats', path: '/chats', icon: MessageSquare },
+    { label: 'Open Houses', path: '/open-houses', icon: DoorOpen },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
