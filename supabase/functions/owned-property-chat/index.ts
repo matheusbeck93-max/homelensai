@@ -6,6 +6,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
 import { amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
+import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 
 const log = createLogger('owned-property-chat');
 
@@ -128,7 +129,10 @@ Deno.serve(async (req) => {
       .slice(-20);
 
     const aiMessages: AiMessage[] = [
-      { role: 'system', content: `${SYSTEM_PROMPT}\n\n--- PROPERTY CONTEXT ---\n${context}` },
+      { role: 'system', content: `${SYSTEM_PROMPT}\n\n--- PROPERTY CONTEXT ---\n${context}\n\n${ciSignalsPromptBlock({
+        allowedMismatchTypes: ['target_cap_rate', 'budget_over', 'budget_under'],
+        allowedTools: ['generate_mortgage_excel', 'generate_property_report_pdf', 'generate_chart_image'],
+      })}` },
       ...trimmedHistory,
     ];
 
@@ -143,7 +147,8 @@ Deno.serve(async (req) => {
     });
     if ('error' in out) return out.error;
 
-    return jsonResponse({ message: out.result.message }, 200, req);
+    const { cleanText, signals } = extractCiSignals(out.result.message);
+    return jsonResponse({ message: cleanText, signals: signals ?? undefined }, 200, req);
   } catch (e) {
     log.error('chat failed', { error: getErrorMessage(e) });
     return errorResponse(getErrorMessage(e), 500, req);
