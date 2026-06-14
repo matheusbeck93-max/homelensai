@@ -46,9 +46,7 @@ Deno.serve(async (req) => {
 
   const { data: candidates, error } = await sb
     .from('user_engagement_streaks')
-    .select(
-      'user_id, daily_current, weekly_skip_used, last_engagement_date, profiles!inner(timezone, streak_tracking_disabled)',
-    )
+    .select('user_id, daily_current, weekly_skip_used, last_engagement_date')
     .gte('daily_current', 3)
     .limit(5000);
 
@@ -64,10 +62,25 @@ Deno.serve(async (req) => {
   let sent = 0;
   let considered = 0;
 
+  const userIds = (candidates ?? []).map((r: any) => r.user_id);
+  const profilesById = new Map<string, { tz: string; disabled: boolean }>();
+  if (userIds.length > 0) {
+    const { data: profs } = await sb
+      .from('profiles')
+      .select('id, timezone, streak_tracking_disabled')
+      .in('id', userIds);
+    for (const p of profs ?? []) {
+      profilesById.set(p.id as string, {
+        tz: (p as any).timezone || 'America/New_York',
+        disabled: !!(p as any).streak_tracking_disabled,
+      });
+    }
+  }
+
   for (const row of (candidates ?? []) as any[]) {
-    const profile = row.profiles ?? {};
-    if (profile.streak_tracking_disabled) continue;
-    const tz = profile.timezone || 'America/New_York';
+    const prof = profilesById.get(row.user_id);
+    if (!prof || prof.disabled) continue;
+    const tz = prof.tz;
     const { hour, ymd } = localParts(tz, now);
     if (hour < 18 || hour > 20) continue;
     if (row.last_engagement_date === ymd) continue;
