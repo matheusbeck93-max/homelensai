@@ -159,9 +159,12 @@ export function ConversationalIntelligence({
         ...(active.snapshot?.price ? { home_price: active.snapshot.price } : {}),
       };
       const r = await onGenerateArtifact(kind, inputWithCtx);
-      const next: CardState = r.ok
-        ? { id: cardId, status: "ready", artifact: r.artifact }
-        : { id: cardId, status: "error", label, error: r.error };
+      let next: CardState;
+      if (r.ok) {
+        next = { id: cardId, status: "ready", artifact: r.artifact };
+      } else {
+        next = { id: cardId, status: "error", label, error: r.error };
+      }
       setCards((cs) => cs.map((c) => (c.id === cardId ? next : c)));
     }
   };
