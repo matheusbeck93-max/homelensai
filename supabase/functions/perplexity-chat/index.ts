@@ -20,6 +20,7 @@ import {
   isValidPortalSearchUrl,
 } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
+import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 
 const log = createLogger('perplexity-chat');
 
@@ -506,7 +507,7 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
 
     // Build final messages array
     const messages: { role: string; content: string }[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: `${systemPrompt}\n\n${ciSignalsPromptBlock()}` },
       ...sanitizedHistory.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content
@@ -556,7 +557,9 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const rawContent = data.choices?.[0]?.message?.content || '';
+    // Strip the ci-signals fence (if any) before the text reaches the UI.
+    const { cleanText: content, signals: ciSignals } = extractCiSignals(rawContent);
     const citations = data.citations || [];
     await deductAiCredits(creditCheck, data.usage);
     logPerplexityUsageAsync({
@@ -629,7 +632,8 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
         message: content,
         citations,
         links: validatedLinks.slice(0, 3), // Max 3 links (1 per site)
-        mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
+        mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general',
+        signals: ciSignals ?? undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

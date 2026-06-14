@@ -1,103 +1,77 @@
-## Smart Preference Follow-ups in the Chrome Extension (v2)
+# Phase 3 continuation: AI signal producers + Purchase Plan PDF
 
-Turn the extension's match-score view into an active preference-shaping surface. When a listing mismatches saved prefs, show up to **2** one-tap CTAs: `Update preferences` / `Save as exception` / dismiss.
+Two workstreams that unblock the Conversational Intelligence layer already wired into the web. UI is built and waiting — this turn lights it up end-to-end.
 
-### Schema reality check (done)
+## Workstream A — AI-side structured signals
 
-Inspected live `public.profiles`. The relevant structured fields already exist — direct one-tap updates write to discrete columns; `about_me` is *not* the source of truth for any of them. Mapping:
+Currently the web `<ConversationalIntelligence>` only falls back to client-side `detectMismatches`. The AI never returns the structured fields the layer was designed around. Add them to three chat backends.
 
-| Follow-up concept | `profiles` column          | Type          | Status |
-| ----------------- | -------------------------- | ------------- | ------ |
-| Locations         | `preferred_cities`         | `text[]`      | exists |
-| Budget max        | `budget_max`               | `numeric`     | exists |
-| Budget min        | `budget_min`               | `numeric`     | exists |
-| Property types    | `property_types`           | `text[]`      | exists |
-| Min beds          | `min_bedrooms`             | `integer`     | exists |
-| Min baths         | `min_bathrooms`            | `integer`     | exists |
-| Min sqft          | `min_sqft`                 | `integer`     | exists |
-| Cap rate target   | `target_cap_rate`          | `numeric`     | **new — added in this migration** |
-| Extension toggle  | `extension_smart_suggestions_enabled` | `boolean` default `true` | **new — added in this migration** |
+**Contract (shared, documented in `_shared/conversationalSignals.ts`):**
+Assistant responses may include a trailing JSON block fenced as ` ```ci-signals ` containing:
+```
+{
+  "mismatch_signals": [
+    { "type": "location" | "budget_over" | "budget_under" | "property_type" | "min_beds" | "min_baths" | "min_sqft" | "target_cap_rate",
+      "severity": "blocker" | "major" | "minor",
+      "detected_value": <any>,
+      "preferred_value": <any> }
+  ],
+  "suggested_followups": [
+    { "label": string,                              // <= 28 chars
+      "action": { "type": "send_message", "text": string }
+        | { "type": "call_tool", "name": "generate_mortgage_excel" | "generate_purchase_plan_pdf" | "generate_property_report_pdf" | "generate_chart_image", "input"?: object } }
+  ]
+}
+```
 
-Conclusion: structured columns are the source of truth; the direct-update endpoint writes to them with no `about_me` reconciliation needed. (`location_preferences` jsonb also exists but `preferred_cities` is the array surface used by preferences UI; we write to `preferred_cities`.)
+**Backends to update:**
+1. `supabase/functions/ai-chat/index.ts` — append a "Structured signals" section to the system prompt; parser strips the fenced block from streamed text before delivery and attaches it to the final assistant turn via existing message metadata channel.
+2. `supabase/functions/owned-property-chat/index.ts` — same prompt addendum, scoped to owned-property mismatches (only `target_cap_rate` + `budget_*` make sense).
+3. `supabase/functions/investor-chat/index.ts` — same, plus enable `generate_mortgage_excel` and `generate_purchase_plan_pdf` chips.
 
-### 1. Migration (one file)
+**Frontend plumbing (already exists, just wire):**
+- `ChatTurn.signals.mismatch_signals` and `ChatTurn.signals.suggested_followups` are already typed in `src/lib/conversationalIntelligence/types.ts`.
+- Each surface (`/chats`, `PropertyChat`, `FollowUpChat`) already reads `lastAssistant.signals`. Update each surface's message→ChatTurn mapper to copy the parsed `ci-signals` block from message metadata into `signals`.
+- Add `suggestFollowups` fallback path: when AI-supplied `suggested_followups` exist, prefer them over the heuristic.
 
-- `ALTER TABLE public.profiles ADD COLUMN target_cap_rate numeric, ADD COLUMN extension_smart_suggestions_enabled boolean NOT NULL DEFAULT true;`
-- New table `user_exception_properties` — columns: `id`, `user_id`, `property_url`, `listing_snapshot jsonb`, `reason text`, `note text`, `created_at`, `updated_at`. Unique `(user_id, property_url)`. RLS owner-only via `auth.uid()`. Grants: `SELECT/INSERT/UPDATE/DELETE` to `authenticated`, `ALL` to `service_role`. Realtime publication.
-- New table `preference_followup_dismissals` — columns: `user_id`, `mismatch_type text`, `dismissed_at timestamptz default now()`. PK `(user_id, mismatch_type, dismissed_at)` + index on `(user_id, mismatch_type, dismissed_at desc)`. Same RLS + grants.
-- `updated_at` trigger on `user_exception_properties` using existing `public.update_updated_at_column()`.
+**Telemetry:** new client events `web_followup_shown`, `web_followup_chip_clicked`, `web_followup_mismatch_accepted`, `web_followup_mismatch_dismissed` via `src/lib/telemetry/usageEvents.ts`. Fired from `FollowupChipRow` and `PreferenceFollowupCardWeb`.
 
-### 2. Backend — single edge function
+## Workstream B — Purchase Plan PDF renderer
 
-`supabase/functions/extension-followups/index.ts` (no `verify_jwt` override; validates JWT in code via `_shared/profileLoader.ts` + `_shared/responses.ts`). One handler, action-routed.
+Add `purchase_plan_pdf` to `supabase/functions/generate-artifact/index.ts` using `pdf-lib` (Deno-compatible, already approved stack).
 
-**Actions:**
+**Inputs:** `{ home_price, down_payment_pct?, interest_rate?, address?, city?, state?, surface }` — all optional except `home_price`; missing fields fall back to sensible defaults documented inline.
 
-- `get_state` → returns `{ preferences, dismissals, settings }` in one shot.
-  - `preferences`: the subset the extension needs — `preferred_cities`, `budget_min`, `budget_max`, `property_types`, `min_bedrooms`, `min_bathrooms`, `min_sqft`, `target_cap_rate`, plus `persona`/`primary_goal` for future gating.
-  - `dismissals`: rows from `preference_followup_dismissals` for this user in the last 7 days.
-  - `settings`: `{ extension_smart_suggestions_enabled }`.
-- `update` → Zod-validated patch (`preferred_cities.add/remove`, `budget_max`, `budget_min`, `property_types.add/remove`, `min_bedrooms`, `min_bathrooms`, `min_sqft`, `target_cap_rate`, required `source`, optional `source_listing_url`, `mismatch_type`). Applies via service-role client, returns `{ success, updated_preferences }`. Inserts a `tool_call_telemetry` row tagged `extension_followup_accepted` with `{ mismatch_type, fields, source_listing_url }`.
-- `dismiss` → `{ mismatch_type }`. Inserts one row into `preference_followup_dismissals` + telemetry `extension_followup_dismissed`.
-- `save_exception` → `{ property_url, listing_snapshot, reason, note? }`. Upsert on `(user_id, property_url)`. Telemetry `extension_followup_saved_as_exception`.
+**Output:** 2-page PDF
+- Page 1 — Purchase summary: address, list price, recommended offer band, estimated cash-to-close, monthly PITI, debt-to-income guidance.
+- Page 2 — 12-month action checklist (pre-approval, inspection windows, closing milestones) with checkbox glyphs.
 
-Patch helper: array-merge (dedupe, lowercase-compare) for `preferred_cities` / `property_types`; scalar overwrite for the rest.
+Styling matches brand: steel blue `#6B8DB5` headers, dark `#2C3E55` body, Helvetica (pdf-lib built-in — no font fetching).
 
-### 3. Extension code (`chrome-extension/`)
+**Caps (per existing `artifact_generation_log` table):**
+- Free: 1/day, Buyer: 10/day, Investor: 50/day.
+  Lower than mortgage excel because PDF generation is heavier; revisit after cost telemetry lands.
 
-- `lib/detectMismatches.ts` — pure function exactly per spec. Inputs: scraped listing + the preferences object returned by `get_state`. Output: ordered `MismatchFollowup[]` (blocker → major → minor). Covers: location, budget over, budget under (informational, `update_payload: null`), property type, min beds, min baths, min sqft, target cap rate. Helpers: `normalizeMarket`, `suggestBudgetBump` (round up to nearest $25k), `prettyType`, `severityOrder`, `shouldShow` (3-in-7d gate).
-- `lib/preferenceUpdate.ts` — fetch wrappers for the four `extension-followups` actions. Reads auth header from existing session token logic (same as `saveActions.ts`).
-- `components/PreferenceFollowupCard.tsx` — single card: icon + question + 3 buttons. Variants:
-  - **Actionable** (`update_payload` set): `[Update preferences] [Save as exception] [✗]`. On Save-as-exception click, expand inline with a small text input *"Why is this one interesting? (optional)"* + `[Save]` / `[Cancel]`. Submitting writes the note into `user_exception_properties.note`.
-  - **Informational** (`update_payload: null`, e.g. under-budget): `[Tell me more] [Not really]`. "Tell me more" sends a prefilled question into the existing chat composer.
-  - Inline loading + success states; on success, card collapses to a one-line confirmation toast (*"Added Fort Washington, MD to your preferences"*).
-- `popup.tsx` — after rendering the match-score block:
-  1. On popup open, call `get_state` once (cache in `chrome.storage.session` keyed by user id, 60s TTL).
-  2. If `extension_smart_suggestions_enabled === false` or user signed out → render a single subtle pill (*"Sign in to update preferences"* when signed out; nothing when toggle off).
-  3. Else run `detectMismatches(listing, preferences)`, filter via `shouldShow(_, dismissals)`, take **top 2**, render under a "Smart suggestions" header.
-  4. Fire `extension_followup_shown` telemetry once per render batch (debounced per listing URL).
+**Wiring:**
+- `ArtifactCard.tsx` already handles arbitrary `GeneratedArtifact.kind`. No change needed.
+- `ConversationalIntelligence.tsx` `kindMap` already includes `generate_purchase_plan_pdf → purchase_plan_pdf`. No change needed.
+- Add filename: `purchase-plan-{address-slug}-{YYYYMMDD}.pdf`.
 
-### 4. Main app changes
+**QA:** generate one PDF locally via `curl_edge_functions`, convert with `pdftoppm`, visually verify both pages — fix overflow/clipping before claiming done.
 
-- **Settings** (`src/pages/Settings.tsx`): new toggle row "Show smart suggestions in Chrome extension" (default on), writes to `profiles.extension_smart_suggestions_enabled`.
-- **Saved properties** (`src/components/console/SavedPropertiesPanel.tsx`): add an **Exceptions** subsection at the bottom: heading *"Outside your usual preferences"* + count. New hook `useExceptionProperties` mirroring `useSavedProperties`. Each row shows the reason (e.g. *"Outside your target locations: Fort Washington, MD"*) and the optional note as a muted second line. Actions: open listing, remove.
-- Preferences propagate to the rest of the app via the existing `profiles` realtime subscription (already in place); no other UI changes.
+## Out of scope (next prompt candidates)
 
-### 5. Telemetry
+- `property_report_pdf` + `chart_image` (need resvg-wasm setup; defer until purchase-plan flow validated).
+- Investor chat + InvestorBrief deep-dive surface mounting (defer one turn — they need the AI-side signals from this turn first to be useful).
+- Cap-reached upgrade CTA on `ArtifactCard`.
+- Console "Saved artifacts" list page.
+- Chrome extension migration from legacy `PreferenceFollowupCard` to shared module.
+- Cost-based recalibration of free-tier caps.
 
-Five events. Client-side via `src/lib/telemetry/usageEvents.ts` (extend `UsageEventPayloads`); server-side via existing `tool_call_telemetry` table (no new telemetry tables).
+## Verification checklist
 
-- `extension_followup_shown` `{ type, severity, score }`
-- `extension_followup_accepted` `{ type, fields }`
-- `extension_followup_saved_as_exception` `{ type, has_note }`
-- `extension_followup_dismissed` `{ type }`
-- `preference_updated_from_extension` `{ fields, source_listing_url }` (server-side only, fired inside the `update` action)
-
-### 6. Anti-nagging
-
-Client-side filter using `dismissals` from `get_state`. Rule: ≥3 dismissals of the same `mismatch_type` within the last 7 days → suppress that type for 30 days (computed from the 3rd-most-recent dismissal). User can re-enable by flipping the Settings toggle off then on, or by accepting an unrelated suggestion (does not unblock). Stored decisions live only in the DB — no extension-local persistence to drift.
-
-### 7. Verification checklist
-
-- Fort Washington listing + Prince William prefs → top card is "Add Fort Washington, MD"; click → row in `profiles.preferred_cities` updates within 2s in main app via realtime.
-- $700k listing, budget $500k → budget bump CTA appears, suggested value rounds to $725k.
-- $300k listing, budget $700k → informational "under your budget" card with `[Tell me more] [Not really]`.
-- Save as exception → text input appears; submit with a note → row in `user_exception_properties` with `note` populated; visible in main app's Exceptions section.
-- 3 dismissals of `location` in a week → 4th visit suppresses the location card for 30 days.
-- Settings toggle off → no cards render in popup.
-- Signed out → single pill, no cards, no `get_state` request.
-- Telemetry: 5 events fire at the expected moments.
-
-### 8. Commit / PR order
-
-1. Migration: new columns on `profiles`, `user_exception_properties`, `preference_followup_dismissals`, RLS + grants, realtime.
-2. Edge function `extension-followups` (all 4 actions, with `get_state` returning preferences + dismissals + settings in one call).
-3. Extension: `lib/detectMismatches.ts` + helpers.
-4. Extension: `lib/preferenceUpdate.ts` + `components/PreferenceFollowupCard.tsx` (with note-on-exception inline input).
-5. Extension: wire into `popup.tsx` with cached `get_state`, anti-nagging gate, signed-out + toggle-off fallbacks, top-2 cap.
-6. Main app: Settings toggle + Exceptions subsection in `SavedPropertiesPanel`.
-7. Telemetry events both sides.
-
-### 9. Out of scope (per spec)
-
-AI-generated mismatch copy, bulk-accept, copy A/B tests, AI-prefilled exception notes, persona-aware follow-up gating (ship v1 persona-agnostic; the `persona`/`primary_goal` fields are returned by `get_state` for a later pass).
+1. Send a property-analysis message in `/chats` for a listing that exceeds saved budget → AI response strips the `ci-signals` fence; a "Budget mismatch" follow-up card renders above composer; a "Generate purchase plan" chip appears.
+2. Click "Generate purchase plan" → `ArtifactCard` shows pending → ready with download link; PDF opens to a clean 2-page document.
+3. `artifact_generation_log` row inserted with `kind=purchase_plan_pdf`; daily cap increments correctly.
+4. `tool_call_telemetry` rows for the 4 new web events fire at expected moments.
+5. Owned-property chat: ask "is my cap rate on track?" → response includes a `target_cap_rate` mismatch signal when applicable.

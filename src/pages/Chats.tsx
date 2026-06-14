@@ -413,6 +413,14 @@ export default function Chats() {
         // 2.5C — Persist Perplexity grounding sources for the collapsed footer.
         citations: citations.length > 0 ? citations : undefined,
       };
+      // Conversational Intelligence signals (mismatch_signals + suggested_followups).
+      // Stripped from `cleanContent` by the edge function before display; we
+      // stash them on metadata so <ConversationalIntelligence /> can render
+      // preference cards / chips above the composer.
+      const ciSignals = (data as { signals?: unknown })?.signals;
+      if (ciSignals && typeof ciSignals === 'object') {
+        assistantMessage.metadata = { ...assistantMessage.metadata, ciSignals };
+      }
 
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -940,7 +948,12 @@ function ChatsConversationalIntelligence({
   onSendMessage: (text: string) => void | Promise<void>;
 }) {
   const thread: ChatTurn[] = useMemo(
-    () => messages.map((m) => ({ role: m.role, content: m.content })),
+    () => messages.map((m) => {
+      const ci = (m.metadata as { ciSignals?: { mismatch_signals?: unknown[]; suggested_followups?: unknown[] } } | undefined)?.ciSignals;
+      const turn: ChatTurn = { role: m.role, content: m.content };
+      if (ci) turn.signals = ci as ChatTurn['signals'];
+      return turn;
+    }),
     [messages],
   );
 
