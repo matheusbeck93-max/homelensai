@@ -948,7 +948,23 @@ function ChatsConversationalIntelligence({
   onSendMessage: (text: string) => void | Promise<void>;
 }) {
   const thread: ChatTurn[] = useMemo(
-    () => messages.map((m) => ({ role: m.role, content: m.content })),
+    () => messages.map((m) => {
+      const ci = (m.metadata as { ciSignals?: { mismatch_signals?: unknown[]; suggested_followups?: unknown[] } } | undefined)?.ciSignals;
+      return {
+        role: m.role,
+        content: m.content,
+        signals: ci
+          ? {
+              mismatch_signals: Array.isArray(ci.mismatch_signals)
+                ? (ci.mismatch_signals as ChatTurn['signals'] extends infer S ? (S extends { mismatch_signals?: infer M } ? M : never) : never)
+                : undefined,
+              suggested_followups: Array.isArray(ci.suggested_followups)
+                ? (ci.suggested_followups as ChatTurn['signals'] extends infer S ? (S extends { suggested_followups?: infer F } ? F : never) : never)
+                : undefined,
+            }
+          : undefined,
+      };
+    }),
     [messages],
   );
 
