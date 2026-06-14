@@ -101,6 +101,7 @@ interface ExecutionContext {
   serviceSupabase: ReturnType<typeof createClient>;
   sessionFilters: SessionFilters | null;
   preferences: { budget_max?: number | null; budget_min?: number | null; target_markets?: string[] | null };
+  authHeader?: string | null;
 }
 
 interface SessionFilters {
