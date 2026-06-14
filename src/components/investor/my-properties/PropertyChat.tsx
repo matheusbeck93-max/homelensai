@@ -8,6 +8,12 @@ import { toast } from 'sonner';
 import { useBudgetCap, parseAndRecordBudget402 } from '@/lib/ai/budgetCap';
 import { BudgetCapBanner } from '@/components/ai/BudgetCapBanner';
 import { BudgetCapBlocker } from '@/components/ai/BudgetCapBlocker';
+import {
+  ConversationalIntelligence,
+  useConversationalIntelligenceState,
+  type ChatTurn,
+} from '@/lib/conversationalIntelligence';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -51,6 +57,8 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cap = useBudgetCap();
   const capExceeded = cap.warningLevel === 'exceeded';
+  const { user } = useAuth();
+  const ci = useConversationalIntelligenceState(user?.id ?? null);
 
   useEffect(() => {
     setMessages(loadHistory(propertyId));
@@ -165,6 +173,19 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
         </div>
 
         <div className="border-t p-3">
+          {ci.loaded && ci.smartSuggestionsEnabled && (
+            <ConversationalIntelligence
+              active={{ kind: 'owned_property', propertyId }}
+              thread={messages as ChatTurn[]}
+              preferences={ci.preferences}
+              dismissals={ci.dismissals}
+              enabled={ci.smartSuggestionsEnabled}
+              onSendMessage={(t) => void send(t)}
+              onAcceptFollowup={ci.onAccept}
+              onDismissFollowup={ci.onDismiss}
+              onSaveException={ci.onSaveException}
+            />
+          )}
           <div className="flex items-end gap-2">
             <Textarea
               ref={textareaRef}
