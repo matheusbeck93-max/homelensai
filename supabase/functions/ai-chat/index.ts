@@ -804,7 +804,7 @@ CRITICAL:
           const routed = await completeWithFallback(
             'general_chat',
             {
-              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}`,
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}${CI_BLOCK_FIRECRAWL}`,
               messages: [{ role: 'user', content: analysisPrompt }],
               maxTokens: maxOutputTokensFor(creditCheck.tier),
               ...(routerTools ? { tools: routerTools, toolChoice: 'auto' as const } : {}),
@@ -844,7 +844,7 @@ CRITICAL:
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
             messages: [
-              { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}` },
+              { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}${CI_BLOCK_FIRECRAWL}` },
               { role: 'user', content: analysisPrompt }
             ],
             max_tokens: maxOutputTokensFor(creditCheck.tier),
