@@ -22,6 +22,7 @@ export { suggestFollowups } from "./suggestFollowups";
 export { FollowupChipRow } from "./FollowupChipRow";
 export { PreferenceFollowupCardWeb } from "./PreferenceFollowupCardWeb";
 export { useConversationalIntelligenceState } from "./useConversationalIntelligenceState";
+export { ArtifactCard } from "./ArtifactCard";
 export type {
   ActionAttributionEntry,
   ActiveContext,
