@@ -16,6 +16,7 @@ import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationa
 
 const CI_BLOCK_EXTENSION = '\n\n' + ciSignalsPromptBlock();
 const CI_BLOCK_FIRECRAWL = '\n\n' + ciSignalsPromptBlock();
+const CI_BLOCK_MAIN = '\n\n' + ciSignalsPromptBlock();
 
 const log = createLogger('ai-chat');
 
@@ -1701,7 +1702,7 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     const aiMessages: any[] = [
       {
         role: 'system',
-        content: systemPrompt
+        content: systemPrompt + CI_BLOCK_MAIN
       },
     ];
 
