@@ -430,6 +430,328 @@ function drawWrapped(
   return cursorY;
 }
 
+// ── Property Report PDF renderer ─────────────────────────────────────
+// 2-page branded one-pager summarising a listing. Pure pdf-lib.
+async function renderPropertyReportPdf(
+  input: z.infer<typeof PropertyReportInput>,
+): Promise<Uint8Array> {
+  const pdf = await PDFDocument.create();
+  pdf.setTitle('HomeLens Property Report');
+  pdf.setCreator('HomeLens');
+  const helv = await pdf.embedFont(StandardFonts.Helvetica);
+  const helvBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const steel = rgb(0x6b / 255, 0x8d / 255, 0xb5 / 255);
+  const dark = rgb(0x2c / 255, 0x3e / 255, 0x55 / 255);
+  const muted = rgb(0.40, 0.46, 0.52);
+  const hairline = rgb(0.85, 0.87, 0.90);
+  const green = rgb(0.13, 0.55, 0.29);
+  const amber = rgb(0.85, 0.55, 0.0);
+  const red = rgb(0.75, 0.18, 0.18);
+
+  const fmtUsd = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
+
+  // Value indicator: price vs zestimate
+  let valueLabel = '—';
+  let valueColor = muted;
+  if (input.zestimate && input.zestimate > 0) {
+    const diffPct = (input.price - input.zestimate) / input.zestimate;
+    const pctTxt = `${diffPct >= 0 ? '+' : ''}${(diffPct * 100).toFixed(1)}%`;
+    if (diffPct <= -0.03) {
+      valueLabel = `Below estimate (${pctTxt})`;
+      valueColor = green;
+    } else if (diffPct >= 0.03) {
+      valueLabel = `Above estimate (${pctTxt})`;
+      valueColor = red;
+    } else {
+      valueLabel = `Near estimate (${pctTxt})`;
+      valueColor = amber;
+    }
+  }
+
+  // ── Page 1: Property header + KPI grid ──
+  {
+    const page = pdf.addPage([612, 792]);
+    page.drawRectangle({ x: 0, y: 752, width: 612, height: 40, color: dark });
+    page.drawText('HomeLens', { x: 48, y: 765, size: 14, font: helvBold, color: rgb(1, 1, 1) });
+    page.drawText('Property Report', {
+      x: 564 - helv.widthOfTextAtSize('Property Report', 11), y: 766,
+      size: 11, font: helv, color: rgb(0.9, 0.92, 0.95),
+    });
+
+    let y = 712;
+    page.drawText(input.address.slice(0, 90), { x: 48, y, size: 18, font: helvBold, color: dark });
+    y -= 6;
+    page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: steel });
+    y -= 28;
+
+    page.drawText(fmtUsd(input.price), { x: 48, y, size: 28, font: helvBold, color: steel });
+    if (input.days_on_market != null) {
+      const dom = `${input.days_on_market} days on market`;
+      page.drawText(dom, {
+        x: 564 - helv.widthOfTextAtSize(dom, 11), y: y + 8,
+        size: 11, font: helv, color: muted,
+      });
+    }
+    y -= 18;
+    if (valueLabel !== '—') {
+      page.drawText(valueLabel, { x: 48, y, size: 11, font: helvBold, color: valueColor });
+      y -= 18;
+    }
+    y -= 16;
+
+    page.drawText('Property details', { x: 48, y, size: 14, font: helvBold, color: steel });
+    y -= 20;
+
+    const kpis: Array<[string, string]> = [
+      ['Beds', input.beds != null ? String(input.beds) : '—'],
+      ['Baths', input.baths != null ? String(input.baths) : '—'],
+      ['Living area', input.sqft != null ? `${input.sqft.toLocaleString('en-US')} sqft` : '—'],
+      ['Lot size', input.lot_sqft != null ? `${input.lot_sqft.toLocaleString('en-US')} sqft` : '—'],
+      ['Year built', input.year_built != null ? String(input.year_built) : '—'],
+      ['HOA (monthly)', input.hoa_monthly != null ? fmtUsd(input.hoa_monthly) : '—'],
+      ['Property tax (annual)', input.property_tax_annual != null ? fmtUsd(input.property_tax_annual) : '—'],
+      ['Zestimate', input.zestimate != null ? fmtUsd(input.zestimate) : '—'],
+    ];
+    // 2-column grid
+    const colW = 258;
+    for (let i = 0; i < kpis.length; i += 2) {
+      const left = kpis[i];
+      const right = kpis[i + 1];
+      const rowY = y;
+      page.drawText(left[0], { x: 48, y: rowY, size: 10, font: helv, color: muted });
+      page.drawText(left[1], { x: 48, y: rowY - 14, size: 12, font: helvBold, color: dark });
+      if (right) {
+        page.drawText(right[0], { x: 48 + colW + 12, y: rowY, size: 10, font: helv, color: muted });
+        page.drawText(right[1], { x: 48 + colW + 12, y: rowY - 14, size: 12, font: helvBold, color: dark });
+      }
+      y -= 38;
+      page.drawLine({ start: { x: 48, y: y + 6 }, end: { x: 564, y: y + 6 }, thickness: 0.5, color: hairline });
+    }
+
+    page.drawText('Page 1 of 2', { x: 48, y: 36, size: 9, font: helv, color: muted });
+    page.drawText('HomeLens — Big decisions deserve the full picture.', {
+      x: 564 - helv.widthOfTextAtSize('HomeLens — Big decisions deserve the full picture.', 9),
+      y: 36, size: 9, font: helv, color: muted,
+    });
+  }
+
+  // ── Page 2: Neighborhood scores + summary ──
+  {
+    const page = pdf.addPage([612, 792]);
+    page.drawRectangle({ x: 0, y: 752, width: 612, height: 40, color: dark });
+    page.drawText('HomeLens', { x: 48, y: 765, size: 14, font: helvBold, color: rgb(1, 1, 1) });
+    page.drawText('Property Report', {
+      x: 564 - helv.widthOfTextAtSize('Property Report', 11), y: 766,
+      size: 11, font: helv, color: rgb(0.9, 0.92, 0.95),
+    });
+
+    let y = 712;
+    page.drawText('Neighborhood signals', { x: 48, y, size: 18, font: helvBold, color: dark });
+    y -= 8;
+    page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: steel });
+    y -= 28;
+
+    const scoreBlocks: Array<[string, string, ReturnType<typeof rgb>]> = [];
+    if (input.school_score != null) {
+      const s = input.school_score;
+      const color = s >= 8 ? green : s >= 5 ? amber : red;
+      scoreBlocks.push(['Schools', `${s.toFixed(1)} / 10`, color]);
+    }
+    if (input.walk_score != null) {
+      const s = input.walk_score;
+      const color = s >= 70 ? green : s >= 40 ? amber : red;
+      scoreBlocks.push(['Walk Score', `${s} / 100`, color]);
+    }
+
+    if (scoreBlocks.length === 0) {
+      page.drawText('No neighborhood scores were available for this property.', {
+        x: 48, y, size: 10, font: helv, color: muted,
+      });
+      y -= 24;
+    } else {
+      const blockW = 240;
+      let bx = 48;
+      for (const [label, val, color] of scoreBlocks) {
+        page.drawRectangle({
+          x: bx, y: y - 56, width: blockW, height: 60,
+          borderColor: hairline, borderWidth: 1, color: rgb(0.98, 0.985, 0.99),
+        });
+        page.drawText(label, { x: bx + 14, y: y - 18, size: 11, font: helv, color: muted });
+        page.drawText(val, { x: bx + 14, y: y - 42, size: 20, font: helvBold, color });
+        bx += blockW + 16;
+      }
+      y -= 84;
+    }
+
+    if (input.summary_text) {
+      page.drawText('AI summary', { x: 48, y, size: 14, font: helvBold, color: steel });
+      y -= 18;
+      drawWrapped(page, input.summary_text, 48, y, 516, 11, helv, dark);
+    }
+
+    page.drawText(
+      `Generated ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}. ` +
+      `Figures are estimates; verify before making a financial decision.`,
+      { x: 48, y: 60, size: 8, font: helv, color: muted },
+    );
+    page.drawText('Page 2 of 2', { x: 48, y: 36, size: 9, font: helv, color: muted });
+    page.drawText('HomeLens — Big decisions deserve the full picture.', {
+      x: 564 - helv.widthOfTextAtSize('HomeLens — Big decisions deserve the full picture.', 9),
+      y: 36, size: 9, font: helv, color: muted,
+    });
+  }
+
+  return await pdf.save();
+}
+
+// ── Chart Image renderer ─────────────────────────────────────────────
+// Emits a branded SVG (modern browsers render natively, no wasm needed).
+// Supports bar / line / donut for ≤24-series data.
+function renderChartSvg(input: z.infer<typeof ChartImageInput>): Uint8Array {
+  const W = 1200;
+  const H = 630;
+  const padding = { top: 90, right: 48, bottom: 64, left: 64 };
+  const chartW = W - padding.left - padding.right;
+  const chartH = H - padding.top - padding.bottom;
+
+  const STEEL = '#6B8DB5';
+  const DARK = '#2C3E55';
+  const MUTED = '#7B8794';
+  const HAIR = '#E2E5EA';
+  const BG = '#FFFFFF';
+
+  // Brand palette for series colors (donut / multi-bar)
+  const PALETTE = ['#6B8DB5', '#2C3E55', '#88B04B', '#D9A55C', '#A55C7B', '#5B7EAA'];
+
+  const esc = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const fmtNum = (n: number) => {
+    if (!Number.isFinite(n)) return '0';
+    const abs = Math.abs(n);
+    if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+    return n.toFixed(abs < 1 ? 2 : 0);
+  };
+
+  const values = input.series.map((s) => s.value);
+  const maxV = Math.max(...values, 0);
+  const minV = Math.min(...values, 0);
+  const range = maxV - minV || 1;
+
+  // Header
+  const head =
+    `<rect x="0" y="0" width="${W}" height="56" fill="${DARK}"/>` +
+    `<text x="48" y="36" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF">HomeLens</text>` +
+    `<text x="${W - 48}" y="36" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#E6E9EE" text-anchor="end">${esc(input.chart_type.toUpperCase())} CHART</text>`;
+
+  const title =
+    `<text x="48" y="84" font-family="Helvetica, Arial, sans-serif" font-size="22" font-weight="bold" fill="${DARK}">${esc(input.title)}</text>`;
+
+  let body = '';
+
+  if (input.chart_type === 'bar') {
+    const n = input.series.length;
+    const slot = chartW / n;
+    const barW = Math.min(slot * 0.65, 80);
+    // Y axis
+    body += `<line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + chartH}" stroke="${HAIR}" stroke-width="1"/>`;
+    body += `<line x1="${padding.left}" y1="${padding.top + chartH}" x2="${padding.left + chartW}" y2="${padding.top + chartH}" stroke="${HAIR}" stroke-width="1"/>`;
+    // Gridlines + ticks
+    for (let i = 0; i <= 4; i++) {
+      const yT = padding.top + (chartH * i) / 4;
+      const v = maxV - (range * i) / 4;
+      body += `<line x1="${padding.left}" y1="${yT}" x2="${padding.left + chartW}" y2="${yT}" stroke="${HAIR}" stroke-dasharray="2,3" stroke-width="0.5"/>`;
+      body += `<text x="${padding.left - 8}" y="${yT + 4}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="${MUTED}" text-anchor="end">${fmtNum(v)}</text>`;
+    }
+    input.series.forEach((s, i) => {
+      const v = s.value;
+      const h = (Math.max(v - Math.min(0, minV), 0) / range) * chartH;
+      const cx = padding.left + slot * i + slot / 2;
+      const x = cx - barW / 2;
+      const y = padding.top + chartH - h;
+      body += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${STEEL}" rx="4"/>`;
+      body += `<text x="${cx}" y="${padding.top + chartH + 18}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="${MUTED}" text-anchor="middle">${esc(s.label.slice(0, 14))}</text>`;
+    });
+  } else if (input.chart_type === 'line') {
+    const n = input.series.length;
+    body += `<line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${padding.top + chartH}" stroke="${HAIR}" stroke-width="1"/>`;
+    body += `<line x1="${padding.left}" y1="${padding.top + chartH}" x2="${padding.left + chartW}" y2="${padding.top + chartH}" stroke="${HAIR}" stroke-width="1"/>`;
+    for (let i = 0; i <= 4; i++) {
+      const yT = padding.top + (chartH * i) / 4;
+      const v = maxV - (range * i) / 4;
+      body += `<line x1="${padding.left}" y1="${yT}" x2="${padding.left + chartW}" y2="${yT}" stroke="${HAIR}" stroke-dasharray="2,3" stroke-width="0.5"/>`;
+      body += `<text x="${padding.left - 8}" y="${yT + 4}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="${MUTED}" text-anchor="end">${fmtNum(v)}</text>`;
+    }
+    const stepX = n > 1 ? chartW / (n - 1) : chartW;
+    const pts = input.series.map((s, i) => {
+      const x = padding.left + stepX * i;
+      const y = padding.top + chartH - ((s.value - Math.min(0, minV)) / range) * chartH;
+      return { x, y, label: s.label };
+    });
+    const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    body += `<path d="${d}" fill="none" stroke="${STEEL}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+    pts.forEach((p) => {
+      body += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${DARK}"/>`;
+    });
+    // X labels (sparse if many)
+    const labelEvery = Math.max(1, Math.ceil(n / 8));
+    pts.forEach((p, i) => {
+      if (i % labelEvery !== 0 && i !== n - 1) return;
+      body += `<text x="${p.x}" y="${padding.top + chartH + 18}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="${MUTED}" text-anchor="middle">${esc(p.label.slice(0, 12))}</text>`;
+    });
+  } else {
+    // donut
+    const total = values.reduce((a, b) => a + Math.max(b, 0), 0) || 1;
+    const cx = padding.left + chartW / 2;
+    const cy = padding.top + chartH / 2;
+    const radius = Math.min(chartW, chartH) / 2 - 8;
+    const inner = radius * 0.6;
+    let start = -Math.PI / 2;
+    input.series.forEach((s, i) => {
+      const v = Math.max(s.value, 0);
+      const angle = (v / total) * Math.PI * 2;
+      const end = start + angle;
+      const large = angle > Math.PI ? 1 : 0;
+      const x1 = cx + radius * Math.cos(start);
+      const y1 = cy + radius * Math.sin(start);
+      const x2 = cx + radius * Math.cos(end);
+      const y2 = cy + radius * Math.sin(end);
+      const xi1 = cx + inner * Math.cos(end);
+      const yi1 = cy + inner * Math.sin(end);
+      const xi2 = cx + inner * Math.cos(start);
+      const yi2 = cy + inner * Math.sin(start);
+      const color = PALETTE[i % PALETTE.length];
+      const d = `M${x1} ${y1} A${radius} ${radius} 0 ${large} 1 ${x2} ${y2} L${xi1} ${yi1} A${inner} ${inner} 0 ${large} 0 ${xi2} ${yi2} Z`;
+      body += `<path d="${d}" fill="${color}"/>`;
+      // legend
+      const ly = padding.top + 8 + i * 22;
+      body += `<rect x="${padding.left + chartW - 200}" y="${ly}" width="14" height="14" fill="${color}" rx="2"/>`;
+      body += `<text x="${padding.left + chartW - 180}" y="${ly + 11}" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="${DARK}">${esc(s.label.slice(0, 18))} (${((v / total) * 100).toFixed(0)}%)</text>`;
+      start = end;
+    });
+  }
+
+  const axisLabels =
+    (input.y_label ? `<text x="20" y="${padding.top + chartH / 2}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="${MUTED}" text-anchor="middle" transform="rotate(-90 20 ${padding.top + chartH / 2})">${esc(input.y_label)}</text>` : '') +
+    (input.x_label ? `<text x="${padding.left + chartW / 2}" y="${H - 30}" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="${MUTED}" text-anchor="middle">${esc(input.x_label)}</text>` : '');
+
+  const footer =
+    `<text x="48" y="${H - 12}" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="${MUTED}">HomeLens — Big decisions deserve the full picture.</text>` +
+    `<text x="${W - 48}" y="${H - 12}" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="${MUTED}" text-anchor="end">Generated ${new Date().toISOString().slice(0, 10)}</text>`;
+
+  const svg =
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">` +
+    `<rect width="${W}" height="${H}" fill="${BG}"/>` +
+    head + title + body + axisLabels + footer +
+    `</svg>`;
+
+  return new TextEncoder().encode(svg);
+}
+
 // ── Handler ──────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
