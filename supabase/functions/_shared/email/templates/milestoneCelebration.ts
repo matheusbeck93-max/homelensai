@@ -20,7 +20,7 @@ function categoryLabel(c: MilestoneCelebrationData['category']): string {
 
 function render(data: MilestoneCelebrationData, ctx: TemplateContext): TemplateRenderResult {
   const name = ctx.recipientName?.split(' ')[0] ?? 'there';
-  const cta = data.ctaUrl ?? 'https://homelensai.com/';
+  const cta = data.ctaUrl ?? 'https://homelensais.com/';
   const body = `
     <p style="margin:0 0 8px 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6B8DB5;font-weight:600;">${escapeHtml(categoryLabel(data.category))}</p>
     <h1 style="margin:0 0 16px 0;font-size:26px;font-weight:800;color:#2C3E55;line-height:1.2;">${escapeHtml(data.headline)}</h1>

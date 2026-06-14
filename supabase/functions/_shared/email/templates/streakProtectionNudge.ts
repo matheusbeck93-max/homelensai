@@ -15,7 +15,7 @@ function render(data: StreakProtectionNudgeData, ctx: TemplateContext): Template
     <p style="margin:0 0 8px 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6B8DB5;font-weight:600;">Don't break the streak</p>
     <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:800;color:#2C3E55;line-height:1.2;">${data.dailyCurrent}-day streak at risk</h1>
     <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#2C3E55;">Hey ${escapeHtml(name)} — you haven't checked HomeLens today. ${escapeHtml(skipLine)}</p>
-    <div>${button('https://homelensai.com/console', 'Open HomeLens')}</div>
+    <div>${button('https://homelensais.com/console', 'Open HomeLens')}</div>
   `;
   return {
     subject: `Don't break your ${data.dailyCurrent}-day streak`,

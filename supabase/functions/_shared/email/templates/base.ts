@@ -49,7 +49,7 @@ export function baseLayout({ preview, bodyHtml, unsubscribeUrl }: BaseLayoutInpu
                 <div style="margin-top:8px;">
                   <a href="${escapeHtml(unsubscribeUrl)}" style="color:#6B8DB5;text-decoration:underline;">Unsubscribe</a>
                   &nbsp;&middot;&nbsp;
-                  <a href="https://homelensai.com/account/email-preferences" style="color:#6B8DB5;text-decoration:underline;">Email preferences</a>
+                  <a href="https://homelensais.com/account/email-preferences" style="color:#6B8DB5;text-decoration:underline;">Email preferences</a>
                 </div>
               </td>
             </tr>

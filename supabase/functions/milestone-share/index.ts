@@ -18,7 +18,7 @@ import { renderPng, buildSvg } from '../_shared/milestones/renderShareImage.ts';
 const BodySchema = z.object({ id: z.string().uuid() });
 
 function tweetText(headline: string): string {
-  return `${headline} — tracking with HomeLens 🏡 homelensai.com`;
+  return `${headline} — tracking with HomeLens 🏡 homelensais.com`;
 }
 
 Deno.serve(async (req) => {

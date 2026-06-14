@@ -18,7 +18,7 @@ function render(data: StreakMilestoneData, ctx: TemplateContext): TemplateRender
     <h1 style="margin:0 0 16px 0;font-size:28px;font-weight:800;color:#2C3E55;line-height:1.2;">${escapeHtml(data.headline)}</h1>
     <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#2C3E55;">Nice work, ${escapeHtml(name)}. ${escapeHtml(data.context)}</p>
     ${reward}
-    <div>${button('https://homelensai.com/console', 'Open HomeLens')}</div>
+    <div>${button('https://homelensais.com/console', 'Open HomeLens')}</div>
   `;
   return {
     subject: `${data.tier}-day streak on HomeLens`,

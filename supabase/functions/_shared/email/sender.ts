@@ -23,7 +23,7 @@ import {
 } from './templates/registry.ts';
 import { buildUnsubscribeUrl, ensureUnsubscribeToken } from './unsubscribe.ts';
 
-export const SENDER_FROM = Deno.env.get('EMAIL_SENDER_FROM') ?? 'HomeLens <hello@homelensai.com>';
+export const SENDER_FROM = Deno.env.get('EMAIL_SENDER_FROM') ?? 'HomeLens <hello@homelensais.com>';
 
 export interface SendTransactionalInput<T extends TemplateName = TemplateName> {
   userId: string;

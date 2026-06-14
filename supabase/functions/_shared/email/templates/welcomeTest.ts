@@ -13,7 +13,7 @@ function render(data: WelcomeTestData, ctx: TemplateContext): TemplateRenderResu
       This is a test email from HomeLens to confirm transactional email delivery is working.
     </p>
     ${data.note ? `<p style="margin:0 0 16px 0;font-size:14px;color:#7A8A9A;">${escapeHtml(data.note)}</p>` : ''}
-    <div style="margin-top:24px;">${button('https://homelensai.com/', 'Open HomeLens')}</div>
+    <div style="margin-top:24px;">${button('https://homelensais.com/', 'Open HomeLens')}</div>
   `;
   return {
     subject: 'HomeLens — email delivery test',
