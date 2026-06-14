@@ -21,6 +21,7 @@ import {
 } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 
 const log = createLogger('perplexity-chat');
 
@@ -83,6 +84,29 @@ Deno.serve(async (req) => {
     }
 
     const { query, conversationHistory = [], insightOrigin, userGoal } = validation.data;
+
+    // Open-house intercept — short-circuits Perplexity when the user asks
+    // about in-person open houses. Returns a markdown response plus cards
+    // for the chat renderer; Perplexity is skipped to avoid wasted spend.
+    {
+      const ohIntent = detectOpenHouseIntent(query);
+      if (ohIntent) {
+        try {
+          const lookup = await runOpenHouseLookup(ohIntent.args, req.headers.get('Authorization'));
+          return new Response(
+            JSON.stringify({
+              message: lookup.markdown,
+              openHouses: lookup.cards,
+              mode: 'open_houses',
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        } catch (e) {
+          console.error('[perplexity-chat] open-house intercept failed:', e);
+        }
+      }
+    }
+
     if (userGoal && !KNOWN_GOALS.includes(userGoal)) {
       console.warn(`[perplexity-chat] Unknown userGoal "${userGoal}" — no goal paragraph injected. Add to GOAL_CONTEXTS if intentional. Known: ${KNOWN_GOALS.join(', ')}`);
     }
