@@ -339,7 +339,7 @@ CRITICAL:
           const routed = await completeWithFallback(
             'extension_listing_analysis',
             {
-              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}`,
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}`,
               messages: [
                 ...sanitizedHistory.map((m: any) => ({ role: m.role, content: String(m.content ?? '') })),
                 { role: 'user', content: analysisPrompt },
@@ -353,8 +353,14 @@ CRITICAL:
             completion_tokens: routed.usage.outputTokens,
             total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
           });
+          const ciExt = extractCiSignals(routed.text ?? '');
           return new Response(
-            JSON.stringify({ response: routed.text, properties, hasProperties: true }),
+            JSON.stringify({
+              response: ciExt.cleanText,
+              properties,
+              hasProperties: true,
+              ...(ciExt.signals ? { signals: ciExt.signals } : {}),
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         } catch (err) {
@@ -373,7 +379,7 @@ CRITICAL:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}` },
+            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}` },
             ...sanitizedHistory,
             { role: 'user', content: analysisPrompt }
           ],
@@ -394,15 +400,18 @@ CRITICAL:
       }
 
       const aiData = await aiResponse.json();
-      const analysis = aiData.choices[0].message.content;
+      const rawAnalysis = aiData.choices[0].message.content ?? '';
+      const ciExt = extractCiSignals(rawAnalysis);
+      const analysis = ciExt.cleanText;
       await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis with client data generated successfully');
       
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           response: analysis,
           properties: properties,
-          hasProperties: true
+          hasProperties: true,
+          ...(ciExt.signals ? { signals: ciExt.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
