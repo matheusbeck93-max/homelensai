@@ -407,6 +407,63 @@ export type Database = {
         }
         Relationships: []
       }
+      delivered_milestones: {
+        Row: {
+          acknowledged_at: string | null
+          category: string
+          context: string | null
+          created_at: string
+          delivered_in_app: boolean
+          delivered_via_email: boolean
+          detected_at: string
+          headline: string
+          id: string
+          metadata: Json
+          milestone_id: string
+          severity: string
+          shared_at: string | null
+          subject_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          category: string
+          context?: string | null
+          created_at?: string
+          delivered_in_app?: boolean
+          delivered_via_email?: boolean
+          detected_at?: string
+          headline: string
+          id?: string
+          metadata?: Json
+          milestone_id: string
+          severity?: string
+          shared_at?: string | null
+          subject_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          category?: string
+          context?: string | null
+          created_at?: string
+          delivered_in_app?: boolean
+          delivered_via_email?: boolean
+          detected_at?: string
+          headline?: string
+          id?: string
+          metadata?: Json
+          milestone_id?: string
+          severity?: string
+          shared_at?: string | null
+          subject_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_preferences: {
         Row: {
           created_at: string
@@ -1636,6 +1693,7 @@ export type Database = {
           subscription_renews_at: string | null
           subscription_status: string | null
           target_cap_rate: number | null
+          timezone: string
           trial_used_at: string | null
           updated_at: string | null
           user_profile: string | null
@@ -1705,6 +1763,7 @@ export type Database = {
           subscription_renews_at?: string | null
           subscription_status?: string | null
           target_cap_rate?: number | null
+          timezone?: string
           trial_used_at?: string | null
           updated_at?: string | null
           user_profile?: string | null
@@ -1774,6 +1833,7 @@ export type Database = {
           subscription_renews_at?: string | null
           subscription_status?: string | null
           target_cap_rate?: number | null
+          timezone?: string
           trial_used_at?: string | null
           updated_at?: string | null
           user_profile?: string | null

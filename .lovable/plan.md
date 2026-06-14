@@ -39,6 +39,8 @@ GRANTs in same migration per project rules. Default-row trigger creates `email_p
 
 ## Phase 1 — Anniversary / Milestone moments (≈4 days)
 
+**Status: shipped.** `delivered_milestones` table + `profiles.timezone` migrated. Rule registry (property / saved / account / market) live under `_shared/milestones/`. Edge functions `milestone-detector` (daily 09:00 UTC cron, cron-auth gated), `milestone-acknowledge`, `milestone-share` (resvg-wasm PNG → `artifacts` bucket, SVG fallback) deployed. Frontend `useStickiness` hook + `MilestoneBanner` (mounted in `App.tsx`) + `MilestoneShareDialog` live. `milestone-celebration` email template registered.
+
 **DB migration** — `delivered_milestones` per spec (user_id, milestone_id, subject_id, detected_at, delivered_in_app, delivered_via_email, acknowledged_at, shared_at, metadata jsonb). Unique on `(user_id, milestone_id, subject_id)`. RLS: user reads/updates own; service_role full.
 
 **Shared rule registry** (`supabase/functions/_shared/milestones/`):
