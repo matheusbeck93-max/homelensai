@@ -36,6 +36,6 @@ export async function ensureUnsubscribeToken(
 }
 
 export function buildUnsubscribeUrl(token: string): string {
-  const base = Deno.env.get('APP_PUBLIC_URL') ?? 'https://homelensai.com';
+  const base = Deno.env.get('APP_PUBLIC_URL') ?? 'https://homelensais.com';
   return `${base}/account/email-unsubscribe?token=${encodeURIComponent(token)}`;
 }

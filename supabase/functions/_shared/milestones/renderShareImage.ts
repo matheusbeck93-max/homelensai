@@ -85,7 +85,7 @@ export function buildSvg({ headline, context, eyebrow }: ShareCardInput): string
         : ''
     }
     <text x="540" y="980" fill="#FFFFFF" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="26" font-weight="700" text-anchor="middle">Tracking with HomeLens</text>
-    <text x="540" y="1018" fill="#9FB6D1" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="22" text-anchor="middle">homelensai.com</text>
+    <text x="540" y="1018" fill="#9FB6D1" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="22" text-anchor="middle">homelensais.com</text>
   </svg>`;
 }
 

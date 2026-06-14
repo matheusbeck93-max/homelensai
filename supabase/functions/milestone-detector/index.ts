@@ -62,8 +62,8 @@ Deno.serve(async (req) => {
             category: ev.category,
             ctaUrl:
               ev.category === 'property'
-                ? 'https://homelensai.com/investor/properties'
-                : 'https://homelensai.com/',
+                ? 'https://homelensais.com/investor/properties'
+                : 'https://homelensais.com/',
           },
           idempotencyKey: `${ev.milestoneId}:${ev.subjectId}`,
           metadata: { milestoneId: ev.milestoneId, subjectId: ev.subjectId },
