@@ -7,6 +7,7 @@ import { Target, MessageSquare, Sparkles, Calculator, ArrowRight, CreditCard, Bo
 import { Button } from "@/components/ui/button";
 import { SavedCalculatorsPanel } from "@/components/console/SavedCalculatorsPanel";
 import { UsageSummaryCard } from "@/components/console/UsageSummaryCard";
+import { WeeklyReviewCard } from "@/components/stickiness/WeeklyReviewCard";
 
 const GOAL_LABELS: Record<string, string> = {
   buy_home: "Buy a home to live in",
@@ -76,6 +77,8 @@ export function OverviewPanel() {
         </h2>
         <p className="text-muted-foreground">Here's an overview of your HomeLens activity</p>
       </div>
+
+      <WeeklyReviewCard />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/console?tab=account")}>
