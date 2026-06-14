@@ -4,11 +4,15 @@
  * resolved by the host into a server-generated download.
  */
 import { Button } from "@/components/ui/button";
-import { Download, FileSpreadsheet, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Crown, Download, FileSpreadsheet, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { GeneratedArtifact } from "./types";
 
 export interface ArtifactCardProps {
-  artifact: GeneratedArtifact | { status: "pending"; label: string } | { status: "error"; label: string; error: string };
+  artifact:
+    | GeneratedArtifact
+    | { status: "pending"; label: string }
+    | { status: "error"; label: string; error: string; capReached?: boolean };
 }
 
 function iconFor(kind: string) {
@@ -27,6 +31,20 @@ export function ArtifactCard({ artifact }: ArtifactCardProps) {
     );
   }
   if ("status" in artifact && artifact.status === "error") {
+    if (artifact.capReached) {
+      return (
+        <div className="rounded-md border border-primary/40 bg-primary/5 px-3 py-2.5 text-xs flex items-center gap-3">
+          <Crown className="h-4 w-4 text-primary flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="font-medium">Daily {artifact.label} limit reached</div>
+            <div className="text-muted-foreground">Upgrade to generate more today.</div>
+          </div>
+          <Button asChild size="sm">
+            <Link to="/console?tab=plan">Upgrade</Link>
+          </Button>
+        </div>
+      );
+    }
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2.5 text-xs text-destructive">
         Could not generate {artifact.label}: {artifact.error}

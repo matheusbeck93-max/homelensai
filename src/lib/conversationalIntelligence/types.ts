@@ -43,7 +43,9 @@ export interface MismatchSignal {
     | "min_beds"
     | "min_baths"
     | "min_sqft"
-    | "cap_rate";
+    | "cap_rate"
+    /** Alias emitted by backend shared schema. */
+    | "target_cap_rate";
   value: string | number;
   /** Optional natural-language note from the model. */
   note?: string;

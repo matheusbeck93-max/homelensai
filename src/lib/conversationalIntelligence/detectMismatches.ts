@@ -286,6 +286,7 @@ export function mismatchFollowupsFromSignals(
         if (typeof s.value === "number") synthetic.sqft = s.value;
         break;
       case "cap_rate":
+      case "target_cap_rate":
         if (typeof s.value === "number") synthetic.capRate = s.value;
         break;
     }

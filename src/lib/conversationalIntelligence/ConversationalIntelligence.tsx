@@ -129,7 +129,7 @@ export function ConversationalIntelligence({
   type CardState =
     | { id: string; status: "pending"; label: string }
     | { id: string; status: "ready"; artifact: GeneratedArtifact }
-    | { id: string; status: "error"; label: string; error: string };
+    | { id: string; status: "error"; label: string; error: string; capReached?: boolean };
   const [cards, setCards] = useState<CardState[]>([]);
 
   const handleChip = async (action: FollowupAction, label: string) => {
@@ -163,7 +163,14 @@ export function ConversationalIntelligence({
       if (r.ok === true) {
         next = { id: cardId, status: "ready", artifact: r.artifact };
       } else {
-        next = { id: cardId, status: "error", label, error: (r as { error: string }).error };
+        const err = r as { error: string; cap_reached?: boolean };
+        next = {
+          id: cardId,
+          status: "error",
+          label,
+          error: err.error,
+          capReached: err.cap_reached === true,
+        };
       }
       setCards((cs) => cs.map((c) => (c.id === cardId ? next : c)));
     }
@@ -198,7 +205,10 @@ export function ConversationalIntelligence({
             ) : c.status === "pending" ? (
               <ArtifactCard key={c.id} artifact={{ status: "pending", label: c.label }} />
             ) : (
-              <ArtifactCard key={c.id} artifact={{ status: "error", label: c.label, error: c.error }} />
+              <ArtifactCard
+                key={c.id}
+                artifact={{ status: "error", label: c.label, error: c.error, capReached: c.capReached }}
+              />
             ),
           )}
         </div>
