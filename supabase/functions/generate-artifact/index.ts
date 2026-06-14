@@ -180,6 +180,212 @@ async function renderMortgageExcel(input: z.infer<typeof MortgageInput>): Promis
   return new Uint8Array(buf as ArrayBuffer);
 }
 
+// ── Purchase Plan PDF renderer ───────────────────────────────────────
+// 2-page brand-styled buyer roadmap. Pure pdf-lib (built-in Helvetica),
+// no external font fetching. All math defaults to safe US averages when
+// the AI omits a field — the document always renders.
+async function renderPurchasePlanPdf(input: z.infer<typeof PurchasePlanInput>): Promise<Uint8Array> {
+  const homePrice = input.home_price;
+  const dpPct = input.down_payment_pct ?? 0.20;
+  const dp = Math.round(homePrice * dpPct);
+  const loan = homePrice - dp;
+  const rate = (input.interest_rate ?? 6.75) / 100;
+  const termYears = input.term_years ?? 30;
+  const n = termYears * 12;
+  const r = rate / 12;
+  const monthlyPI = r === 0 ? loan / n : (loan * r) / (1 - Math.pow(1 + r, -n));
+  const monthlyTax = (input.property_tax_annual ?? homePrice * 0.011) / 12;
+  const monthlyIns = (input.insurance_annual ?? homePrice * 0.0035) / 12;
+  const monthlyHoa = input.hoa_monthly ?? 0;
+  const monthlyPITI = monthlyPI + monthlyTax + monthlyIns + monthlyHoa;
+  const closingCosts = Math.round(homePrice * 0.03);
+  const cashToClose = dp + closingCosts;
+  const recommendedOfferLow = Math.round(homePrice * 0.96);
+  const recommendedOfferHigh = Math.round(homePrice * 1.02);
+  const dtiMonthlyCap = input.monthly_income ? Math.round(input.monthly_income * 0.36) : null;
+
+  const pdf = await PDFDocument.create();
+  pdf.setTitle('HomeLens Purchase Plan');
+  pdf.setCreator('HomeLens');
+  const helv = await pdf.embedFont(StandardFonts.Helvetica);
+  const helvBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  // Brand palette
+  const steel = rgb(0x6b / 255, 0x8d / 255, 0xb5 / 255);
+  const dark = rgb(0x2c / 255, 0x3e / 255, 0x55 / 255);
+  const muted = rgb(0.40, 0.46, 0.52);
+  const hairline = rgb(0.85, 0.87, 0.90);
+
+  const fmtUsd = (n: number) =>
+    `$${Math.round(n).toLocaleString('en-US')}`;
+  const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
+
+  const addressLine = input.address
+    ?? [input.city, input.state].filter(Boolean).join(', ')
+    ?? 'Subject property';
+
+  // ── Page 1: Purchase Summary ──
+  {
+    const page = pdf.addPage([612, 792]); // US Letter
+    let y = 740;
+
+    // Header band
+    page.drawRectangle({ x: 0, y: 752, width: 612, height: 40, color: dark });
+    page.drawText('HomeLens', {
+      x: 48, y: 765, size: 14, font: helvBold, color: rgb(1, 1, 1),
+    });
+    page.drawText('Purchase Plan', {
+      x: 540 - helv.widthOfTextAtSize('Purchase Plan', 11), y: 766,
+      size: 11, font: helv, color: rgb(0.9, 0.92, 0.95),
+    });
+
+    y = 712;
+    page.drawText('Purchase summary', { x: 48, y, size: 20, font: helvBold, color: dark });
+    y -= 8;
+    page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: steel });
+    y -= 24;
+
+    page.drawText(addressLine.slice(0, 90), { x: 48, y, size: 12, font: helvBold, color: dark });
+    y -= 16;
+    page.drawText(`Generated ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}`, {
+      x: 48, y, size: 9, font: helv, color: muted,
+    });
+    y -= 28;
+
+    const rows: Array<[string, string]> = [
+      ['List price', fmtUsd(homePrice)],
+      ['Recommended offer band', `${fmtUsd(recommendedOfferLow)} – ${fmtUsd(recommendedOfferHigh)}`],
+      ['Down payment', `${fmtUsd(dp)} (${fmtPct(dpPct)})`],
+      ['Loan amount', fmtUsd(loan)],
+      ['Estimated closing costs (~3%)', fmtUsd(closingCosts)],
+      ['Cash to close', fmtUsd(cashToClose)],
+    ];
+    for (const [label, val] of rows) {
+      page.drawText(label, { x: 48, y, size: 11, font: helv, color: dark });
+      const w = helvBold.widthOfTextAtSize(val, 11);
+      page.drawText(val, { x: 564 - w, y, size: 11, font: helvBold, color: dark });
+      y -= 8;
+      page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 0.5, color: hairline });
+      y -= 14;
+    }
+
+    y -= 18;
+    page.drawText('Estimated monthly cost', { x: 48, y, size: 14, font: helvBold, color: steel });
+    y -= 20;
+    const monthly: Array<[string, string]> = [
+      ['Principal & interest', fmtUsd(monthlyPI)],
+      ['Property tax (est.)', fmtUsd(monthlyTax)],
+      ['Insurance (est.)', fmtUsd(monthlyIns)],
+      ['HOA', monthlyHoa > 0 ? fmtUsd(monthlyHoa) : '—'],
+      ['Total monthly (PITI+HOA)', fmtUsd(monthlyPITI)],
+    ];
+    for (const [label, val] of monthly) {
+      const isTotal = label.startsWith('Total');
+      const font = isTotal ? helvBold : helv;
+      page.drawText(label, { x: 48, y, size: 11, font, color: dark });
+      const w = (isTotal ? helvBold : helvBold).widthOfTextAtSize(val, 11);
+      page.drawText(val, { x: 564 - w, y, size: 11, font: helvBold, color: isTotal ? steel : dark });
+      y -= 8;
+      page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 0.5, color: hairline });
+      y -= 14;
+    }
+
+    y -= 20;
+    page.drawText('Affordability guidance', { x: 48, y, size: 14, font: helvBold, color: steel });
+    y -= 20;
+    const dtiNote = dtiMonthlyCap
+      ? `At a conservative 36% DTI, your housing target stays at or below ${fmtUsd(dtiMonthlyCap)}/mo.`
+      : 'Lenders typically cap total housing payment at 28% of gross monthly income and total debt at 36–43%.';
+    drawWrapped(page, dtiNote, 48, y, 516, 11, helv, dark);
+
+    // Footer
+    page.drawText('Page 1 of 2', { x: 48, y: 36, size: 9, font: helv, color: muted });
+    page.drawText('HomeLens — Big decisions deserve the full picture.', {
+      x: 564 - helv.widthOfTextAtSize('HomeLens — Big decisions deserve the full picture.', 9),
+      y: 36, size: 9, font: helv, color: muted,
+    });
+  }
+
+  // ── Page 2: 12-Month Action Checklist ──
+  {
+    const page = pdf.addPage([612, 792]);
+    page.drawRectangle({ x: 0, y: 752, width: 612, height: 40, color: dark });
+    page.drawText('HomeLens', { x: 48, y: 765, size: 14, font: helvBold, color: rgb(1, 1, 1) });
+    page.drawText('Purchase Plan', {
+      x: 540 - helv.widthOfTextAtSize('Purchase Plan', 11), y: 766,
+      size: 11, font: helv, color: rgb(0.9, 0.92, 0.95),
+    });
+
+    let y = 712;
+    page.drawText('Your 12-month action plan', { x: 48, y, size: 20, font: helvBold, color: dark });
+    y -= 8;
+    page.drawLine({ start: { x: 48, y }, end: { x: 564, y }, thickness: 1, color: steel });
+    y -= 30;
+
+    const steps: Array<{ title: string; detail: string }> = [
+      { title: 'Get pre-approved', detail: 'Compare 2-3 lenders for rate + fees; a written pre-approval letter strengthens your offer.' },
+      { title: 'Lock your budget ceiling', detail: `Stay at or below ${fmtUsd(monthlyPITI)}/mo total housing — leaves room for maintenance and life events.` },
+      { title: 'Build the down payment + reserves', detail: `Target ${fmtUsd(cashToClose)} for closing, plus 3-6 months of housing payments in reserves.` },
+      { title: 'Tour with a defined scorecard', detail: 'Score every property on must-haves (location, beds/baths) before nice-to-haves.' },
+      { title: 'Make a disciplined offer', detail: `Anchor offers in the ${fmtUsd(recommendedOfferLow)}–${fmtUsd(recommendedOfferHigh)} band, adjusting for inspection findings.` },
+      { title: 'Order inspection & appraisal', detail: 'Independent inspector + lender appraisal. Use findings to renegotiate, not to abandon.' },
+      { title: 'Lock the rate at the right moment', detail: 'Lock when under contract or when rates dip materially; confirm lock duration covers closing.' },
+      { title: 'Walk through and close', detail: 'Final walk-through 24h before closing; wire funds only after verbal verification with your title company.' },
+    ];
+    for (const s of steps) {
+      // Checkbox
+      page.drawRectangle({
+        x: 48, y: y - 2, width: 12, height: 12,
+        borderColor: steel, borderWidth: 1, color: rgb(1, 1, 1),
+      });
+      page.drawText(s.title, { x: 68, y, size: 12, font: helvBold, color: dark });
+      y -= 14;
+      drawWrapped(page, s.detail, 68, y, 496, 10, helv, muted);
+      y -= 20;
+      if (y < 90) break;
+    }
+
+    page.drawText('Page 2 of 2', { x: 48, y: 36, size: 9, font: helv, color: muted });
+    page.drawText('HomeLens — Big decisions deserve the full picture.', {
+      x: 564 - helv.widthOfTextAtSize('HomeLens — Big decisions deserve the full picture.', 9),
+      y: 36, size: 9, font: helv, color: muted,
+    });
+  }
+
+  return await pdf.save();
+}
+
+// Wrap simple text in pdf-lib using greedy word fit. Advances y per line.
+function drawWrapped(
+  page: ReturnType<PDFDocument['addPage']>,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  size: number,
+  font: Awaited<ReturnType<PDFDocument['embedFont']>>,
+  color: ReturnType<typeof rgb>,
+): number {
+  const words = text.split(/\s+/);
+  let line = '';
+  let cursorY = y;
+  for (const w of words) {
+    const candidate = line ? `${line} ${w}` : w;
+    if (font.widthOfTextAtSize(candidate, size) > maxWidth) {
+      page.drawText(line, { x, y: cursorY, size, font, color });
+      cursorY -= size + 3;
+      line = w;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) {
+    page.drawText(line, { x, y: cursorY, size, font, color });
+    cursorY -= size + 3;
+  }
+  return cursorY;
+}
+
 // ── Handler ──────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
