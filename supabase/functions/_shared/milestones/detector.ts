@@ -47,7 +47,7 @@ export async function loadUserContext(userId: string): Promise<UserContext | nul
       .neq('status', 'sold'),
     sb
       .from('saved_properties')
-      .select('id, address, city, state, list_price, created_at, last_seen_price')
+      .select('id, property_address, city, state, price, created_at')
       .eq('user_id', userId),
     sb
       .from('analyses')
@@ -70,12 +70,12 @@ export async function loadUserContext(userId: string): Promise<UserContext | nul
 
   const saved: SavedPropertySnapshot[] = (savedRes.data ?? []).map((s: any) => ({
     id: s.id,
-    address: s.address ?? null,
+    address: s.property_address ?? null,
     city: s.city ?? null,
     state: s.state ?? null,
-    listPrice: s.list_price ? Number(s.list_price) : null,
+    listPrice: s.price ? Number(s.price) : null,
     savedAt: s.created_at,
-    lastSeenPrice: s.last_seen_price ? Number(s.last_seen_price) : null,
+    lastSeenPrice: null,
   }));
 
   const preferredCities: string[] = Array.isArray(profile.preferred_cities)
