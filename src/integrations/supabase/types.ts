@@ -407,6 +407,135 @@ export type Database = {
         }
         Relationships: []
       }
+      email_preferences: {
+        Row: {
+          created_at: string
+          digest_frequency: string
+          enabled: boolean
+          memory_tracking_enabled: boolean
+          milestone_celebrations_enabled: boolean
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          streak_reminders_enabled: boolean
+          unsubscribed_at: string | null
+          updated_at: string
+          user_id: string
+          weekly_review_nudges_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          digest_frequency?: string
+          enabled?: boolean
+          memory_tracking_enabled?: boolean
+          milestone_celebrations_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          streak_reminders_enabled?: boolean
+          unsubscribed_at?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_review_nudges_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          digest_frequency?: string
+          enabled?: boolean
+          memory_tracking_enabled?: boolean
+          milestone_celebrations_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          streak_reminders_enabled?: boolean
+          unsubscribed_at?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_review_nudges_enabled?: boolean
+        }
+        Relationships: []
+      }
+      email_send_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          idempotency_key: string | null
+          message_id: string | null
+          metadata: Json
+          recipient_email: string
+          status: string
+          template: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          message_id?: string | null
+          metadata?: Json
+          recipient_email: string
+          status?: string
+          template: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          idempotency_key?: string | null
+          message_id?: string | null
+          metadata?: Json
+          recipient_email?: string
+          status?: string
+          template?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      email_suppression: {
+        Row: {
+          created_at: string
+          email: string
+          metadata: Json
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          metadata?: Json
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          metadata?: Json
+          reason?: string
+        }
+        Relationships: []
+      }
+      email_unsubscribe_tokens: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       favorites: {
         Row: {
           created_at: string | null
