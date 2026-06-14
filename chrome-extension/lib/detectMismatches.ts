@@ -1,23 +1,23 @@
 /**
- * Pure function that compares a scraped listing to the user's saved
- * preferences and returns an ordered list of follow-up suggestions for
- * the extension popup to render.
+ * Thin re-export wrapper — the canonical implementation lives at
+ * `src/lib/conversationalIntelligence/detectMismatches.ts` so the web
+ * surface (`<ConversationalIntelligence />`) and the Chrome extension
+ * popup share one source of truth. Do not fork.
  *
- * Severity order: blocker → major → minor. The popup caps the list to 2.
+ * Severity order: blocker → major → minor. The popup still caps the
+ * list to 2 at the call site.
  */
-
-export type MismatchSeverity = 'blocker' | 'major' | 'minor';
-export type MismatchType =
-  | 'location'
-  | 'budget_over'
-  | 'budget_under'
-  | 'property_type'
-  | 'min_beds'
-  | 'min_baths'
-  | 'min_sqft'
-  | 'cap_rate';
-
-export interface Preferences {
+export {
+  detectMismatches,
+  shouldShow,
+  type MismatchSeverity,
+  type MismatchType,
+  type Preferences,
+  type ListingSnapshot,
+  type UpdatePayload,
+  type MismatchFollowup,
+  type DismissalRow,
+} from '../../src/lib/conversationalIntelligence/detectMismatches';
   preferred_cities?: string[] | null;
   property_types?: string[] | null;
   budget_min?: number | null;
