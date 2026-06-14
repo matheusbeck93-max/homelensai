@@ -23,6 +23,8 @@ export { FollowupChipRow } from "./FollowupChipRow";
 export { PreferenceFollowupCardWeb } from "./PreferenceFollowupCardWeb";
 export { useConversationalIntelligenceState } from "./useConversationalIntelligenceState";
 export { ArtifactCard } from "./ArtifactCard";
+export { trackCiEvent } from "./telemetry";
+export type { CiEventName } from "./telemetry";
 export type {
   ActionAttributionEntry,
   ActiveContext,

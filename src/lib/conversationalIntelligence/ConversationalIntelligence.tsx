@@ -17,7 +17,7 @@
  *   />
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatTurn, FollowupAction, MismatchSignal, SurfaceKind } from "./types";
 import {
   detectMismatches,
@@ -33,6 +33,7 @@ import { FollowupChipRow } from "./FollowupChipRow";
 import { PreferenceFollowupCardWeb } from "./PreferenceFollowupCardWeb";
 import { ArtifactCard } from "./ArtifactCard";
 import type { GeneratedArtifact } from "./types";
+import { trackCiEvent } from "./telemetry";
 
 export interface ConversationalIntelligenceProps {
   active: {
@@ -126,6 +127,21 @@ export function ConversationalIntelligence({
     [lastAssistant, active, thread, preferences],
   );
 
+  // Telemetry: fire `web_followup_shown` once per assistant turn that produces
+  // visible follow-ups. Debounced by turn index to avoid re-firing on re-render.
+  const turnIdx = thread.length;
+  const lastTrackedRef = useRef<number>(-1);
+  useEffect(() => {
+    if (lastTrackedRef.current === turnIdx) return;
+    if (followups.length === 0 && chips.length < 2) return;
+    lastTrackedRef.current = turnIdx;
+    void trackCiEvent("web_followup_shown", active.kind, {
+      mismatch_count: followups.length,
+      chip_count: chips.length,
+      mismatch_types: followups.map((f) => f.type),
+    });
+  }, [turnIdx, followups, chips, active.kind]);
+
   type CardState =
     | { id: string; status: "pending"; label: string }
     | { id: string; status: "ready"; artifact: GeneratedArtifact }
@@ -133,6 +149,11 @@ export function ConversationalIntelligence({
   const [cards, setCards] = useState<CardState[]>([]);
 
   const handleChip = async (action: FollowupAction, label: string) => {
+    void trackCiEvent("web_followup_chip_clicked", active.kind, {
+      label,
+      action_type: action.type,
+      tool: action.type === "call_tool" ? action.name : undefined,
+    });
     if (onChipAction) return onChipAction(action, label);
     if (action.type === "send_message") {
       onSendMessage?.(action.text);
@@ -162,6 +183,11 @@ export function ConversationalIntelligence({
       let next: CardState;
       if (r.ok === true) {
         next = { id: cardId, status: "ready", artifact: r.artifact };
+        void trackCiEvent("web_artifact_generated", active.kind, {
+          kind,
+          filename: r.artifact.filename,
+          size_bytes: r.artifact.sizeBytes,
+        });
       } else {
         const err = r as { error: string; cap_reached?: boolean };
         next = {
@@ -171,6 +197,11 @@ export function ConversationalIntelligence({
           error: err.error,
           capReached: err.cap_reached === true,
         };
+        void trackCiEvent(
+          err.cap_reached ? "web_artifact_cap_reached" : "web_artifact_failed",
+          active.kind,
+          { kind, error: err.error },
+        );
       }
       setCards((cs) => cs.map((c) => (c.id === cardId ? next : c)));
     }
@@ -186,6 +217,7 @@ export function ConversationalIntelligence({
             <PreferenceFollowupCardWeb
               key={f.type}
               followup={f}
+              surface={active.kind}
               onAccept={onAcceptFollowup}
               onDismiss={onDismissFollowup}
               onSaveException={(ff, note) =>

@@ -12,6 +12,10 @@ import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts
 import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
 import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResearch.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+
+const CI_BLOCK_EXTENSION = '\n\n' + ciSignalsPromptBlock();
+const CI_BLOCK_FIRECRAWL = '\n\n' + ciSignalsPromptBlock();
 
 const log = createLogger('ai-chat');
 
@@ -335,7 +339,7 @@ CRITICAL:
           const routed = await completeWithFallback(
             'extension_listing_analysis',
             {
-              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}`,
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}`,
               messages: [
                 ...sanitizedHistory.map((m: any) => ({ role: m.role, content: String(m.content ?? '') })),
                 { role: 'user', content: analysisPrompt },
@@ -349,8 +353,14 @@ CRITICAL:
             completion_tokens: routed.usage.outputTokens,
             total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
           });
+          const ciExt = extractCiSignals(routed.text ?? '');
           return new Response(
-            JSON.stringify({ response: routed.text, properties, hasProperties: true }),
+            JSON.stringify({
+              response: ciExt.cleanText,
+              properties,
+              hasProperties: true,
+              ...(ciExt.signals ? { signals: ciExt.signals } : {}),
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         } catch (err) {
@@ -369,7 +379,7 @@ CRITICAL:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}` },
+            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}` },
             ...sanitizedHistory,
             { role: 'user', content: analysisPrompt }
           ],
@@ -390,15 +400,18 @@ CRITICAL:
       }
 
       const aiData = await aiResponse.json();
-      const analysis = aiData.choices[0].message.content;
+      const rawAnalysis = aiData.choices[0].message.content ?? '';
+      const ciExt = extractCiSignals(rawAnalysis);
+      const analysis = ciExt.cleanText;
       await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis with client data generated successfully');
       
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           response: analysis,
           properties: properties,
-          hasProperties: true
+          hasProperties: true,
+          ...(ciExt.signals ? { signals: ciExt.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -791,7 +804,7 @@ CRITICAL:
           const routed = await completeWithFallback(
             'general_chat',
             {
-              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}`,
+              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}${CI_BLOCK_FIRECRAWL}`,
               messages: [{ role: 'user', content: analysisPrompt }],
               maxTokens: maxOutputTokensFor(creditCheck.tier),
               ...(routerTools ? { tools: routerTools, toolChoice: 'auto' as const } : {}),
@@ -831,7 +844,7 @@ CRITICAL:
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
             messages: [
-              { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}` },
+              { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting.${firecrawlMatchScoreInstructions}${CI_BLOCK_FIRECRAWL}` },
               { role: 'user', content: analysisPrompt }
             ],
             max_tokens: maxOutputTokensFor(creditCheck.tier),
@@ -855,6 +868,9 @@ CRITICAL:
       }
       const choice = aiData.choices?.[0]?.message ?? {};
       let analysis: string = choice.content ?? '';
+      // Strip trailing ci-signals fence before any downstream prose handling.
+      const ciFc = extractCiSignals(analysis);
+      analysis = ciFc.cleanText;
 
       // Extract structured match score from tool call if present.
       let structuredMatchScore: { score: number; rationale: string } | null = null;
@@ -918,6 +934,7 @@ CRITICAL:
           properties: properties, // Include properties for calculator option
           hasProperties: true,
           ...(structuredMatchScore ? { matchScore: structuredMatchScore } : {}),
+          ...(ciFc.signals ? { signals: ciFc.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
