@@ -20,6 +20,7 @@ import {
   isValidPortalSearchUrl,
 } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
+import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 
 const log = createLogger('perplexity-chat');
 
