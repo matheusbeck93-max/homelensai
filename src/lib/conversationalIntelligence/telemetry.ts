@@ -30,7 +30,7 @@ export async function trackCiEvent(
     if (!uid) return;
     await supabase
       .from("ci_web_events")
-      .insert({ user_id: uid, event_name: event, surface, props });
+      .insert([{ user_id: uid, event_name: event, surface, props: props as Record<string, unknown> }]);
   } catch (err) {
     // Silent — telemetry must never disrupt UX.
     if (typeof console !== "undefined") {
