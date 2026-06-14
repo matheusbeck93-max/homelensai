@@ -233,6 +233,96 @@ export type Database = {
           },
         ]
       }
+      artifact_generation_log: {
+        Row: {
+          count: number
+          created_at: string
+          day: string
+          id: string
+          kind: string
+          total_cost_usd: number
+          total_input_tokens: number
+          total_output_tokens: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          kind: string
+          total_cost_usd?: number
+          total_input_tokens?: number
+          total_output_tokens?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          kind?: string
+          total_cost_usd?: number
+          total_input_tokens?: number
+          total_output_tokens?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      artifacts: {
+        Row: {
+          created_at: string
+          error: string | null
+          filename: string
+          id: string
+          input: Json
+          kind: string
+          mime_type: string
+          size_bytes: number | null
+          source_thread_id: string | null
+          status: string
+          storage_path: string
+          surface: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          filename: string
+          id?: string
+          input?: Json
+          kind: string
+          mime_type: string
+          size_bytes?: number | null
+          source_thread_id?: string | null
+          status?: string
+          storage_path: string
+          surface?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          filename?: string
+          id?: string
+          input?: Json
+          kind?: string
+          mime_type?: string
+          size_bytes?: number | null
+          source_thread_id?: string | null
+          status?: string
+          storage_path?: string
+          surface?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       compare_sets: {
         Row: {
           created_at: string
