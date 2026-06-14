@@ -57,12 +57,12 @@ export function useConversationalIntelligenceState(userId: string | null | undef
     const d = (r.data ?? {}) as {
       preferences?: Preferences | null;
       dismissals?: DismissalRow[];
-      smart_suggestions_enabled?: boolean;
+      settings?: { extension_smart_suggestions_enabled?: boolean };
     };
     setState({
       preferences: d.preferences ?? null,
       dismissals: d.dismissals ?? [],
-      smartSuggestionsEnabled: d.smart_suggestions_enabled !== false,
+      smartSuggestionsEnabled: d.settings?.extension_smart_suggestions_enabled !== false,
       loaded: true,
     });
   }, [userId]);
