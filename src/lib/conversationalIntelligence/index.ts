@@ -19,6 +19,9 @@ export type {
   DismissalRow,
 } from "./detectMismatches";
 export { suggestFollowups } from "./suggestFollowups";
+export { FollowupChipRow } from "./FollowupChipRow";
+export { PreferenceFollowupCardWeb } from "./PreferenceFollowupCardWeb";
+export { useConversationalIntelligenceState } from "./useConversationalIntelligenceState";
 export type {
   ActionAttributionEntry,
   ActiveContext,

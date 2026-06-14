@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +29,12 @@ import { parseEdgeError, isCreditsExhausted } from "@/lib/edgeErrors";
 import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
 import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
 import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
+import {
+  ConversationalIntelligence,
+  useConversationalIntelligenceState,
+  type ChatTurn,
+  type ListingSnapshot,
+} from "@/lib/conversationalIntelligence";
 
 // ── Match Score parser (tolerant) ──
 // Strict: prefix at line start. Tolerant: same pattern anywhere in first 300 chars.
@@ -200,6 +206,11 @@ export default function Chats() {
     deleteProperty,
     isUrlSaved,
   } = useSavedProperties(user);
+
+  // Conversational Intelligence — surface-agnostic chat enhancements
+  // (preference-followup cards + smart next-step chips). See
+  // src/lib/conversationalIntelligence/ConversationalIntelligence.tsx.
+  const ci = useConversationalIntelligenceState(user?.id ?? null);
 
   // Local state
   const [loading, setLoading] = useState(false);
@@ -855,6 +866,12 @@ export default function Chats() {
       </main>
 
       <div className={cn("transition-all duration-200", "md:ml-64")}>
+        <ChatsConversationalIntelligence
+          messages={messages}
+          lastAnalyzedUrl={lastAnalyzedUrl}
+          ci={ci}
+          onSendMessage={handleSendMessage}
+        />
         <CapAwareComposer
           onSend={handleSendMessage}
           loading={loading}
@@ -902,6 +919,83 @@ function CapAwareComposer({
           showVoice={true}
           value={value}
           onValueChange={onValueChange} />
+    </div>
+  );
+}
+
+// ── Conversational Intelligence wrapper for /chats ──
+// Builds an active listing snapshot from the most recent assistant
+// analysis turn (uses parsed metadata when present, otherwise extracts
+// labelled fields from the message body). Then mounts the shared
+// <ConversationalIntelligence /> renderer above the composer.
+function ChatsConversationalIntelligence({
+  messages,
+  lastAnalyzedUrl,
+  ci,
+  onSendMessage,
+}: {
+  messages: ChatMessage[];
+  lastAnalyzedUrl: string | null;
+  ci: ReturnType<typeof useConversationalIntelligenceState>;
+  onSendMessage: (text: string) => void | Promise<void>;
+}) {
+  const thread: ChatTurn[] = useMemo(
+    () => messages.map((m) => ({ role: m.role, content: m.content })),
+    [messages],
+  );
+
+  const snapshot: ListingSnapshot | undefined = useMemo(() => {
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return undefined;
+    const parsed = (lastAssistant.metadata as any)?.analyzedProperty;
+    const num = (s: string | undefined) => {
+      if (!s) return null;
+      const n = parseFloat(s.replace(/[^0-9.]/g, ""));
+      return Number.isFinite(n) ? n : null;
+    };
+    const body = lastAssistant.content || "";
+    const field = (re: RegExp) => body.match(re)?.[1]?.trim();
+    const address = parsed?.address ?? field(/Address:\s*([^\n]+)/i);
+    let city: string | null = null;
+    let state: string | null = null;
+    if (typeof address === "string") {
+      const parts = address.split(",").map((p: string) => p.trim());
+      if (parts.length >= 2) {
+        city = parts[parts.length - 2] || null;
+        state = (parts[parts.length - 1] || "").split(/\s+/)[0] || null;
+      }
+    }
+    return {
+      city,
+      state,
+      price: num(parsed?.price) ?? num(field(/Price:\s*([^\n]+)/i)),
+      beds: num(parsed?.bedrooms) ?? num(field(/Bedrooms?:\s*([^\n]+)/i)),
+      baths: num(parsed?.bathrooms) ?? num(field(/Bathrooms?:\s*([^\n]+)/i)),
+      sqft: num(parsed?.size) ?? num(field(/Size:\s*([^\n]+)/i)),
+      propertyType: parsed?.propertyType ?? field(/Property\s*[Tt]ype:\s*([^\n]+)/i) ?? null,
+      capRate: null,
+    };
+  }, [messages]);
+
+  if (!ci.loaded || !ci.smartSuggestionsEnabled) return null;
+
+  return (
+    <div className="max-w-3xl mx-auto px-3 sm:px-4">
+      <ConversationalIntelligence
+        active={{
+          kind: "general_chat",
+          propertyUrl: lastAnalyzedUrl ?? undefined,
+          snapshot,
+        }}
+        thread={thread}
+        preferences={ci.preferences}
+        dismissals={ci.dismissals}
+        enabled={ci.smartSuggestionsEnabled}
+        onSendMessage={(text) => void onSendMessage(text)}
+        onAcceptFollowup={ci.onAccept}
+        onDismissFollowup={ci.onDismiss}
+        onSaveException={ci.onSaveException}
+      />
     </div>
   );
 }

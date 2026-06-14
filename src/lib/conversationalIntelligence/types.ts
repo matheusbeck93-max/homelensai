@@ -66,8 +66,12 @@ export interface ActiveContext {
   propertyId?: string;
   /** Listing URL or external id when in extension/property context. */
   propertyUrl?: string;
-  /** Free-form structured snapshot of the thing currently in focus. */
-  snapshot?: Record<string, unknown>;
+  /**
+   * Free-form structured snapshot of the thing currently in focus.
+   * Shape aligns with `ListingSnapshot` from `./detectMismatches`; kept
+   * loosely typed here to avoid a circular import.
+   */
+  snapshot?: import("./detectMismatches").ListingSnapshot;
 }
 
 export interface ConversationalContext {
