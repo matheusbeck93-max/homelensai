@@ -1,16 +1,31 @@
-import { useNavigate } from 'react-router-dom';
 import { Flame, Shield, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStickiness } from '@/hooks/useStickiness';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const TIERS = [3, 7, 14, 30, 60, 90, 180, 365];
 
 export function StreakPopover() {
-  const navigate = useNavigate();
   const { streak } = useStickiness();
   if (!streak) return null;
   const nextTier = TIERS.find((t) => t > streak.daily_current) ?? null;
   const remaining = nextTier ? nextTier - streak.daily_current : null;
+
+  const disable = async () => {
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session.session?.user?.id;
+    if (!userId) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ streak_tracking_disabled: true })
+      .eq('id', userId);
+    if (error) {
+      toast({ title: 'Could not update', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Streak tracking turned off', description: 'You can re-enable it in account settings later.' });
+  };
 
   return (
     <div className="p-4 space-y-3">
@@ -41,9 +56,9 @@ export function StreakPopover() {
         size="sm"
         variant="outline"
         className="w-full"
-        onClick={() => navigate('/settings')}
+        onClick={disable}
       >
-        Streak preferences
+        Turn off streak tracking
       </Button>
     </div>
   );
