@@ -1698,12 +1698,29 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
 `;
 
     console.log('Making Lovable AI Gateway call for regular chat...');
-    
+
+    // Inject persistent user memories (Stickiness Phase 2). Best-effort: a
+    // failure here must not break the chat — render a blank block instead.
+    let memoriesBlock = '';
+    try {
+      if (creditCheck.userId) {
+        const memAdmin = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+          { auth: { persistSession: false } },
+        );
+        const mems = await loadMemoriesForContext(memAdmin, creditCheck.userId, 10);
+        memoriesBlock = renderMemoriesBlock(mems);
+      }
+    } catch (memErr) {
+      console.warn('[ai-chat] memory injection failed', memErr);
+    }
+
     // Build messages for the AI request, handling multimodal attachment
     const aiMessages: any[] = [
       {
         role: 'system',
-        content: systemPrompt + CI_BLOCK_MAIN
+        content: systemPrompt + CI_BLOCK_MAIN + (memoriesBlock ? '\n\n' + memoriesBlock : '')
       },
     ];
 
