@@ -286,10 +286,7 @@ export function mismatchFollowupsFromSignals(
         if (typeof s.value === "number") synthetic.sqft = s.value;
         break;
       case "cap_rate":
-        if (typeof s.value === "number") synthetic.capRate = s.value;
-        break;
-      // Backend shared schema emits `target_cap_rate`; treat as alias of `cap_rate`.
-      case ("target_cap_rate" as unknown as "cap_rate"):
+      case "target_cap_rate":
         if (typeof s.value === "number") synthetic.capRate = s.value;
         break;
     }
