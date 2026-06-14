@@ -507,7 +507,7 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
 
     // Build final messages array
     const messages: { role: string; content: string }[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: `${systemPrompt}\n\n${ciSignalsPromptBlock()}` },
       ...sanitizedHistory.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content
