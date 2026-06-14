@@ -53,8 +53,11 @@ function parseDate(s: string | null | undefined): Date | null {
   const d = new Date(`${s}T00:00:00Z`);
   return isNaN(d.getTime()) ? null : d;
 }
+/** Calendar-day difference between two dates, ignoring time-of-day. */
 function diffDays(a: Date, b: Date): number {
-  return Math.round((a.getTime() - b.getTime()) / 86_400_000);
+  const aMidnight = Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate());
+  const bMidnight = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
+  return Math.round((aMidnight - bMidnight) / 86_400_000);
 }
 /** ISO week-Monday for given date (UTC). */
 function weekStart(d: Date): string {
