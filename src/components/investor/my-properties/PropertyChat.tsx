@@ -13,7 +13,6 @@ import {
   useConversationalIntelligenceState,
   type ChatTurn,
 } from '@/lib/conversationalIntelligence';
-import { useAuth } from '@/contexts/AuthContext';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -57,8 +56,17 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cap = useBudgetCap();
   const capExceeded = cap.warningLevel === 'exceeded';
-  const { user } = useAuth();
-  const ci = useConversationalIntelligenceState(user?.id ?? null);
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setUserId(data.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const ci = useConversationalIntelligenceState(userId);
 
   useEffect(() => {
     setMessages(loadHistory(propertyId));
