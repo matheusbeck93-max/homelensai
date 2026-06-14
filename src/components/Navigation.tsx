@@ -6,6 +6,7 @@ import { Home, Calculator, TrendingUp, Menu, Sparkles, LayoutDashboard, MessageS
 import { tierDisplayName } from "@/lib/subscriptionPlans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { HeaderUsageIndicator } from "@/components/layout/HeaderUsageIndicator";
+import { StreakIndicator } from "@/components/stickiness/StreakIndicator";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,6 +113,7 @@ export function Navigation() {
             <InstallPrompt />
             <ThemeToggle />
             {user && <HeaderUsageIndicator />}
+            {user && <StreakIndicator />}
 
             {user && !subscriptionLoading && isFree && (
               <Button
@@ -155,6 +157,7 @@ export function Navigation() {
               <InstallPrompt />
               <ThemeToggle />
               {user && <HeaderUsageIndicator />}
+              {user && <StreakIndicator />}
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Open navigation menu">
