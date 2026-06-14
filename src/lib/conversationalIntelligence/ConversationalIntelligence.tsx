@@ -94,7 +94,7 @@ export function ConversationalIntelligence({
     } else if (active.snapshot) {
       fs = detectMismatches(active.snapshot, preferences);
     }
-    return fs.filter((f) => shouldShow(f, dismissals)).slice(0, 2);
+    return fs.filter((f) => shouldShow(f.type, dismissals)).slice(0, 2);
   }, [enabled, preferences, signals, active.snapshot, dismissals]);
 
   const chips = useMemo(
