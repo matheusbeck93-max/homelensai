@@ -15,6 +15,7 @@ import {
 } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
+import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -78,6 +79,8 @@ Assistant reply: "Median \$/sqft in Tampa is \$250 (derived from \$450k median l
 User: compare my Austin properties by cap rate
 Assistant action: resolve the Austin property IDs from loaded context, call compare_properties with those IDs.
 Assistant reply: "Of your three Austin properties, 1814 Cedar leads at 8.2% cap (above your 7% target). See [Comparison Table]."`;
+
+const CI_SIGNALS_BLOCK = ciSignalsPromptBlock();
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tool definitions (OpenAI/Gemini compatible JSON Schema)
@@ -1397,8 +1400,21 @@ Deno.serve(async (req) => {
           const toolCalls: any[] = assistantMsg?.tool_calls ?? [];
 
           if (content) {
-            send('text_delta', { delta: content });
-            finalText += content;
+            // On the final iteration (no more tool calls), strip the
+            // trailing ci-signals fence before showing text to the user
+            // and emit a `signals` SSE event so the client can render
+            // mismatch cards / follow-up chips.
+            if (!toolCalls.length) {
+              const { cleanText, signals } = extractCiSignals(content);
+              if (cleanText) {
+                send('text_delta', { delta: cleanText });
+                finalText += cleanText;
+              }
+              if (signals) send('signals', signals as unknown as Json);
+            } else {
+              send('text_delta', { delta: content });
+              finalText += content;
+            }
           }
 
           if (!toolCalls.length) break;
@@ -1518,7 +1534,7 @@ function buildSystemPrompt(
   const sessionBlock = sessionFilters && Object.keys(sessionFilters).length
     ? `\n\nACTIVE SESSION FILTERS (transient, this conversation only):\n${JSON.stringify(sessionFilters)}`
     : '\n\nACTIVE SESSION FILTERS: none';
-  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock;
+  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock + '\n\n' + CI_SIGNALS_BLOCK;
   const title = activeCardContext?.card?.title ?? 'unknown';
   const summary = activeCardContext?.summary ?? '';
   return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}${sessionBlock}
@@ -1531,5 +1547,7 @@ The right-hand panel already shows that card's source visual at full detail — 
 - Stack a related visual (e.g., for a cap rate trend, add the user's target line or recent comps).
 - Project the trend forward.
 
-The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.`;
+The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.
+
+${CI_SIGNALS_BLOCK}`;
 }

@@ -67,6 +67,11 @@ export interface ChatTurn {
   toolCalls?: string[];
   /** Tool events captured for this turn (assistant only). */
   toolEvents?: ToolEvent[];
+  /** Conversational Intelligence signals emitted by the AI on this turn. */
+  signals?: {
+    mismatch_signals?: Array<Record<string, unknown>>;
+    suggested_followups?: Array<{ label: string; action: Record<string, unknown> }>;
+  };
   createdAt: number;
 }
 
@@ -120,6 +125,7 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
     text: '',
     toolEvents: [],
   });
+  const pendingSignalsRef = useRef<ChatTurn['signals'] | null>(null);
   const activeKeyRef = useRef(activeThreadKey);
   activeKeyRef.current = activeThreadKey;
   const activeCtxRef = useRef(activeCardContext);
@@ -314,6 +320,11 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
                 t.id === ev.id ? { ...t, error: ev.error, status: 'error' } : t,
               ),
             }));
+          } else if (ev.type === 'signals') {
+            pendingSignalsRef.current = {
+              mismatch_signals: ev.mismatch_signals,
+              suggested_followups: ev.suggested_followups,
+            };
           } else if (ev.type === 'turn_done') {
             setCurrentTurn((prev) => {
               const assistantTurn: ChatTurn = {
@@ -322,8 +333,10 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
                 content: prev.text,
                 toolCalls: prev.toolEvents.map((t) => t.name),
                 toolEvents: prev.toolEvents,
+                signals: pendingSignalsRef.current ?? undefined,
                 createdAt: Date.now(),
               };
+              pendingSignalsRef.current = null;
               setThreads((p) => ({
                 ...p,
                 [key]: [...(p[key] ?? []), assistantTurn],

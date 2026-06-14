@@ -7,6 +7,11 @@ export type SseEvent =
   | { type: 'tool_use_start'; id: string; name: string; input: any }
   | { type: 'tool_use_result'; id: string; name: string; output: any }
   | { type: 'tool_use_error'; id: string; error: string }
+  | {
+      type: 'signals';
+      mismatch_signals?: Array<Record<string, unknown>>;
+      suggested_followups?: Array<{ label: string; action: Record<string, unknown> }>;
+    }
   | { type: 'turn_done'; messageId: string | null; threadId: string }
   | { type: 'error'; message: string };
 
