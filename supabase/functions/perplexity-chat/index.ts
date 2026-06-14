@@ -632,7 +632,8 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
         message: content,
         citations,
         links: validatedLinks.slice(0, 3), // Max 3 links (1 per site)
-        mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general'
+        mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general',
+        signals: ciSignals ?? undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
