@@ -16,6 +16,7 @@ import {
 import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -101,6 +102,7 @@ interface ExecutionContext {
   serviceSupabase: ReturnType<typeof createClient>;
   sessionFilters: SessionFilters | null;
   preferences: { budget_max?: number | null; budget_min?: number | null; target_markets?: string[] | null };
+  authHeader?: string | null;
 }
 
 interface SessionFilters {
@@ -617,6 +619,30 @@ TOOLS.push(
     execute: async (input, ctx) => getSupplyPipeline(ctx, input),
   },
 );
+
+// Open-house finder — surface upcoming in-person open houses for
+// investor-tier users. Reuses the shared tool that's also exposed in
+// ai-chat and the chat-surface intercepts so a single tier/cache path
+// is enforced.
+TOOLS.push({
+  name: 'find_open_houses',
+  description:
+    'Find upcoming in-person open houses (US/Canada) by city, state, date range, and price range. Use when the user asks about "open houses this weekend", "tours this Saturday", "open houses in Austin under $800k", or similar.',
+  parameters: {
+    type: 'object',
+    properties: {
+      country: { type: 'string', enum: ['US', 'CA'] },
+      state: { type: 'string', description: 'Two-letter state/province code.' },
+      city: { type: 'string' },
+      dateFrom: { type: 'string', description: 'YYYY-MM-DD start date.' },
+      dateTo: { type: 'string', description: 'YYYY-MM-DD end date.' },
+      priceMin: { type: 'number' },
+      priceMax: { type: 'number' },
+    },
+    required: [],
+  },
+  execute: async (input, ctx) => executeFindOpenHouses(input, ctx.authHeader ?? null),
+});
 
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
@@ -1372,6 +1398,7 @@ Deno.serve(async (req) => {
     serviceSupabase,
     sessionFilters: incomingSessionFilters,
     preferences: prefs,
+    authHeader,
   };
 
   const stream = new ReadableStream({

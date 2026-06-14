@@ -7,6 +7,7 @@ import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
 import { amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 
 const log = createLogger('owned-property-chat');
 
@@ -101,6 +102,18 @@ Deno.serve(async (req) => {
     const { property_id, messages } = await req.json();
     if (!property_id || !Array.isArray(messages)) {
       return errorResponse('property_id and messages[] required', 400, req);
+    }
+
+    // Open-house intercept — comps with open houses for the owned property.
+    const latestUserMsg = [...messages].reverse().find((m: any) => m?.role === 'user')?.content ?? '';
+    const ohIntent = detectOpenHouseIntent(typeof latestUserMsg === 'string' ? latestUserMsg : '');
+    if (ohIntent) {
+      try {
+        const lookup = await runOpenHouseLookup(ohIntent.args, authHeader);
+        return jsonResponse({ message: lookup.markdown, openHouses: lookup.cards }, 200, req);
+      } catch (e) {
+        log.error('open_house_lookup_failed', { error: e instanceof Error ? e.message : String(e) });
+      }
     }
 
     const svc = createClient(

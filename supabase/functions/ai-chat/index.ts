@@ -158,6 +158,31 @@ Deno.serve(async (req) => {
     const detectedUrls = extractAllPropertyUrls(lastUserMessage);
 
     log.step('URL detection', { count: detectedUrls.length });
+
+    // Open-house intent intercept. Triggers on "open house", "open this
+    // weekend", "tour this weekend", etc. and short-circuits the AI loop
+    // when there's no property URL/data in the message. Returns a markdown
+    // response with up to 8 listing cards; tier gating is enforced by the
+    // shared open-houses-search edge function.
+    if (detectedUrls.length === 0 && !propertyData) {
+      try {
+        const { detectOpenHouseIntent, runOpenHouseLookup } = await import('../_shared/openHouses/intent.ts');
+        const intent = detectOpenHouseIntent(lastUserMessage);
+        if (intent) {
+          log.step('open-house intent detected', { args: intent.args });
+          const lookup = await runOpenHouseLookup(intent.args, authHeader);
+          return new Response(
+            JSON.stringify({
+              response: { message: lookup.markdown, openHouses: lookup.cards },
+              openHouses: lookup.cards,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+      } catch (e) {
+        console.error('[ai-chat] open-house intercept failed:', e);
+      }
+    }
     
     // In conversation mode, let AI handle property search queries naturally
     // We removed the auto-deflect logic - AI will now parse and trigger searches

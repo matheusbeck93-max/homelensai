@@ -8,6 +8,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
 import type { Tier } from '../_shared/ai/types.ts';
+import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 
 const log = createLogger('property-assistant');
 
@@ -162,6 +163,20 @@ Deno.serve(async (req) => {
     
     const { query, categories, properties, marketSnapshot } = validationResult.data;
     
+    // Open-house intercept — runs before property-search and AI paths.
+    const ohIntent = detectOpenHouseIntent(query);
+    if (ohIntent) {
+      try {
+        const lookup = await runOpenHouseLookup(ohIntent.args, req.headers.get('Authorization'));
+        return new Response(
+          JSON.stringify({ response: lookup.markdown, openHouses: lookup.cards }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      } catch (e) {
+        log.error('open_house_lookup_failed', { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
     if (isPropertySearch(query)) {
       const links = buildPropertyLinks(query);
       return new Response(
