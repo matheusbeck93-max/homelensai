@@ -1309,6 +1309,24 @@ export type Database = {
           },
         ]
       }
+      preference_followup_dismissals: {
+        Row: {
+          dismissed_at: string
+          mismatch_type: string
+          user_id: string
+        }
+        Insert: {
+          dismissed_at?: string
+          mismatch_type: string
+          user_id: string
+        }
+        Update: {
+          dismissed_at?: string
+          mismatch_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           about_me: string | null
@@ -1334,6 +1352,7 @@ export type Database = {
           daily_analysis_last_reset: string | null
           desired_monthly_payment: number | null
           email: string | null
+          extension_smart_suggestions_enabled: boolean
           financing_defaults: Json
           financing_preference: string | null
           financing_preferences: string[] | null
@@ -1370,6 +1389,7 @@ export type Database = {
           subscription_cancel_at: string | null
           subscription_renews_at: string | null
           subscription_status: string | null
+          target_cap_rate: number | null
           trial_used_at: string | null
           updated_at: string | null
           user_profile: string | null
@@ -1401,6 +1421,7 @@ export type Database = {
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
+          extension_smart_suggestions_enabled?: boolean
           financing_defaults?: Json
           financing_preference?: string | null
           financing_preferences?: string[] | null
@@ -1437,6 +1458,7 @@ export type Database = {
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
+          target_cap_rate?: number | null
           trial_used_at?: string | null
           updated_at?: string | null
           user_profile?: string | null
@@ -1468,6 +1490,7 @@ export type Database = {
           daily_analysis_last_reset?: string | null
           desired_monthly_payment?: number | null
           email?: string | null
+          extension_smart_suggestions_enabled?: boolean
           financing_defaults?: Json
           financing_preference?: string | null
           financing_preferences?: string[] | null
@@ -1504,6 +1527,7 @@ export type Database = {
           subscription_cancel_at?: string | null
           subscription_renews_at?: string | null
           subscription_status?: string | null
+          target_cap_rate?: number | null
           trial_used_at?: string | null
           updated_at?: string | null
           user_profile?: string | null
@@ -2158,6 +2182,39 @@ export type Database = {
           source?: string
           status?: string
           stripe_session_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_exception_properties: {
+        Row: {
+          created_at: string
+          id: string
+          listing_snapshot: Json
+          note: string | null
+          property_url: string
+          reason: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listing_snapshot?: Json
+          note?: string | null
+          property_url: string
+          reason?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listing_snapshot?: Json
+          note?: string | null
+          property_url?: string
+          reason?: string | null
           updated_at?: string
           user_id?: string
         }
