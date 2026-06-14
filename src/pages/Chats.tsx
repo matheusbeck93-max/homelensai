@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -939,12 +939,12 @@ function ChatsConversationalIntelligence({
   ci: ReturnType<typeof useConversationalIntelligenceState>;
   onSendMessage: (text: string) => void | Promise<void>;
 }) {
-  const thread: ChatTurn[] = useMemoSnapshot(
+  const thread: ChatTurn[] = useMemo(
     () => messages.map((m) => ({ role: m.role, content: m.content })),
     [messages],
   );
 
-  const snapshot: ListingSnapshot | undefined = useMemoSnapshot(() => {
+  const snapshot: ListingSnapshot | undefined = useMemo(() => {
     const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
     if (!lastAssistant) return undefined;
     const parsed = (lastAssistant.metadata as any)?.analyzedProperty;
@@ -998,10 +998,4 @@ function ChatsConversationalIntelligence({
       />
     </div>
   );
-}
-
-// Tiny local alias: react `useMemo` import is already present at top.
-function useMemoSnapshot<T>(factory: () => T, deps: React.DependencyList): T {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemoImpl(factory, deps);
 }
