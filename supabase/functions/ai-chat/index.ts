@@ -16,6 +16,7 @@ import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationa
 
 const CI_BLOCK_EXTENSION = '\n\n' + ciSignalsPromptBlock();
 const CI_BLOCK_FIRECRAWL = '\n\n' + ciSignalsPromptBlock();
+const CI_BLOCK_MAIN = '\n\n' + ciSignalsPromptBlock();
 
 const log = createLogger('ai-chat');
 
@@ -1701,7 +1702,7 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     const aiMessages: any[] = [
       {
         role: 'system',
-        content: systemPrompt
+        content: systemPrompt + CI_BLOCK_MAIN
       },
     ];
 
@@ -1892,6 +1893,15 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
     let assistantResponse = assistantMessage.content;
     log.step('AI Gateway response received', { length: assistantResponse?.length });
 
+    // Conversational Intelligence: strip trailing ```ci-signals fence (if any)
+    // BEFORE downstream JSON parsing / sanitization, and attach to the response.
+    let ciSignalsMain: ReturnType<typeof extractCiSignals>['signals'] = null;
+    if (typeof assistantResponse === 'string' && assistantResponse) {
+      const ci = extractCiSignals(assistantResponse);
+      assistantResponse = ci.cleanText;
+      ciSignalsMain = ci.signals;
+    }
+
     /**
      * RESPONSE SANITIZATION & LINK GENERATION
      * 
@@ -1982,7 +1992,7 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
       // Return the parsed object directly (not double-stringified)
       // Frontend expects { response: { message: "...", searchParams: {...} } }
       return new Response(
-        JSON.stringify({ response: parsed }),
+        JSON.stringify({ response: parsed, signals: ciSignalsMain ?? undefined }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (parseError) {
@@ -1992,7 +2002,8 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
         JSON.stringify({ 
           response: JSON.stringify({
             message: assistantResponse || 'I apologize, I couldn\'t process that request.'
-          })
+          }),
+          signals: ciSignalsMain ?? undefined,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

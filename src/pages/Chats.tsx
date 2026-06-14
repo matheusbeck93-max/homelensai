@@ -360,6 +360,15 @@ export default function Chats() {
           createdAt: new Date().toISOString()
         };
 
+        // Conversational Intelligence signals from ai-chat (multimodal path).
+        const ciSignalsAttach = (data as { signals?: unknown })?.signals;
+        if (ciSignalsAttach && typeof ciSignalsAttach === 'object') {
+          assistantMessage.metadata = {
+            ...assistantMessage.metadata,
+            ciSignals: ciSignalsAttach,
+          };
+        }
+
         setMessages((prev) => [...prev, assistantMessage]);
         if (user && conversationId) saveMessage(assistantMessage, conversationId);
         return;
