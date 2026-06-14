@@ -53,8 +53,13 @@ export function useOpenHouseSearch() {
     }
 
     try {
+      // Strip null/undefined keys — the edge function's Zod schema treats
+      // these fields as optional but rejects explicit nulls.
+      const cleanBody = Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => v !== null && v !== undefined && v !== ''),
+      );
       const { data, error } = await supabase.functions.invoke('open-houses-search', {
-        body: filters,
+        body: cleanBody,
       });
       if (error) throw error;
       const typed = data as OpenHouseSearchResult;
