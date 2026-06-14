@@ -18,6 +18,11 @@ import { recordPersonaEvent } from '@/lib/personas/telemetry';
 import { useBudgetCap } from '@/lib/ai/budgetCap';
 import { BudgetCapBanner } from '@/components/ai/BudgetCapBanner';
 import { BudgetCapBlocker } from '@/components/ai/BudgetCapBlocker';
+import {
+  ConversationalIntelligence,
+  useConversationalIntelligenceState,
+} from '@/lib/conversationalIntelligence';
+import type { ChatTurn as CiChatTurn } from '@/lib/conversationalIntelligence/types';
 
 interface Props {
   introText: string;
@@ -65,6 +70,16 @@ export function BriefCard({
   const pending = currentTurn.status === 'streaming';
   const cap = useBudgetCap();
   const capExceeded = cap.warningLevel === 'exceeded';
+  const ci = useConversationalIntelligenceState(userId);
+
+  // Adapt InvestorBriefContext ChatTurn -> CI ChatTurn (role + content + signals).
+  const ciThread: CiChatTurn[] = currentThread
+    .filter((t) => t.role !== 'system')
+    .map((t) => ({
+      role: t.role as 'user' | 'assistant',
+      content: t.content,
+      signals: t.signals as CiChatTurn['signals'],
+    }));
 
   useEffect(() => {
     if (mode === 'chat' && scrollRef.current) {
@@ -209,6 +224,22 @@ export function BriefCard({
           </>
         )}
         <div className="pt-2 border-t">
+          {inChat && (
+            <div className="pb-2">
+              <ConversationalIntelligence
+                active={{ kind: 'investor_chat' }}
+                thread={ciThread}
+                preferences={ci.preferences}
+                dismissals={ci.dismissals}
+                enabled={ci.loaded && ci.smartSuggestionsEnabled}
+                onSendMessage={(t) => void sendTurn(t)}
+                onGenerateArtifact={ci.generateArtifact}
+                onAcceptFollowup={ci.onAccept}
+                onDismissFollowup={ci.onDismiss}
+                onSaveException={ci.onSaveException}
+              />
+            </div>
+          )}
           <div className="relative">
             <Textarea
               value={query}
