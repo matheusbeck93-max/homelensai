@@ -430,6 +430,7 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
                 onAcceptFollowup={ci.onAccept}
                 onDismissFollowup={ci.onDismiss}
                 onSaveException={ci.onSaveException}
+                onGenerateArtifact={ci.generateArtifact}
               />
             </div>
           )}
