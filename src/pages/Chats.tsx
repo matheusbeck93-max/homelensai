@@ -29,6 +29,12 @@ import { parseEdgeError, isCreditsExhausted } from "@/lib/edgeErrors";
 import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
 import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
 import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
+import {
+  ConversationalIntelligence,
+  useConversationalIntelligenceState,
+  type ChatTurn,
+  type ListingSnapshot,
+} from "@/lib/conversationalIntelligence";
 
 // ── Match Score parser (tolerant) ──
 // Strict: prefix at line start. Tolerant: same pattern anywhere in first 300 chars.
@@ -200,6 +206,11 @@ export default function Chats() {
     deleteProperty,
     isUrlSaved,
   } = useSavedProperties(user);
+
+  // Conversational Intelligence — surface-agnostic chat enhancements
+  // (preference-followup cards + smart next-step chips). See
+  // src/lib/conversationalIntelligence/ConversationalIntelligence.tsx.
+  const ci = useConversationalIntelligenceState(user?.id ?? null);
 
   // Local state
   const [loading, setLoading] = useState(false);
@@ -855,6 +866,12 @@ export default function Chats() {
       </main>
 
       <div className={cn("transition-all duration-200", "md:ml-64")}>
+        <ChatsConversationalIntelligence
+          messages={messages}
+          lastAnalyzedUrl={lastAnalyzedUrl}
+          ci={ci}
+          onSendMessage={handleSendMessage}
+        />
         <CapAwareComposer
           onSend={handleSendMessage}
           loading={loading}
