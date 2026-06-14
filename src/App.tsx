@@ -96,6 +96,7 @@ const DoNotSell = lazyWithRetry(() => import("./pages/DoNotSell"));
 const AdminTelemetry = lazyWithRetry(() => import("./pages/AdminTelemetry"));
 const AccountUsage = lazyWithRetry(() => import("./pages/account/Usage"));
 const EmailUnsubscribe = lazyWithRetry(() => import("./pages/account/EmailUnsubscribe"));
+const AccountMemory = lazyWithRetry(() => import("./pages/account/Memory"));
 
 const queryClient = new QueryClient();
 
