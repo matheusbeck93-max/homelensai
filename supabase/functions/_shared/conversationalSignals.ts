@@ -28,6 +28,14 @@ export const CI_SIGNALS_TOOLS = [
   "generate_purchase_plan_pdf",
   "generate_property_report_pdf",
   "generate_chart_image",
+  // Cross-surface actions (Phase 3.5 — routed by the chip handler to
+  // navigation/save flows instead of the artifact pipeline).
+  "create_alert",
+  "find_open_houses",
+  "save_property",
+  "update_preferences",
+  "find_matches",
+  "publish_report",
 ] as const;
 
 export interface MismatchSignal {
@@ -94,6 +102,15 @@ export function ciBehaviorPromptBlock(scope?: { surface?: "main" | "extension" |
    If a memory conflicts with the current message, surface it gently: "You mentioned earlier you weren't into Tampa — has that changed?"
 
 5) CROSS-SURFACE SUGGESTIONS. After answering, if there's an obviously useful next action on another surface (email alert, open houses this weekend, save property, publish report, etc.), offer it via the ci-signals follow-up block — NOT inline prose. Two or three max.
+
+CROSS-SURFACE TOOL NAMES (use these inside suggested_followups call_tool actions when relevant):
+- find_open_houses    — input: { city?, state? } → opens open-house finder for that market
+- create_alert        — input: { kind: "market" | "property", query?, propertyUrl? } → opens alert setup
+- save_property       — input: { propertyUrl? } → saves the active listing
+- update_preferences  — input: { focus?: "markets" | "budget" | "criteria" } → opens preferences
+- find_matches        — input: { city?, state? } → asks chat to surface fresh matches
+- publish_report      — input: { kind?: "analysis" | "memo" } → opens publish/share flow
+Prefer these for cross-surface offers; use generate_* tools only for downloadable artifacts.
 `.trim();
 }
 
