@@ -41,8 +41,9 @@ interface LooseListing {
 
 function isValidListing(l: LooseListing): boolean {
   if (!l.address) return false;
-  // Drop low-confidence rows missing core economic fields.
-  if (l.confidence === 'low' && (!l.price || !l.beds)) return false;
+  // Previously we dropped low-confidence rows missing price/beds, which
+  // killed nearly every Perplexity row in practice. The UI handles null
+  // price/beds gracefully, so keep anything with at least an address.
   return true;
 }
 
@@ -105,10 +106,10 @@ function buildPerplexityQuery(f: FindOpenHousesArgs): string {
     f.priceMax ? `under $${f.priceMax.toLocaleString()}` : '',
   ].filter(Boolean).join(' and ');
   return [
-    `List upcoming in-person open houses in ${where} ${dateClause}.`,
+    `List upcoming in-person open houses scheduled in ${where} ${dateClause}.`,
     priceClause ? `Filter to homes priced ${priceClause}.` : '',
-    'For each home, give: full street address, city, state, ZIP, asking price (number), bedrooms, bathrooms, square footage, open house date and start/end time (local), photo URL if available, and the source listing URL on Zillow, Realtor.com, or Redfin.',
-    'Prefer results from Zillow, Redfin, and Realtor.com. Include at least 10 if available.',
+    'For each home, give one line in this format: ADDRESS | CITY, STATE ZIP | $PRICE | BEDS bd / BATHS ba / SQFT sqft | OPEN HOUSE DATE START-END (local) | SOURCE_URL',
+    'Use sources from Zillow, Redfin, or Realtor.com. Return at least 10 if available. Do not invent addresses. If a field is unknown, write "unknown" but always include the address and source URL.',
   ].filter(Boolean).join(' ');
 }
 
@@ -132,7 +133,6 @@ async function callPerplexity(query: string): Promise<PerplexityResponse | null>
       signal: controller.signal,
       body: JSON.stringify({
         model: 'sonar',
-        search_recency_filter: 'week',
         messages: [
           {
             role: 'system',
@@ -143,12 +143,18 @@ async function callPerplexity(query: string): Promise<PerplexityResponse | null>
       }),
     });
     if (!res.ok) {
-      log.warn('Perplexity non-200', { status: res.status });
+      const body = await res.text().catch(() => '');
+      log.warn('Perplexity non-200', { status: res.status, body: body.slice(0, 300) });
       return null;
     }
     const data = await res.json();
     const answer: string = data?.choices?.[0]?.message?.content ?? '';
     const citations: string[] = Array.isArray(data?.citations) ? data.citations : [];
+    log.info('perplexity answer', {
+      answer_len: answer.length,
+      citation_count: citations.length,
+      preview: answer.slice(0, 300),
+    });
     return { answer, citations };
   } catch (err) {
     log.warn('Perplexity call failed', { err: (err as Error).message });
@@ -189,19 +195,41 @@ async function extractWithGemini(prose: string, citations: string[]): Promise<Lo
     }),
   });
   if (!res.ok) {
-    log.warn('Gemini extraction non-200', { status: res.status });
+    const body = await res.text().catch(() => '');
+    log.warn('Gemini extraction non-200', { status: res.status, body: body.slice(0, 300) });
     return [];
   }
   const data = await res.json();
   const text: string = data?.choices?.[0]?.message?.content ?? '';
-  try {
-    const parsed = JSON.parse(text);
-    const arr = Array.isArray(parsed?.listings) ? parsed.listings : [];
-    return arr as LooseListing[];
-  } catch (err) {
-    log.warn('Gemini extraction JSON parse failed', { err: (err as Error).message, preview: text.slice(0, 200) });
-    return [];
+  const arr = parseListingsJson(text);
+  if (arr.length === 0) {
+    log.warn('Gemini extraction returned 0 listings', {
+      text_len: text.length,
+      preview: text.slice(0, 300),
+    });
   }
+  return arr;
+}
+
+/** Robust JSON parser: strips ```json fences and falls back to the first {...} block. */
+function parseListingsJson(text: string): LooseListing[] {
+  const stripped = text
+    .replace(/^\s*```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+  const tryParse = (s: string): LooseListing[] => {
+    try {
+      const parsed = JSON.parse(s);
+      return Array.isArray(parsed?.listings) ? (parsed.listings as LooseListing[]) : [];
+    } catch {
+      return [];
+    }
+  };
+  const first = tryParse(stripped);
+  if (first.length > 0) return first;
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (match) return tryParse(match[0]);
+  return [];
 }
 
 export async function searchOpenHousesViaPerplexity(
@@ -288,12 +316,17 @@ async function callFirecrawl(url: string, apiKey: string): Promise<LooseListing[
     }),
   });
   if (!res.ok) {
-    log.warn('Firecrawl non-200', { status: res.status });
+    const body = await res.text().catch(() => '');
+    log.warn('Firecrawl non-200', { url, status: res.status, body: body.slice(0, 300) });
     return [];
   }
   const data = await res.json();
   const json = data?.data?.json ?? data?.json ?? null;
-  return Array.isArray(json?.listings) ? (json.listings as LooseListing[]) : [];
+  const listings = Array.isArray(json?.listings) ? (json.listings as LooseListing[]) : [];
+  if (listings.length === 0) {
+    log.info('Firecrawl returned 0 listings', { url, preview: JSON.stringify(data).slice(0, 300) });
+  }
+  return listings;
 }
 
 export async function searchOpenHousesViaFirecrawl(

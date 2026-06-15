@@ -184,8 +184,20 @@ export default function OpenHouses() {
             </div>
 
             {listings.length === 0 && !loading && (
-              <Card className="p-6 text-sm text-muted-foreground text-center">
-                Pick a city and date range above, then tap <strong>Find open houses</strong>.
+              <Card className="p-6 text-sm text-muted-foreground text-center space-y-2">
+                {result ? (
+                  <>
+                    <p>No open houses surfaced for this city and date window.</p>
+                    <p className="text-xs">
+                      Try a wider date range, remove the price floor, or pick a larger nearby city.
+                      Our index refreshes from Zillow, Redfin, and Realtor.com — some weeks are thin.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    Pick a city and date range above, then tap <strong>Find open houses</strong>.
+                  </p>
+                )}
               </Card>
             )}
 
