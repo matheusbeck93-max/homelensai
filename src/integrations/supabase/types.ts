@@ -2147,6 +2147,48 @@ export type Database = {
         }
         Relationships: []
       }
+      rentcast_cache_hit_rate_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          cache_hits: number
+          created_at: string
+          hit_rate_pct: number
+          id: string
+          min_sample_size: number
+          threshold_pct: number
+          total_calls: number
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          cache_hits: number
+          created_at?: string
+          hit_rate_pct: number
+          id?: string
+          min_sample_size?: number
+          threshold_pct?: number
+          total_calls: number
+          window_end: string
+          window_start: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          cache_hits?: number
+          created_at?: string
+          hit_rate_pct?: number
+          id?: string
+          min_sample_size?: number
+          threshold_pct?: number
+          total_calls?: number
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       rentcast_cache_hit_rate_history: {
         Row: {
           cache_hits: number
