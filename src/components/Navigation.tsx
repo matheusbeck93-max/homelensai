@@ -59,7 +59,6 @@ export function Navigation() {
   const navItems = [
     { label: 'My HomeLens', path: '/console', icon: LayoutDashboard },
     { label: 'Chats', path: '/chats', icon: MessageSquare },
-    { label: 'Open Houses', path: '/open-houses', icon: DoorOpen },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];

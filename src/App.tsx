@@ -137,7 +137,7 @@ function App() {
                   <Route path="/investor/properties/:id" element={<ProtectedRoute><OwnedPropertyDetail /></ProtectedRoute>} />
                   <Route path="/portfolio" element={<Navigate to="/" replace />} />
                   <Route path="/compare" element={<Compare />} />
-                  <Route path="/open-houses" element={<OpenHouses />} />
+                  <Route path="/open-houses" element={<Navigate to="/" replace />} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
