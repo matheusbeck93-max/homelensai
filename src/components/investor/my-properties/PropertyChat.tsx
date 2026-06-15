@@ -14,7 +14,11 @@ import {
   type ChatTurn,
 } from '@/lib/conversationalIntelligence';
 
-type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+  signals?: ChatTurn['signals'];
+};
 
 const STORAGE_PREFIX = 'homelens.ownedPropertyChat.v1.';
 
@@ -95,7 +99,15 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
       if (error) throw error;
       const reply = (data as any)?.message ?? '';
       if (!reply) throw new Error('Empty response');
-      setMessages([...next, { role: 'assistant', content: reply }]);
+      const sig = (data as any)?.signals;
+      setMessages([
+        ...next,
+        {
+          role: 'assistant',
+          content: reply,
+          signals: sig && typeof sig === 'object' ? sig : undefined,
+        },
+      ]);
     } catch (e: any) {
       if (await parseAndRecordBudget402(e, 'owned_property_chat')) {
         setMessages(messages);
