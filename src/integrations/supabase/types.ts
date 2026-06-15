@@ -2123,6 +2123,54 @@ export type Database = {
         }
         Relationships: []
       }
+      rentcast_cache: {
+        Row: {
+          cache_key: string
+          endpoint: string
+          expires_at: string
+          fetched_at: string
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          endpoint: string
+          expires_at: string
+          fetched_at?: string
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          endpoint?: string
+          expires_at?: string
+          fetched_at?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
+      rentcast_usage_log: {
+        Row: {
+          cache_hit: boolean
+          called_at: string
+          endpoint: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          cache_hit?: boolean
+          called_at?: string
+          endpoint: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          cache_hit?: boolean
+          called_at?: string
+          endpoint?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_analyses: {
         Row: {
           analysis_summary: string

@@ -1,61 +1,120 @@
-## Goal
+## Part 1 — Audit Report
 
-Make macro questions ("Is Tampa still good for rentals?", "Should I invest in Austin?") render in a consistent **MacroAnswerCard** instead of free-form prose. The card matches the selected "Structured insights card" direction: bold takeaway → 2x2 metrics grid → confidence bar → optional source footer.
+**State: ⚠️ Partially integrated** (closer to "live core, missing AI/quota layer" than stub).
 
-## Approach
+| Check | Result |
+|---|---|
+| `RENTCAST_API_KEY` secret | ✅ Present |
+| `_shared/rentcast.ts` adapter | ✅ Exists (139 lines, sale + rent AVM in parallel) |
+| `investor_owned_property_valuations` table | ✅ Exists with `source` column |
+| Rows with `source = 'rentcast'` | ✅ 19 rows, most recent today |
+| `property-valuation` / `property-valuation-refresh` edge funcs | ✅ Writing valuations |
+| Callers (`enrich-property`, `owned-property-chat`, `compare-properties-ai`, `property-alerts-evaluate`) | ✅ Importing the adapter |
+| AI tool `compare_rent_to_market` | ❌ Missing |
+| AI tool `estimate_property_value` (chat-callable) | ❌ Missing — only background refresh exists |
+| Daily per-user quota (5 buyer / 50 investor) | ❌ Not enforced |
+| Dedicated `rentcast_cache` + `rentcast_usage_log` tables | ❌ Don't exist (valuations table acts as de-facto value cache via `observed_at`) |
+| Override-respect on refresh | Verify (Out of scope for this PR — already specced in My Properties prompt) |
 
-Extend the existing `ci-signals` fenced block (which the AI already emits) with an optional `macro_answer` payload. When present, the chat surfaces render `<MacroAnswerCard />` in place of plain prose. Follow-up chips continue to render below via the existing `<ConversationalIntelligence />` wrapper.
+**Conclusion:** Core auto-valuation pipeline is live. What's missing is the explicit AI tool surface, the quota/cache guardrails the prompt calls for, and the ATTOM deferral note. Proceeding to a scoped Part 2 + Part 3.
 
-## Files
+---
 
-### 1. Shared signals contract — `supabase/functions/_shared/conversationalSignals.ts`
-- Add `MacroAnswer` type:
-  ```
-  {
-    takeaway: string;                                    // bold one-liner
-    metrics: Array<{ label: string; value: string;       // 2-4 items
-                     trend?: "up" | "down" | "neutral" }>;
-    confidence?: number;                                 // 0–100
-    source_note?: string;                                // short attribution line
-  }
-  ```
-- Add `macro_answer?: MacroAnswer` to `CiSignals`.
-- Extend `extractCiSignals` to validate + parse it (takeaway string, metrics 2–4 with string label/value, confidence in 0–100, source_note ≤ 140 chars).
-- Update `ciSignalsPromptBlock` to document the new optional field in the fence schema.
-- Update `ciBehaviorPromptBlock` rule 6 (MACRO ANSWER SHAPE): when intent is MACRO, MUST emit `macro_answer` and keep prose to AT MOST one short lead-in line — the structured card carries takeaway + metrics + confidence.
+## Part 2 — Close the gaps (RentCast hardening + AI tools)
 
-### 2. Frontend types — `src/lib/conversationalIntelligence/types.ts`
-- Mirror `MacroAnswer`; add `macro_answer?` to `ChatTurn.signals`.
+### 2A. Database — caching + usage ledger (one migration)
 
-### 3. New component — `src/lib/conversationalIntelligence/MacroAnswerCard.tsx`
-Built from the selected v2 prototype, ported to project semantic tokens (no hardcoded slate/emerald):
-- Outer card: `bg-muted/40 border border-border rounded-2xl p-5 shadow-sm`
-- Header chip row: small bot icon + "Analysis" label (`text-muted-foreground`, uppercase, tracking-wider)
-- Takeaway: `font-bold text-base leading-snug` (`text-foreground`)
-- Metrics: `grid grid-cols-2 gap-y-4 gap-x-6`, each cell has uppercase label (`text-muted-foreground text-[11px]`) over bold value (`text-lg`); trend `up` → `text-emerald-600` (kept via tailwind, acceptable accent), `down` → `text-destructive`
-- Confidence: bottom block, label + percent text + progress bar (`bg-muted` track, `bg-primary` fill width=confidence%)
-- Optional source footer (`text-[10px] text-muted-foreground`) below card when `source_note` present
-- Renders nothing if `takeaway` missing or metrics < 2.
+```text
+public.rentcast_cache
+  cache_key TEXT PRIMARY KEY        -- e.g. "value:<address-hash>", "rent:<address-hash>", "details:<address-hash>"
+  endpoint  TEXT NOT NULL            -- 'value' | 'rent' | 'comps' | 'details'
+  payload   JSONB NOT NULL
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  expires_at TIMESTAMPTZ NOT NULL    -- value/rent: +24h, details: +7d, comps: +24h
+  -- RLS: no client access; service_role only.
 
-### 4. Helper + exports — `src/lib/conversationalIntelligence/index.ts`
-- Re-export `MacroAnswerCard` and a tiny `getMacroAnswer(turn)` helper.
+public.rentcast_usage_log
+  id UUID PK
+  user_id UUID NOT NULL REFERENCES auth.users
+  endpoint TEXT NOT NULL
+  cache_hit BOOLEAN NOT NULL
+  called_at TIMESTAMPTZ DEFAULT now()
+  -- RLS: user can SELECT own rows; service_role full.
+  -- Index on (user_id, called_at) for daily-quota window.
+```
 
-### 5. Surface wiring (main conversational surfaces only)
-- **`src/pages/Chats.tsx`** — in the assistant message renderer, if `metadata.ciSignals.macro_answer` is present, render `<MacroAnswerCard />` instead of the plain prose. If the AI still emits prose alongside, render only the lead-in (first line, ≤140 chars) above the card.
-- **`src/components/investor/brief/BriefCard.tsx`** — same treatment using `turn.signals.macro_answer`.
-- `PropertyChat` and `FollowUpChat`: out of scope (property-bound surfaces; macro questions are not their main use).
+Both tables get `GRANT`s per the public-schema rule (service_role full; authenticated SELECT only on usage_log).
 
-### 6. Telemetry — `src/lib/conversationalIntelligence/telemetry.ts`
-- Add `web_macro_card_shown` event, fired once per assistant turn that produces a macro card (debounced by turn index).
+### 2B. Adapter upgrades — `supabase/functions/_shared/rentcast.ts`
 
-### 7. Edge deploys
-- Deploy `ai-chat`, `investor-chat`, `perplexity-chat`, `owned-property-chat` (shared module changed).
+Add (keeping the existing `fetchRentcastValuation` for the background refresh path that's already working):
+- `getValueCached(addr)` / `getRentCached(addr)` — hit `rentcast_cache` first, else call API + persist (24h TTL).
+- `getDetailsCached(addr)` — `/properties` endpoint, 7d TTL.
+- `getRentalComps(addr, radiusMi, limit)` — `/avm/rent/long-term` with `compCount`, 24h TTL. Returns ranked list (composite: 40% distance / 30% beds-baths match / 30% recency).
+- `enforceDailyQuota(userId, tier)` — count today's `rentcast_usage_log` rows for the user, throw a typed `RentcastQuotaError` past `tier === 'investor' ? 50 : 5`. Free tier → throw immediately (use Perplexity instead).
+- `logRentcastCall(userId, endpoint, cacheHit)` — fire-and-forget insert.
+- Telemetry events `rentcast_call_made` / `rentcast_cache_hit` (use existing tool-call telemetry table if present, else log via `ai_usage_log`).
 
-## Out of scope
-- Chrome extension surface (small popup, plain text + chips already works).
-- Charts / sparklines inside the card.
-- Standalone `analyze_market_macro` orchestrator (already deferred).
+### 2C. AI tools — wire into `investor-chat` and `owned-property-chat`
+
+In `supabase/functions/investor-chat/index.ts` add two new tool definitions next to `get_market_stats`:
+
+```
+estimate_property_value({ address, beds?, baths?, sqft?, propertyType? })
+  → { value, low, high, rent, rentLow, rentHigh, source: 'rentcast', cached }
+compare_rent_to_market({ address, currentRent, beds?, baths?, sqft? })
+  → { marketRent, marketRentLow, marketRentHigh, delta, deltaPct, verdict: 'below'|'at'|'above' }
+```
+
+Both tools:
+- Call `enforceDailyQuota` with the user's tier (resolve via `profiles.subscription_status`).
+- On quota error, return a structured `{ error: 'quota_exceeded', tier, limit }` so the AI can degrade gracefully ("You've hit today's RentCast limit — here's a Perplexity-based estimate instead.").
+- On free tier: skip RentCast and fall through to the existing Perplexity path.
+
+Mirror the same two tools into `owned-property-chat` so per-property questions ("Am I under-renting?") work.
+
+### 2D. Cron — daily refresh sweep
+
+`supabase/functions/property-valuation-refresh/index.ts` already exists. Verify it's scheduled; if not, register a daily cron via `supabase--insert` (not migration — contains URL + anon key per project policy). Skip if a `cron.job` for it already exists.
+
+### 2E. Override respect
+
+Quick verification only — `property-valuation-refresh` already gates on `investor_owned_properties.manual_value_override_at`. Confirm and add a regression test note. No code changes unless broken.
+
+---
+
+## Part 3 — ATTOM deferral comment (canonical drop point)
+
+Insert directly above the `get_market_stats` tool definition in `supabase/functions/investor-chat/index.ts` (line ~358 — that's the registry entry where future "should we use a real API?" decisions get made):
+
+```ts
+// ATTOM Data deferred — market stats use Perplexity + Sonnet for now.
+// Revisit when MRR > $25K OR users explicitly request deeper comps/MLS-grade data.
+// Cost reference: ATTOM tiers start at ~$500/mo. RentCast (Foundation, $74/mo)
+// handles property valuation + rent estimates. See homelens_rentcast_audit_integration_prompt.md §3.
+```
+
+No code change in market-stats logic itself.
+
+---
+
+## Out of scope (per prompt)
+
+- ATTOM integration. MLS licensing. Zillow Bridge / Realtor partner. Manual override UX rebuild. International addresses.
+- Free-tier RentCast access (free stays on Perplexity).
 
 ## Verification
-- Sample-payload sanity check on `extractCiSignals` for a macro fence.
-- Manual: ask a macro question in `/chats` and confirm card renders with takeaway, 4 metrics, confidence bar; follow-up chips still appear below the composer; light/dark theme both readable.
+
+- Migration applies; `rentcast_cache` + `rentcast_usage_log` exist with grants/RLS.
+- `compare_rent_to_market` + `estimate_property_value` resolvable from `investor-chat` and `owned-property-chat`; second call within 24h hits cache and writes a `cache_hit=true` log row.
+- Investor account at 51 calls/day hits `quota_exceeded`; buyer at 6 calls/day hits it.
+- ATTOM comment present above `get_market_stats`.
+- Existing 19 rentcast valuation rows untouched; refresh keeps writing new rows.
+
+## Surfaces to deploy
+
+`investor-chat`, `owned-property-chat`, `property-valuation`, `property-valuation-refresh`, plus shared module touched.
+
+## Memory updates after build
+
+Add a memory entry under "Properties & Market Data" pointing at this audit's outcome (live + tier/cache contract) so the next session doesn't re-audit.
