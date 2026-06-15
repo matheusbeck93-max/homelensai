@@ -725,6 +725,18 @@ export default function Chats() {
 
                   {message.role === 'assistant' ?
                   <div className="prose prose-sm dark:prose-invert max-w-none">
+                      {/* Macro answer card — structured rendering for MACRO intent */}
+                      {(() => {
+                        const macro = getMacroAnswer((message.metadata as { ciSignals?: unknown } | undefined)?.ciSignals);
+                        return macro ? (
+                          <MacroAnswerCard
+                            answer={macro}
+                            surface="general_chat"
+                            turnKey={message.id}
+                            className="mb-3"
+                          />
+                        ) : null;
+                      })()}
                       {/* Match Score Badge */}
                       {message.metadata?.matchScore != null && (
                         <div className="flex items-center gap-3 mb-3 p-3 rounded-lg border bg-background/50">
