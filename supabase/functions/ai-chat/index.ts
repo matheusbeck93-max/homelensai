@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
 
 `;
 
-      const analysisPrompt = ANSWER_FIRST_HEADER + (purpose === 'investment'
+      let analysisPrompt = ANSWER_FIRST_HEADER + (purpose === 'investment'
         ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
 
 Property Details:
