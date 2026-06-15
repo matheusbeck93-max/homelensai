@@ -366,7 +366,7 @@ CRITICAL:
           sqft: clientProperty.sqft || null,
           property_type: clientProperty.propertyType ?? undefined,
         });
-        if (rcBlock) (analysisPrompt as any) = analysisPrompt + rcBlock;
+        if (rcBlock) analysisPrompt = analysisPrompt + rcBlock;
       } catch (_) { /* never fail the surface on enrichment */ }
 
       // Fetch user profile for match score (memoized per request)
