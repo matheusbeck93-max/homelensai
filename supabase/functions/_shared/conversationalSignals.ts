@@ -196,12 +196,22 @@ links) in this EXACT shape:
       "action": { "type": "call_tool",
                   "name": "<one of: ${tools.join(" | ")}>",
                   "input": { /* tool-specific, optional */ } } }
-  ]
+  ],
+  "macro_answer": {
+    "takeaway": "<one-line headline>",
+    "metrics": [
+      { "label": "<<=24 chars>", "value": "<short>", "trend": "up" | "down" | "neutral" }
+      /* 2-4 entries */
+    ],
+    "confidence": <integer 0-100>,
+    "source_note": "<optional short attribution, <=140 chars>"
+  }
 }
 \`\`\`
 
 Rules:
 - Up to 2 mismatch_signals and up to 3 suggested_followups.
+- Include \`macro_answer\` ONLY for MACRO intent (market / strategy questions). Omit otherwise.
 - Omit the entire block if neither applies — never emit an empty block.
 - Output STRICTLY valid JSON inside the fence. No trailing commas, no
   comments, no markdown.
