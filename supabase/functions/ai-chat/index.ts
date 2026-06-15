@@ -14,6 +14,7 @@ import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResear
 import { ProviderError } from '../_shared/ai/types.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { loadMemoriesForContext, renderMemoriesBlock } from '../_shared/memory/retriever.ts';
+import { fetchRentcastEnrichmentBlock } from '../_shared/rentcast-enrichment.ts';
 
 const CI_BLOCK_EXTENSION = '\n\n' + ciBehaviorPromptBlock({ surface: 'extension' }) + '\n\n' + ciSignalsPromptBlock();
 const CI_BLOCK_FIRECRAWL = '\n\n' + ciBehaviorPromptBlock({ surface: 'property' }) + '\n\n' + ciSignalsPromptBlock();
@@ -249,7 +250,7 @@ Deno.serve(async (req) => {
 
 `;
 
-      const analysisPrompt = ANSWER_FIRST_HEADER + (purpose === 'investment'
+      let analysisPrompt = ANSWER_FIRST_HEADER + (purpose === 'investment'
         ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
 
 Property Details:
@@ -346,6 +347,27 @@ CRITICAL:
 
       // [ai-chat-branch] EXTENSION path: client-provided DOM-extracted property
       console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'extension', hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode }));
+
+      // RentCast enrichment (paid tiers only). Silent no-op on free / quota /
+      // failure — surface continues to work exactly as before. See
+      // supabase/functions/_shared/rentcast-enrichment.ts for the contract.
+      try {
+        const enrichSvc = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        const rcBlock = await fetchRentcastEnrichmentBlock(enrichSvc, creditCheck.userId, {
+          address_line1: clientProperty.address,
+          city: clientProperty.city,
+          state: clientProperty.state,
+          zip: clientProperty.zip,
+          beds: clientProperty.beds || null,
+          baths: clientProperty.baths || null,
+          sqft: clientProperty.sqft || null,
+          property_type: clientProperty.propertyType ?? undefined,
+        });
+        if (rcBlock) analysisPrompt = analysisPrompt + rcBlock;
+      } catch (_) { /* never fail the surface on enrichment */ }
 
       // Fetch user profile for match score (memoized per request)
       let matchScoreInstructions = '';
@@ -610,7 +632,7 @@ CRITICAL:
 `;
 
         // Generate natural AI analysis with calculations
-        const analysisPrompt = ANSWER_FIRST_HEADER_FC + (detectedUrls.length === 1
+        let analysisPrompt = ANSWER_FIRST_HEADER_FC + (detectedUrls.length === 1
           ? purpose === 'investment'
             ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
 
@@ -783,6 +805,36 @@ CRITICAL:
 - If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`);
 
         console.log('Analysis prompt created, calling Lovable AI Gateway...');
+
+        // RentCast enrichment (paid tiers only). Single-URL firecrawl path —
+        // we have one clean address and the model is generating a one-shot
+        // analysis, so a single cached value+rent lookup adds high signal.
+        // Multi-URL comparison: skipped (would multiply quota usage).
+        if (detectedUrls.length === 1 && properties[0]) {
+          try {
+            const enrichSvc = createClient(
+              Deno.env.get('SUPABASE_URL')!,
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+            );
+            const p0: any = properties[0];
+            // properties[0].address is the full street line from H1; city/state/zip
+            // were parsed separately. Use the street fragment only when possible.
+            const streetOnly = String(p0.address ?? '').split(',')[0]?.trim() || p0.address;
+            const rcBlock = await fetchRentcastEnrichmentBlock(enrichSvc, creditCheck.userId, {
+              address_line1: streetOnly,
+              city: p0.city,
+              state: p0.state,
+              zip: p0.zip,
+              beds: p0.beds || null,
+              baths: p0.baths || null,
+              sqft: p0.sqft || null,
+            });
+            if (rcBlock) analysisPrompt = analysisPrompt + rcBlock;
+          } catch (_) { /* never fail the surface on enrichment */ }
+        }
+
+        // ATTOM deferral parity (see investor-chat + owned-property-chat for the
+        // canonical comment). RentCast Foundation covers AVM + rent here too.
       
       // Fetch user profile for match score (Firecrawl path) — memoized per request
       let firecrawlMatchScoreInstructions = '';

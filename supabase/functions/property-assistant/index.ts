@@ -238,7 +238,13 @@ Universal rules:
 - Prefer bullets when they improve scanability — use a flat bullet list for 3+ supporting points; use prose for 1–2 connected points or the opening verdict. Never bullet simple factual answers.
 - Skip "next steps" / follow-up suggestions by default — include them only when they materially help the user act.
 - Personalization: use saved preferences only when they sharpen the answer; never echo the profile back; never force preferences into narrow factual questions.
-- Tone: professional, confident, natural — sharp advisor, not blog writer.`;
+- Tone: professional, confident, natural — sharp advisor, not blog writer.
+- Live valuations / rent comps for a SPECIFIC owned address: this surface
+  does not call RentCast directly. If the user asks "what's my house worth"
+  or "what's market rent on 1814 Cedar", tell them once: "Open the property
+  in My Properties (Owned) or ask in the Investor Console — those surfaces
+  pull live RentCast estimates." Then answer the rest of their question
+  from general knowledge. Don't repeat the redirect across turns.`;
 
     const aiMessages: AiMessage[] = [
       { role: 'system', content: systemPrompt },
