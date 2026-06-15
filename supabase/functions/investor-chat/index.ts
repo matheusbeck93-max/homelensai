@@ -385,7 +385,11 @@ DO NOT USE for:
 Cached 24h per address. Counts against the user's daily RentCast quota
 (buyer 5/day, investor 50/day).
 
-ERROR HANDLING — do NOT fabricate numbers when the tool returns an error:
+SUCCESS: when the tool returns numeric fields (value, rent, low, high), USE
+THEM. Cite "RentCast" as the source. Do NOT apply any of the error handling
+below — those branches only apply when the result object has an "error" field.
+
+ERROR HANDLING — only when the result object contains an "error" field:
 - error="upgrade_required" → reply with ONE sentence: "Live property
   valuations need a Buyer or Investor subscription." then offer
   get_market_stats for the area. Do not call this tool again this turn.
