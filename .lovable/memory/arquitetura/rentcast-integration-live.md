@@ -1,3 +1,11 @@
+
+## Stage 1 update (2026-06-15)
+- `resolveRentcastTier` lives in `_shared/rentcast.ts` — single source of truth.
+- Free tier throws `RentcastUpgradeRequiredError`; tools return `{ error: 'upgrade_required', cta }`. No Perplexity AVM fallback for free users.
+- `owned-property-chat` has its own raw-fetch tool loop (MAX 4 iterations) with `estimate_property_value` + `compare_rent_to_market`, pre-filled from PROPERTY CONTEXT. Injects top 10 `user_memories`.
+- Tool descriptions ALWAYS lead with "SUCCESS: use the numeric fields" before the error branches — Gemini otherwise utters upgrade text on successful cached calls.
+- Boundary tests live in `supabase/functions/_shared/__tests__/rentcast_test.ts` (13 passing).
+- Stage 2 (separate PR): wire tools into `ai-chat`, `property-assistant`, and `investor-brief` Deep Dive; extract `buildRentcastTools(ctx)` factory.
 ---
 name: RentCast integration (live)
 description: RentCast Foundation tier wired for auto-valuation, AI tools, quota + cache. Don't re-audit.
