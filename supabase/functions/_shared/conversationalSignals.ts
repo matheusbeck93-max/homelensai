@@ -28,6 +28,14 @@ export const CI_SIGNALS_TOOLS = [
   "generate_purchase_plan_pdf",
   "generate_property_report_pdf",
   "generate_chart_image",
+  // Cross-surface actions (Phase 3.5 — routed by the chip handler to
+  // navigation/save flows instead of the artifact pipeline).
+  "create_alert",
+  "find_open_houses",
+  "save_property",
+  "update_preferences",
+  "find_matches",
+  "publish_report",
 ] as const;
 
 export interface MismatchSignal {
