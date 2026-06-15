@@ -34,6 +34,8 @@ import {
   useConversationalIntelligenceState,
   type ChatTurn,
   type ListingSnapshot,
+  MacroAnswerCard,
+  getMacroAnswer,
 } from "@/lib/conversationalIntelligence";
 
 // ── Match Score parser (tolerant) ──
