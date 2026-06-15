@@ -805,6 +805,36 @@ CRITICAL:
 - If you have a tip, keep it SHORT (1 sentence) and ask if they want more details`);
 
         console.log('Analysis prompt created, calling Lovable AI Gateway...');
+
+        // RentCast enrichment (paid tiers only). Single-URL firecrawl path —
+        // we have one clean address and the model is generating a one-shot
+        // analysis, so a single cached value+rent lookup adds high signal.
+        // Multi-URL comparison: skipped (would multiply quota usage).
+        if (detectedUrls.length === 1 && properties[0]) {
+          try {
+            const enrichSvc = createClient(
+              Deno.env.get('SUPABASE_URL')!,
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+            );
+            const p0: any = properties[0];
+            // properties[0].address is the full street line from H1; city/state/zip
+            // were parsed separately. Use the street fragment only when possible.
+            const streetOnly = String(p0.address ?? '').split(',')[0]?.trim() || p0.address;
+            const rcBlock = await fetchRentcastEnrichmentBlock(enrichSvc, creditCheck.userId, {
+              address_line1: streetOnly,
+              city: p0.city,
+              state: p0.state,
+              zip: p0.zip,
+              beds: p0.beds || null,
+              baths: p0.baths || null,
+              sqft: p0.sqft || null,
+            });
+            if (rcBlock) analysisPrompt = analysisPrompt + rcBlock;
+          } catch (_) { /* never fail the surface on enrichment */ }
+        }
+
+        // ATTOM deferral parity (see investor-chat + owned-property-chat for the
+        // canonical comment). RentCast Foundation covers AVM + rent here too.
       
       // Fetch user profile for match score (Firecrawl path) — memoized per request
       let firecrawlMatchScoreInstructions = '';
