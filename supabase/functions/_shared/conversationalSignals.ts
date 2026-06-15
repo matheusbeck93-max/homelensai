@@ -235,12 +235,55 @@ export function extractCiSignals(text: string): {
   if (!m) return { cleanText: text, signals: null };
   // Require the block to actually mention one of the signal keys to
   // avoid swallowing unrelated trailing JSON / code blocks.
-  if (!/mismatch_signals|suggested_followups/.test(m[1])) {
+  if (!/mismatch_signals|suggested_followups|macro_answer/.test(m[1])) {
     return { cleanText: text, signals: null };
   }
   let parsed: CiSignals | null = null;
   try {
     const raw = JSON.parse(m[1]);
+    let macro: MacroAnswer | undefined;
+    const rawMacro = (raw as { macro_answer?: unknown }).macro_answer;
+    if (rawMacro && typeof rawMacro === "object") {
+      const rm = rawMacro as Record<string, unknown>;
+      const takeaway = typeof rm.takeaway === "string" ? rm.takeaway.trim() : "";
+      const metricsRaw = Array.isArray(rm.metrics) ? rm.metrics : [];
+      const metrics: MacroAnswerMetric[] = metricsRaw
+        .map((m) => {
+          if (!m || typeof m !== "object") return null;
+          const mm = m as Record<string, unknown>;
+          const label = typeof mm.label === "string" ? mm.label.trim() : "";
+          const value =
+            typeof mm.value === "string"
+              ? mm.value.trim()
+              : typeof mm.value === "number"
+                ? String(mm.value)
+                : "";
+          if (!label || !value) return null;
+          const trend =
+            mm.trend === "up" || mm.trend === "down" || mm.trend === "neutral"
+              ? mm.trend
+              : undefined;
+          const out: MacroAnswerMetric = { label: label.slice(0, 48), value: value.slice(0, 32) };
+          if (trend) out.trend = trend;
+          return out;
+        })
+        .filter((x): x is MacroAnswerMetric => x !== null)
+        .slice(0, 4);
+      const confRaw = rm.confidence;
+      const confidence =
+        typeof confRaw === "number" && Number.isFinite(confRaw)
+          ? Math.max(0, Math.min(100, Math.round(confRaw)))
+          : undefined;
+      const sourceNote =
+        typeof rm.source_note === "string" && rm.source_note.trim()
+          ? rm.source_note.trim().slice(0, 140)
+          : undefined;
+      if (takeaway && metrics.length >= 2) {
+        macro = { takeaway: takeaway.slice(0, 240), metrics };
+        if (confidence !== undefined) macro.confidence = confidence;
+        if (sourceNote) macro.source_note = sourceNote;
+      }
+    }
     const out: CiSignals = {
       mismatch_signals: Array.isArray(raw.mismatch_signals)
         ? raw.mismatch_signals
@@ -272,7 +315,8 @@ export function extractCiSignals(text: string): {
             .slice(0, 3)
         : [],
     };
-    if (out.mismatch_signals.length || out.suggested_followups.length) parsed = out;
+    if (macro) out.macro_answer = macro;
+    if (out.mismatch_signals.length || out.suggested_followups.length || out.macro_answer) parsed = out;
   } catch {
     parsed = null;
   }
