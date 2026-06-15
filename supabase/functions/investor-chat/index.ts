@@ -149,6 +149,32 @@ function resolveBudget(
   return { budgetMax: budgetMax ?? null, budgetMin: budgetMin ?? null };
 }
 
+/**
+ * Resolve the user's RentCast quota tier from their subscription_status.
+ * Premium / investor subs → 'investor' (50/day). Active buyer subs → 'buyer' (5/day).
+ * Free or unknown → 'free' (0/day → falls through to Perplexity).
+ */
+async function resolveRentcastTier(ctx: ExecutionContext): Promise<RentcastTier> {
+  try {
+    const { data } = await ctx.serviceSupabase
+      .from('profiles')
+      .select('subscription_status, stripe_price_id')
+      .eq('id', ctx.userId)
+      .maybeSingle();
+    const status = String((data as any)?.subscription_status ?? '').toLowerCase();
+    const priceId = String((data as any)?.stripe_price_id ?? '');
+    const investorPriceIds = [
+      Deno.env.get('STRIPE_INVESTOR_MONTHLY_PRICE_ID'),
+      Deno.env.get('STRIPE_INVESTOR_ANNUAL_PRICE_ID'),
+    ].filter(Boolean);
+    if (investorPriceIds.includes(priceId)) return 'investor';
+    if (status === 'active' || status === 'trialing') return 'buyer';
+    return 'free';
+  } catch {
+    return 'free';
+  }
+}
+
 const TOOLS: Tool[] = [
   {
     name: 'apply_session_filter',
