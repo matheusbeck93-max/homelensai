@@ -103,6 +103,19 @@ export function ciBehaviorPromptBlock(scope?: { surface?: "main" | "extension" |
 
 5) CROSS-SURFACE SUGGESTIONS. After answering, if there's an obviously useful next action on another surface (email alert, open houses this weekend, save property, publish report, etc.), offer it via the ci-signals follow-up block — NOT inline prose. Two or three max.
 
+6) MACRO ANSWER SHAPE. When a question is MACRO (market/strategy), don't return a single number and stop. Use this shape:
+   - One-line takeaway (yes/no/likely, or the headline number in context).
+   - 2-4 supporting bullets pulling from: median price + cap rate, inventory/DOM trend, affordability vs the user's budget/preferences from MEMORY CONTEXT, and one specific signal (rent growth, price cuts, new construction, etc.) when known.
+   - End with 2-3 concrete cross-surface options as ci-signals follow-ups (find_open_houses, create_alert, find_matches, update_preferences). Do not put these in prose.
+   Example:
+     User: "Is Tampa still good for rentals?"
+     "Likely yes — cap rates still clear your 7% target.
+     - Median cap rate: ~7.3% (vs your 7% floor)
+     - Rent growth: ~4.2% YoY, cooling from last year
+     - Inventory: up ~12% YTD; buyers have more leverage
+     - On a $620k budget you reach ~88% of active listings"
+     (follow-ups: 'Surface 5 Tampa rentals', 'Weekly Tampa digest', 'Compare to my other markets')
+
 CROSS-SURFACE TOOL NAMES (use these inside suggested_followups call_tool actions when relevant):
 - find_open_houses    — input: { city?, state? } → opens open-house finder for that market
 - create_alert        — input: { kind: "market" | "property", query?, propertyUrl? } → opens alert setup
