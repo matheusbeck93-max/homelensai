@@ -17,6 +17,7 @@ import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
+import { getValuationCached, RentcastQuotaError, type RentcastTier } from '../_shared/rentcast.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -355,6 +356,10 @@ filterMode="explicit" to ignore all of that and use only the values you supply.`
     },
   },
   {
+    // ATTOM Data deferred — market stats use Perplexity + Sonnet for now.
+    // Revisit when MRR > $25K OR users explicitly request deeper comps/MLS-grade data.
+    // Cost reference: ATTOM tiers start at ~$500/mo. RentCast (Foundation, $74/mo)
+    // handles property valuation + rent estimates. See homelens_rentcast_audit_integration_prompt.md §3.
     name: 'get_market_stats',
     description: `Look up market-level stats: median list price, median sqft, median $/sqft,
 median rent, median rent $/sqft, appreciation YoY, rent growth YoY, vacancy, days on market,
