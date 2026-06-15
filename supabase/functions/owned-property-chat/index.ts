@@ -3,13 +3,24 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
-import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
-import { amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
+import { requireEnv } from '../_shared/env.ts';
+import {
+  amortizedBalance,
+  monthsBetween,
+  getValuationCached,
+  resolveRentcastTier,
+  RentcastQuotaError,
+  RentcastUpgradeRequiredError,
+} from '../_shared/rentcast.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 
 const log = createLogger('owned-property-chat');
+
+const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const MODEL = 'google/gemini-2.5-flash';
+const MAX_TOOL_ITERATIONS = 4;
 
 const SYSTEM_PROMPT = `You are HomeLens Portfolio Advisor — an AI helping a US real-estate
 investor reason about a single property they OWN. You receive the full property
@@ -19,7 +30,16 @@ Rules:
 - Decision-first: open with a clear yes/no/likely conclusion when asked a decision question.
 - Be concise: 1-3 sentences for factual, short paragraphs + bullets when comparing options.
 - Use the actual numbers in the context. Never invent data.
-- If asked about something not in the context (e.g. live market rates), say so briefly and recommend the user refresh the valuation or check current rates.
+- For live AVM / rent-market questions, CALL THE TOOLS (estimate_property_value,
+  compare_rent_to_market). The user's property address + beds/baths/sqft are in
+  PROPERTY CONTEXT — pre-fill the tool args from there, don't ask the user to repeat them.
+- TOOL SUCCESS: when the tool returns numeric fields (value, rent, marketRent, low, high),
+  USE THEM and cite "RentCast" as the source. Do not apply the error branches below.
+- TOOL ERROR (only when the result has an "error" field):
+  - error="upgrade_required" → reply with one sentence: "Live property valuations
+    need a Buyer or Investor subscription." Do not retry the tool this turn.
+  - error="quota_exceeded" → say they've hit today's RentCast cap; suggest revisiting tomorrow.
+  - error="rentcast_failed" → say RentCast is temporarily unavailable and answer from the loaded context.
 - Strictly US real-estate scoped. Warmly redirect off-topic queries.
 - Never include "MATCH_SCORE" — this is the owner chat, not property analysis.`;
 
@@ -80,6 +100,205 @@ function buildContext(p: any, rental: any, alerts: any[]): string {
   return lines.join('\n');
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Tools (OpenAI / Gemini–compatible JSON Schema)
+// ──────────────────────────────────────────────────────────────────────────────
+
+type Json = Record<string, any>;
+
+interface ToolExecCtx {
+  userId: string;
+  serviceSupabase: ReturnType<typeof createClient>;
+  property: any;
+}
+
+interface ToolDef {
+  name: string;
+  description: string;
+  parameters: Json;
+  execute: (input: any, ctx: ToolExecCtx) => Promise<any>;
+}
+
+function addrFromProperty(p: any, override: Json = {}) {
+  return {
+    address_line1: override.address_line1 ?? p.address_line1,
+    city: override.city ?? p.city,
+    state: override.state ?? p.state,
+    zip: override.zip ?? p.zip,
+    beds: override.beds ?? p.beds ?? null,
+    baths: override.baths ?? p.baths ?? null,
+    sqft: override.sqft ?? p.sqft ?? null,
+    property_type: override.propertyType ?? p.property_type,
+  };
+}
+
+const TOOLS: ToolDef[] = [
+  {
+    name: 'estimate_property_value',
+    description: `RentCast-backed value + rent estimate for the OWNED property (or another
+US address if explicitly specified). Defaults to THIS property if no address is given.
+
+Cached 24h. Counts against the user's daily RentCast quota (buyer 5, investor 50).
+
+On error="upgrade_required" or "quota_exceeded": do NOT fabricate. Surface the
+message and offer context from the loaded PROPERTY CONTEXT instead.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        address_line1: { type: 'string' },
+        city: { type: 'string' },
+        state: { type: 'string' },
+        zip: { type: 'string' },
+        beds: { type: 'number' },
+        baths: { type: 'number' },
+        sqft: { type: 'number' },
+        propertyType: { type: 'string' },
+      },
+    },
+    execute: async (input, ctx) => {
+      try {
+        const tier = await resolveRentcastTier(ctx.serviceSupabase as any, ctx.userId);
+        return await getValuationCached(
+          ctx.serviceSupabase,
+          ctx.userId,
+          tier,
+          addrFromProperty(ctx.property, input),
+        );
+      } catch (e) {
+        if (e instanceof RentcastUpgradeRequiredError) {
+          return {
+            error: 'upgrade_required',
+            tier: 'free',
+            cta: 'Upgrade to Buyer or Investor for live RentCast valuations.',
+          };
+        }
+        if (e instanceof RentcastQuotaError) {
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit, resetIn: '24h' };
+        }
+        return { error: 'rentcast_failed', message: (e as Error).message };
+      }
+    },
+  },
+  {
+    name: 'compare_rent_to_market',
+    description: `Compare the owned property's current rent vs RentCast market rent.
+If currentRent is omitted, uses the rent loaded in PROPERTY CONTEXT.
+Returns marketRent, range, $ delta, % delta, and verdict (below/at/above).
+
+Same error contract as estimate_property_value.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        currentRent: { type: 'number' },
+        address_line1: { type: 'string' },
+        city: { type: 'string' },
+        state: { type: 'string' },
+        zip: { type: 'string' },
+        beds: { type: 'number' },
+        baths: { type: 'number' },
+        sqft: { type: 'number' },
+      },
+    },
+    execute: async (input, ctx) => {
+      try {
+        const tier = await resolveRentcastTier(ctx.serviceSupabase as any, ctx.userId);
+        const r = await getValuationCached(
+          ctx.serviceSupabase,
+          ctx.userId,
+          tier,
+          addrFromProperty(ctx.property, input),
+        );
+        if (r.rent == null) return { error: 'no_market_rent', cached: r.cached };
+        const currentRent = Number(input.currentRent ?? ctx.property?.__rental_monthly_rent ?? 0);
+        if (!currentRent) {
+          return {
+            marketRent: r.rent,
+            marketRentLow: r.rentLow,
+            marketRentHigh: r.rentHigh,
+            note: 'No current rent on file. Returning market estimate only.',
+            cached: r.cached,
+            source: 'rentcast',
+          };
+        }
+        const delta = currentRent - r.rent;
+        const deltaPct = r.rent ? delta / r.rent : 0;
+        let verdict: 'below' | 'at' | 'above' = 'at';
+        if (deltaPct <= -0.05) verdict = 'below';
+        else if (deltaPct >= 0.05) verdict = 'above';
+        return {
+          currentRent,
+          marketRent: r.rent,
+          marketRentLow: r.rentLow,
+          marketRentHigh: r.rentHigh,
+          delta: Math.round(delta),
+          deltaPct: Number(deltaPct.toFixed(3)),
+          verdict,
+          cached: r.cached,
+          source: 'rentcast',
+        };
+      } catch (e) {
+        if (e instanceof RentcastUpgradeRequiredError) {
+          return { error: 'upgrade_required', tier: 'free', cta: 'Upgrade to Buyer or Investor for live RentCast valuations.' };
+        }
+        if (e instanceof RentcastQuotaError) {
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit, resetIn: '24h' };
+        }
+        return { error: 'rentcast_failed', message: (e as Error).message };
+      }
+    },
+  },
+];
+
+// ATTOM Data deferred — market-level comps stay on Perplexity + Sonnet for now.
+// Revisit when MRR > $25K OR users explicitly request deeper comps/MLS-grade data.
+// Cost reference: ATTOM tiers start at ~$500/mo. RentCast (Foundation, $74/mo)
+// already covers AVM + rent estimates above. When a third "comp_search" tool
+// is added here, evaluate ATTOM vs. RentCast /listings/rental first.
+
+const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
+
+async function rawGateway(messages: any[]) {
+  const apiKey = requireEnv('LOVABLE_API_KEY');
+  const body = {
+    model: MODEL,
+    messages,
+    tools: TOOLS.map((t) => ({
+      type: 'function',
+      function: { name: t.name, description: t.description, parameters: t.parameters },
+    })),
+    tool_choice: 'auto',
+  };
+  const res = await fetch(GATEWAY_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Gateway ${res.status}: ${text.slice(0, 300)}`);
+  }
+  return res.json();
+}
+
+/** Pull top user memories for prompt injection. Parity with investor-chat. */
+async function loadMemoryBlock(svc: ReturnType<typeof createClient>, userId: string): Promise<string> {
+  try {
+    const { data } = await svc
+      .from('user_memories')
+      .select('category, content, importance')
+      .eq('user_id', userId)
+      .eq('user_deleted', false)
+      .order('importance', { ascending: false })
+      .order('last_used_at', { ascending: false })
+      .limit(10);
+    if (!data?.length) return '';
+    const lines = data.map((m: any) => `- [${m.category}] ${m.content}`);
+    return `\n\n--- USER MEMORY (top ${data.length}) ---\n${lines.join('\n')}`;
+  } catch {
+    return '';
+  }
+}
+
 Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
@@ -136,32 +355,81 @@ Deno.serve(async (req) => {
     ]);
 
     const context = buildContext(prop, rental, alerts ?? []);
+    const memoryBlock = await loadMemoryBlock(svc, user.id);
+    // Stash rental rent on the property object so compare_rent_to_market can default it.
+    (prop as any).__rental_monthly_rent = rental?.monthly_rent ?? null;
 
     const trimmedHistory = messages
       .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
       .slice(-20);
 
-    const aiMessages: AiMessage[] = [
-      { role: 'system', content: `${SYSTEM_PROMPT}\n\n--- PROPERTY CONTEXT ---\n${context}\n\n${ciBehaviorPromptBlock({ surface: 'owned' })}\n\n${ciSignalsPromptBlock({
+    const systemContent = `${SYSTEM_PROMPT}\n\n--- PROPERTY CONTEXT ---\n${context}${memoryBlock}\n\n${ciBehaviorPromptBlock({ surface: 'owned' })}\n\n${ciSignalsPromptBlock({
         allowedMismatchTypes: ['target_cap_rate', 'budget_over', 'budget_under'],
         allowedTools: ['generate_mortgage_excel', 'generate_property_report_pdf', 'generate_chart_image'],
-      })}` },
+      })}`;
+
+    const convo: any[] = [
+      { role: 'system', content: systemContent },
       ...trimmedHistory,
     ];
 
-    const out = await callAiGateway(aiMessages, {
-      temperature: 0.4,
-      max_tokens: 800,
-      router: {
-        surface: 'my_properties_strategy',
-        userId: user.id,
-        tier: 'buyer',
-      },
-    });
-    if ('error' in out) return out.error;
+    const toolCtx: ToolExecCtx = { userId: user.id, serviceSupabase: svc, property: prop };
+    let finalText = '';
+    const collectedToolCalls: any[] = [];
+    const collectedToolResults: any[] = [];
 
-    const { cleanText, signals } = extractCiSignals(out.result.message);
-    return jsonResponse({ message: cleanText, signals: signals ?? undefined }, 200, req);
+    for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+      const data = await rawGateway(convo);
+      const choice = data.choices?.[0];
+      if (!choice) break;
+      const assistantMsg = choice.message ?? {};
+      const content: string = assistantMsg.content ?? '';
+      const toolCalls: any[] = assistantMsg.tool_calls ?? [];
+
+      if (!toolCalls.length) {
+        finalText = content;
+        break;
+      }
+
+      convo.push({ role: 'assistant', content: content || null, tool_calls: toolCalls });
+
+      const results = await Promise.all(
+        toolCalls.map(async (tc: any) => {
+          const name = tc.function?.name;
+          let input: any = {};
+          try { input = JSON.parse(tc.function?.arguments ?? '{}'); } catch {}
+          const tool = TOOL_BY_NAME.get(name);
+          if (!tool) {
+            return { tool_call_id: tc.id, content: JSON.stringify({ error: `Unknown tool: ${name}` }) };
+          }
+          try {
+            const output = await tool.execute(input, toolCtx);
+            collectedToolCalls.push({ id: tc.id, name, input });
+            collectedToolResults.push({ id: tc.id, name, output });
+            return { tool_call_id: tc.id, content: JSON.stringify(output) };
+          } catch (e) {
+            const err = e instanceof Error ? e.message : String(e);
+            collectedToolResults.push({ id: tc.id, name, error: err });
+            return { tool_call_id: tc.id, content: JSON.stringify({ error: err }) };
+          }
+        }),
+      );
+      for (const r of results) {
+        convo.push({ role: 'tool', tool_call_id: r.tool_call_id, content: r.content });
+      }
+    }
+
+    const { cleanText, signals } = extractCiSignals(finalText);
+    return jsonResponse(
+      {
+        message: cleanText,
+        signals: signals ?? undefined,
+        toolCalls: collectedToolCalls.length ? collectedToolCalls : undefined,
+        toolResults: collectedToolResults.length ? collectedToolResults : undefined,
+      },
+      200,
+      req,
+    );
   } catch (e) {
     log.error('chat failed', { error: getErrorMessage(e) });
     return errorResponse(getErrorMessage(e), 500, req);

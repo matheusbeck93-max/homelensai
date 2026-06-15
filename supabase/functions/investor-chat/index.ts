@@ -17,7 +17,13 @@ import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
-import { getValuationCached, RentcastQuotaError, type RentcastTier } from '../_shared/rentcast.ts';
+import {
+  getValuationCached,
+  RentcastQuotaError,
+  RentcastUpgradeRequiredError,
+  resolveRentcastTier as sharedResolveRentcastTier,
+  type RentcastTier,
+} from '../_shared/rentcast.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -155,24 +161,7 @@ function resolveBudget(
  * Free or unknown → 'free' (0/day → falls through to Perplexity).
  */
 async function resolveRentcastTier(ctx: ExecutionContext): Promise<RentcastTier> {
-  try {
-    const { data } = await ctx.serviceSupabase
-      .from('profiles')
-      .select('subscription_status, stripe_price_id')
-      .eq('id', ctx.userId)
-      .maybeSingle();
-    const status = String((data as any)?.subscription_status ?? '').toLowerCase();
-    const priceId = String((data as any)?.stripe_price_id ?? '');
-    const investorPriceIds = [
-      Deno.env.get('STRIPE_INVESTOR_MONTHLY_PRICE_ID'),
-      Deno.env.get('STRIPE_INVESTOR_ANNUAL_PRICE_ID'),
-    ].filter(Boolean);
-    if (investorPriceIds.includes(priceId)) return 'investor';
-    if (status === 'active' || status === 'trialing') return 'buyer';
-    return 'free';
-  } catch {
-    return 'free';
-  }
+  return sharedResolveRentcastTier(ctx.serviceSupabase as any, ctx.userId);
 }
 
 const TOOLS: Tool[] = [
@@ -394,8 +383,20 @@ DO NOT USE for:
 - Returns/cash flow at a known price (use compute_metrics)
 
 Cached 24h per address. Counts against the user's daily RentCast quota
-(buyer 5/day, investor 50/day). On quota_exceeded the model should fall
-back to Perplexity-based estimates and mention the limit.`,
+(buyer 5/day, investor 50/day).
+
+SUCCESS: when the tool returns numeric fields (value, rent, low, high), USE
+THEM. Cite "RentCast" as the source. Do NOT apply any of the error handling
+below — those branches only apply when the result object has an "error" field.
+
+ERROR HANDLING — only when the result object contains an "error" field:
+- error="upgrade_required" → reply with ONE sentence: "Live property
+  valuations need a Buyer or Investor subscription." then offer
+  get_market_stats for the area. Do not call this tool again this turn.
+- error="quota_exceeded" → tell the user they've hit today's RentCast
+  cap (limit field), resets in 24h, and offer get_market_stats instead.
+- error="rentcast_failed" → say RentCast is temporarily unavailable;
+  fall back to get_market_stats and note the source.`,
     parameters: {
       type: 'object',
       properties: {
@@ -428,8 +429,15 @@ back to Perplexity-based estimates and mention the limit.`,
         });
         return result;
       } catch (e) {
+        if (e instanceof RentcastUpgradeRequiredError) {
+          return {
+            error: 'upgrade_required',
+            tier: 'free',
+            cta: 'Upgrade to Buyer or Investor for live RentCast valuations.',
+          };
+        }
         if (e instanceof RentcastQuotaError) {
-          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit };
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit, resetIn: '24h' };
         }
         return { error: 'rentcast_failed', message: (e as Error).message };
       }
@@ -443,7 +451,9 @@ Returns marketRent, range, $ delta, % delta, and a verdict.
 USE THIS when the user asks "am I under-renting?", "is this rent fair?",
 "what's market for my place?", or for the rent-below-market alert.
 
-Cached 24h. Subject to the same per-user daily quota as estimate_property_value.`,
+Cached 24h. Subject to the same per-user daily quota as estimate_property_value.
+Same error contract: handle upgrade_required and quota_exceeded the same way
+— do NOT fabricate a market rent.`,
     parameters: {
       type: 'object',
       properties: {
@@ -492,8 +502,15 @@ Cached 24h. Subject to the same per-user daily quota as estimate_property_value.
           source: 'rentcast',
         };
       } catch (e) {
+        if (e instanceof RentcastUpgradeRequiredError) {
+          return {
+            error: 'upgrade_required',
+            tier: 'free',
+            cta: 'Upgrade to Buyer or Investor for live RentCast valuations.',
+          };
+        }
         if (e instanceof RentcastQuotaError) {
-          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit };
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit, resetIn: '24h' };
         }
         return { error: 'rentcast_failed', message: (e as Error).message };
       }

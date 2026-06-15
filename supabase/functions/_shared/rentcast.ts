@@ -168,6 +168,19 @@ export class RentcastQuotaError extends Error {
   }
 }
 
+/**
+ * Thrown when a `free`-tier user tries to call a RentCast-backed tool.
+ * Distinct from RentcastQuotaError so callers can surface an upgrade CTA
+ * instead of a "try again tomorrow" message. There is NO Perplexity AVM
+ * fallback for free users — live valuations are paid-only.
+ */
+export class RentcastUpgradeRequiredError extends Error {
+  constructor() {
+    super('RentCast live valuations require a Buyer or Investor subscription.');
+    this.name = 'RentcastUpgradeRequiredError';
+  }
+}
+
 function normalizeAddrKey(addr: RentcastAddress): string {
   return [
     addr.address_line1,
@@ -198,7 +211,8 @@ export async function enforceDailyQuota(
   tier: RentcastTier,
 ): Promise<void> {
   const limit = QUOTA_PER_DAY[tier] ?? 0;
-  if (limit <= 0) throw new RentcastQuotaError(tier, 0);
+  // Free tier: never call RentCast. Surface an upgrade CTA instead.
+  if (tier === 'free' || limit <= 0) throw new RentcastUpgradeRequiredError();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count, error } = await sb
     .from('rentcast_usage_log')
@@ -307,4 +321,37 @@ export async function getValuationCached(
     cached: false,
     source: 'rentcast',
   };
+}
+
+// -------------------------------------------------------------------------
+// Shared tier resolver. Single source of truth for every surface that
+// gates RentCast (investor-chat, owned-property-chat, ai-chat, etc.).
+// Maps profiles.subscription_status + stripe_price_id → RentcastTier.
+// -------------------------------------------------------------------------
+export async function resolveRentcastTier(
+  sb: SbClient,
+  userId: string,
+): Promise<RentcastTier> {
+  try {
+    const { data } = await sb
+      .from('profiles')
+      .select('subscription_status, stripe_price_id')
+      .eq('id', userId)
+      .maybeSingle();
+    const status = String((data as any)?.subscription_status ?? '').toLowerCase();
+    const priceId = String((data as any)?.stripe_price_id ?? '');
+    const investorPriceIds = [
+      Deno.env.get('STRIPE_INVESTOR_MONTHLY_PRICE_ID'),
+      Deno.env.get('STRIPE_INVESTOR_ANNUAL_PRICE_ID'),
+    ].filter(Boolean);
+    if (investorPriceIds.includes(priceId)) return 'investor';
+    // Legacy/explicit status shims first…
+    if (status === 'investor' || status === 'premium') return 'investor';
+    if (status === 'buyer' || status === 'paid') return 'buyer';
+    // …then the generic Stripe subscription states (any paid sub = buyer).
+    if (status === 'active' || status === 'trialing') return 'buyer';
+    return 'free';
+  } catch {
+    return 'free';
+  }
 }
