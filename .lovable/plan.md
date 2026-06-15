@@ -1,120 +1,61 @@
-# Open House Finder — Production Fix Plan
+## Goal
 
-Shipped feature returns empty results in production. Five fixes, prioritized. Delivered as 4 PRs.
+Make macro questions ("Is Tampa still good for rentals?", "Should I invest in Austin?") render in a consistent **MacroAnswerCard** instead of free-form prose. The card matches the selected "Structured insights card" direction: bold takeaway → 2x2 metrics grid → confidence bar → optional source footer.
 
----
+## Approach
 
-## PR A — Data source overhaul (CRITICAL, unblocks everything)
+Extend the existing `ci-signals` fenced block (which the AI already emits) with an optional `macro_answer` payload. When present, the chat surfaces render `<MacroAnswerCard />` in place of plain prose. Follow-up chips continue to render below via the existing `<ConversationalIntelligence />` wrapper.
 
-**Goal:** Stop relying on direct Firecrawl scrapes of Redfin/Realtor. Use Perplexity Sonar as primary (handles bot detection, already wired in `perplexity-chat`), Firecrawl as fallback.
+## Files
 
-**Files**
-- `supabase/functions/_shared/openHouses/searchClient.ts` — split into orchestrator + two providers, or add a sibling `dataSources.ts`:
-  - `searchOpenHousesViaPerplexity(filters)` — calls Perplexity Sonar with a structured query, then uses Gemini (via Lovable AI Gateway, our default) to extract structured JSON matching the schema. Avoids adding Sonnet/Anthropic dependency.
-  - `searchOpenHousesViaFirecrawl(filters)` — existing logic, kept as fallback.
-  - `searchOpenHouses(filters)` — Perplexity first; if `< 3` listings or throws, run Firecrawl and merge/dedupe by `listing_url` + normalized address.
-- `supabase/functions/_shared/openHouses/types.ts` (or wherever the Zod schema lives) — loosen schema: only `address` and `open_house_starts_at` required; everything else optional; add `confidence: 'high'|'medium'|'low'` default `medium`; post-validation filter drops low-confidence rows missing price/beds.
-- `supabase/functions/open-houses-search/index.ts`:
-  - Don't cache empty results (`listings.length === 0` → skip insert into `open_house_cache`).
-  - Accept `bypass_cache: boolean` in body; when true, skip cache lookup.
-  - Add structured logging at each stage: request received, cache hit/miss, perplexity result count, firecrawl result count, zod valid/rejected counts, final count.
-- `src/hooks/useOpenHouseSearch.tsx` — pass-through `bypassCache` option.
-- `src/pages/OpenHouses.tsx` — add a "Refresh results" button that calls the hook with `bypassCache: true`; add an honesty banner: "Best-effort web search from Zillow, Redfin, and Realtor.com — verify each on the source page."
-
-**SQL (one-time, via insert tool)**
-```sql
-delete from open_house_cache
-where jsonb_array_length(coalesce(results->'listings','[]'::jsonb)) = 0;
-```
-
-**Deploy:** `open-houses-search` edge function.
-
----
-
-## PR B — Tier pricing source of truth
-
-**Goal:** Eliminate `$4.97` everywhere; Buyer is `$9.97`, Investor is `$24.97`. Prevent regression.
-
-**Files**
-- `src/lib/tierPricing.ts` (new) — single export:
-  ```ts
-  export const TIER_PRICING = {
-    free:     { display_name: 'Free',     monthly_price: 0,     annual_price: 0 },
-    buyer:    { display_name: 'Buyer',    monthly_price: 9.97,  annual_price: 107.64 },
-    investor: { display_name: 'Investor', monthly_price: 24.97, annual_price: 239.71 },
-  } as const;
+### 1. Shared signals contract — `supabase/functions/_shared/conversationalSignals.ts`
+- Add `MacroAnswer` type:
   ```
-- Run `rg -n '4\.97|9\.97|24\.97|Premium.*4|Buyer.*4' src supabase chrome-extension` and replace every hit with `TIER_PRICING[...].monthly_price` (or remove if dead copy).
-- Update tier-gate table in `/open-houses` and any pricing surfaces (`/pricing`, console plan tab, upgrade modals, email templates) to read from `TIER_PRICING`.
-- Add a vitest unit test `src/lib/__tests__/tierPricing.guard.test.ts` that walks `src/**/*.{ts,tsx}` (excluding `tierPricing.ts` + tests), greps for literal `$4.97`/`$9.97`/`$24.97`, and fails if found.
+  {
+    takeaway: string;                                    // bold one-liner
+    metrics: Array<{ label: string; value: string;       // 2-4 items
+                     trend?: "up" | "down" | "neutral" }>;
+    confidence?: number;                                 // 0–100
+    source_note?: string;                                // short attribution line
+  }
+  ```
+- Add `macro_answer?: MacroAnswer` to `CiSignals`.
+- Extend `extractCiSignals` to validate + parse it (takeaway string, metrics 2–4 with string label/value, confidence in 0–100, source_note ≤ 140 chars).
+- Update `ciSignalsPromptBlock` to document the new optional field in the fence schema.
+- Update `ciBehaviorPromptBlock` rule 6 (MACRO ANSWER SHAPE): when intent is MACRO, MUST emit `macro_answer` and keep prose to AT MOST one short lead-in line — the structured card carries takeaway + metrics + confidence.
 
----
+### 2. Frontend types — `src/lib/conversationalIntelligence/types.ts`
+- Mirror `MacroAnswer`; add `macro_answer?` to `ChatTurn.signals`.
 
-## PR C — Chrome extension wiring
+### 3. New component — `src/lib/conversationalIntelligence/MacroAnswerCard.tsx`
+Built from the selected v2 prototype, ported to project semantic tokens (no hardcoded slate/emerald):
+- Outer card: `bg-muted/40 border border-border rounded-2xl p-5 shadow-sm`
+- Header chip row: small bot icon + "Analysis" label (`text-muted-foreground`, uppercase, tracking-wider)
+- Takeaway: `font-bold text-base leading-snug` (`text-foreground`)
+- Metrics: `grid grid-cols-2 gap-y-4 gap-x-6`, each cell has uppercase label (`text-muted-foreground text-[11px]`) over bold value (`text-lg`); trend `up` → `text-emerald-600` (kept via tailwind, acceptable accent), `down` → `text-destructive`
+- Confidence: bottom block, label + percent text + progress bar (`bg-muted` track, `bg-primary` fill width=confidence%)
+- Optional source footer (`text-[10px] text-muted-foreground`) below card when `source_note` present
+- Renders nothing if `takeaway` missing or metrics < 2.
 
-**Goal:** Open-house queries work in the extension popup chat.
+### 4. Helper + exports — `src/lib/conversationalIntelligence/index.ts`
+- Re-export `MacroAnswerCard` and a tiny `getMacroAnswer(turn)` helper.
 
-**Files**
-- `supabase/functions/ai-chat/index.ts` — in the extension branch, register `findOpenHousesTool` from `_shared/openHouses/tool.ts` in the tool list; also run `detectOpenHouseIntent` early-intercept (same pattern as other chat surfaces) and return a `tool_result_card` payload when matched.
-- `chrome-extension/` popup chat renderer — handle the `tool_result_card` payload with `type: 'open_house_cards'` and render `OpenHouseCard` (or a lightweight extension-side equivalent if cross-import is heavy). Reuse via the existing shared-path mechanism already used for `detectMismatches`.
-- Rebuild extension zip into `public/`.
+### 5. Surface wiring (main conversational surfaces only)
+- **`src/pages/Chats.tsx`** — in the assistant message renderer, if `metadata.ciSignals.macro_answer` is present, render `<MacroAnswerCard />` instead of the plain prose. If the AI still emits prose alongside, render only the lead-in (first line, ≤140 chars) above the card.
+- **`src/components/investor/brief/BriefCard.tsx`** — same treatment using `turn.signals.macro_answer`.
+- `PropertyChat` and `FollowUpChat`: out of scope (property-bound surfaces; macro questions are not their main use).
 
-**Verify:** popup → "open houses this weekend in Austin" → cards render with time badge, click opens listing URL in new tab.
+### 6. Telemetry — `src/lib/conversationalIntelligence/telemetry.ts`
+- Add `web_macro_card_shown` event, fired once per assistant turn that produces a macro card (debounced by turn index).
 
----
+### 7. Edge deploys
+- Deploy `ai-chat`, `investor-chat`, `perplexity-chat`, `owned-property-chat` (shared module changed).
 
-## PR D — Cron install + convention fix
+## Out of scope
+- Chrome extension surface (small popup, plain text + chips already works).
+- Charts / sparklines inside the card.
+- Standalone `analyze_market_macro` orchestrator (already deferred).
 
-**Goal:** Daily/weekly digests actually fire.
-
-**Migration (uses `supabase--insert`, not migration tool — contains project URL + secret reference):**
-```sql
-select cron.schedule(
-  'open-house-digest-daily', '0 11 * * *',
-  $$select net.http_post(
-    url := 'https://yckcdxtatwolzilboahx.supabase.co/functions/v1/send-open-house-digest',
-    headers := jsonb_build_object('Authorization','Bearer '||current_setting('app.cron_shared_secret'))
-  );$$
-);
-select cron.schedule(
-  'open-house-digest-weekly', '0 22 * * 5',
-  $$select net.http_post(
-    url := 'https://yckcdxtatwolzilboahx.supabase.co/functions/v1/send-open-house-digest?frequency=weekly',
-    headers := jsonb_build_object('Authorization','Bearer '||current_setting('app.cron_shared_secret'))
-  );$$
-);
-```
-Verify with `select * from cron.job where jobname like 'open-house-digest%';` and a manual curl to `send-open-house-digest`.
-
-Delete `src/lib/openHouseDigestCron.sql` (now applied).
-
----
-
-## Diagnostic step (before/after)
-
-Already covered by logging added in PR A. After deploy, trigger Austin/this-weekend test and read `supabase--edge_function_logs` for `open-houses-search` to confirm Perplexity is primary and listings > 0.
-
----
-
-## Technical notes
-
-- **Structured extraction model:** use Gemini 2.5 Flash via Lovable AI Gateway (per project memory — primary model, no extra key). Avoids introducing Anthropic Sonnet as the fix prompt suggested.
-- **Perplexity already wired:** `PERPLEXITY_API_KEY` secret present; reuse the call pattern from `perplexity-chat` edge function.
-- **Cache key:** keep existing `filter_hash` scheme; just gate the write on non-empty.
-- **Dedup:** normalize `listing_url` (strip query) + lowercase trimmed address as the dedup key.
-- **No schema changes** to `open_house_cache` / `open_house_alerts` required.
-
----
-
-## Out of scope (confirmed)
-Virtual-only filter, .ics export, push notifications, MLS integration.
-
----
-
-## Order of execution
-1. PR A (data source) — fixes the broken feature
-2. PR B (pricing) — embarrassing regression
-3. PR D (cron) — small, unblocks alerts
-4. PR C (extension) — last, depends on stable backend
-
-Approve and I'll start with PR A.
+## Verification
+- Sample-payload sanity check on `extractCiSignals` for a macro fence.
+- Manual: ask a macro question in `/chats` and confirm card renders with takeaway, 4 metrics, confidence bar; follow-up chips still appear below the composer; light/dark theme both readable.
