@@ -1736,6 +1736,12 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
         );
         const mems = await loadMemoriesForContext(memAdmin, creditCheck.userId, 10);
         memoriesBlock = renderMemoriesBlock(mems);
+        console.log('[ai-chat] memory_injected', {
+          user_id: creditCheck.userId,
+          surface: 'ai-chat',
+          memory_count: mems.length,
+          categories: mems.map((m: any) => m.category),
+        });
       }
     } catch (memErr) {
       console.warn('[ai-chat] memory injection failed', memErr);
