@@ -59,6 +59,27 @@ export interface SuggestedFollowup {
 export interface CiSignals {
   mismatch_signals: MismatchSignal[];
   suggested_followups: SuggestedFollowup[];
+  /**
+   * Structured macro answer payload. When present, the web surfaces render
+   * a dedicated `<MacroAnswerCard />` (takeaway + metrics + confidence) in
+   * place of free-form prose. Emitted only for MACRO intent turns.
+   */
+  macro_answer?: MacroAnswer;
+}
+
+export interface MacroAnswerMetric {
+  label: string;
+  value: string;
+  trend?: "up" | "down" | "neutral";
+}
+
+export interface MacroAnswer {
+  takeaway: string;
+  metrics: MacroAnswerMetric[];
+  /** 0-100. Optional; renders the bottom progress bar when present. */
+  confidence?: number;
+  /** Short attribution line shown under the card, <= 140 chars. */
+  source_note?: string;
 }
 
 /**
