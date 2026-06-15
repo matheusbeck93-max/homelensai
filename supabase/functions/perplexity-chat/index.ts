@@ -20,7 +20,7 @@ import {
   isValidPortalSearchUrl,
 } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
-import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 
 const log = createLogger('perplexity-chat');
@@ -531,7 +531,7 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
 
     // Build final messages array
     const messages: { role: string; content: string }[] = [
-      { role: 'system', content: `${systemPrompt}\n\n${ciSignalsPromptBlock()}` },
+      { role: 'system', content: `${systemPrompt}\n\n${ciBehaviorPromptBlock({ surface: 'main' })}\n\n${ciSignalsPromptBlock()}` },
       ...sanitizedHistory.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content
