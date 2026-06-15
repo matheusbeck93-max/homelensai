@@ -6,7 +6,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
 import { amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
-import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 
 const log = createLogger('owned-property-chat');
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
       .slice(-20);
 
     const aiMessages: AiMessage[] = [
-      { role: 'system', content: `${SYSTEM_PROMPT}\n\n--- PROPERTY CONTEXT ---\n${context}\n\n${ciSignalsPromptBlock({
+      { role: 'system', content: `${SYSTEM_PROMPT}\n\n--- PROPERTY CONTEXT ---\n${context}\n\n${ciBehaviorPromptBlock({ surface: 'owned' })}\n\n${ciSignalsPromptBlock({
         allowedMismatchTypes: ['target_cap_rate', 'budget_over', 'budget_under'],
         allowedTools: ['generate_mortgage_excel', 'generate_property_report_pdf', 'generate_chart_image'],
       })}` },
