@@ -498,8 +498,15 @@ Same error contract: handle upgrade_required and quota_exceeded the same way
           source: 'rentcast',
         };
       } catch (e) {
+        if (e instanceof RentcastUpgradeRequiredError) {
+          return {
+            error: 'upgrade_required',
+            tier: 'free',
+            cta: 'Upgrade to Buyer or Investor for live RentCast valuations.',
+          };
+        }
         if (e instanceof RentcastQuotaError) {
-          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit };
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit, resetIn: '24h' };
         }
         return { error: 'rentcast_failed', message: (e as Error).message };
       }
