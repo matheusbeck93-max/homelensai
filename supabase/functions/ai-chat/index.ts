@@ -348,6 +348,27 @@ CRITICAL:
       // [ai-chat-branch] EXTENSION path: client-provided DOM-extracted property
       console.log(JSON.stringify({ marker: '[ai-chat-branch]', branch: 'extension', hasAttachments: allAttachments.length > 0, extensionMode: !!extensionMode }));
 
+      // RentCast enrichment (paid tiers only). Silent no-op on free / quota /
+      // failure — surface continues to work exactly as before. See
+      // supabase/functions/_shared/rentcast-enrichment.ts for the contract.
+      try {
+        const enrichSvc = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        const rcBlock = await fetchRentcastEnrichmentBlock(enrichSvc, creditCheck.userId, {
+          address_line1: clientProperty.address,
+          city: clientProperty.city,
+          state: clientProperty.state,
+          zip: clientProperty.zip,
+          beds: clientProperty.beds || null,
+          baths: clientProperty.baths || null,
+          sqft: clientProperty.sqft || null,
+          property_type: clientProperty.propertyType ?? undefined,
+        });
+        if (rcBlock) (analysisPrompt as any) = analysisPrompt + rcBlock;
+      } catch (_) { /* never fail the surface on enrichment */ }
+
       // Fetch user profile for match score (memoized per request)
       let matchScoreInstructions = '';
       {
