@@ -84,7 +84,6 @@ const Console = lazyWithRetry(() => import("./pages/Console"));
 const ProfileSetup = lazyWithRetry(() => import("./pages/ProfileSetup"));
 const Compare = lazyWithRetry(() => import("./pages/Compare"));
 const Chats = lazyWithRetry(() => import("./pages/Chats"));
-const OpenHouses = lazyWithRetry(() => import("./pages/OpenHouses"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const TermsOfService = lazyWithRetry(() => import("./pages/TermsOfService"));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
