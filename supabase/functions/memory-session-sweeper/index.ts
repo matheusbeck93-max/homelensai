@@ -33,9 +33,8 @@ Deno.serve(async (req) => {
     .select('id, updated_at, last_summarized_at')
     .lt('updated_at', tenMinAgo)
     .gt('updated_at', sevenDaysAgo)
-    .or('last_summarized_at.is.null,last_summarized_at.lt.updated_at')
     .order('updated_at', { ascending: false })
-    .limit(50);
+    .limit(200);
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
@@ -45,7 +44,13 @@ Deno.serve(async (req) => {
   }
 
   const results: Array<{ id: string; ok: boolean; error?: string }> = [];
-  for (const c of stale ?? []) {
+  // Filter in code: never summarized, or summarized before the latest update.
+  const needsSummary = (stale ?? []).filter((c: any) => {
+    if (!c.last_summarized_at) return true;
+    return new Date(c.last_summarized_at).getTime() < new Date(c.updated_at).getTime();
+  }).slice(0, 50);
+  console.log('[memory-sweeper] scan', { fetched: stale?.length ?? 0, needs_summary: needsSummary.length });
+  for (const c of needsSummary) {
     try {
       const resp = await fetch(`${SUPABASE_URL}/functions/v1/memory-summarize-session`, {
         method: 'POST',
@@ -62,7 +67,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ scanned: stale?.length ?? 0, results }), {
+  return new Response(JSON.stringify({ fetched: stale?.length ?? 0, scanned: needsSummary.length, results }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 });
