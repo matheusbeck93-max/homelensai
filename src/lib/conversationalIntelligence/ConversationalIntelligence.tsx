@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { ChatTurn, FollowupAction, MismatchSignal, SurfaceKind } from "./types";
 import {
   detectMismatches,
@@ -99,6 +100,7 @@ export function ConversationalIntelligence({
   onSaveException,
   propertyUrl,
 }: ConversationalIntelligenceProps) {
+  const navigate = useNavigate();
   const lastAssistant = useMemo(
     () => [...thread].reverse().find((t) => t.role === "assistant"),
     [thread],
@@ -158,6 +160,49 @@ export function ConversationalIntelligence({
     if (action.type === "send_message") {
       onSendMessage?.(action.text);
       return;
+    }
+    if (action.type === "call_tool") {
+      // Cross-surface direct actions (product decision #5): route via navigation
+      // or synthetic chat message rather than the artifact pipeline.
+      const input = (action.input ?? {}) as Record<string, any>;
+      const cityState = active.snapshot?.city && active.snapshot?.state
+        ? `${active.snapshot.city}, ${active.snapshot.state}`
+        : "";
+      switch (action.name) {
+        case "find_open_houses": {
+          const q = (input.city || active.snapshot?.city || "").toString().trim();
+          const s = (input.state || active.snapshot?.state || "").toString().trim();
+          const params = new URLSearchParams();
+          if (q) params.set("city", q);
+          if (s) params.set("state", s);
+          navigate(`/open-houses${params.toString() ? `?${params}` : ""}`);
+          return;
+        }
+        case "create_alert": {
+          navigate(`/console?tab=alerts`);
+          return;
+        }
+        case "save_property": {
+          // Saved Analyses live under /console; let the user complete from there.
+          navigate(`/console?tab=overview`);
+          return;
+        }
+        case "update_preferences": {
+          navigate(`/profile-setup`);
+          return;
+        }
+        case "find_matches": {
+          const where = (input.city || cityState || "").toString().trim();
+          onSendMessage?.(where
+            ? `Show me fresh matches in ${where} based on my preferences.`
+            : `Show me fresh matches based on my preferences.`);
+          return;
+        }
+        case "publish_report": {
+          navigate(`/console?tab=overview`);
+          return;
+        }
+      }
     }
     if (action.type === "call_tool" && action.name.startsWith("generate_")) {
       if (!onGenerateArtifact) return;
