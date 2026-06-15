@@ -15,7 +15,7 @@ import {
 } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
-import { ciSignalsPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
+import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
@@ -81,7 +81,7 @@ User: compare my Austin properties by cap rate
 Assistant action: resolve the Austin property IDs from loaded context, call compare_properties with those IDs.
 Assistant reply: "Of your three Austin properties, 1814 Cedar leads at 8.2% cap (above your 7% target). See [Comparison Table]."`;
 
-const CI_SIGNALS_BLOCK = ciSignalsPromptBlock();
+const CI_SIGNALS_BLOCK = ciBehaviorPromptBlock({ surface: 'investor' }) + '\n\n' + ciSignalsPromptBlock();
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tool definitions (OpenAI/Gemini compatible JSON Schema)
