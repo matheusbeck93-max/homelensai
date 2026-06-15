@@ -33,7 +33,9 @@ Rules:
 - For live AVM / rent-market questions, CALL THE TOOLS (estimate_property_value,
   compare_rent_to_market). The user's property address + beds/baths/sqft are in
   PROPERTY CONTEXT — pre-fill the tool args from there, don't ask the user to repeat them.
-- ERROR HANDLING for tool results:
+- TOOL SUCCESS: when the tool returns numeric fields (value, rent, marketRent, low, high),
+  USE THEM and cite "RentCast" as the source. Do not apply the error branches below.
+- TOOL ERROR (only when the result has an "error" field):
   - error="upgrade_required" → reply with one sentence: "Live property valuations
     need a Buyer or Investor subscription." Do not retry the tool this turn.
   - error="quota_exceeded" → say they've hit today's RentCast cap; suggest revisiting tomorrow.
