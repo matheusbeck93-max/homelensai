@@ -14,6 +14,7 @@ import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResear
 import { ProviderError } from '../_shared/ai/types.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { loadMemoriesForContext, renderMemoriesBlock } from '../_shared/memory/retriever.ts';
+import { fetchRentcastEnrichmentBlock } from '../_shared/rentcast-enrichment.ts';
 
 const CI_BLOCK_EXTENSION = '\n\n' + ciBehaviorPromptBlock({ surface: 'extension' }) + '\n\n' + ciSignalsPromptBlock();
 const CI_BLOCK_FIRECRAWL = '\n\n' + ciBehaviorPromptBlock({ surface: 'property' }) + '\n\n' + ciSignalsPromptBlock();
