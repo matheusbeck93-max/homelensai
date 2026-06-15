@@ -71,6 +71,7 @@ export interface ChatTurn {
   signals?: {
     mismatch_signals?: Array<Record<string, unknown>>;
     suggested_followups?: Array<{ label: string; action: Record<string, unknown> }>;
+    macro_answer?: Record<string, unknown>;
   };
   createdAt: number;
 }
