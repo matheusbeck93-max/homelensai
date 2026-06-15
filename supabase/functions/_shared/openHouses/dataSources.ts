@@ -40,7 +40,7 @@ interface LooseListing {
 }
 
 function isValidListing(l: LooseListing): boolean {
-  if (!l.address || !l.openHouseStart) return false;
+  if (!l.address) return false;
   // Drop low-confidence rows missing core economic fields.
   if (l.confidence === 'low' && (!l.price || !l.beds)) return false;
   return true;
@@ -58,12 +58,15 @@ function inferSource(url: string | undefined, hint: string | undefined): OpenHou
 function normalize(
   raw: LooseListing[],
   country: 'US' | 'CA',
+  dateHint?: string,
 ): OpenHouseListing[] {
   const out: OpenHouseListing[] = [];
   for (const r of raw) {
     if (!isValidListing(r)) continue;
     const src = inferSource(r.listingUrl, r.source);
     const id = `${src}-${(r.listingUrl || r.address || '').slice(0, 80)}`;
+    const start = r.openHouseStart || dateHint || new Date().toISOString();
+    const end = r.openHouseEnd || start;
     out.push({
       id,
       address: r.address!,
@@ -80,13 +83,7 @@ function normalize(
       photo: r.photo ?? null,
       listingUrl: r.listingUrl ?? '',
       source: src,
-      openHouses: r.openHouseStart
-        ? [{
-            start: r.openHouseStart,
-            end: r.openHouseEnd || r.openHouseStart,
-            type: 'in-person',
-          }]
-        : [],
+      openHouses: [{ start, end, type: 'in-person' }],
     });
   }
   return out;
@@ -214,8 +211,12 @@ export async function searchOpenHousesViaPerplexity(
   const pplx = await callPerplexity(query);
   if (!pplx || !pplx.answer.trim()) return [];
   const raw = await extractWithGemini(pplx.answer, pplx.citations);
-  log.info('perplexity extraction', { raw_count: raw.length });
-  return normalize(raw, filters.country);
+  log.info('perplexity extraction', {
+    raw_count: raw.length,
+    sample: raw.slice(0, 2),
+  });
+  const dateHint = filters.dateFrom ? `${filters.dateFrom}T10:00:00` : undefined;
+  return normalize(raw, filters.country, dateHint);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -306,7 +307,8 @@ export async function searchOpenHousesViaFirecrawl(
   if (redfin) raw = await callFirecrawl(redfin, key);
   if (raw.length === 0 && realtor) raw = await callFirecrawl(realtor, key);
   log.info('firecrawl extraction', { raw_count: raw.length });
-  return normalize(raw, filters.country);
+  const dateHint = filters.dateFrom ? `${filters.dateFrom}T10:00:00` : undefined;
+  return normalize(raw, filters.country, dateHint);
 }
 
 /* -------------------------------------------------------------------------- */
