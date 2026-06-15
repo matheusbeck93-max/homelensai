@@ -25,14 +25,16 @@ Deno.serve(async (req) => {
 
   const now = Date.now();
   const tenMinAgo = new Date(now - 10 * 60 * 1000).toISOString();
-  const sixtyMinAgo = new Date(now - 60 * 60 * 1000).toISOString();
+  // Look back 7 days to backfill historical never-summarized sessions.
+  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: stale, error } = await admin
     .from('conversations')
     .select('id, updated_at, last_summarized_at')
     .lt('updated_at', tenMinAgo)
-    .gt('updated_at', sixtyMinAgo)
+    .gt('updated_at', sevenDaysAgo)
     .or('last_summarized_at.is.null,last_summarized_at.lt.updated_at')
+    .order('updated_at', { ascending: false })
     .limit(50);
 
   if (error) {
