@@ -632,7 +632,7 @@ CRITICAL:
 `;
 
         // Generate natural AI analysis with calculations
-        const analysisPrompt = ANSWER_FIRST_HEADER_FC + (detectedUrls.length === 1
+        let analysisPrompt = ANSWER_FIRST_HEADER_FC + (detectedUrls.length === 1
           ? purpose === 'investment'
             ? `Analyze this property AS AN INVESTMENT with clear metrics (show final numbers only, NO formulas):
 
