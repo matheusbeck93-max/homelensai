@@ -356,6 +356,124 @@ filterMode="explicit" to ignore all of that and use only the values you supply.`
     },
   },
   {
+    name: 'estimate_property_value',
+    description: `Get a RentCast-backed value + rent estimate for a SPECIFIC US address.
+
+USE THIS for:
+- "What's this property worth?" / "What would it rent for?"
+- "Estimate value at 123 Main St, Tampa FL"
+
+DO NOT USE for:
+- Market-level medians (use get_market_stats)
+- Returns/cash flow at a known price (use compute_metrics)
+
+Cached 24h per address. Counts against the user's daily RentCast quota
+(buyer 5/day, investor 50/day). On quota_exceeded the model should fall
+back to Perplexity-based estimates and mention the limit.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        address_line1: { type: 'string' },
+        city: { type: 'string' },
+        state: { type: 'string', description: '2-letter US state' },
+        zip: { type: 'string' },
+        beds: { type: 'number' },
+        baths: { type: 'number' },
+        sqft: { type: 'number' },
+        propertyType: {
+          type: 'string',
+          enum: ['single_family', 'townhome', 'condo', 'duplex', 'triplex', 'fourplex', 'multifamily', 'land'],
+        },
+      },
+      required: ['address_line1', 'city', 'state', 'zip'],
+    },
+    execute: async (input, ctx) => {
+      try {
+        const tier = await resolveRentcastTier(ctx);
+        const result = await getValuationCached(ctx.serviceSupabase, ctx.userId, tier, {
+          address_line1: input.address_line1,
+          city: input.city,
+          state: input.state,
+          zip: input.zip,
+          beds: input.beds ?? null,
+          baths: input.baths ?? null,
+          sqft: input.sqft ?? null,
+          property_type: input.propertyType,
+        });
+        return result;
+      } catch (e) {
+        if (e instanceof RentcastQuotaError) {
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit };
+        }
+        return { error: 'rentcast_failed', message: (e as Error).message };
+      }
+    },
+  },
+  {
+    name: 'compare_rent_to_market',
+    description: `Compare a property's current rent against RentCast's market rent estimate.
+Returns marketRent, range, $ delta, % delta, and a verdict.
+
+USE THIS when the user asks "am I under-renting?", "is this rent fair?",
+"what's market for my place?", or for the rent-below-market alert.
+
+Cached 24h. Subject to the same per-user daily quota as estimate_property_value.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        address_line1: { type: 'string' },
+        city: { type: 'string' },
+        state: { type: 'string' },
+        zip: { type: 'string' },
+        currentRent: { type: 'number', description: 'Current monthly rent in USD' },
+        beds: { type: 'number' },
+        baths: { type: 'number' },
+        sqft: { type: 'number' },
+        propertyType: { type: 'string' },
+      },
+      required: ['address_line1', 'city', 'state', 'zip', 'currentRent'],
+    },
+    execute: async (input, ctx) => {
+      try {
+        const tier = await resolveRentcastTier(ctx);
+        const r = await getValuationCached(ctx.serviceSupabase, ctx.userId, tier, {
+          address_line1: input.address_line1,
+          city: input.city,
+          state: input.state,
+          zip: input.zip,
+          beds: input.beds ?? null,
+          baths: input.baths ?? null,
+          sqft: input.sqft ?? null,
+          property_type: input.propertyType,
+        });
+        if (r.rent == null) {
+          return { error: 'no_market_rent', cached: r.cached };
+        }
+        const delta = input.currentRent - r.rent;
+        const deltaPct = r.rent ? delta / r.rent : 0;
+        let verdict: 'below' | 'at' | 'above' = 'at';
+        if (deltaPct <= -0.05) verdict = 'below';
+        else if (deltaPct >= 0.05) verdict = 'above';
+        return {
+          currentRent: input.currentRent,
+          marketRent: r.rent,
+          marketRentLow: r.rentLow,
+          marketRentHigh: r.rentHigh,
+          delta: Math.round(delta),
+          deltaPct: Number(deltaPct.toFixed(3)),
+          verdict,
+          cached: r.cached,
+          source: 'rentcast',
+        };
+      } catch (e) {
+        if (e instanceof RentcastQuotaError) {
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit };
+        }
+        return { error: 'rentcast_failed', message: (e as Error).message };
+      }
+    },
+  },
+  {
     // ATTOM Data deferred — market stats use Perplexity + Sonnet for now.
     // Revisit when MRR > $25K OR users explicitly request deeper comps/MLS-grade data.
     // Cost reference: ATTOM tiers start at ~$500/mo. RentCast (Foundation, $74/mo)
