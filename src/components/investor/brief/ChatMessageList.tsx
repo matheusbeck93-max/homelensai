@@ -3,6 +3,7 @@ import { Wrench } from 'lucide-react';
 import type { ChatTurn } from '@/contexts/InvestorBriefContext';
 import { getAiTool } from '@/lib/investorBrief/aiTools';
 import type { CurrentTurn } from '@/lib/investorChat/turnTypes';
+import { MacroAnswerCard, getMacroAnswer } from '@/lib/conversationalIntelligence/MacroAnswerCard';
 
 interface Props {
   turns: ChatTurn[];
@@ -15,7 +16,15 @@ export function ChatMessageList({ turns, pending, currentTurn }: Props) {
   return (
     <div className="space-y-3">
       {visible.map((t) => (
-        <div key={t.id} className={cn('flex', t.role === 'user' ? 'justify-end' : 'justify-start')}>
+        <div key={t.id} className={cn('flex flex-col', t.role === 'user' ? 'items-end' : 'items-start')}>
+          {t.role === 'assistant' && (() => {
+            const macro = getMacroAnswer(t.signals);
+            return macro ? (
+              <div className="w-full max-w-[90%] mb-2">
+                <MacroAnswerCard answer={macro} surface="investor_chat" turnKey={t.id} />
+              </div>
+            ) : null;
+          })()}
           <div
             className={cn(
               'max-w-[90%] rounded-md px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap',
