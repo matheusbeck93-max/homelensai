@@ -26,7 +26,27 @@ export interface ChatTurn {
   signals?: {
     mismatch_signals?: MismatchSignal[];
     suggested_followups?: { label: string; action: FollowupAction }[];
+    macro_answer?: MacroAnswer;
   };
+}
+
+export interface MacroAnswerMetric {
+  label: string;
+  value: string;
+  trend?: "up" | "down" | "neutral";
+}
+
+/**
+ * Structured macro answer payload emitted by the AI for MACRO intent turns.
+ * Rendered by `<MacroAnswerCard />` in place of (or above) the plain prose.
+ */
+export interface MacroAnswer {
+  takeaway: string;
+  metrics: MacroAnswerMetric[];
+  /** 0-100; renders the bottom progress bar when present. */
+  confidence?: number;
+  /** Short attribution line shown under the card. */
+  source_note?: string;
 }
 
 /**

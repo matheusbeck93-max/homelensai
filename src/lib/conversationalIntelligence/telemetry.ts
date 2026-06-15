@@ -17,7 +17,8 @@ export type CiEventName =
   | "web_followup_mismatch_dismissed"
   | "web_artifact_generated"
   | "web_artifact_cap_reached"
-  | "web_artifact_failed";
+  | "web_artifact_failed"
+  | "web_macro_card_shown";
 
 export async function trackCiEvent(
   event: CiEventName,

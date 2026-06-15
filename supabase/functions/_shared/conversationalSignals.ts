@@ -59,6 +59,27 @@ export interface SuggestedFollowup {
 export interface CiSignals {
   mismatch_signals: MismatchSignal[];
   suggested_followups: SuggestedFollowup[];
+  /**
+   * Structured macro answer payload. When present, the web surfaces render
+   * a dedicated `<MacroAnswerCard />` (takeaway + metrics + confidence) in
+   * place of free-form prose. Emitted only for MACRO intent turns.
+   */
+  macro_answer?: MacroAnswer;
+}
+
+export interface MacroAnswerMetric {
+  label: string;
+  value: string;
+  trend?: "up" | "down" | "neutral";
+}
+
+export interface MacroAnswer {
+  takeaway: string;
+  metrics: MacroAnswerMetric[];
+  /** 0-100. Optional; renders the bottom progress bar when present. */
+  confidence?: number;
+  /** Short attribution line shown under the card, <= 140 chars. */
+  source_note?: string;
 }
 
 /**
@@ -104,17 +125,26 @@ export function ciBehaviorPromptBlock(scope?: { surface?: "main" | "extension" |
 5) CROSS-SURFACE SUGGESTIONS. After answering, if there's an obviously useful next action on another surface (email alert, open houses this weekend, save property, publish report, etc.), offer it via the ci-signals follow-up block — NOT inline prose. Two or three max.
 
 6) MACRO ANSWER SHAPE. When a question is MACRO (market/strategy), don't return a single number and stop. Use this shape:
-   - One-line takeaway (yes/no/likely, or the headline number in context).
-   - 2-4 supporting bullets pulling from: median price + cap rate, inventory/DOM trend, affordability vs the user's budget/preferences from MEMORY CONTEXT, and one specific signal (rent growth, price cuts, new construction, etc.) when known.
-   - End with 2-3 concrete cross-surface options as ci-signals follow-ups (find_open_houses, create_alert, find_matches, update_preferences). Do not put these in prose.
-   Example:
-     User: "Is Tampa still good for rentals?"
-     "Likely yes — cap rates still clear your 7% target.
-     - Median cap rate: ~7.3% (vs your 7% floor)
-     - Rent growth: ~4.2% YoY, cooling from last year
-     - Inventory: up ~12% YTD; buyers have more leverage
-     - On a $620k budget you reach ~88% of active listings"
-     (follow-ups: 'Surface 5 Tampa rentals', 'Weekly Tampa digest', 'Compare to my other markets')
+   Emit a STRUCTURED \`macro_answer\` object inside the ci-signals fence (see schema below) and keep prose to AT MOST one short lead-in line — the structured card carries the takeaway, metrics, and confidence. End with 2-3 concrete cross-surface follow-ups (find_open_houses, create_alert, find_matches, update_preferences) inside suggested_followups — never in prose.
+   Required \`macro_answer\` shape:
+     - takeaway: one-line headline (yes/no/likely, or the key number in context)
+     - metrics: 2-4 entries, each { label (<=24 chars), value (short — "$2,240", "7.3%", "+12% YoY"), trend: "up" | "down" | "neutral" }
+     - confidence: integer 0-100 reflecting how solid the data is
+     - source_note: optional short attribution (<=140 chars), e.g. "Based on Q2 MLS + census aggregates."
+   Pull metric content from: median price + cap rate, inventory/DOM trend, affordability vs the user's budget/preferences from MEMORY CONTEXT, and one specific signal (rent growth, price cuts, new construction, etc.) when known.
+   Example for "Is Tampa still good for rentals?":
+     Prose lead-in (optional, one line): "Likely yes — cap rates still clear your 7% target."
+     macro_answer: {
+       "takeaway": "Tampa still clears your 7% cap target, but margin is thinning.",
+       "metrics": [
+         { "label": "Median Cap Rate", "value": "7.3%", "trend": "neutral" },
+         { "label": "Rent Growth YoY", "value": "+4.2%", "trend": "up" },
+         { "label": "Inventory YTD", "value": "+12%", "trend": "up" },
+         { "label": "Listings In Budget", "value": "88%", "trend": "neutral" }
+       ],
+       "confidence": 82,
+       "source_note": "Based on Q2 MLS aggregates and the user's $620k budget."
+     }
 
 CROSS-SURFACE TOOL NAMES (use these inside suggested_followups call_tool actions when relevant):
 - find_open_houses    — input: { city?, state? } → opens open-house finder for that market
@@ -166,12 +196,22 @@ links) in this EXACT shape:
       "action": { "type": "call_tool",
                   "name": "<one of: ${tools.join(" | ")}>",
                   "input": { /* tool-specific, optional */ } } }
-  ]
+  ],
+  "macro_answer": {
+    "takeaway": "<one-line headline>",
+    "metrics": [
+      { "label": "<<=24 chars>", "value": "<short>", "trend": "up" | "down" | "neutral" }
+      /* 2-4 entries */
+    ],
+    "confidence": <integer 0-100>,
+    "source_note": "<optional short attribution, <=140 chars>"
+  }
 }
 \`\`\`
 
 Rules:
 - Up to 2 mismatch_signals and up to 3 suggested_followups.
+- Include \`macro_answer\` ONLY for MACRO intent (market / strategy questions). Omit otherwise.
 - Omit the entire block if neither applies — never emit an empty block.
 - Output STRICTLY valid JSON inside the fence. No trailing commas, no
   comments, no markdown.
@@ -195,12 +235,55 @@ export function extractCiSignals(text: string): {
   if (!m) return { cleanText: text, signals: null };
   // Require the block to actually mention one of the signal keys to
   // avoid swallowing unrelated trailing JSON / code blocks.
-  if (!/mismatch_signals|suggested_followups/.test(m[1])) {
+  if (!/mismatch_signals|suggested_followups|macro_answer/.test(m[1])) {
     return { cleanText: text, signals: null };
   }
   let parsed: CiSignals | null = null;
   try {
     const raw = JSON.parse(m[1]);
+    let macro: MacroAnswer | undefined;
+    const rawMacro = (raw as { macro_answer?: unknown }).macro_answer;
+    if (rawMacro && typeof rawMacro === "object") {
+      const rm = rawMacro as Record<string, unknown>;
+      const takeaway = typeof rm.takeaway === "string" ? rm.takeaway.trim() : "";
+      const metricsRaw = Array.isArray(rm.metrics) ? rm.metrics : [];
+      const metrics: MacroAnswerMetric[] = metricsRaw
+        .map((m) => {
+          if (!m || typeof m !== "object") return null;
+          const mm = m as Record<string, unknown>;
+          const label = typeof mm.label === "string" ? mm.label.trim() : "";
+          const value =
+            typeof mm.value === "string"
+              ? mm.value.trim()
+              : typeof mm.value === "number"
+                ? String(mm.value)
+                : "";
+          if (!label || !value) return null;
+          const trend =
+            mm.trend === "up" || mm.trend === "down" || mm.trend === "neutral"
+              ? mm.trend
+              : undefined;
+          const out: MacroAnswerMetric = { label: label.slice(0, 48), value: value.slice(0, 32) };
+          if (trend) out.trend = trend;
+          return out;
+        })
+        .filter((x): x is MacroAnswerMetric => x !== null)
+        .slice(0, 4);
+      const confRaw = rm.confidence;
+      const confidence =
+        typeof confRaw === "number" && Number.isFinite(confRaw)
+          ? Math.max(0, Math.min(100, Math.round(confRaw)))
+          : undefined;
+      const sourceNote =
+        typeof rm.source_note === "string" && rm.source_note.trim()
+          ? rm.source_note.trim().slice(0, 140)
+          : undefined;
+      if (takeaway && metrics.length >= 2) {
+        macro = { takeaway: takeaway.slice(0, 240), metrics };
+        if (confidence !== undefined) macro.confidence = confidence;
+        if (sourceNote) macro.source_note = sourceNote;
+      }
+    }
     const out: CiSignals = {
       mismatch_signals: Array.isArray(raw.mismatch_signals)
         ? raw.mismatch_signals
@@ -232,7 +315,8 @@ export function extractCiSignals(text: string): {
             .slice(0, 3)
         : [],
     };
-    if (out.mismatch_signals.length || out.suggested_followups.length) parsed = out;
+    if (macro) out.macro_answer = macro;
+    if (out.mismatch_signals.length || out.suggested_followups.length || out.macro_answer) parsed = out;
   } catch {
     parsed = null;
   }

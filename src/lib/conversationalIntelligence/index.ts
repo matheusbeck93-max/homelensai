@@ -23,6 +23,7 @@ export { FollowupChipRow } from "./FollowupChipRow";
 export { PreferenceFollowupCardWeb } from "./PreferenceFollowupCardWeb";
 export { useConversationalIntelligenceState } from "./useConversationalIntelligenceState";
 export { ArtifactCard } from "./ArtifactCard";
+export { MacroAnswerCard, getMacroAnswer } from "./MacroAnswerCard";
 export { trackCiEvent } from "./telemetry";
 export type { CiEventName } from "./telemetry";
 export type {
@@ -34,6 +35,8 @@ export type {
   FollowupAction,
   FollowupSuggestion,
   GeneratedArtifact,
+  MacroAnswer,
+  MacroAnswerMetric,
   MismatchSignal,
   SurfaceKind,
 } from "./types";

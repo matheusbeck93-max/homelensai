@@ -11,6 +11,7 @@ export type SseEvent =
       type: 'signals';
       mismatch_signals?: Array<Record<string, unknown>>;
       suggested_followups?: Array<{ label: string; action: Record<string, unknown> }>;
+      macro_answer?: Record<string, unknown>;
     }
   | { type: 'turn_done'; messageId: string | null; threadId: string }
   | { type: 'error'; message: string };

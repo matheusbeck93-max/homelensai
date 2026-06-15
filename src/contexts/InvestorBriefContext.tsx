@@ -71,6 +71,7 @@ export interface ChatTurn {
   signals?: {
     mismatch_signals?: Array<Record<string, unknown>>;
     suggested_followups?: Array<{ label: string; action: Record<string, unknown> }>;
+    macro_answer?: Record<string, unknown>;
   };
   createdAt: number;
 }
@@ -324,6 +325,7 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
             pendingSignalsRef.current = {
               mismatch_signals: ev.mismatch_signals,
               suggested_followups: ev.suggested_followups,
+              macro_answer: ev.macro_answer,
             };
           } else if (ev.type === 'turn_done') {
             setCurrentTurn((prev) => {
