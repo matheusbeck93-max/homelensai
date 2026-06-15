@@ -2801,6 +2801,17 @@ export type Database = {
       }
     }
     Views: {
+      rentcast_cache_hit_rate_7d: {
+        Row: {
+          cache_hits: number | null
+          cache_misses: number | null
+          hit_rate_pct: number | null
+          total_calls: number | null
+          window_end: string | null
+          window_start: string | null
+        }
+        Relationships: []
+      }
       v_user_usage_daily: {
         Row: {
           calls: number | null
