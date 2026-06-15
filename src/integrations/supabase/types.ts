@@ -2147,6 +2147,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rentcast_cache_hit_rate_history: {
+        Row: {
+          cache_hits: number
+          created_at: string
+          hit_rate_pct: number
+          id: string
+          total_calls: number
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          cache_hits?: number
+          created_at?: string
+          hit_rate_pct?: number
+          id?: string
+          total_calls?: number
+          window_end?: string
+          window_start: string
+        }
+        Update: {
+          cache_hits?: number
+          created_at?: string
+          hit_rate_pct?: number
+          id?: string
+          total_calls?: number
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       rentcast_usage_log: {
         Row: {
           cache_hit: boolean
