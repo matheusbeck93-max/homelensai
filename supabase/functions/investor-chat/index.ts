@@ -383,8 +383,16 @@ DO NOT USE for:
 - Returns/cash flow at a known price (use compute_metrics)
 
 Cached 24h per address. Counts against the user's daily RentCast quota
-(buyer 5/day, investor 50/day). On quota_exceeded the model should fall
-back to Perplexity-based estimates and mention the limit.`,
+(buyer 5/day, investor 50/day).
+
+ERROR HANDLING — do NOT fabricate numbers when the tool returns an error:
+- error="upgrade_required" → reply with ONE sentence: "Live property
+  valuations need a Buyer or Investor subscription." then offer
+  get_market_stats for the area. Do not call this tool again this turn.
+- error="quota_exceeded" → tell the user they've hit today's RentCast
+  cap (limit field), resets in 24h, and offer get_market_stats instead.
+- error="rentcast_failed" → say RentCast is temporarily unavailable;
+  fall back to get_market_stats and note the source.`,
     parameters: {
       type: 'object',
       properties: {
@@ -417,8 +425,15 @@ back to Perplexity-based estimates and mention the limit.`,
         });
         return result;
       } catch (e) {
+        if (e instanceof RentcastUpgradeRequiredError) {
+          return {
+            error: 'upgrade_required',
+            tier: 'free',
+            cta: 'Upgrade to Buyer or Investor for live RentCast valuations.',
+          };
+        }
         if (e instanceof RentcastQuotaError) {
-          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit };
+          return { error: 'quota_exceeded', tier: e.tier, limit: e.limit, resetIn: '24h' };
         }
         return { error: 'rentcast_failed', message: (e as Error).message };
       }
@@ -432,7 +447,9 @@ Returns marketRent, range, $ delta, % delta, and a verdict.
 USE THIS when the user asks "am I under-renting?", "is this rent fair?",
 "what's market for my place?", or for the rent-below-market alert.
 
-Cached 24h. Subject to the same per-user daily quota as estimate_property_value.`,
+Cached 24h. Subject to the same per-user daily quota as estimate_property_value.
+Same error contract: handle upgrade_required and quota_exceeded the same way
+— do NOT fabricate a market rent.`,
     parameters: {
       type: 'object',
       properties: {
