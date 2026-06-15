@@ -17,7 +17,13 @@ import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
-import { getValuationCached, RentcastQuotaError, type RentcastTier } from '../_shared/rentcast.ts';
+import {
+  getValuationCached,
+  RentcastQuotaError,
+  RentcastUpgradeRequiredError,
+  resolveRentcastTier as sharedResolveRentcastTier,
+  type RentcastTier,
+} from '../_shared/rentcast.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -155,24 +161,7 @@ function resolveBudget(
  * Free or unknown → 'free' (0/day → falls through to Perplexity).
  */
 async function resolveRentcastTier(ctx: ExecutionContext): Promise<RentcastTier> {
-  try {
-    const { data } = await ctx.serviceSupabase
-      .from('profiles')
-      .select('subscription_status, stripe_price_id')
-      .eq('id', ctx.userId)
-      .maybeSingle();
-    const status = String((data as any)?.subscription_status ?? '').toLowerCase();
-    const priceId = String((data as any)?.stripe_price_id ?? '');
-    const investorPriceIds = [
-      Deno.env.get('STRIPE_INVESTOR_MONTHLY_PRICE_ID'),
-      Deno.env.get('STRIPE_INVESTOR_ANNUAL_PRICE_ID'),
-    ].filter(Boolean);
-    if (investorPriceIds.includes(priceId)) return 'investor';
-    if (status === 'active' || status === 'trialing') return 'buyer';
-    return 'free';
-  } catch {
-    return 'free';
-  }
+  return sharedResolveRentcastTier(ctx.serviceSupabase as any, ctx.userId);
 }
 
 const TOOLS: Tool[] = [
