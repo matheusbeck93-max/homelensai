@@ -153,8 +153,23 @@ function renderMarkdown(text: string): React.ReactNode {
   };
 
   const renderInline = (text: string): React.ReactNode => {
-    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    // Order matters: links first, then bold, then italic.
+    const parts = text.split(/(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*)/g);
     return parts.map((part, i) => {
+      const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (link) {
+        return (
+          <a
+            key={i}
+            href={link[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#60a5fa', textDecoration: 'underline' }}
+          >
+            {link[1]}
+          </a>
+        );
+      }
       if (part.startsWith('**') && part.endsWith('**'))
         return <strong key={i}>{part.slice(2, -2)}</strong>;
       if (part.startsWith('*') && part.endsWith('*'))
