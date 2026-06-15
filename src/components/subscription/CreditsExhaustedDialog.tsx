@@ -80,7 +80,7 @@ export function CreditsExhaustedDialog({ open, onOpenChange }: CreditsExhaustedD
               navigate('/pricing');
             }}
           >
-            Upgrade to Premium — $4.97/mo
+            Upgrade to Buyer — $9.97/mo
           </Button>
           <Button
             variant="ghost"

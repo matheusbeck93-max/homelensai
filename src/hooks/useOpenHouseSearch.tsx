@@ -35,15 +35,15 @@ export function useOpenHouseSearch() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const search = useCallback(async (filters: OpenHouseFilters) => {
+  const search = useCallback(async (filters: OpenHouseFilters, opts?: { bypassCache?: boolean }) => {
     setError(null);
     setLoading(true);
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
     const key = cacheKey(filters);
-    const local = readLocalCache(key);
-    if (local) {
+    const local = opts?.bypassCache ? null : readLocalCache(key);
+    if (local && !opts?.bypassCache) {
       setResult(local.data);
       // stale-while-revalidate
       if (Date.now() - local.ts < CACHE_TTL_MS) {
@@ -58,6 +58,7 @@ export function useOpenHouseSearch() {
       const cleanBody = Object.fromEntries(
         Object.entries(filters).filter(([, v]) => v !== null && v !== undefined && v !== ''),
       );
+      if (opts?.bypassCache) (cleanBody as Record<string, unknown>).bypass_cache = true;
       const { data, error } = await supabase.functions.invoke('open-houses-search', {
         body: cleanBody,
       });

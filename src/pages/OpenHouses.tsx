@@ -4,7 +4,7 @@ import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Bell, BellOff } from 'lucide-react';
+import { Bell, BellOff, RefreshCw } from 'lucide-react';
 import { OpenHousesFilterBar } from '@/components/openHouses/FilterBar';
 import { OpenHouseCard } from '@/components/openHouses/OpenHouseCard';
 import { OpenHouseMap } from '@/components/openHouses/OpenHouseMap';
@@ -54,6 +54,19 @@ export default function OpenHouses() {
     } catch (e) {
       toast({
         title: 'Search failed',
+        description: e instanceof Error ? e.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!filters.city || !filters.state) return;
+    try {
+      await search(filters, { bypassCache: true });
+    } catch (e) {
+      toast({
+        title: 'Refresh failed',
         description: e instanceof Error ? e.message : 'Please try again.',
         variant: 'destructive',
       });
@@ -113,6 +126,10 @@ export default function OpenHouses() {
           loading={loading}
         />
 
+        <p className="text-xs text-muted-foreground">
+          Best-effort web search across Zillow, Redfin, and Realtor.com — verify each open house on the source page before driving over.
+        </p>
+
         {result?.remainingQuota != null && isFree && (
           <p className="text-xs text-muted-foreground">
             Free plan: {result.remainingQuota} open-house search{result.remainingQuota === 1 ? '' : 'es'} remaining today.
@@ -153,10 +170,16 @@ export default function OpenHouses() {
                 {loading ? 'Searching…' : `${listings.length} result${listings.length === 1 ? '' : 's'}`}
               </p>
               {listings.length > 0 && (
-                <Button variant="outline" size="sm" onClick={handleSaveAlert} disabled={alreadySaved} className="gap-2">
-                  {alreadySaved ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
-                  {alreadySaved ? 'Alert saved' : 'Save alert'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading} className="gap-2">
+                    <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSaveAlert} disabled={alreadySaved} className="gap-2">
+                    {alreadySaved ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+                    {alreadySaved ? 'Alert saved' : 'Save alert'}
+                  </Button>
+                </div>
               )}
             </div>
 
