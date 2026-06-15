@@ -325,6 +325,7 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
             pendingSignalsRef.current = {
               mismatch_signals: ev.mismatch_signals,
               suggested_followups: ev.suggested_followups,
+              macro_answer: ev.macro_answer,
             };
           } else if (ev.type === 'turn_done') {
             setCurrentTurn((prev) => {
