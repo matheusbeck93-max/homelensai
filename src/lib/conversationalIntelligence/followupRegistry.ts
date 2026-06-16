@@ -204,6 +204,37 @@ const localAffordability: FollowupTopic = {
   },
 };
 
+/* ----------------------------------------------------------------------- */
+/* 7. Wage growth vs home-price growth (BLS OEWS + FRED Case-Shiller)      */
+/* ----------------------------------------------------------------------- */
+const wagesVsPrices: FollowupTopic = {
+  id: "wages_vs_prices",
+  label: "Are wages keeping up with home prices here?",
+  category: "research",
+  persona_affinity: {
+    first_time_buyer: 0.8,
+    rental_investor: 0.7,
+    flipper: 0.5,
+    existing_owner: 0.6,
+    mixed: 0.7,
+  },
+  cooldown_minutes: 360,
+  trigger: (ctx) =>
+    weighted([
+      mentionsAffordability(ctx),
+      mentionsLocation(ctx),
+      userBrowsingListings(ctx),
+      userViewingProperty(ctx),
+    ]),
+  on_accept: {
+    type: "cascade",
+    cascade: {
+      prompt_to_ai:
+        "The user clicked 'Are wages keeping up with home prices here?'. Call `get_metro_wage_growth` with the metro (use the property's city or user's target market) and explain in 2-3 sentences: wage YoY%, home-price YoY%, the gap, and the verdict. Always cite BLS + FRED.",
+    },
+  },
+};
+
 export const FOLLOWUP_REGISTRY: FollowupTopic[] = [
   testBuyingAbility,
   fthbPrograms,
@@ -211,6 +242,7 @@ export const FOLLOWUP_REGISTRY: FollowupTopic[] = [
   compareProperties,
   neighborhoodResearch,
   localAffordability,
+  wagesVsPrices,
 ];
 
 export function getTopic(id: string): FollowupTopic | undefined {
