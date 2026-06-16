@@ -22,10 +22,20 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/';
 
+  const resolveLandingPath = async (userId: string): Promise<string> => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', userId)
+      .maybeSingle();
+    return data?.onboarding_completed ? redirectPath : '/profile-setup';
+  };
+
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
+        // Always land on home after OAuth; ProtectedRoute will push new users to /profile-setup.
         redirect_uri: `${window.location.origin}${redirectPath}`,
       });
       if (result.error) {
@@ -122,7 +132,8 @@ export default function Auth() {
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
-      navigate(redirectPath);
+      const { data: { user } } = await supabase.auth.getUser();
+      navigate(user ? await resolveLandingPath(user.id) : redirectPath);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
