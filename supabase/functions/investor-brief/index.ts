@@ -119,6 +119,18 @@ async function loadMacroContextForBrief(targetMarket?: string | null): Promise<{
             verdict: (wage as { verdict: string | null }).verdict,
           }
         : null;
+    // Coverage telemetry: when a target market is set but BLS data is missing,
+    // log a structured warning so we can monitor metro coverage gaps over time.
+    if (targetMarket && (!laborBlock || !wageBlock)) {
+      console.warn(
+        JSON.stringify({
+          event: 'investor_brief.bls_coverage_gap',
+          target_market: targetMarket,
+          labor_present: !!laborBlock,
+          wage_present: !!wageBlock,
+        }),
+      );
+    }
     return {
       rate_30y_pct: p30.latest?.value ?? null,
       rate_30y_change_30d_bps: p30.change_30d?.percent_pts ?? null,
