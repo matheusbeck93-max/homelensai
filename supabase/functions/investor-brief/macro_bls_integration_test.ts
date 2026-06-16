@@ -11,16 +11,32 @@ import { runGetMetroWageGrowth } from '../_shared/ai/tools/macro/getMetroWageGro
 
 const METRO = 'Tampa';
 
-Deno.test('investor-brief macro_context: BLS labor block is populated for Tampa', async () => {
+// The BLS client reads/writes the bls_cache table via service role. Skip
+// gracefully when the env doesn't expose those (e.g. local runs without
+// service-role access) so this file never becomes a false CI failure.
+const HAS_BACKEND =
+  !!Deno.env.get('SUPABASE_URL') &&
+  !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') &&
+  !!Deno.env.get('BLS_API_KEY') &&
+  !!Deno.env.get('FRED_API_KEY');
+
+Deno.test({
+  name: 'investor-brief macro_context: BLS labor block is populated for Tampa',
+  ignore: !HAS_BACKEND,
+  fn: async () => {
   const labor = await runGetMetroLaborMarket({ metro_name: METRO });
   assertEquals((labor as { ok: boolean }).ok, true, `labor tool failed: ${JSON.stringify(labor)}`);
   const l = labor as { metro: string; unemployment_pct: number | null; labor_force: number | null };
   assert(l.metro.toLowerCase().includes('tampa'), `unexpected metro: ${l.metro}`);
   assert(typeof l.unemployment_pct === 'number', 'unemployment_pct must be numeric');
   assert(typeof l.labor_force === 'number', 'labor_force must be numeric');
+  },
 });
 
-Deno.test('investor-brief macro_context: BLS wage-growth block is populated for Tampa', async () => {
+Deno.test({
+  name: 'investor-brief macro_context: BLS wage-growth block is populated for Tampa',
+  ignore: !HAS_BACKEND,
+  fn: async () => {
   const wage = await runGetMetroWageGrowth({ metro_name: METRO });
   assertEquals((wage as { ok: boolean }).ok, true, `wage tool failed: ${JSON.stringify(wage)}`);
   const w = wage as {
@@ -31,10 +47,9 @@ Deno.test('investor-brief macro_context: BLS wage-growth block is populated for 
   };
   assert(w.metro.toLowerCase().includes('tampa'), `unexpected metro: ${w.metro}`);
   assert(typeof w.current_median_wage_usd === 'number', 'current_median_wage_usd must be numeric');
-  // wage_yoy_pct and wage_vs_price_gap_pp can be null if only one wage vintage
-  // is available; the prompt only requires one of them to be non-null.
   assert(
     w.wage_yoy_pct !== null || w.wage_vs_price_gap_pp !== null,
     'at least one of wage_yoy_pct or wage_vs_price_gap_pp must be non-null',
   );
+  },
 });
