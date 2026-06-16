@@ -37,6 +37,7 @@ import type { GeneratedArtifact } from "./types";
 import { trackCiEvent } from "./telemetry";
 import { markShown, markClicked, startCascade } from "./followupDismissals";
 import { getTopic } from "./followupRegistry";
+import { maybeEndCascadeFromTurn } from "./followupExecutors";
 import type { PersonaId } from "@/lib/personas/personaRegistry";
 
 export interface ConversationalIntelligenceProps {
@@ -114,6 +115,16 @@ export function ConversationalIntelligence({
     () => [...thread].reverse().find((t) => t.role === "assistant"),
     [thread],
   );
+
+  // Cascade lifecycle: when the assistant fires the expected follow-up tool,
+  // clear the active cascade flag so future chips become eligible again.
+  // Keyed by turn length so we evaluate once per assistant turn.
+  const lastCascadeCheckRef = useRef<number>(-1);
+  useEffect(() => {
+    if (lastCascadeCheckRef.current === thread.length) return;
+    lastCascadeCheckRef.current = thread.length;
+    maybeEndCascadeFromTurn(lastAssistant);
+  }, [thread.length, lastAssistant]);
 
   const signals: MismatchSignal[] = lastAssistant?.signals?.mismatch_signals ?? [];
 

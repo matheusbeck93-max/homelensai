@@ -17,6 +17,8 @@ import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
+import { FOLLOWUP_TOOL_DEFS } from '../_shared/ai/tools/followups/index.ts';
+import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 import {
   getValuationCached,
   RentcastQuotaError,
@@ -88,7 +90,7 @@ User: compare my Austin properties by cap rate
 Assistant action: resolve the Austin property IDs from loaded context, call compare_properties with those IDs.
 Assistant reply: "Of your three Austin properties, 1814 Cedar leads at 8.2% cap (above your 7% target). See [Comparison Table]."`;
 
-const CI_SIGNALS_BLOCK = ciBehaviorPromptBlock({ surface: 'investor' }) + '\n\n' + ciSignalsPromptBlock();
+const CI_SIGNALS_BLOCK = ciBehaviorPromptBlock({ surface: 'investor' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tool definitions (OpenAI/Gemini compatible JSON Schema)
@@ -809,6 +811,12 @@ TOOLS.push({
   },
   execute: async (input, ctx) => executeFindOpenHouses(input, ctx.authHeader ?? null),
 });
+
+// Follow-up registry tools (PR B/C) — keep last so they don't override
+// surface-specific tools by name. ToolDef shape matches; execute ignores ctx.
+for (const def of FOLLOWUP_TOOL_DEFS) {
+  TOOLS.push(def as unknown as Tool);
+}
 
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 

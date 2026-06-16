@@ -76,3 +76,18 @@ export async function runFollowupTool(
       return { ok: false, error: `Unknown follow-up tool: ${name}` };
   }
 }
+
+/**
+ * Surface-agnostic ToolDef shape used by `investor-chat` and
+ * `owned-property-chat` (`{ name, description, parameters, execute }`).
+ * `execute` ignores the surface-specific context and just forwards to
+ * `runFollowupTool`, so the same defs plug into any tool loop that
+ * follows the OpenAI/Gemini function-calling convention.
+ */
+export const FOLLOWUP_TOOL_DEFS = FOLLOWUP_TOOLS.map((t) => ({
+  name: t.function.name,
+  description: t.function.description,
+  parameters: t.function.parameters,
+  execute: async (input: Record<string, unknown>, _ctx?: unknown) =>
+    runFollowupTool(t.function.name, input),
+}));

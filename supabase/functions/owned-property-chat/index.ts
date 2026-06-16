@@ -15,6 +15,8 @@ import {
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
+import { FOLLOWUP_TOOL_DEFS } from '../_shared/ai/tools/followups/index.ts';
+import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 
 const log = createLogger('owned-property-chat');
 
@@ -249,6 +251,13 @@ Same error contract as estimate_property_value.`,
   },
 ];
 
+// Inject the v1 follow-up registry tools (test_buying_ability, find_fthb_programs,
+// find_local_lenders, compare_properties, research_neighborhood). They use the
+// same ToolDef contract; ctx is ignored.
+for (const def of FOLLOWUP_TOOL_DEFS) {
+  TOOLS.push(def as unknown as ToolDef);
+}
+
 // ATTOM Data deferred — market-level comps stay on Perplexity + Sonnet for now.
 // Revisit when MRR > $25K OR users explicitly request deeper comps/MLS-grade data.
 // Cost reference: ATTOM tiers start at ~$500/mo. RentCast (Foundation, $74/mo)
@@ -366,7 +375,7 @@ Deno.serve(async (req) => {
     const systemContent = `${SYSTEM_PROMPT}\n\n--- PROPERTY CONTEXT ---\n${context}${memoryBlock}\n\n${ciBehaviorPromptBlock({ surface: 'owned' })}\n\n${ciSignalsPromptBlock({
         allowedMismatchTypes: ['target_cap_rate', 'budget_over', 'budget_under'],
         allowedTools: ['generate_mortgage_excel', 'generate_property_report_pdf', 'generate_chart_image'],
-      })}`;
+      })}\n\n${FOLLOWUP_CASCADE_PROMPT_BLOCK}`;
 
     const convo: any[] = [
       { role: 'system', content: systemContent },

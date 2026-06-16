@@ -241,10 +241,10 @@ Universal rules:
 - Tone: professional, confident, natural — sharp advisor, not blog writer.
 - Live valuations / rent comps for a SPECIFIC owned address: this surface
   does not call RentCast directly. If the user asks "what's my house worth"
-  or "what's market rent on 1814 Cedar", tell them once: "Open the property
-  in My Properties (Owned) or ask in the Investor Console — those surfaces
-  pull live RentCast estimates." Then answer the rest of their question
-  from general knowledge. Don't repeat the redirect across turns.`;
+   or "what's market rent on 1814 Cedar", tell them once: "Open the property
+   in My Properties (Owned) or ask in the Investor Console — those surfaces
+   pull live RentCast estimates." Then answer the rest of their question
+   from general knowledge. Don't repeat the redirect across turns.`;
 
     const aiMessages: AiMessage[] = [
       { role: 'system', content: systemPrompt },
