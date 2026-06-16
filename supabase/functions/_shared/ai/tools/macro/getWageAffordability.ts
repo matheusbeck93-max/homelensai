@@ -18,7 +18,7 @@ export const GET_WAGE_AFFORDABILITY_TOOL = {
   function: {
     name: 'get_wage_affordability',
     description:
-      'Computes how much home a typical local earner can afford in a US metro at today\'s 30-yr mortgage rate, using BLS OEWS median annual wage and a 28% DTI assumption. Returns both single-earner and dual-earner (1.6x) scenarios. Covered metros: top 20 by population. Prefer this over web search for "who can afford to buy here?" or "is this market affordable to locals?" questions.',
+      'PRIMARY TOOL for any "can locals afford to buy here?" / "who can afford this neighborhood?" / "household-income-to-mortgage gap" question. Computes max home price a typical local earner can afford in a US metro at today\'s 30-yr mortgage rate, using BLS OEWS median annual wage and 28% DTI. Returns both single-earner and dual-earner (1.6x) scenarios. Covered metros: top 20 by population. DO NOT estimate from training data — call this tool. Example call: { "metro_name": "Tampa", "down_payment_pct": 20 }.',
     parameters: {
       type: 'object',
       properties: {
