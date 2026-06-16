@@ -628,6 +628,27 @@ export type Database = {
           },
         ]
       }
+      fred_cache: {
+        Row: {
+          cached_at: string
+          payload: Json
+          series_id: string
+          ttl_minutes: number
+        }
+        Insert: {
+          cached_at?: string
+          payload: Json
+          series_id: string
+          ttl_minutes?: number
+        }
+        Update: {
+          cached_at?: string
+          payload?: Json
+          series_id?: string
+          ttl_minutes?: number
+        }
+        Relationships: []
+      }
       investor_brief_cards: {
         Row: {
           brief_id: string
