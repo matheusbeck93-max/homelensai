@@ -178,7 +178,7 @@ const neighborhoodResearch: FollowupTopic = {
 const localAffordability: FollowupTopic = {
   id: "local_wage_affordability",
   label: "Who can afford this locally?",
-  category: "market",
+  category: "research",
   persona_affinity: {
     first_time_buyer: 0.9,
     rental_investor: 0.7,
