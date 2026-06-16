@@ -172,12 +172,45 @@ const neighborhoodResearch: FollowupTopic = {
   },
 };
 
+/* ----------------------------------------------------------------------- */
+/* 6. Local wage affordability (BLS + FRED)                                */
+/* ----------------------------------------------------------------------- */
+const localAffordability: FollowupTopic = {
+  id: "local_wage_affordability",
+  label: "Who can afford this locally?",
+  category: "research",
+  persona_affinity: {
+    first_time_buyer: 0.9,
+    rental_investor: 0.7,
+    flipper: 0.5,
+    existing_owner: 0.5,
+    mixed: 0.8,
+  },
+  cooldown_minutes: 240,
+  trigger: (ctx) =>
+    weighted([
+      mentionsAffordability(ctx),
+      mentionsBudget(ctx),
+      mentionsLocation(ctx),
+      userBrowsingListings(ctx),
+      userViewingProperty(ctx),
+    ]),
+  on_accept: {
+    type: "cascade",
+    cascade: {
+      prompt_to_ai:
+        "The user clicked 'Who can afford this locally?'. Call `get_wage_affordability` with the metro (use the property's city or the user's target market) and explain in 2-3 sentences: median wage, max affordable home at today's rate for single vs dual earner, and how the property price compares. Always cite BLS + FRED.",
+    },
+  },
+};
+
 export const FOLLOWUP_REGISTRY: FollowupTopic[] = [
   testBuyingAbility,
   fthbPrograms,
   lenderInfo,
   compareProperties,
   neighborhoodResearch,
+  localAffordability,
 ];
 
 export function getTopic(id: string): FollowupTopic | undefined {

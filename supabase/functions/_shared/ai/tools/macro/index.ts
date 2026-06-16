@@ -34,6 +34,26 @@ import {
   GET_MACRO_ECONOMIC_CONTEXT_TOOL,
   runGetMacroEconomicContext,
 } from './getMacroEconomicContext.ts';
+import {
+  GET_AREA_DEMOGRAPHICS_TOOL,
+  runGetAreaDemographics,
+} from './getAreaDemographics.ts';
+import {
+  GET_AREA_GROWTH_METRICS_TOOL,
+  runGetAreaGrowthMetrics,
+} from './getAreaGrowthMetrics.ts';
+import {
+  GET_BUILDING_PERMITS_TOOL,
+  runGetBuildingPermits,
+} from './getBuildingPermits.ts';
+import {
+  GET_METRO_LABOR_MARKET_TOOL,
+  runGetMetroLaborMarket,
+} from './getMetroLaborMarket.ts';
+import {
+  GET_WAGE_AFFORDABILITY_TOOL,
+  runGetWageAffordability,
+} from './getWageAffordability.ts';
 
 export const MACRO_TOOLS = [
   GET_CURRENT_MORTGAGE_RATES_TOOL,
@@ -41,6 +61,11 @@ export const MACRO_TOOLS = [
   GET_NATIONAL_HOUSING_INDEX_TOOL,
   GET_METRO_HOUSING_INDEX_TOOL,
   GET_MACRO_ECONOMIC_CONTEXT_TOOL,
+  GET_AREA_DEMOGRAPHICS_TOOL,
+  GET_AREA_GROWTH_METRICS_TOOL,
+  GET_BUILDING_PERMITS_TOOL,
+  GET_METRO_LABOR_MARKET_TOOL,
+  GET_WAGE_AFFORDABILITY_TOOL,
 ] as const;
 
 export const MACRO_TOOL_NAMES = [
@@ -49,6 +74,11 @@ export const MACRO_TOOL_NAMES = [
   'get_national_housing_index',
   'get_metro_housing_index',
   'get_macro_economic_context',
+  'get_area_demographics',
+  'get_area_growth_metrics',
+  'get_building_permits',
+  'get_metro_labor_market',
+  'get_wage_affordability',
 ] as const;
 
 export type MacroToolName = (typeof MACRO_TOOL_NAMES)[number];
@@ -73,6 +103,16 @@ export async function runMacroTool(
       return await runGetMetroHousingIndex(input as { metro_name?: unknown });
     case 'get_macro_economic_context':
       return await runGetMacroEconomicContext();
+    case 'get_area_demographics':
+      return await runGetAreaDemographics(input as { location?: unknown });
+    case 'get_area_growth_metrics':
+      return await runGetAreaGrowthMetrics(input as { location?: unknown });
+    case 'get_building_permits':
+      return await runGetBuildingPermits();
+    case 'get_metro_labor_market':
+      return await runGetMetroLaborMarket(input as { metro_name?: unknown });
+    case 'get_wage_affordability':
+      return await runGetWageAffordability(input as { metro_name?: unknown; down_payment_pct?: unknown });
     default:
       return { ok: false, error: `Unknown macro tool: ${name}` };
   }

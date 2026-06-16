@@ -29,23 +29,34 @@ import { completeWithFallback, BudgetExceededError } from '../_shared/ai/router.
 import { ProviderError } from '../_shared/ai/types.ts';
 import { getFredSeries } from '../_shared/fred-client.ts';
 import { FRED_SERIES } from '../_shared/fred-series.ts';
+import { detectRateMove } from '../_shared/macro-alerts.ts';
+import { runGetAreaGrowthMetrics } from '../_shared/ai/tools/macro/getAreaGrowthMetrics.ts';
 
 /**
  * Frozen-at-generation macro snapshot for the brief. Cache-first FRED
  * fetch (24h prefetch warms it); fails soft to null if FRED unreachable.
  */
-async function loadMacroContextForBrief(): Promise<{
+async function loadMacroContextForBrief(targetMarket?: string | null): Promise<{
   rate_30y_pct: number | null;
   rate_30y_change_30d_bps: number | null;
   rate_as_of: string | null;
   case_shiller_national: number | null;
   case_shiller_yoy_pct: number | null;
+  rate_alert: { triggered: boolean; headline: string; direction: 'up' | 'down' | 'flat' } | null;
+  target_market_growth: {
+    location: string;
+    growth_5yr_pct: number | null;
+    annualized_pct: number | null;
+  } | null;
   source: string;
 } | null> {
   try {
-    const [r30, cs] = await Promise.all([
+    const [r30, cs, growth] = await Promise.all([
       getFredSeries(FRED_SERIES.MORTGAGE_30Y, { limit: 60 }),
       getFredSeries(FRED_SERIES.CASE_SHILLER_NATL, { limit: 24 }),
+      targetMarket
+        ? runGetAreaGrowthMetrics({ location: targetMarket }).catch(() => null)
+        : Promise.resolve(null),
     ]);
     const p30 = r30.payload;
     const csP = cs.payload;
@@ -54,12 +65,26 @@ async function loadMacroContextForBrief(): Promise<{
       csVal != null && csP.change_yoy
         ? +((csP.change_yoy.absolute / (csVal - csP.change_yoy.absolute)) * 100).toFixed(2)
         : null;
+    const move = detectRateMove({
+      change_30d_bps: p30.change_30d?.percent_pts ?? null,
+      change_90d_bps: p30.change_90d?.percent_pts ?? null,
+    });
+    const growthBlock =
+      growth && typeof growth === 'object' && 'ok' in growth && (growth as { ok: boolean }).ok
+        ? {
+            location: (growth as { location: string }).location,
+            growth_5yr_pct: (growth as { growth_5yr_pct: number | null }).growth_5yr_pct,
+            annualized_pct: (growth as { annualized_pct: number | null }).annualized_pct,
+          }
+        : null;
     return {
       rate_30y_pct: p30.latest?.value ?? null,
       rate_30y_change_30d_bps: p30.change_30d?.percent_pts ?? null,
       rate_as_of: p30.latest?.date ?? null,
       case_shiller_national: csVal,
       case_shiller_yoy_pct: csYoy,
+      rate_alert: move.triggered ? { triggered: true, headline: move.headline, direction: move.direction } : null,
+      target_market_growth: growthBlock,
       source: 'FRED',
     };
   } catch (_e) {
@@ -92,6 +117,11 @@ function buildSystemPrompt(): string {
     '    Use it for the intro line ("Today\'s rate: 6.78% (-15 bps over 30 days)")',
     '    and any insight that benefits from rate context. Always attribute with',
     '    "(per FRED)". Skip silently when macro_context is null.',
+    '  - If macro_context.rate_alert.triggered is true, lead the intro with the',
+    '    rate_alert.headline verbatim (it is already user-facing copy).',
+    '  - If macro_context.target_market_growth is present, weave one short bullet',
+    '    citing the 5-yr growth (e.g., "Tampa population grew 8.2% over 5 years per Census ACS"),',
+    '    severity "info" if positive, "warning" if negative.',
     '',
     'Output STRICT JSON ONLY (no markdown, no commentary):',
     '{',
@@ -196,7 +226,9 @@ Deno.serve(async (req) => {
       preferences: contextSnapshot?.preferences ?? {},
       cards: cardsForPrompt,
       pinnedTalkingPoints,
-      macro_context: await loadMacroContextForBrief(),
+      macro_context: await loadMacroContextForBrief(
+        (contextSnapshot?.preferences?.targetMarkets?.[0] as string | undefined) ?? null,
+      ),
     });
 
     // 4. Call Lovable AI Gateway via the router for all tiers. The router

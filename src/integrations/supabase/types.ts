@@ -323,6 +323,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bls_cache: {
+        Row: {
+          cache_key: string
+          cached_at: string
+          payload: Json
+          ttl_minutes: number
+        }
+        Insert: {
+          cache_key: string
+          cached_at?: string
+          payload: Json
+          ttl_minutes?: number
+        }
+        Update: {
+          cache_key?: string
+          cached_at?: string
+          payload?: Json
+          ttl_minutes?: number
+        }
+        Relationships: []
+      }
+      census_cache: {
+        Row: {
+          cache_key: string
+          cached_at: string
+          payload: Json
+          ttl_minutes: number
+        }
+        Insert: {
+          cache_key: string
+          cached_at?: string
+          payload: Json
+          ttl_minutes?: number
+        }
+        Update: {
+          cache_key?: string
+          cached_at?: string
+          payload?: Json
+          ttl_minutes?: number
+        }
+        Relationships: []
+      }
       ci_web_events: {
         Row: {
           created_at: string
