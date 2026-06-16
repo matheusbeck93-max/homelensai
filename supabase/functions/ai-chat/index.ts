@@ -1277,6 +1277,12 @@ Provide balanced analysis covering:
       tools.push(WEB_RESEARCH_TOOL);
     }
 
+    // Follow-up registry tools (PR B/C) — always available on the general
+    // chat path so cascade chips on any surface can resolve to a real tool
+    // call. Each tool is fail-soft and returns `{ ok: false, error }` on
+    // failure, so the model can degrade gracefully.
+    for (const t of FOLLOWUP_TOOLS) tools.push(t);
+
     const systemPrompt = `You are HomeLens AI, a real estate decision guide built for people navigating the U.S. housing market. Your role is to help users make informed, confident decisions.
 
 ## IDENTITY
