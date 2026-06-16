@@ -1900,7 +1900,8 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
         const dispatchableCalls = (routed.toolCalls ?? []).filter(
           (tc) =>
             (enableWebResearch && tc.name === 'web_research') ||
-            isFollowupTool(tc.name),
+            isFollowupTool(tc.name) ||
+            isMacroTool(tc.name),
         );
         if (dispatchableCalls.length > 0) {
           const toolResults = await Promise.all(
@@ -1913,6 +1914,17 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
                     ? { answer: r.answer, citations: r.citations }
                     : { error: r.error ?? 'web_research failed' },
                 };
+              }
+              if (isMacroTool(tc.name)) {
+                try {
+                  const out = await runMacroTool(tc.name, tc.arguments as Record<string, unknown>);
+                  return { tc, payload: out };
+                } catch (e) {
+                  return {
+                    tc,
+                    payload: { ok: false, error: e instanceof Error ? e.message : String(e) },
+                  };
+                }
               }
               try {
                 const out = await runFollowupTool(tc.name, tc.arguments as Record<string, unknown>);
