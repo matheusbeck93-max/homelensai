@@ -90,7 +90,7 @@ User: compare my Austin properties by cap rate
 Assistant action: resolve the Austin property IDs from loaded context, call compare_properties with those IDs.
 Assistant reply: "Of your three Austin properties, 1814 Cedar leads at 8.2% cap (above your 7% target). See [Comparison Table]."`;
 
-const CI_SIGNALS_BLOCK = ciBehaviorPromptBlock({ surface: 'investor' }) + '\n\n' + ciSignalsPromptBlock();
+const CI_SIGNALS_BLOCK = ciBehaviorPromptBlock({ surface: 'investor' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tool definitions (OpenAI/Gemini compatible JSON Schema)
