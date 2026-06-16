@@ -16,6 +16,7 @@ import {
   type FollowupState,
 } from './lib/preferenceUpdate';
 import { PreferenceFollowupCard } from './components/PreferenceFollowupCard';
+import { MacroBadge } from './components/MacroBadge';
 
 // ── Supabase config (public/anon keys — safe to include) ──
 const SUPABASE_URL = 'https://yckcdxtatwolzilboahx.supabase.co';
@@ -1394,6 +1395,15 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
         <div style={{ padding: '8px 12px', borderBottom: '1px solid #2a3a4e' }}>
           <MatchScoreBadge score={matchScore} />
         </div>
+      )}
+
+      {/* Macro snapshot — metro-level BLS + FRED context for the detected listing */}
+      {activePropertyData?.city && activePropertyData?.state && session?.access_token && (
+        <MacroBadge
+          city={activePropertyData.city}
+          state={activePropertyData.state}
+          authHeader={`Bearer ${session.access_token}`}
+        />
       )}
 
       {/* Smart Preference Follow-ups */}
