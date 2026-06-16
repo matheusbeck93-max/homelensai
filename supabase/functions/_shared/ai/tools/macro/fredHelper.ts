@@ -4,7 +4,7 @@
  * fred_cache layer instead of re-implementing caching per tool.
  */
 
-import { getFredSeries, type FredSeriesPayload } from '../../../_shared/fred-client.ts';
+import { getFredSeries, type FredSeriesPayload } from '../../../fred-client.ts';
 
 export async function getSeriesSafe(
   seriesId: string,
