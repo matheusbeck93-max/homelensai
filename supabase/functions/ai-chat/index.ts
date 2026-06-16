@@ -1893,20 +1893,38 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
         // composes the final user-facing answer. Cap to one round to bound
         // latency and cost.
         let finalRouted = routed;
-        const webResearchCalls = (routed.toolCalls ?? []).filter(
-          (tc) => tc.name === 'web_research',
+        const dispatchableCalls = (routed.toolCalls ?? []).filter(
+          (tc) =>
+            (enableWebResearch && tc.name === 'web_research') ||
+            isFollowupTool(tc.name),
         );
-        if (enableWebResearch && webResearchCalls.length > 0) {
+        if (dispatchableCalls.length > 0) {
           const toolResults = await Promise.all(
-            webResearchCalls.map(async (tc) => ({
-              tc,
-              result: await runWebResearch(tc.arguments as { query?: unknown; recency?: unknown }),
-            })),
+            dispatchableCalls.map(async (tc) => {
+              if (tc.name === 'web_research') {
+                const r = await runWebResearch(tc.arguments as { query?: unknown; recency?: unknown });
+                return {
+                  tc,
+                  payload: r.ok
+                    ? { answer: r.answer, citations: r.citations }
+                    : { error: r.error ?? 'web_research failed' },
+                };
+              }
+              try {
+                const out = await runFollowupTool(tc.name, tc.arguments as Record<string, unknown>);
+                return { tc, payload: out };
+              } catch (e) {
+                return {
+                  tc,
+                  payload: { ok: false, error: e instanceof Error ? e.message : String(e) },
+                };
+              }
+            }),
           );
           const assistantMsg = {
             role: 'assistant' as const,
             content: routed.text ?? '',
-            tool_calls: webResearchCalls.map((tc) => ({
+            tool_calls: dispatchableCalls.map((tc) => ({
               id: tc.id,
               type: 'function' as const,
               function: {
@@ -1915,12 +1933,10 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
               },
             })),
           };
-          const toolMsgs = toolResults.map(({ tc, result }) => ({
+          const toolMsgs = toolResults.map(({ tc, payload }) => ({
             role: 'tool' as const,
             tool_call_id: tc.id,
-            content: result.ok
-              ? JSON.stringify({ answer: result.answer, citations: result.citations })
-              : JSON.stringify({ error: result.error ?? 'web_research failed' }),
+            content: JSON.stringify(payload ?? { ok: false, error: 'empty tool result' }),
           }));
           try {
             finalRouted = await completeWithFallback(
@@ -1933,13 +1949,13 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
               { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
             );
           } catch (toolErr) {
-            console.error('[ai-chat] web_research follow-up call failed:', toolErr);
+            console.error('[ai-chat] follow-up tool round-trip failed:', toolErr);
             // Fall through with original routed (likely empty text); client
             // will surface a graceful "couldn't fetch live data" answer below.
             finalRouted = {
               ...routed,
               text: routed.text ||
-                "I tried to look that up live but couldn't reach the search backend just now. Try again in a moment.",
+                "I tried to look that up but couldn't reach the backend just now. Try again in a moment.",
             };
           }
         }
