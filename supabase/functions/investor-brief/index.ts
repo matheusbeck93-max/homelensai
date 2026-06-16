@@ -153,6 +153,7 @@ Deno.serve(async (req) => {
       preferences: contextSnapshot?.preferences ?? {},
       cards: cardsForPrompt,
       pinnedTalkingPoints,
+      macro_context: await loadMacroContextForBrief(),
     });
 
     // 4. Call Lovable AI Gateway via the router for all tiers. The router
