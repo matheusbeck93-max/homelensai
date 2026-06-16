@@ -18,6 +18,7 @@ import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
 import { FOLLOWUP_TOOL_DEFS } from '../_shared/ai/tools/followups/index.ts';
+import { MACRO_TOOL_DEFS } from '../_shared/ai/tools/macro/index.ts';
 import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 import {
   getValuationCached,
@@ -815,6 +816,10 @@ TOOLS.push({
 // Follow-up registry tools (PR B/C) — keep last so they don't override
 // surface-specific tools by name. ToolDef shape matches; execute ignores ctx.
 for (const def of FOLLOWUP_TOOL_DEFS) {
+  TOOLS.push(def as unknown as Tool);
+}
+// Macro intelligence tools (FRED-backed). Same ToolDef contract.
+for (const def of MACRO_TOOL_DEFS) {
   TOOLS.push(def as unknown as Tool);
 }
 

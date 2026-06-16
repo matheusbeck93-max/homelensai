@@ -16,6 +16,7 @@ import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 import { FOLLOWUP_TOOL_DEFS } from '../_shared/ai/tools/followups/index.ts';
+import { MACRO_TOOL_DEFS } from '../_shared/ai/tools/macro/index.ts';
 import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 
 const log = createLogger('owned-property-chat');
@@ -255,6 +256,10 @@ Same error contract as estimate_property_value.`,
 // find_local_lenders, compare_properties, research_neighborhood). They use the
 // same ToolDef contract; ctx is ignored.
 for (const def of FOLLOWUP_TOOL_DEFS) {
+  TOOLS.push(def as unknown as ToolDef);
+}
+// Macro intelligence tools (FRED): rates, Case-Shiller, macro context.
+for (const def of MACRO_TOOL_DEFS) {
   TOOLS.push(def as unknown as ToolDef);
 }
 
