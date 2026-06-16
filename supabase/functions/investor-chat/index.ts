@@ -812,6 +812,12 @@ TOOLS.push({
   execute: async (input, ctx) => executeFindOpenHouses(input, ctx.authHeader ?? null),
 });
 
+// Follow-up registry tools (PR B/C) — keep last so they don't override
+// surface-specific tools by name. ToolDef shape matches; execute ignores ctx.
+for (const def of FOLLOWUP_TOOL_DEFS) {
+  TOOLS.push(def as unknown as Tool);
+}
+
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 // ──────────────────────────────────────────────────────────────────────────────
