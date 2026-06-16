@@ -44,6 +44,13 @@ Registered in tool registries of: `ai-chat`, `investor-chat`, `owned-property-ch
 
 ## PR C — Cascade execution + system prompt updates (~1 day)
 
+**Status: shipped.**
+
+- Added `_shared/ai/followupSystemPrompt.ts` (FOLLOW-UP CASCADE block) and injected into `ai-chat` (main/extension/firecrawl), `investor-chat` (CI_SIGNALS_BLOCK), `owned-property-chat`. Skipped `property-assistant` (no tool loop) and `extension-followups` (CRUD, not chat).
+- Added `FOLLOWUP_TOOL_DEFS` adapter to `_shared/ai/tools/followups/index.ts`. Spread into investor-chat and owned-property-chat `TOOLS`. Spread `FOLLOWUP_TOOLS` (raw shape) into ai-chat `tools`.
+- Extended ai-chat's tool-result loop to dispatch any `isFollowupTool(name)` call alongside `web_research`, with the same one-pass tool-result re-call.
+- Added `src/lib/conversationalIntelligence/followupExecutors.ts` + wired `maybeEndCascadeFromTurn` into the wrapper to clear `activeCascade` when the expected tool fires.
+
 - `src/lib/conversationalIntelligence/followupExecutors.ts` — given a `FollowupTopic.on_accept`, returns the message to send to AI (cascade prompt) or the tool name + extracted input.
 - Cascade state tracker — when a cascade is active, suppress new topic chips (`isCascadeActive(ctx)`).
 - Extend `ConversationalIntelligence.tsx` to:
