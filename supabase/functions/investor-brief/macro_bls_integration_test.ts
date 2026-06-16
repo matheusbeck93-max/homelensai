@@ -3,8 +3,8 @@
 // `macro_context.target_market_labor` and `target_market_wage` in the
 // investor brief prompt, so a green test = brief will receive the data.
 //
-// Requires BLS_API_KEY and FRED_API_KEY in env (loaded from project .env).
-import 'https://deno.land/std@0.224.0/dotenv/load.ts';
+// Requires BLS_API_KEY and FRED_API_KEY to be set in the test runner env
+// (Supabase test runner injects project secrets automatically).
 import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import { runGetMetroLaborMarket } from '../_shared/ai/tools/macro/getMetroLaborMarket.ts';
 import { runGetMetroWageGrowth } from '../_shared/ai/tools/macro/getMetroWageGrowth.ts';
