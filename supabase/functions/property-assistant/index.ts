@@ -9,6 +9,7 @@ import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
 import type { Tier } from '../_shared/ai/types.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
+import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 
 const log = createLogger('property-assistant');
 
@@ -241,10 +242,12 @@ Universal rules:
 - Tone: professional, confident, natural — sharp advisor, not blog writer.
 - Live valuations / rent comps for a SPECIFIC owned address: this surface
   does not call RentCast directly. If the user asks "what's my house worth"
-  or "what's market rent on 1814 Cedar", tell them once: "Open the property
-  in My Properties (Owned) or ask in the Investor Console — those surfaces
-  pull live RentCast estimates." Then answer the rest of their question
-  from general knowledge. Don't repeat the redirect across turns.`;
+   or "what's market rent on 1814 Cedar", tell them once: "Open the property
+   in My Properties (Owned) or ask in the Investor Console — those surfaces
+   pull live RentCast estimates." Then answer the rest of their question
+   from general knowledge. Don't repeat the redirect across turns.
+
+${FOLLOWUP_CASCADE_PROMPT_BLOCK}`;
 
     const aiMessages: AiMessage[] = [
       { role: 'system', content: systemPrompt },
