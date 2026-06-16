@@ -14,7 +14,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { getFredSeries } from '../_shared/fred-client.ts';
 import { PREFETCH_SERIES } from '../_shared/fred-series.ts';
-import { verifyCronAuth } from '../_shared/cronAuth.ts';
+import { requireCronAuth } from '../_shared/cronAuth.ts';
 
 const log = createLogger('fred-prefetch-daily');
 
@@ -22,8 +22,8 @@ Deno.serve(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
-  const auth = verifyCronAuth(req);
-  if (!auth.ok) return errorResponse(auth.error, 401);
+  const authFail = requireCronAuth(req);
+  if (authFail) return authFail;
 
   const results: Array<{ series_id: string; ok: boolean; error?: string }> = [];
 
