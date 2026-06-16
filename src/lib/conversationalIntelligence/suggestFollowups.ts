@@ -7,6 +7,7 @@
  */
 
 import type { ChatTurn, ConversationalContext, FollowupSuggestion } from "./types";
+import { rankFollowups } from "./rankFollowups";
 
 type Mapping = (turn: ChatTurn, ctx: ConversationalContext) => FollowupSuggestion[];
 
@@ -64,6 +65,27 @@ export function suggestFollowups(
   const fromModel = lastAiTurn.signals?.suggested_followups;
   if (fromModel?.length) {
     return fromModel.slice(0, 3).map((s, i) => ({ id: `model_${i}`, ...s }));
+  }
+
+  // Registry-driven contextual follow-ups (PR A). Each topic's on_accept
+  // cascade is launched via send_message — the AI's system prompt knows
+  // how to handle "User clicked: ${label}" turns. The chip click handler
+  // also calls `markClicked`/`startCascade` for cascade-type topics.
+  const registryHits = rankFollowups(ctx, {
+    threshold: ctx.active.kind === "extension" ? 0.4 : 0.3,
+    max: ctx.active.kind === "extension" ? 2 : 3,
+  });
+  if (registryHits.length > 0) {
+    return registryHits.map((topic) => ({
+      id: `topic_${topic.id}`,
+      label: topic.label,
+      action: {
+        type: "send_message" as const,
+        // The AI's FOLLOW-UP CASCADE system prompt section interprets this
+        // marker and runs the on_accept cascade for the matching topic.
+        text: `[FOLLOWUP_TOPIC:${topic.id}] User clicked: ${topic.label}`,
+      },
+    }));
   }
 
   const out: FollowupSuggestion[] = [];

@@ -105,6 +105,58 @@ export interface ConversationalContext {
   onActionAttribution?: (entry: ActionAttributionEntry) => void;
   /** Caller-supplied chip action handler — used for both message and tool actions. */
   onChipAction?: (action: FollowupAction, label: string) => void;
+  /** Current user persona — used for follow-up affinity scoring. */
+  persona?: import("@/lib/personas/personaRegistry").PersonaId | null;
+  /** Number of saved properties — used by trigger predicates. */
+  savedPropertiesCount?: number;
+}
+
+/**
+ * Follow-up registry types — PR A of the contextual follow-up cascade.
+ *
+ * A `FollowupTopic` is offered as an inline chip when its `trigger` predicate
+ * scores above the rank threshold. Click → `on_accept` runs (cascade question,
+ * direct tool call, or composite: tool then cascade).
+ */
+export type PersonaWeight = Partial<Record<
+  import("@/lib/personas/personaRegistry").PersonaId,
+  number
+>>;
+
+export interface CascadeOption {
+  label: string;
+  next: CascadeNode | RegistryFollowupAction;
+}
+
+export interface CascadeNode {
+  /** Instruction the AI receives — phrased as "Ask the user: ...". */
+  prompt_to_ai: string;
+  sub_options?: CascadeOption[];
+}
+
+export type RegistryFollowupAction =
+  | { type: "cascade"; cascade: CascadeNode }
+  | { type: "tool_call"; tool: { name: string; input_from_context?: (ctx: ConversationalContext) => Record<string, unknown> } }
+  | { type: "composite"; composite: { tool_first: string; then_cascade: CascadeNode } };
+
+export type FollowupCategory =
+  | "financing"
+  | "analysis"
+  | "research"
+  | "strategy"
+  | "transaction";
+
+export interface FollowupTopic {
+  id: string;
+  /** The chip text shown to the user. */
+  label: string;
+  category: FollowupCategory;
+  persona_affinity: PersonaWeight;
+  /** 0..1 relevance score. */
+  trigger: (ctx: ConversationalContext) => number;
+  /** Minutes before this topic can be re-suggested. Default 30. */
+  cooldown_minutes?: number;
+  on_accept: RegistryFollowupAction;
 }
 
 export interface ActionAttributionEntry {
