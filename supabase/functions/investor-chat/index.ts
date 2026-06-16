@@ -62,6 +62,13 @@ TOOL SELECTION
 5. Recent SALES (sold comps, not listings) → find_comparable_sales.
 6. For multi-part questions, call multiple tools in parallel before replying.
 
+MACRO TOOL ROUTING (FRED / BLS / Census)
+- "Can locals afford to buy here?" / "household-income-to-price gap" → get_wage_affordability (never estimate from training).
+- "Are wages keeping up with home prices?" → get_metro_wage_growth.
+- "Local unemployment / job market" → get_metro_labor_market.
+- "Builder pullback / new supply in [metro]" → get_building_permits with metro_name.
+- Current mortgage rate or rate-environment spread → get_current_mortgage_rates / get_rate_environment_analysis.
+
 DON'T BAIL ON DERIVABLE METRICS
 - If a tool result has the components but not the exact metric, compute it. Examples:
     median $/sqft = medianListPrice ÷ medianSqft

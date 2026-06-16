@@ -31,6 +31,8 @@ import { getFredSeries } from '../_shared/fred-client.ts';
 import { FRED_SERIES } from '../_shared/fred-series.ts';
 import { detectRateMove } from '../_shared/macro-alerts.ts';
 import { runGetAreaGrowthMetrics } from '../_shared/ai/tools/macro/getAreaGrowthMetrics.ts';
+import { runGetMetroLaborMarket } from '../_shared/ai/tools/macro/getMetroLaborMarket.ts';
+import { runGetMetroWageGrowth } from '../_shared/ai/tools/macro/getMetroWageGrowth.ts';
 
 /**
  * Frozen-at-generation macro snapshot for the brief. Cache-first FRED
@@ -48,14 +50,34 @@ async function loadMacroContextForBrief(targetMarket?: string | null): Promise<{
     growth_5yr_pct: number | null;
     annualized_pct: number | null;
   } | null;
+  target_market_labor: {
+    metro: string;
+    unemployment_pct: number | null;
+    labor_force: number | null;
+    as_of: string | null;
+  } | null;
+  target_market_wage: {
+    metro: string;
+    current_median_wage_usd: number | null;
+    wage_yoy_pct: number | null;
+    home_price_yoy_pct: number | null;
+    wage_vs_price_gap_pp: number | null;
+    verdict: string | null;
+  } | null;
   source: string;
 } | null> {
   try {
-    const [r30, cs, growth] = await Promise.all([
+    const [r30, cs, growth, labor, wage] = await Promise.all([
       getFredSeries(FRED_SERIES.MORTGAGE_30Y, { limit: 60 }),
       getFredSeries(FRED_SERIES.CASE_SHILLER_NATL, { limit: 24 }),
       targetMarket
         ? runGetAreaGrowthMetrics({ location: targetMarket }).catch(() => null)
+        : Promise.resolve(null),
+      targetMarket
+        ? runGetMetroLaborMarket({ metro_name: targetMarket }).catch(() => null)
+        : Promise.resolve(null),
+      targetMarket
+        ? runGetMetroWageGrowth({ metro_name: targetMarket }).catch(() => null)
         : Promise.resolve(null),
     ]);
     const p30 = r30.payload;
@@ -77,6 +99,26 @@ async function loadMacroContextForBrief(targetMarket?: string | null): Promise<{
             annualized_pct: (growth as { annualized_pct: number | null }).annualized_pct,
           }
         : null;
+    const laborBlock =
+      labor && typeof labor === 'object' && 'ok' in labor && (labor as { ok: boolean }).ok
+        ? {
+            metro: (labor as { metro: string }).metro,
+            unemployment_pct: (labor as { unemployment_pct: number | null }).unemployment_pct,
+            labor_force: (labor as { labor_force: number | null }).labor_force,
+            as_of: (labor as { as_of: string | null }).as_of,
+          }
+        : null;
+    const wageBlock =
+      wage && typeof wage === 'object' && 'ok' in wage && (wage as { ok: boolean }).ok
+        ? {
+            metro: (wage as { metro: string }).metro,
+            current_median_wage_usd: (wage as { current_median_wage_usd: number | null }).current_median_wage_usd,
+            wage_yoy_pct: (wage as { wage_yoy_pct: number | null }).wage_yoy_pct,
+            home_price_yoy_pct: (wage as { home_price_yoy_pct: number | null }).home_price_yoy_pct,
+            wage_vs_price_gap_pp: (wage as { wage_vs_price_gap_pp: number | null }).wage_vs_price_gap_pp,
+            verdict: (wage as { verdict: string | null }).verdict,
+          }
+        : null;
     return {
       rate_30y_pct: p30.latest?.value ?? null,
       rate_30y_change_30d_bps: p30.change_30d?.percent_pts ?? null,
@@ -85,7 +127,9 @@ async function loadMacroContextForBrief(targetMarket?: string | null): Promise<{
       case_shiller_yoy_pct: csYoy,
       rate_alert: move.triggered ? { triggered: true, headline: move.headline, direction: move.direction } : null,
       target_market_growth: growthBlock,
-      source: 'FRED',
+      target_market_labor: laborBlock,
+      target_market_wage: wageBlock,
+      source: 'FRED + BLS + Census',
     };
   } catch (_e) {
     return null;
@@ -122,6 +166,12 @@ function buildSystemPrompt(): string {
     '  - If macro_context.target_market_growth is present, weave one short bullet',
     '    citing the 5-yr growth (e.g., "Tampa population grew 8.2% over 5 years per Census ACS"),',
     '    severity "info" if positive, "warning" if negative.',
+    '  - If macro_context.target_market_labor is present, cite unemployment verbatim',
+    '    (e.g., "Unemployment in Tampa: 3.2% per BLS"). Use "warning" if >5%, else "info".',
+    '  - If macro_context.target_market_wage is present and either wage_yoy_pct or',
+    '    wage_vs_price_gap_pp is non-null, add one bullet on affordability trajectory',
+    '    (e.g., "Wages +3.1% YoY vs home prices +6.4% per BLS+FRED — affordability deteriorating").',
+    '    Always attribute "per BLS" for wage/unemployment figures.',
     '',
     'Output STRICT JSON ONLY (no markdown, no commentary):',
     '{',

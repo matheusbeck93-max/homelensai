@@ -10,14 +10,27 @@
  *   by metro. Series ID pattern: OEUM<MSA>000000000000004 (annual median
  *   wage, all occupations).
  *
- * BLS_API_KEY is optional (without it: 25 queries/day, 10 series/query;
- * with it: 500 queries/day, 50 series/query).
+ * BLS_API_KEY is REQUIRED in production. Without it BLS caps at 25
+ * queries/day per IP — exhausted within minutes of real traffic. With a
+ * registered key: 500 queries/day, 50 series/query.
+ * Register: https://data.bls.gov/registrationEngine/
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const BLS_API_KEY = Deno.env.get('BLS_API_KEY') ?? '';
 const BLS_ENDPOINT = 'https://api.bls.gov/publicAPI/v2/timeseries/data/';
+
+let _missingKeyWarned = false;
+function warnIfMissingKey() {
+  if (!BLS_API_KEY && !_missingKeyWarned) {
+    _missingKeyWarned = true;
+    console.warn(
+      '[bls-client] BLS_API_KEY not set — falling back to 25/day per-IP limit. ' +
+        'Register a free key at https://data.bls.gov/registrationEngine/ to lift to 500/day.',
+    );
+  }
+}
 
 function svc() {
   return createClient(
@@ -78,6 +91,7 @@ export async function getBlsSeries(
     endyear: endYear,
   };
   if (BLS_API_KEY) body.registrationkey = BLS_API_KEY;
+  else warnIfMissingKey();
 
   const res = await fetch(BLS_ENDPOINT, {
     method: 'POST',
