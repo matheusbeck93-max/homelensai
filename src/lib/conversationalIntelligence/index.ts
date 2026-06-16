@@ -39,6 +39,14 @@ export {
   startCascade,
 } from "./followupDismissals";
 export * as triggers from "./triggerDetection";
+export {
+  ALL_FOLLOWUP_TOPICS,
+  FOLLOWUP_TOOL_NAMES,
+  buildCascadeMessage,
+  maybeEndCascadeFromTurn,
+  toolForTopic,
+} from "./followupExecutors";
+export type { FollowupToolName } from "./followupExecutors";
 export type {
   ActionAttributionEntry,
   ActiveContext,
