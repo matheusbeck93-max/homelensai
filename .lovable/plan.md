@@ -1,98 +1,79 @@
-## Pre-flight check
+# FRED + Census + BLS Macro Intelligence Layer
 
-- `user_memories` is populating: **2,784 rows, latest insert today**. The cascade-to-memory loop is unblocked.
-- Existing infra to build on: `src/lib/conversationalIntelligence/` (wrapper, `FollowupChipRow`, `suggestFollowups`, `types.ts`), `_shared/memory/{updater,retriever,prune}.ts`, `_shared/ai/`, `perplexity-chat` edge function.
-- The current `suggestFollowups` is tool-call-driven and shallow. We extend (don't replace) it with a registry-based ranker plus cascade execution.
-- Open Houses topic is dropped (matches recent removal).
+Adds three free public-data sources (FRED, Census ACS + Permits, BLS) as first-class AI tools so canonical macro / demographic / labor questions stop routing to Perplexity. Wires into every chat surface, briefs, anniversary reports, smart alerts, and the contextual follow-ups registry built in the prior PRs.
 
-## Topics in v1 (5)
+## Open questions before kickoff
 
-1. `test_buying_ability` — financing
-2. `fthb_programs` — financing (first-time-buyer persona only)
-3. `lender_info` — financing
-4. `compare_properties` — analysis
-5. `neighborhood_research` — research
+1. **Secrets**: `FRED_API_KEY`, `CENSUS_API_KEY`, `BLS_API_KEY` are not in the project's secret list. I'll request them via `add_secret` at the start of each respective PR. Confirm you have all three (or which need signup links surfaced in PR descriptions).
+2. **Pedro decisions in Part 12** — I'll apply the *Recommend* defaults unless you say otherwise:
+   - 20-city Case-Shiller only (FHFA later); rate alerts to all tiers with saved properties; ZIP as primary geo; freeze rate snapshot at brief generation; growth-signal match weight behind feature flag (A/B 5% vs 10%); anniversary baseline = first saved property; non-20 metros fall back to national index with note; affordability shows single + dual side-by-side; BLS prefetch = union of top-15 user-concentration metros + 20 Case-Shiller metros (~25); labor-shift alerts Investor-only at launch.
 
-Remaining 9 topics from the spec deferred to v1.1 once telemetry validates pattern.
+## Scope per PR
 
-## PR A — Registry, triggers, ranking (~1.5 days)
+### PR 1 — FRED foundation
+- Add secret `FRED_API_KEY`.
+- `supabase/functions/_shared/fred-series.ts` — series catalog + Case-Shiller metro map + city→series resolver with national fallback.
+- Migration: `fred_cache(series_id pk, payload jsonb, cached_at, ttl_minutes)` + index; GRANTs to `service_role` only; RLS enabled, no public policies (server-only cache).
+- `supabase/functions/fred-get-series/index.ts` — params: `series_id`, `limit`, `observation_start`. Cache-first; computes `latest`, `change_30d/90d/yoy` in basis points. TTLs by frequency (1h/6h/24h/7d).
+- `supabase/functions/fred-mortgage-snapshot/index.ts` — bundled 30y/15y rates + Fed funds + 10y + spread + Case-Shiller national + unemployment + CPI + narrative_hint.
+- `supabase/functions/fred-prefetch-daily/index.ts` + pg_cron job at 6am ET (insert via supabase--insert, not migration, since it embeds project URL + anon key).
+- Smoke tests against live FRED.
 
-New files in `src/lib/conversationalIntelligence/`:
+### PR 2 — FRED tools + chat/brief wiring
+- Register tools in the same dispatch pattern as `FOLLOWUP_TOOLS` (new `supabase/functions/_shared/ai/tools/macro/` directory, `MACRO_TOOLS` export, `runMacroTool` dispatcher).
+- Tools: `get_current_mortgage_rates`, `get_rate_environment_analysis`, `get_national_housing_index`, `get_metro_housing_index`, `get_macro_economic_context`. Descriptions include explicit "Prefer over Perplexity when…" clauses.
+- Wire into `ai-chat`, `investor-chat`, `owned-property-chat`, `extension-followups`, `investor-brief` (same pattern PR C used for followup tools).
+- Brief "Today's rate context" line above financial breakdown; rate snapshot frozen per brief.
+- Front-end `Sparkline` component (inline SVG, no chart lib dep) + `SourceAttribution` component.
+- Extension overlay rate badge sourced from snapshot.
 
-- `followupRegistry.ts` — exports 5 `FollowupTopic` entries matching spec shape (id, label, category, persona_affinity, trigger, cooldown_minutes, on_accept).
-- `triggerDetection.ts` — ~20 small regex predicates over recent thread (`mentionsBudget`, `mentionsMortgage`, `mentionsLender`, `mentionsRates`, `mentionsPreApproval`, `mentionsFirstHome`, `mentionsDownPayment`, `mentionsAffordability`, `mentionsAssistance`, `mentionsMultipleProperties`, `userHasSavedProperties`, `mentionsDecisionBetween`, `mentionsLocation`, `mentionsSchools`, `mentionsCrime`, `mentionsCommute`, `userViewingProperty`, etc.). Each scans the last 3-5 messages.
-- `rankFollowups.ts` — combines `trigger(ctx) * personaWeight` (persona = 30-40% prior, conversation signals = 60-70%), filters by `score >= 0.3`, applies cooldown and dismissal rules, returns top 3.
-- `followupDismissals.ts` — localStorage-backed tracker: per-user `{topicId: {dismissCount, lastShownAt, lastDismissedAt}}`. 30-min cooldown default, 7-day suppression after 3 dismissals.
-- Extend `types.ts` with `FollowupTopic`, `CascadeNode`, `FollowupAction` (cascade | tool_call | composite), `ConversationContext` (extend existing `ConversationalContext`), `PersonaWeight`.
-- Wire `suggestFollowups.ts` to prefer registry results, fall back to existing tool-call mappings.
+### PR 3 — Census foundation
+- Add secret `CENSUS_API_KEY` (surface signup link in PR description if missing).
+- `_shared/census-variables.ts` (ACS variable map) + `_shared/census-geo.ts` (address geocode, ZIP→ZCTA, city→place FIPS, top-500 metro lookup baked in).
+- Migration: `census_cache(cache_key pk, payload jsonb, cached_at, ttl_days)` + GRANTs + RLS.
+- Edge functions: `census-area-stats` (ZIP/county/address → population/income/housing/education/employment/commute), `census-area-growth` (5-vintage trend + signal classifier high/moderate/flat/declining), `census-building-permits` (state/county, 12m trailing, supply_signal).
 
-Persona resolution reuses `src/lib/personas/` (already exists for buyer-type detection).
+### PR 4 — Census tools + Investor + Stickiness + Alerts
+- Register `get_area_demographics`, `get_area_growth_trends`, `get_supply_pipeline`; wire all chat surfaces.
+- Investor brief macro-context block (rates + Case-Shiller + growth + permits).
+- Stickiness: `generate-anniversary-report` and quarterly investor report pull FRED + Census tools; "Then vs Now" block when account age > 30d using first-saved-property baseline.
+- Smart alerts (extend existing alerts pipeline): material rate move ≥25 bps, monthly Case-Shiller release.
+- Match scoring: area-growth signal + affordability index behind a feature flag column (no UI change).
+- Telemetry events: `fred_tool_called`, `census_tool_called`, `macro_context_displayed`, `rate_alert_fired`, `case_shiller_alert_fired`.
 
-## PR B — Sonnet + Perplexity backed tools (~2 days)
+### PR 5 — BLS foundation
+- Add secret `BLS_API_KEY` (surface signup link if missing; without key only 25 q/day).
+- `_shared/bls-series.ts` — measure/metro/sector catalog with top-50 metro code lookup baked in.
+- Migration: `bls_cache(cache_key pk, payload jsonb, cached_at, ttl_hours)` + GRANTs + RLS.
+- Edge functions: `bls-get-series` (POST bulk, up to 50 series), `bls-metro-snapshot` (LAUS + CES jobs-by-sector + labor_market_signal), `bls-affordability-context` (OEWS wages + current FRED rate → required income + occupations table, single & dual earner).
+- `bls-prefetch-daily` cron at 7am ET for ~25 metros (bulk fetches keep us ≤10 API calls/day).
+- Daily usage telemetry with 80%-of-limit alert.
 
-Backend tools in `supabase/functions/_shared/ai/tools/`:
-
-- `findLocalLenders.ts` — Perplexity `sonar` (recency=day) → Gemini structured extraction → `{lenders, median_rate_apr, summary, next_question}`. Cached 12h in `search_cache`.
-- `findFTHBPrograms.ts` — Perplexity lookup by state+county. Cached 7 days. Structured output: `{programs[], eligibility_summary, next_question}`.
-- `researchNeighborhood.ts` — five sub-tools (`research_schools`, `research_crime`, `analyze_commute`, `research_zoning_dev`, `research_neighborhood_comprehensive`). Cached 30 days by ZIP+topic. Reuses existing `neighborhood-insights` edge function patterns.
-- `testBuyingAbility.ts` — combines existing `calcEngine.ts` with `get-state-tax-data` + Perplexity for current 30y fixed rate (12h cache). Output: max purchase price, PITI breakdown, DTI ratios.
-- `compareProperties.ts` — orchestrates existing `compare-properties-ai` for N properties from saved set or thread context.
-
-Cache layer uses existing `search_cache` table with topic-specific TTLs. All tools follow `_shared/` pattern: pinned esm.sh, Zod validation, structured logging, CORS.
-
-Registered in tool registries of: `ai-chat`, `investor-chat`, `owned-property-chat`, `property-assistant`, `extension-followups`.
-
-## PR C — Cascade execution + system prompt updates (~1 day)
-
-**Status: shipped.**
-
-- Added `_shared/ai/followupSystemPrompt.ts` (FOLLOW-UP CASCADE block) and injected into `ai-chat` (main/extension/firecrawl), `investor-chat` (CI_SIGNALS_BLOCK), `owned-property-chat`. Skipped `property-assistant` (no tool loop) and `extension-followups` (CRUD, not chat).
-- Added `FOLLOWUP_TOOL_DEFS` adapter to `_shared/ai/tools/followups/index.ts`. Spread into investor-chat and owned-property-chat `TOOLS`. Spread `FOLLOWUP_TOOLS` (raw shape) into ai-chat `tools`.
-- Extended ai-chat's tool-result loop to dispatch any `isFollowupTool(name)` call alongside `web_research`, with the same one-pass tool-result re-call.
-- Added `src/lib/conversationalIntelligence/followupExecutors.ts` + wired `maybeEndCascadeFromTurn` into the wrapper to clear `activeCascade` when the expected tool fires.
-
-- `src/lib/conversationalIntelligence/followupExecutors.ts` — given a `FollowupTopic.on_accept`, returns the message to send to AI (cascade prompt) or the tool name + extracted input.
-- Cascade state tracker — when a cascade is active, suppress new topic chips (`isCascadeActive(ctx)`).
-- Extend `ConversationalIntelligence.tsx` to:
-  - Render registry-derived chips (existing `FollowupChipRow` works as-is).
-  - Track `activeCascade` per thread.
-  - On chip click: fire telemetry, persist `lastShownAt`, dispatch action through existing `onChipAction`.
-- System prompt addition (`FOLLOW-UP CASCADE` section) injected into each chat surface's system prompt builder:
-  - `supabase/functions/ai-chat/`
-  - `supabase/functions/investor-chat/`
-  - `supabase/functions/owned-property-chat/`
-  - `supabase/functions/property-assistant/`
-  - `supabase/functions/extension-followups/`
-  - Lists the 5 v1 topics + cascade contract (collect inputs first, then call tool; stay in cascade until complete).
-
-## PR D — Surface integration, memory, telemetry (~1 day)
-
-- Mount registry chips in every surface that uses `<ConversationalIntelligence />`. Confirm: `Chats.tsx`, `InvestorChat`, `PropertyChat`, `DeepPanel`, extension popup. Extension uses 2-chip cap and lower trigger threshold (`score >= 0.4`).
-- Memory persistence: in cascade completion handler, write captured data points (income, debts, down payment, state, county) to `user_memories` via existing `memory/updater.ts`. Only persist `importance >= 0.7`.
-- Telemetry events in `src/lib/telemetry/`:
-  - `followup_chip_shown`, `followup_chip_clicked`, `followup_cascade_entered`, `followup_cascade_completed`, `followup_cascade_abandoned`, `followup_perplexity_called`.
-- Update `mem://index.md` with a Followup Registry entry.
-
-## Verification checklist (run after PR D)
-
-- 5 manual smoke tests from the spec (first-time-buyer Texas, buying ability cascade, memory rows, cross-session reference, extension on Zillow, investor compare, owned-property refi suppression, 3-topic interference, 3-dismissal suppression, never >3 chips, cascade chip suppression, Perplexity caching, telemetry events).
-- `supabase--read_query` against `user_memories` after a buying-ability cascade to confirm 3 new context rows.
-- Manual trigger of each cascade in dev preview.
+### PR 6 — BLS tools + Affordability surface integration
+- Register `get_metro_labor_market`, `get_wage_affordability`, `get_metro_wage_growth`.
+- Wire into all chat surfaces; system-prompt nudge for Sonnet to chain FRED + Census + BLS for compound questions ("should I buy in Austin?").
+- Buyer brief gets local-affordability block (BLS).
+- Investor macro-context extended with labor-market line.
+- Smart alert: labor-market shift (Investor-tier only).
+- Contextual follow-ups registry (from prior PR) gains a 6th topic: **"Who can afford this locally?"** → cascade collects metro + price → calls `get_wage_affordability`. Updates `followupRegistry.ts`, `triggerDetection.ts`, `FOLLOWUP_CASCADE_PROMPT_BLOCK`.
 
 ## Technical notes
 
-- Persona affinity uses existing `profiles.persona`/buyer-type fields; resolver lives in `src/lib/personas/`.
-- Cooldown/dismissal state is per-user localStorage (`hl_followup_state_v1`). No new table needed.
-- All new edge tools deploy automatically; no `config.toml` edits.
-- Tools that need Perplexity: ensure `PERPLEXITY_API_KEY` (already configured).
-- No DB migrations required (uses existing `user_memories`, `search_cache`, `tool_call_telemetry`).
-- Decision-First tone preserved: cascade prompts to AI are direct, no "would you like to…" filler.
-- English only.
+- **Tool dispatch**: mirror the existing `FOLLOWUP_TOOLS` / `runFollowupTool` pattern from `supabase/functions/_shared/ai/tools/followups/index.ts`. Each surface (`ai-chat`, `investor-chat`, `owned-property-chat`) gets one additional spread in its `tools` array and one additional branch in the tool-call dispatch loop. No rewrites of those files.
+- **Caching**: all three cache tables are server-only (`service_role` GRANT, RLS enabled with no policies). Edge functions use service-role client for reads/writes.
+- **Cron jobs**: created via `supabase--insert` (not migration) because the SQL embeds project URL + anon key.
+- **Rate-limit safety**: FRED 120/min and BLS 500/day enforced at the edge-function layer with exponential backoff on 429; cache-first means we'll be well under in practice.
+- **Source attribution**: shared `<SourceAttribution>` component used in chat bubbles, briefs, and emails — never display a number without the source label.
+- **Failure mode**: every tool is fail-soft (returns `{ ok: false, error, fallback_hint }`) so the LLM degrades to Perplexity narrative instead of crashing the turn — same contract as the followup tools.
 
-## Out of scope (matches spec v2)
+## Verification (run before each PR merge)
 
-Topics 6-15, voice cascades, multilang, A/B testing chip copy, user-customizable disables, persona-specific wording, analytics dashboard.
+Items 1–17 from Part 11 of the prompt — I'll execute them via `supabase--curl_edge_functions` and capture results in each PR description. Production smoke run after PR 2 (FRED live in chat), PR 4 (Census live + alerts), and PR 6 (BLS live + affordability brief block).
 
-## Open question (non-blocking)
+## Out of scope (Part 13 — deferred)
 
-Should the 5 v1 topics get unique cooldown overrides (e.g. FTHB 7d, lender 24h, neighborhood 7d) or all use the 30-min default? I'll default to per-topic overrides matching the spec's "topic-specific overrides possible" guidance unless you say otherwise.
+FRED Regional Data, Census migration flows, BLS QCEW/JOLTS, Housing Vacancies Survey, FHFA HPI. Logged for future expansion.
+
+---
+
+**Total: 6 PRs, ~7 days.** PR 1 unblocks 2; PR 3 unblocks 4; PR 5 unblocks 6. PRs 1, 3, 5 can run in parallel if you want to compress the timeline — each is independent until its tool-registration sibling.
