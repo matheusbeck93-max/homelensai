@@ -9,17 +9,33 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const location = useLocation();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkOnboarding = async (userId: string) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', userId)
+        .maybeSingle();
+      setOnboardingCompleted(Boolean(data?.onboarding_completed));
+    };
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setAuthenticated(!!session?.user);
+      if (session?.user) await checkOnboarding(session.user.id);
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthenticated(!!session?.user);
-      setLoading(false);
+      if (session?.user) {
+        checkOnboarding(session.user.id).finally(() => setLoading(false));
+      } else {
+        setOnboardingCompleted(null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -38,6 +54,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!authenticated) {
     return <Navigate to={`/auth?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+
+  // Gate: force new users through onboarding before reaching protected pages.
+  if (
+    onboardingCompleted === false &&
+    location.pathname !== '/profile-setup'
+  ) {
+    return <Navigate to="/profile-setup" replace />;
   }
 
   return <>{children}</>;
