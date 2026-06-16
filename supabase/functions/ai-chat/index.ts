@@ -12,6 +12,7 @@ import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts
 import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
 import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResearch.ts';
 import { FOLLOWUP_TOOLS, runFollowupTool, isFollowupTool } from '../_shared/ai/tools/followups/index.ts';
+import { MACRO_TOOLS, runMacroTool, isMacroTool } from '../_shared/ai/tools/macro/index.ts';
 import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
@@ -1282,6 +1283,9 @@ Provide balanced analysis covering:
     // call. Each tool is fail-soft and returns `{ ok: false, error }` on
     // failure, so the model can degrade gracefully.
     for (const t of FOLLOWUP_TOOLS) tools.push(t);
+    // Macro intelligence tools (FRED-backed): rates, Case-Shiller, macro context.
+    // Fail-soft like FOLLOWUP_TOOLS — return `{ ok: false, error }` on failure.
+    for (const t of MACRO_TOOLS) tools.push(t);
 
     const systemPrompt = `You are HomeLens AI, a real estate decision guide built for people navigating the U.S. housing market. Your role is to help users make informed, confident decisions.
 
