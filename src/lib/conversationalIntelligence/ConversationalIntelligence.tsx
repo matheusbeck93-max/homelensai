@@ -35,6 +35,9 @@ import { PreferenceFollowupCardWeb } from "./PreferenceFollowupCardWeb";
 import { ArtifactCard } from "./ArtifactCard";
 import type { GeneratedArtifact } from "./types";
 import { trackCiEvent } from "./telemetry";
+import { markShown, markClicked, startCascade } from "./followupDismissals";
+import { getTopic } from "./followupRegistry";
+import type { PersonaId } from "@/lib/personas/personaRegistry";
 
 export interface ConversationalIntelligenceProps {
   active: {
@@ -47,6 +50,10 @@ export interface ConversationalIntelligenceProps {
   preferences?: Preferences | null;
   dismissals?: DismissalRow[];
   enabled?: boolean;
+  /** Current user persona — feeds the follow-up registry's affinity weights. */
+  persona?: PersonaId | null;
+  /** Number of saved properties — used by trigger predicates. */
+  savedPropertiesCount?: number;
   /** Sends a plain user message to the host chat. */
   onSendMessage?: (text: string) => void;
   /** Optional tool-action handler (Phase 3). Falls back to onSendMessage. */
@@ -92,6 +99,8 @@ export function ConversationalIntelligence({
   preferences,
   dismissals = [],
   enabled = true,
+  persona,
+  savedPropertiesCount,
   onSendMessage,
   onChipAction,
   onGenerateArtifact,
@@ -125,8 +134,10 @@ export function ConversationalIntelligence({
         active,
         thread,
         preferences: preferences ?? null,
+        persona: persona ?? null,
+        savedPropertiesCount,
       }),
-    [lastAssistant, active, thread, preferences],
+    [lastAssistant, active, thread, preferences, persona, savedPropertiesCount],
   );
 
   // Telemetry: fire `web_followup_shown` once per assistant turn that produces
@@ -137,10 +148,19 @@ export function ConversationalIntelligence({
     if (lastTrackedRef.current === turnIdx) return;
     if (followups.length === 0 && chips.length < 2) return;
     lastTrackedRef.current = turnIdx;
+    // Mark each registry-derived chip as "shown" so cooldown takes effect.
+    for (const chip of chips) {
+      const topicId = chip.id?.startsWith("topic_") ? chip.id.slice("topic_".length) : null;
+      if (topicId) markShown(topicId);
+    }
+    const shownTopicIds = chips
+      .map((c) => (c.id?.startsWith("topic_") ? c.id.slice("topic_".length) : null))
+      .filter((v): v is string => Boolean(v));
     void trackCiEvent("web_followup_shown", active.kind, {
       mismatch_count: followups.length,
       chip_count: chips.length,
       mismatch_types: followups.map((f) => f.type),
+      followup_topic_ids: shownTopicIds,
     });
   }, [turnIdx, followups, chips, active.kind]);
 
@@ -156,6 +176,29 @@ export function ConversationalIntelligence({
       action_type: action.type,
       tool: action.type === "call_tool" ? action.name : undefined,
     });
+    // Registry chips embed [FOLLOWUP_TOPIC:<id>] — strip marker before
+    // forwarding to the chat, and update cooldown / cascade state.
+    if (action.type === "send_message") {
+      const match = action.text.match(/^\[FOLLOWUP_TOPIC:([a-z0-9_]+)\]\s*/i);
+      if (match) {
+        const topicId = match[1];
+        markClicked(topicId);
+        const topic = getTopic(topicId);
+        if (topic && topic.on_accept.type !== "tool_call") {
+          startCascade(topicId);
+        }
+        void trackCiEvent("web_followup_chip_clicked", active.kind, {
+          followup_topic_id: topicId,
+        });
+        const cleanText = action.text.replace(match[0], "").trim();
+        // Send a natural-language click hint to the AI. The system prompt's
+        // FOLLOW-UP CASCADE section will route it to the right cascade.
+        const sendText = cleanText || `I want to ${topic?.label ?? topicId}`;
+        if (onChipAction) return onChipAction({ type: "send_message", text: sendText }, label);
+        onSendMessage?.(sendText);
+        return;
+      }
+    }
     if (onChipAction) return onChipAction(action, label);
     if (action.type === "send_message") {
       onSendMessage?.(action.text);
