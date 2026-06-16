@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     const sessionParams: Record<string, unknown> = {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      success_url: `${origin}/?checkout=success`,
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?checkout=canceled`,
     };
     // Carry cap-conversion attribution through Stripe metadata so the
