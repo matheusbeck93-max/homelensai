@@ -17,6 +17,8 @@ import { ProviderError } from '../_shared/ai/types.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
+import { FOLLOWUP_TOOL_DEFS } from '../_shared/ai/tools/followups/index.ts';
+import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 import {
   getValuationCached,
   RentcastQuotaError,
