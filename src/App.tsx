@@ -80,6 +80,7 @@ const MyProperties = lazyWithRetry(() => import("./pages/MyProperties"));
 const OwnedPropertyDetail = lazyWithRetry(() => import("./pages/OwnedPropertyDetail"));
 
 const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
+const CheckoutSuccess = lazyWithRetry(() => import("./pages/CheckoutSuccess"));
 const Console = lazyWithRetry(() => import("./pages/Console"));
 const ProfileSetup = lazyWithRetry(() => import("./pages/ProfileSetup"));
 const Compare = lazyWithRetry(() => import("./pages/Compare"));
@@ -139,6 +140,7 @@ function App() {
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/open-houses" element={<Navigate to="/" replace />} />
                   <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/checkout/success" element={<CheckoutSuccess />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
                   <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
