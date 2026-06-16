@@ -26,17 +26,36 @@ export { ArtifactCard } from "./ArtifactCard";
 export { MacroAnswerCard, getMacroAnswer } from "./MacroAnswerCard";
 export { trackCiEvent } from "./telemetry";
 export type { CiEventName } from "./telemetry";
+export { FOLLOWUP_REGISTRY, getTopic, personaWeight } from "./followupRegistry";
+export { rankFollowups } from "./rankFollowups";
+export {
+  endCascade,
+  getActiveCascade,
+  isCascadeActive,
+  isSuppressed,
+  markClicked,
+  markDismissed,
+  markShown,
+  startCascade,
+} from "./followupDismissals";
+export * as triggers from "./triggerDetection";
 export type {
   ActionAttributionEntry,
   ActiveContext,
   ArtifactSpec,
+  CascadeNode,
+  CascadeOption,
   ChatTurn,
   ConversationalContext,
   FollowupAction,
+  FollowupCategory,
   FollowupSuggestion,
+  FollowupTopic,
   GeneratedArtifact,
   MacroAnswer,
   MacroAnswerMetric,
   MismatchSignal,
+  PersonaWeight,
+  RegistryFollowupAction,
   SurfaceKind,
 } from "./types";
