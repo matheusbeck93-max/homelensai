@@ -44,7 +44,8 @@ Rules:
   - error="quota_exceeded" → say they've hit today's RentCast cap; suggest revisiting tomorrow.
   - error="rentcast_failed" → say RentCast is temporarily unavailable and answer from the loaded context.
 - Strictly US real-estate scoped. Warmly redirect off-topic queries.
-- Never include "MATCH_SCORE" — this is the owner chat, not property analysis.`;
+- Never include "MATCH_SCORE" — this is the owner chat, not property analysis.
+- MACRO ROUTING: for affordability ("who can afford this locally?") call get_wage_affordability; for "are wages keeping up with prices?" call get_metro_wage_growth; for local job-market questions call get_metro_labor_market; for builder/supply questions call get_building_permits with the metro. Don't estimate from training data.`;
 
 function fmt(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return 'n/a';
