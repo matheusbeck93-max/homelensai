@@ -11,14 +11,16 @@ import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
 import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResearch.ts';
+import { FOLLOWUP_TOOLS, runFollowupTool, isFollowupTool } from '../_shared/ai/tools/followups/index.ts';
+import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { loadMemoriesForContext, renderMemoriesBlock } from '../_shared/memory/retriever.ts';
 import { fetchRentcastEnrichmentBlock } from '../_shared/rentcast-enrichment.ts';
 
-const CI_BLOCK_EXTENSION = '\n\n' + ciBehaviorPromptBlock({ surface: 'extension' }) + '\n\n' + ciSignalsPromptBlock();
-const CI_BLOCK_FIRECRAWL = '\n\n' + ciBehaviorPromptBlock({ surface: 'property' }) + '\n\n' + ciSignalsPromptBlock();
-const CI_BLOCK_MAIN = '\n\n' + ciBehaviorPromptBlock({ surface: 'main' }) + '\n\n' + ciSignalsPromptBlock();
+const CI_BLOCK_EXTENSION = '\n\n' + ciBehaviorPromptBlock({ surface: 'extension' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
+const CI_BLOCK_FIRECRAWL = '\n\n' + ciBehaviorPromptBlock({ surface: 'property' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
+const CI_BLOCK_MAIN = '\n\n' + ciBehaviorPromptBlock({ surface: 'main' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
 
 const log = createLogger('ai-chat');
 
