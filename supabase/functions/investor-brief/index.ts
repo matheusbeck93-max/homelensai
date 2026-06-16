@@ -27,6 +27,45 @@ import { getAuthenticatedUser } from '../_shared/auth.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { completeWithFallback, BudgetExceededError } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { getFredSeries } from '../_shared/fred-client.ts';
+import { FRED_SERIES } from '../_shared/fred-series.ts';
+
+/**
+ * Frozen-at-generation macro snapshot for the brief. Cache-first FRED
+ * fetch (24h prefetch warms it); fails soft to null if FRED unreachable.
+ */
+async function loadMacroContextForBrief(): Promise<{
+  rate_30y_pct: number | null;
+  rate_30y_change_30d_bps: number | null;
+  rate_as_of: string | null;
+  case_shiller_national: number | null;
+  case_shiller_yoy_pct: number | null;
+  source: string;
+} | null> {
+  try {
+    const [r30, cs] = await Promise.all([
+      getFredSeries(FRED_SERIES.MORTGAGE_30Y, { limit: 60 }),
+      getFredSeries(FRED_SERIES.CASE_SHILLER_NATL, { limit: 24 }),
+    ]);
+    const p30 = r30.payload;
+    const csP = cs.payload;
+    const csVal = csP.latest?.value ?? null;
+    const csYoy =
+      csVal != null && csP.change_yoy
+        ? +((csP.change_yoy.absolute / (csVal - csP.change_yoy.absolute)) * 100).toFixed(2)
+        : null;
+    return {
+      rate_30y_pct: p30.latest?.value ?? null,
+      rate_30y_change_30d_bps: p30.change_30d?.percent_pts ?? null,
+      rate_as_of: p30.latest?.date ?? null,
+      case_shiller_national: csVal,
+      case_shiller_yoy_pct: csYoy,
+      source: 'FRED',
+    };
+  } catch (_e) {
+    return null;
+  }
+}
 
 // Router decides the model per surface/tier (Sonnet for free/buyer,
 // premium for investor). Legacy direct-gateway fallback removed — it was
@@ -49,6 +88,10 @@ function buildSystemPrompt(): string {
     '  - A list of insight cards already selected for this brief, each with an id,',
     '    title, and a one-line summary of what the card shows.',
     '  - Any pinned talking points the user wants you to reference.',
+    '  - macro_context: today\'s 30-yr mortgage rate and Case-Shiller national HPI.',
+    '    Use it for the intro line ("Today\'s rate: 6.78% (-15 bps over 30 days)")',
+    '    and any insight that benefits from rate context. Always attribute with',
+    '    "(per FRED)". Skip silently when macro_context is null.',
     '',
     'Output STRICT JSON ONLY (no markdown, no commentary):',
     '{',
@@ -153,6 +196,7 @@ Deno.serve(async (req) => {
       preferences: contextSnapshot?.preferences ?? {},
       cards: cardsForPrompt,
       pinnedTalkingPoints,
+      macro_context: await loadMacroContextForBrief(),
     });
 
     // 4. Call Lovable AI Gateway via the router for all tiers. The router
