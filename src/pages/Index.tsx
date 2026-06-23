@@ -24,8 +24,8 @@ import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
-import chatFeatureImg from "@/assets/chat-feature.jpg";
-import buyingPowerImg from "@/assets/buying-power-feature.jpg";
+import chatFeatureImg from "@/assets/chat-feature-real.png.asset.json";
+import buyingPowerImg from "@/assets/buying-power-real.jpg.asset.json";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
