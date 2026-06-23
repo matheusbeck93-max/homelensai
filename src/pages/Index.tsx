@@ -970,7 +970,7 @@ export default function Index() {
                   <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
                     <div className="absolute -inset-x-4 top-0 h-32 bg-gradient-to-b from-primary/10 to-transparent blur-2xl pointer-events-none" />
                     <img
-                      src={chatFeatureImg}
+                      src={chatFeatureImg.url}
                       alt="HomeLens AI chat answering a real estate question with a Match Score and key metrics"
                       loading="lazy"
                       width={1280}
@@ -1005,7 +1005,7 @@ export default function Index() {
                   <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
                     <div className="absolute -inset-x-4 top-0 h-32 bg-gradient-to-b from-secondary/10 to-transparent blur-2xl pointer-events-none" />
                     <img
-                      src={buyingPowerImg}
+                      src={buyingPowerImg.url}
                       alt="HomeLens buying-power calculator showing affordable price and monthly payment breakdown"
                       loading="lazy"
                       width={1280}
