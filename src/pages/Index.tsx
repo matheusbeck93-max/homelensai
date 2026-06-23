@@ -10,7 +10,7 @@ import { UIBlock } from "@/types/ui-blocks";
 import { parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X, Sparkles, Home as HomeIcon, Bookmark, User, MessageSquare, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -24,7 +24,8 @@ import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
-import investorToolsImg from "@/assets/investor-home.jpg.asset.json";
+import chatFeatureImg from "@/assets/chat-feature.jpg";
+import buyingPowerImg from "@/assets/buying-power-feature.jpg";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
@@ -742,46 +743,278 @@ export default function Index() {
             </div>
           </section>
 
+          {/* Investor Tools — feature card grid */}
           <section className="py-16 sm:py-24 px-4 bg-muted/30 border-t">
-            <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="max-w-6xl mx-auto">
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="relative order-2 lg:order-1"
-              >
-                <div className="absolute -inset-4 bg-gradient-to-tr from-secondary/10 to-transparent rounded-3xl blur-2xl" />
-                <img
-                  src={investorToolsImg.url}
-                  alt="HomeLens investor dashboard with cash-on-cash return, IRR projection, and cap rate"
-                  loading="lazy"
-                  width={1280}
-                  height={896}
-                  className="relative rounded-2xl shadow-2xl border border-border/50 w-full"
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5 }}
-                className="order-1 lg:order-2"
+                className="text-center mb-12 sm:mb-16"
               >
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-medium mb-4">
                   <Calculator className="h-3.5 w-3.5" />
                   For Investors
                 </div>
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
-                  Underwrite deals with investor-grade math.
+                  Everything real estate investors need,<br className="hidden sm:block" /> all in one place.
                 </h2>
-                <p className="text-base sm:text-lg text-muted-foreground mb-6 max-w-lg">
-                  Cash-on-cash return, 20-year IRR projections, stress scenarios, and Excel exports — built for serious buyers.
+                <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Powerful tools. Real insights. Smarter decisions.
                 </p>
-                <Button asChild size="lg" variant="outline">
-                  <a href="/investor/calculator">Explore Investor Tools</a>
-                </Button>
               </motion.div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+                {[
+                  {
+                    icon: Sparkles,
+                    title: "Investor Brief",
+                    desc: "Your daily portfolio & market snapshot.",
+                    href: "/investor",
+                    body: (
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center justify-between rounded-md bg-muted/60 px-3 py-2">
+                          <span className="text-muted-foreground">Total value</span>
+                          <span className="font-semibold tabular-nums">$506k</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-md bg-muted/60 px-3 py-2">
+                          <span className="text-muted-foreground">Tappable equity</span>
+                          <span className="font-semibold tabular-nums text-emerald-600">$134k</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-md bg-primary/10 px-3 py-2">
+                          <span className="text-primary font-medium">1 portfolio alert</span>
+                          <span className="text-[10px] font-semibold text-primary">NEW</span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    icon: HomeIcon,
+                    title: "My Properties",
+                    desc: "Track performance across your portfolio.",
+                    href: "/investor/properties",
+                    body: (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-md bg-muted/60 px-3 py-2">
+                          <div className="text-[10px] text-muted-foreground">Equity</div>
+                          <div className="font-semibold tabular-nums">$206k</div>
+                        </div>
+                        <div className="rounded-md bg-muted/60 px-3 py-2">
+                          <div className="text-[10px] text-muted-foreground">Cash flow</div>
+                          <div className="font-semibold tabular-nums">$375/mo</div>
+                        </div>
+                        <div className="rounded-md bg-muted/60 px-3 py-2">
+                          <div className="text-[10px] text-muted-foreground">Cap rate</div>
+                          <div className="font-semibold tabular-nums">5.62%</div>
+                        </div>
+                        <div className="rounded-md bg-muted/60 px-3 py-2">
+                          <div className="text-[10px] text-muted-foreground">Appreciation</div>
+                          <div className="font-semibold tabular-nums text-emerald-600">$106k</div>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    icon: Bookmark,
+                    title: "Saved Analyses",
+                    desc: "Your investment due-diligence history.",
+                    href: "/saved-analyses",
+                    body: (
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2 rounded-md border border-border/60 px-3 py-2">
+                          <div className="h-8 w-8 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 font-bold text-xs">80</div>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">3367 S Wakefield St</div>
+                            <div className="text-[10px] text-muted-foreground">Strong fit · $815k</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-md border border-border/60 px-3 py-2">
+                          <div className="h-8 w-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-600 font-bold text-xs">70</div>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">12500 Sulky Ct</div>
+                            <div className="text-[10px] text-muted-foreground">Worth a look</div>
+                          </div>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    icon: Calculator,
+                    title: "Investor Calculator",
+                    desc: "Analyze deals with precision.",
+                    href: "/investor/calculator",
+                    body: (
+                      <div className="space-y-2 text-xs">
+                        <div className="rounded-md bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-rose-600">
+                          DSCR 0.00x — below 1.25x threshold
+                        </div>
+                        <div className="rounded-md bg-muted/60 px-3 py-2 flex items-center justify-between">
+                          <span className="text-muted-foreground">Net monthly cash flow</span>
+                          <span className="font-semibold tabular-nums text-rose-600">-$100</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <FileSpreadsheet className="h-3 w-3" /> Export to Excel
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    icon: TrendingUp,
+                    title: "Buying Power",
+                    desc: "Know exactly what you can afford.",
+                    href: "/calculators",
+                    body: (
+                      <div className="space-y-2 text-xs">
+                        <div className="rounded-md bg-primary/5 px-3 py-3 text-center">
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">You can afford</div>
+                          <div className="text-xl font-bold text-primary tabular-nums">$645,000</div>
+                        </div>
+                        <div className="flex items-center justify-between rounded-md bg-muted/60 px-3 py-2">
+                          <span className="text-muted-foreground">Est. monthly</span>
+                          <span className="font-semibold tabular-nums">$4,153</span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    icon: User,
+                    title: "Set Up Your Profile",
+                    desc: "Personalized results for smarter searches.",
+                    href: "/profile-setup",
+                    body: (
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Goal</span>
+                          <span className="font-medium">Buy a home</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 text-[10px] font-medium">Woodbridge, VA</span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 text-[10px] font-medium">Springfield, VA</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Budget</span>
+                          <span className="font-medium tabular-nums">Max $700k</span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                ].map((feature, i) => (
+                  <motion.a
+                    key={feature.title}
+                    href={feature.href}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: i * 0.05 }}
+                    className="group relative rounded-2xl border border-border/60 bg-card p-5 sm:p-6 shadow-sm hover:shadow-xl hover:border-primary/40 hover:-translate-y-1 transition-all duration-300"
+                  >
+                    <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-primary/0 via-primary to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <feature.icon className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-foreground leading-tight">{feature.title}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">{feature.desc}</p>
+                      </div>
+                    </div>
+                    {feature.body}
+                  </motion.a>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Chat + Buying Power feature showcase */}
+          <section className="py-16 sm:py-24 px-4 bg-background border-t">
+            <div className="max-w-6xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="text-center mb-12"
+              >
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
+                  Ask anything. Know what you can afford.
+                </h2>
+                <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+                  Two of our most-loved tools, working side by side.
+                </p>
+              </motion.div>
+
+              <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5 }}
+                  className="group relative rounded-3xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500"
+                >
+                  <div className="p-6 sm:p-8">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-3">
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      AI Chat
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-2 tracking-tight">
+                      Your real estate copilot.
+                    </h3>
+                    <p className="text-sm sm:text-base text-muted-foreground mb-5">
+                      Ask about any listing, market, or strategy — and get a structured Match Score backed by live data.
+                    </p>
+                    <Button asChild size="lg">
+                      <a href="/chats">Start a chat</a>
+                    </Button>
+                  </div>
+                  <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
+                    <div className="absolute -inset-x-4 top-0 h-32 bg-gradient-to-b from-primary/10 to-transparent blur-2xl pointer-events-none" />
+                    <img
+                      src={chatFeatureImg}
+                      alt="HomeLens AI chat answering a real estate question with a Match Score and key metrics"
+                      loading="lazy"
+                      width={1280}
+                      height={896}
+                      className="relative rounded-xl shadow-xl border border-border/50 w-full group-hover:scale-[1.02] transition-transform duration-500"
+                    />
+                  </div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="group relative rounded-3xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500"
+                >
+                  <div className="p-6 sm:p-8">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-medium mb-3">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Buying Power
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-bold text-foreground mb-2 tracking-tight">
+                      Know exactly what you can afford.
+                    </h3>
+                    <p className="text-sm sm:text-base text-muted-foreground mb-5">
+                      Plug in your income, debts, and down payment — see your max price, monthly breakdown, and affordability gauge in seconds.
+                    </p>
+                    <Button asChild size="lg" variant="outline">
+                      <a href="/calculators">Calculate now</a>
+                    </Button>
+                  </div>
+                  <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
+                    <div className="absolute -inset-x-4 top-0 h-32 bg-gradient-to-b from-secondary/10 to-transparent blur-2xl pointer-events-none" />
+                    <img
+                      src={buyingPowerImg}
+                      alt="HomeLens buying-power calculator showing affordable price and monthly payment breakdown"
+                      loading="lazy"
+                      width={1280}
+                      height={896}
+                      className="relative rounded-xl shadow-xl border border-border/50 w-full group-hover:scale-[1.02] transition-transform duration-500"
+                    />
+                  </div>
+                </motion.div>
+              </div>
             </div>
           </section>
         </>
