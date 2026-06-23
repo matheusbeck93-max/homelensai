@@ -10,7 +10,7 @@ import { UIBlock } from "@/types/ui-blocks";
 import { parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X, Sparkles, Home as HomeIcon, Bookmark, User, MessageSquare, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -24,7 +24,8 @@ import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
-import investorToolsImg from "@/assets/investor-home.jpg.asset.json";
+import chatFeatureImg from "@/assets/chat-feature.jpg";
+import buyingPowerImg from "@/assets/buying-power-feature.jpg";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
