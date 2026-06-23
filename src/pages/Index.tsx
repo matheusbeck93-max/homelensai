@@ -771,7 +771,7 @@ export default function Index() {
                     icon: Sparkles,
                     title: "Investor Brief",
                     desc: "Your daily portfolio & market snapshot.",
-                    href: "/investor/brief",
+                    href: "/investor",
                     body: (
                       <div className="space-y-2 text-xs">
                         <div className="flex items-center justify-between rounded-md bg-muted/60 px-3 py-2">
@@ -793,7 +793,7 @@ export default function Index() {
                     icon: HomeIcon,
                     title: "My Properties",
                     desc: "Track performance across your portfolio.",
-                    href: "/investor/my-properties",
+                    href: "/investor/properties",
                     body: (
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="rounded-md bg-muted/60 px-3 py-2">
@@ -819,7 +819,7 @@ export default function Index() {
                     icon: Bookmark,
                     title: "Saved Analyses",
                     desc: "Your investment due-diligence history.",
-                    href: "/investor/saved",
+                    href: "/saved-analyses",
                     body: (
                       <div className="space-y-2 text-xs">
                         <div className="flex items-center gap-2 rounded-md border border-border/60 px-3 py-2">
@@ -863,7 +863,7 @@ export default function Index() {
                     icon: TrendingUp,
                     title: "Buying Power",
                     desc: "Know exactly what you can afford.",
-                    href: "/buying-power",
+                    href: "/calculators",
                     body: (
                       <div className="space-y-2 text-xs">
                         <div className="rounded-md bg-primary/5 px-3 py-3 text-center">
@@ -999,7 +999,7 @@ export default function Index() {
                       Plug in your income, debts, and down payment — see your max price, monthly breakdown, and affordability gauge in seconds.
                     </p>
                     <Button asChild size="lg" variant="outline">
-                      <a href="/buying-power">Calculate now</a>
+                      <a href="/calculators">Calculate now</a>
                     </Button>
                   </div>
                   <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
