@@ -975,7 +975,7 @@ export default function Index() {
                       loading="lazy"
                       width={1280}
                       height={896}
-                      className="relative rounded-xl shadow-xl border border-border/50 w-full group-hover:scale-[1.02] transition-transform duration-500"
+                      className="relative w-full group-hover:scale-[1.02] transition-transform duration-500"
                     />
                   </div>
                 </motion.div>
@@ -1010,7 +1010,7 @@ export default function Index() {
                       loading="lazy"
                       width={1280}
                       height={896}
-                      className="relative rounded-xl shadow-xl border border-border/50 w-full group-hover:scale-[1.02] transition-transform duration-500"
+                      className="relative w-full group-hover:scale-[1.02] transition-transform duration-500"
                     />
                   </div>
                 </motion.div>
