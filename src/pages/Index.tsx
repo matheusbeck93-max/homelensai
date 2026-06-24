@@ -24,8 +24,6 @@ import { Footer } from "@/components/Footer";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
-import chatFeatureImg from "@/assets/chat-feature-real.png.asset.json";
-import buyingPowerImg from "@/assets/buying-power-real.jpg.asset.json";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
@@ -968,14 +966,59 @@ export default function Index() {
                     </Button>
                   </div>
                   <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
-                    <img
-                      src={chatFeatureImg.url}
-                      alt="HomeLens AI chat answering a real estate question with a Match Score and key metrics"
-                      loading="lazy"
-                      width={1280}
-                      height={896}
-                      className="relative w-full group-hover:scale-[1.02] transition-transform duration-500"
-                    />
+                    <div className="rounded-2xl border border-border/60 bg-background shadow-inner overflow-hidden">
+                      {/* Mock chat window */}
+                      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/60 bg-muted/40">
+                        <div className="flex gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
+                        </div>
+                        <div className="ml-2 text-xs text-muted-foreground font-medium">HomeLens AI</div>
+                      </div>
+                      <div className="p-4 sm:p-5 space-y-3">
+                        <div className="flex justify-end">
+                          <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary/10 text-foreground px-3.5 py-2 text-sm">
+                            Is 742 Maple Ave a smart buy for $625k?
+                          </div>
+                        </div>
+                        <div className="flex justify-start">
+                          <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-sm space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 text-green-700 dark:text-green-400 text-[11px] font-semibold">
+                                Match 8.4/10
+                              </span>
+                              <span className="text-[11px] text-muted-foreground">Fairly priced</span>
+                            </div>
+                            <p className="text-foreground/90 leading-snug">
+                              Strong fundamentals: priced ~3% below Zestimate, taxes ~$7.1k/yr, low flood risk, schools 8/10.
+                            </p>
+                            <div className="grid grid-cols-3 gap-1.5 pt-1">
+                              <div className="rounded-md bg-background border border-border/60 px-2 py-1.5">
+                                <div className="text-[10px] text-muted-foreground">Mortgage</div>
+                                <div className="text-xs font-semibold">$3,842/mo</div>
+                              </div>
+                              <div className="rounded-md bg-background border border-border/60 px-2 py-1.5">
+                                <div className="text-[10px] text-muted-foreground">Cap rate</div>
+                                <div className="text-xs font-semibold">5.2%</div>
+                              </div>
+                              <div className="rounded-md bg-background border border-border/60 px-2 py-1.5">
+                                <div className="text-[10px] text-muted-foreground">5y appr.</div>
+                                <div className="text-xs font-semibold">+18%</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <div className="flex-1 rounded-full border border-border/60 bg-background px-3 py-2 text-xs text-muted-foreground">
+                            Ask a follow-up…
+                          </div>
+                          <div className="h-8 w-8 rounded-full bg-primary/90 flex items-center justify-center">
+                            <MessageSquare className="h-3.5 w-3.5 text-primary-foreground" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
 
@@ -1002,14 +1045,61 @@ export default function Index() {
                     </Button>
                   </div>
                   <div className="relative px-6 sm:px-8 pb-6 sm:pb-8">
-                    <img
-                      src={buyingPowerImg.url}
-                      alt="HomeLens buying-power calculator showing affordable price and monthly payment breakdown"
-                      loading="lazy"
-                      width={1280}
-                      height={896}
-                      className="relative w-full group-hover:scale-[1.02] transition-transform duration-500"
-                    />
+                    <div className="rounded-2xl border border-border/60 bg-background shadow-inner overflow-hidden">
+                      {/* Mock calculator */}
+                      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/60 bg-muted/40">
+                        <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                          <Calculator className="h-3.5 w-3.5 text-secondary" />
+                          Buying Power
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">Live estimate</span>
+                      </div>
+                      <div className="p-4 sm:p-5 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-lg border border-border/60 px-3 py-2">
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Income</div>
+                            <div className="text-sm font-semibold">$135,000</div>
+                          </div>
+                          <div className="rounded-lg border border-border/60 px-3 py-2">
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Down pmt</div>
+                            <div className="text-sm font-semibold">$80,000</div>
+                          </div>
+                          <div className="rounded-lg border border-border/60 px-3 py-2">
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Debts</div>
+                            <div className="text-sm font-semibold">$450/mo</div>
+                          </div>
+                          <div className="rounded-lg border border-border/60 px-3 py-2">
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Rate</div>
+                            <div className="text-sm font-semibold">6.75%</div>
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-border/60 bg-gradient-to-br from-secondary/10 to-primary/5 px-4 py-3">
+                          <div className="text-[11px] text-muted-foreground">Max affordable price</div>
+                          <div className="text-2xl font-bold text-foreground tracking-tight">$612,400</div>
+                          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full w-[72%] rounded-full bg-gradient-to-r from-secondary to-primary" />
+                          </div>
+                          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                            <span>DTI 28%</span>
+                            <span className="text-green-600 dark:text-green-400 font-medium">Healthy</span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <div className="rounded-md bg-muted/40 px-2 py-1.5">
+                            <div className="text-[10px] text-muted-foreground">P&I</div>
+                            <div className="text-xs font-semibold">$3,452</div>
+                          </div>
+                          <div className="rounded-md bg-muted/40 px-2 py-1.5">
+                            <div className="text-[10px] text-muted-foreground">Tax</div>
+                            <div className="text-xs font-semibold">$612</div>
+                          </div>
+                          <div className="rounded-md bg-muted/40 px-2 py-1.5">
+                            <div className="text-[10px] text-muted-foreground">Ins.</div>
+                            <div className="text-xs font-semibold">$148</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               </div>
