@@ -1,35 +1,21 @@
 import {
   AbsoluteFill,
+  Sequence,
+  Img,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
   interpolate,
   spring,
-  Img,
-  staticFile,
-  Sequence,
 } from "remotion";
-import {
-  TransitionSeries,
-  linearTiming,
-  springTiming,
-} from "@remotion/transitions";
-import { fade } from "@remotion/transitions/fade";
-import { slide } from "@remotion/transitions/slide";
-import { wipe } from "@remotion/transitions/wipe";
 import { loadFont } from "@remotion/google-fonts/Inter";
-import { loadFont as loadDisplay } from "@remotion/google-fonts/PlusJakartaSans";
-import { PersistentBackground } from "./components/PersistentBackground";
 
 const { fontFamily } = loadFont("normal", {
-  weights: ["400", "500", "700"],
-  subsets: ["latin"],
-});
-const { fontFamily: displayFont } = loadDisplay("normal", {
-  weights: ["600", "700", "800"],
+  weights: ["400", "500", "600", "700", "800"],
   subsets: ["latin"],
 });
 
-export const COLORS = {
+const COLORS = {
   primary: "#6B8DB5",
   primaryLight: "#8AADD0",
   primaryDark: "#4A6E94",
@@ -37,41 +23,74 @@ export const COLORS = {
   dark: "#2C3E55",
   darkMid: "#3A5068",
   white: "#FFFFFF",
-  offWhite: "#F0F4F8",
   muted: "#B0C4D8",
-  mutedDark: "#7A95AD",
 };
 
-// ---------- Device frame ----------
-const DeviceFrame: React.FC<{ src: string; aspectRatio: number }> = ({
+// ---------- Persistent background ----------
+const Background = () => {
+  const frame = useCurrentFrame();
+  const drift = Math.sin(frame / 80) * 30;
+  return (
+    <AbsoluteFill
+      style={{
+        background: `radial-gradient(circle at ${50 + drift / 4}% 30%, ${COLORS.primary} 0%, ${COLORS.dark} 70%)`,
+      }}
+    >
+      {[0, 1, 2, 3].map((i) => {
+        const x = 100 + i * 500 + Math.sin((frame + i * 60) / 60) * 80;
+        const y = 120 + i * 200 + Math.cos((frame + i * 90) / 70) * 60;
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: x,
+              top: y,
+              width: 520,
+              height: 520,
+              borderRadius: "50%",
+              background:
+                i % 2 === 0 ? COLORS.primaryLight : COLORS.primaryDark,
+              opacity: 0.16,
+              filter: "blur(90px)",
+            }}
+          />
+        );
+      })}
+    </AbsoluteFill>
+  );
+};
+
+// ---------- Device frame (full uncropped image) ----------
+const DeviceFrame = ({
   src,
   aspectRatio,
+}: {
+  src: string;
+  aspectRatio: number;
 }) => {
-  // Compute display size: max width 1300, max height 720
-  const maxW = 1300;
-  const maxH = 720;
+  const maxW = 1500;
+  const maxH = 820;
   let w = maxW;
   let h = w / aspectRatio;
   if (h > maxH) {
     h = maxH;
     w = h * aspectRatio;
   }
-
   return (
     <div
       style={{
         width: w,
         background: "#fff",
-        borderRadius: 18,
+        borderRadius: 22,
         overflow: "hidden",
         boxShadow:
-          "0 40px 100px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08)",
+          "0 50px 120px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
       }}
     >
-      {/* Window chrome */}
       <div
         style={{
-          height: 32,
+          height: 34,
           background: "#F5F7FA",
           display: "flex",
           alignItems: "center",
@@ -91,14 +110,13 @@ const DeviceFrame: React.FC<{ src: string; aspectRatio: number }> = ({
             marginLeft: 18,
             fontSize: 12,
             color: "#8898A8",
-            fontFamily,
             letterSpacing: 0.3,
           }}
         >
           homelensais.com
         </div>
       </div>
-      <div style={{ width: "100%", height: h }}>
+      <div style={{ width: "100%", height: h, background: "#fff" }}>
         <Img
           src={staticFile(src)}
           style={{
@@ -106,7 +124,6 @@ const DeviceFrame: React.FC<{ src: string; aspectRatio: number }> = ({
             height: "100%",
             objectFit: "contain",
             objectPosition: "top",
-            background: "#fff",
             display: "block",
           }}
         />
@@ -115,399 +132,373 @@ const DeviceFrame: React.FC<{ src: string; aspectRatio: number }> = ({
   );
 };
 
-// ---------- Feature slide ----------
-interface SlideProps {
-  eyebrow: string;
-  title: string;
-  description: string;
-  image: string;
-  aspectRatio: number;
-  layout?: "left" | "right";
-  accentColor?: string;
-}
-
-const FeatureSlide: React.FC<SlideProps> = ({
+// ---------- Caption pill ----------
+const Caption = ({
   eyebrow,
   title,
-  description,
-  image,
-  aspectRatio,
-  layout = "left",
-  accentColor = COLORS.accent,
+  durationInFrames,
+}: {
+  eyebrow: string;
+  title: string;
+  durationInFrames: number;
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-
-  const textIn = spring({
+  const inSpring = spring({
     frame,
     fps,
-    config: { damping: 18, stiffness: 110 },
+    config: { damping: 18, stiffness: 90 },
   });
-  const textY = interpolate(textIn, [0, 1], [40, 0]);
-  const textOp = interpolate(frame, [0, 18], [0, 1], {
-    extrapolateRight: "clamp",
-  });
+  const out = interpolate(
+    frame,
+    [durationInFrames - 15, durationInFrames],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 60,
+        left: 0,
+        right: 0,
+        display: "flex",
+        justifyContent: "center",
+        fontFamily,
+        opacity: inSpring * out,
+        transform: `translateY(${interpolate(inSpring, [0, 1], [-30, 0])}px)`,
+      }}
+    >
+      <div
+        style={{
+          background: "rgba(15, 23, 36, 0.78)",
+          border: `1px solid ${COLORS.primaryLight}55`,
+          padding: "18px 40px",
+          borderRadius: 999,
+          color: COLORS.white,
+          textAlign: "center",
+          maxWidth: 1300,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 18,
+            letterSpacing: 4,
+            fontWeight: 600,
+            color: COLORS.primaryLight,
+            textTransform: "uppercase",
+            marginBottom: 4,
+          }}
+        >
+          {eyebrow}
+        </div>
+        <div style={{ fontSize: 34, fontWeight: 700 }}>{title}</div>
+      </div>
+    </div>
+  );
+};
 
-  const descOp = interpolate(frame, [14, 32], [0, 1], {
-    extrapolateRight: "clamp",
-  });
+// ---------- Feature scene ----------
+const FeatureScene = ({
+  src,
+  aspectRatio,
+  durationInFrames,
+  eyebrow,
+  caption,
+}: {
+  src: string;
+  aspectRatio: number;
+  durationInFrames: number;
+  eyebrow: string;
+  caption: string;
+}) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const inS = spring({ frame, fps, config: { damping: 22, stiffness: 70 } });
+  const out = interpolate(
+    frame,
+    [durationInFrames - 15, durationInFrames],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+  const scale = interpolate(frame, [0, durationInFrames], [1.0, 1.05]);
+  const y = interpolate(inS, [0, 1], [40, 0]);
+  return (
+    <AbsoluteFill
+      style={{
+        alignItems: "center",
+        justifyContent: "center",
+        paddingTop: 80,
+      }}
+    >
+      <div
+        style={{
+          opacity: inS * out,
+          transform: `translateY(${y}px) scale(${scale})`,
+        }}
+      >
+        <DeviceFrame src={src} aspectRatio={aspectRatio} />
+      </div>
+      <Caption
+        eyebrow={eyebrow}
+        title={caption}
+        durationInFrames={durationInFrames}
+      />
+    </AbsoluteFill>
+  );
+};
 
-  const imgIn = spring({
-    frame: frame - 8,
+// ---------- Intro ----------
+const Intro = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const logoScale = spring({
+    frame,
     fps,
-    config: { damping: 22, stiffness: 90 },
+    config: { damping: 14, stiffness: 80 },
   });
-  const imgX = interpolate(imgIn, [0, 1], [layout === "left" ? 120 : -120, 0]);
-  const imgOp = interpolate(frame, [8, 28], [0, 1], {
+  const logoOp = interpolate(frame, [0, 18], [0, 1], {
     extrapolateRight: "clamp",
   });
-
-  // Subtle continuous float
-  const float = Math.sin(frame * 0.05) * 6;
-
-  const isLeft = layout === "left";
-
+  const textOp = interpolate(frame, [22, 42], [0, 1], {
+    extrapolateRight: "clamp",
+  });
+  const textY = interpolate(
+    spring({ frame: frame - 22, fps, config: { damping: 18 } }),
+    [0, 1],
+    [40, 0],
+  );
+  const fadeOut = interpolate(frame, [75, 90], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
   return (
     <AbsoluteFill
       style={{
         fontFamily,
-        display: "flex",
-        flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        padding: 80,
-        gap: 60,
+        opacity: fadeOut,
       }}
     >
-      {/* Text panel */}
+      <Img
+        src={staticFile("images/logo.png")}
+        style={{
+          width: 220,
+          height: 220,
+          objectFit: "contain",
+          opacity: logoOp,
+          transform: `scale(${logoScale})`,
+        }}
+      />
       <div
         style={{
-          width: 520,
-          order: isLeft ? 0 : 1,
+          marginTop: 28,
+          textAlign: "center",
           opacity: textOp,
           transform: `translateY(${textY}px)`,
         }}
       >
         <div
           style={{
-            fontSize: 20,
-            color: accentColor,
-            fontWeight: 600,
-            letterSpacing: 3,
-            textTransform: "uppercase",
-            marginBottom: 22,
-          }}
-        >
-          {eyebrow}
-        </div>
-        <div
-          style={{
-            fontFamily: displayFont,
-            fontSize: 64,
-            fontWeight: 700,
+            fontSize: 86,
+            fontWeight: 800,
             color: COLORS.white,
-            lineHeight: 1.05,
-            letterSpacing: -1.5,
-            marginBottom: 28,
+            letterSpacing: -2,
           }}
         >
-          {title}
+          HomeLens
         </div>
         <div
           style={{
-            fontSize: 22,
-            color: COLORS.muted,
-            lineHeight: 1.55,
-            opacity: descOp,
-          }}
-        >
-          {description}
-        </div>
-      </div>
-
-      {/* Image */}
-      <div
-        style={{
-          order: isLeft ? 1 : 0,
-          opacity: imgOp,
-          transform: `translate(${imgX}px, ${float}px)`,
-        }}
-      >
-        <DeviceFrame src={image} aspectRatio={aspectRatio} />
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-// ---------- Intro ----------
-const Intro: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const logoScale = spring({
-    frame,
-    fps,
-    config: { damping: 12, stiffness: 80 },
-  });
-  const textOp = interpolate(frame, [20, 40], [0, 1], {
-    extrapolateRight: "clamp",
-  });
-  const textY = interpolate(
-    spring({ frame: frame - 20, fps, config: { damping: 18 } }),
-    [0, 1],
-    [30, 0],
-  );
-
-  return (
-    <AbsoluteFill
-      style={{
-        fontFamily: displayFont,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 32,
-        }}
-      >
-        <Img
-          src={staticFile("images/logo.png")}
-          style={{
-            width: 180,
-            height: 180,
-            transform: `scale(${logoScale})`,
-            objectFit: "contain",
-          }}
-        />
-        <div
-          style={{
-            opacity: textOp,
-            transform: `translateY(${textY}px)`,
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 78,
-              fontWeight: 800,
-              color: COLORS.white,
-              letterSpacing: -2,
-            }}
-          >
-            HomeLens
-          </div>
-          <div
-            style={{
-              fontSize: 26,
-              color: COLORS.muted,
-              marginTop: 14,
-              fontFamily,
-              fontWeight: 500,
-              letterSpacing: 0.5,
-            }}
-          >
-            Every feature, one platform.
-          </div>
-        </div>
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-// ---------- Outro ----------
-const Outro: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const op = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
-  const y = interpolate(
-    spring({ frame, fps, config: { damping: 18 } }),
-    [0, 1],
-    [40, 0],
-  );
-  return (
-    <AbsoluteFill
-      style={{
-        fontFamily: displayFont,
-        justifyContent: "center",
-        alignItems: "center",
-        textAlign: "center",
-        padding: 80,
-      }}
-    >
-      <div style={{ opacity: op, transform: `translateY(${y}px)` }}>
-        <div
-          style={{
-            fontSize: 72,
-            fontWeight: 700,
-            color: COLORS.white,
-            lineHeight: 1.1,
-            letterSpacing: -1.5,
-            maxWidth: 1500,
-          }}
-        >
-          Big decisions deserve{" "}
-          <span style={{ color: COLORS.accent }}>the full picture.</span>
-        </div>
-        <div
-          style={{
-            fontFamily,
             fontSize: 28,
             color: COLORS.muted,
-            marginTop: 36,
+            marginTop: 14,
             letterSpacing: 1,
           }}
         >
-          homelensais.com
+          Every feature, one platform.
         </div>
       </div>
     </AbsoluteFill>
   );
 };
 
-// ---------- Slide content ----------
-const slides: SlideProps[] = [
-  {
-    eyebrow: "01 — AI Home Search",
-    title: "Ask anything. Get real answers.",
-    description:
-      "Search homes in natural language and let your AI copilot guide every step.",
-    image: "features/f02.png",
-    aspectRatio: 952 / 497,
-    layout: "left",
-  },
-  {
-    eyebrow: "02 — Property Analysis",
-    title: "Listings, decoded in seconds.",
-    description:
-      "Paste any URL — get a Match Score, price check, and full breakdown right in chat.",
-    image: "features/f03.png",
-    aspectRatio: 2998 / 1364,
-    layout: "right",
-  },
-  {
-    eyebrow: "03 — Chrome Extension",
-    title: "HomeLens, on every listing.",
-    description:
-      "Analyze Redfin, Zillow, and more without leaving the page you're already on.",
-    image: "features/f01.png",
-    aspectRatio: 3002 / 1566,
-    layout: "left",
-  },
-  {
-    eyebrow: "04 — Personal Preferences",
-    title: "An AI that learns what matters.",
-    description:
-      "Tell HomeLens your goals, budget, and must-haves — every answer adapts to you.",
-    image: "features/f10.png",
-    aspectRatio: 802 / 567,
-    layout: "right",
-  },
-  {
-    eyebrow: "05 — Financial Calculators",
-    title: "Know your number.",
-    description:
-      "Buying power, mortgage, and full PITI breakdown — no spreadsheets required.",
-    image: "features/f04.png",
-    aspectRatio: 2792 / 1394,
-    layout: "left",
-  },
-  {
-    eyebrow: "06 — Investor Calculator",
-    title: "Run the numbers like a pro.",
-    description:
-      "Cash flow, DSCR, cap rate, returns and risk — advanced investment analysis in one place.",
-    image: "features/f09.png",
-    aspectRatio: 762 / 545,
-    layout: "right",
-  },
-  {
-    eyebrow: "07 — Investor Brief",
-    title: "Your portfolio, grounded.",
-    description:
-      "Daily insights on equity, alerts, and opportunities across every property you own.",
-    image: "features/f06.png",
-    aspectRatio: 1119 / 538,
-    layout: "left",
-  },
-  {
-    eyebrow: "08 — My Properties",
-    title: "Track what you own.",
-    description:
-      "Equity, monthly cash flow, cap rate and appreciation — all on one dashboard.",
-    image: "features/f07.png",
-    aspectRatio: 860 / 560,
-    layout: "right",
-  },
-  {
-    eyebrow: "09 — Saved Analyses",
-    title: "Never lose a great find.",
-    description:
-      "Every AI analysis saved with notes, scores, and history — your investment diligence log.",
-    image: "features/f08.png",
-    aspectRatio: 767 / 535,
-    layout: "left",
-  },
-];
-
-// ---------- Composition ----------
-// 30fps. Intro 80, each slide 90, transitions 14 (overlap). Outro 90.
-// Total = 80 + 9*90 + 90 - 10*14  =  80 + 810 + 90 - 140 = 840
-const SLIDE = 90;
-const TR = 14;
-
-export const FeaturesVideo: React.FC = () => {
+// ---------- Closing ----------
+const Closing = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const inS = spring({ frame, fps, config: { damping: 18, stiffness: 80 } });
   return (
-    <AbsoluteFill>
-      <PersistentBackground colors={COLORS} />
-      <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={80}>
-          <Intro />
-        </TransitionSeries.Sequence>
-
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={linearTiming({ durationInFrames: TR })}
-        />
-
-        {slides.map((s, i) => (
-          <>
-            <TransitionSeries.Sequence
-              key={`slide-${i}`}
-              durationInFrames={SLIDE}
-            >
-              <FeatureSlide {...s} />
-            </TransitionSeries.Sequence>
-            <TransitionSeries.Transition
-              key={`tr-${i}`}
-              presentation={
-                i % 3 === 0
-                  ? slide({ direction: "from-right" })
-                  : i % 3 === 1
-                    ? wipe({ direction: "from-left" })
-                    : fade()
-              }
-              timing={
-                i % 2 === 0
-                  ? springTiming({
-                      config: { damping: 200 },
-                      durationInFrames: TR,
-                    })
-                  : linearTiming({ durationInFrames: TR })
-              }
-            />
-          </>
-        ))}
-
-        <TransitionSeries.Sequence durationInFrames={90}>
-          <Outro />
-        </TransitionSeries.Sequence>
-      </TransitionSeries>
+    <AbsoluteFill
+      style={{
+        fontFamily,
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: interpolate(frame, [0, 12], [0, 1], {
+          extrapolateRight: "clamp",
+        }),
+      }}
+    >
+      <Img
+        src={staticFile("images/logo.png")}
+        style={{
+          width: 150,
+          height: 150,
+          objectFit: "contain",
+          transform: `scale(${inS})`,
+        }}
+      />
+      <div
+        style={{
+          fontSize: 72,
+          fontWeight: 800,
+          color: COLORS.white,
+          marginTop: 18,
+          letterSpacing: -1.5,
+        }}
+      >
+        HomeLens
+      </div>
+      <div
+        style={{
+          fontSize: 32,
+          color: COLORS.muted,
+          marginTop: 14,
+          letterSpacing: 0.5,
+          textAlign: "center",
+          maxWidth: 1400,
+          lineHeight: 1.3,
+        }}
+      >
+        Big decisions deserve the full picture.
+      </div>
+      <div
+        style={{
+          marginTop: 36,
+          padding: "14px 32px",
+          borderRadius: 999,
+          background: COLORS.white,
+          color: COLORS.dark,
+          fontWeight: 700,
+          fontSize: 24,
+          letterSpacing: 0.5,
+        }}
+      >
+        homelensais.com
+      </div>
     </AbsoluteFill>
   );
 };
 
+// ---------- Scene list ----------
+const scenes = [
+  {
+    src: "features/f02.png",
+    aspect: 952 / 497,
+    eyebrow: "01 — AI Home Search",
+    caption: "Ask anything. Get real answers.",
+    duration: 120,
+  },
+  {
+    src: "features/f03.png",
+    aspect: 2998 / 1364,
+    eyebrow: "02 — Property Analysis",
+    caption: "Listings, decoded in seconds.",
+    duration: 130,
+  },
+  {
+    src: "features/f01.png",
+    aspect: 3002 / 1566,
+    eyebrow: "03 — Chrome Extension",
+    caption: "HomeLens, on every listing.",
+    duration: 130,
+  },
+  {
+    src: "features/f10.png",
+    aspect: 802 / 567,
+    eyebrow: "04 — Personal Preferences",
+    caption: "An AI that learns what matters to you.",
+    duration: 120,
+  },
+  {
+    src: "features/f04.png",
+    aspect: 2792 / 1394,
+    eyebrow: "05 — Financial Calculators",
+    caption: "Know your number.",
+    duration: 120,
+  },
+  {
+    src: "features/f09.png",
+    aspect: 762 / 545,
+    eyebrow: "06 — Investor Calculator",
+    caption: "Run the numbers like a pro.",
+    duration: 130,
+  },
+  {
+    src: "features/f06.png",
+    aspect: 1119 / 538,
+    eyebrow: "07 — Investor Brief",
+    caption: "Your portfolio, grounded.",
+    duration: 120,
+  },
+  {
+    src: "features/f07.png",
+    aspect: 860 / 560,
+    eyebrow: "08 — My Properties",
+    caption: "Track what you own.",
+    duration: 120,
+  },
+  {
+    src: "features/f08.png",
+    aspect: 767 / 535,
+    eyebrow: "09 — Saved Analyses",
+    caption: "Never lose a great find.",
+    duration: 130,
+  },
+];
+
+const INTRO = 90;
+const CLOSING = 90;
 export const FEATURES_DURATION =
-  80 + slides.length * SLIDE + 90 - (slides.length + 1) * TR;
+  INTRO + scenes.reduce((a, s) => a + s.duration, 0) + CLOSING;
+
+export const FeaturesVideo = () => {
+  let cursor = 0;
+  return (
+    <AbsoluteFill style={{ fontFamily }}>
+      <Background />
+      <Sequence from={0} durationInFrames={INTRO}>
+        <Intro />
+      </Sequence>
+      {(() => {
+        cursor = INTRO;
+        return scenes.map((s, i) => {
+          const from = cursor;
+          cursor += s.duration;
+          return (
+            <Sequence
+              key={i}
+              from={from}
+              durationInFrames={s.duration}
+            >
+              <FeatureScene
+                src={s.src}
+                aspectRatio={s.aspect}
+                durationInFrames={s.duration}
+                eyebrow={s.eyebrow}
+                caption={s.caption}
+              />
+            </Sequence>
+          );
+        });
+      })()}
+      <Sequence
+        from={FEATURES_DURATION - CLOSING}
+        durationInFrames={CLOSING}
+      >
+        <Closing />
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
