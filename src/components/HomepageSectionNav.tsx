@@ -1,36 +1,39 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Chrome, TrendingUp, MessageSquare, Tag, HelpCircle, LucideIcon } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 export type HomepageSection = {
   id: string;
   label: string;
   path: string;
-  icon: LucideIcon;
 };
 
 // Each entry maps a clean URL to a section anchor on the homepage.
 // When a user clicks the icon, we navigate to the clean path and scroll to #id.
 // When a user opens the URL directly, Index.tsx reads the path/hash and scrolls.
 export const HOMEPAGE_SECTIONS: HomepageSection[] = [
-  { id: "extension", label: "Extension", path: "/extension", icon: Chrome },
-  { id: "investors", label: "Investors", path: "/investors", icon: TrendingUp },
-  { id: "chat", label: "Chat", path: "/chat-preview", icon: MessageSquare },
-  { id: "pricing", label: "Pricing", path: "/plans", icon: Tag },
-  { id: "faq", label: "FAQ", path: "/faq", icon: HelpCircle },
+  { id: "extension", label: "Extension", path: "/extension" },
+  { id: "investors", label: "Investors", path: "/investors" },
+  { id: "chat", label: "Chat", path: "/chat-preview" },
+  { id: "pricing", label: "Pricing", path: "/plans" },
+  { id: "faq", label: "FAQ", path: "/faq" },
 ];
 
 export function pathToSectionId(pathname: string): string | null {
   const match = HOMEPAGE_SECTIONS.find((s) => s.path === pathname);
   return match ? match.id : null;
 }
+
+function smoothScrollToId(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // Account for the 64px sticky header plus a little breathing room.
+  const headerOffset = 80;
+  const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+  window.scrollTo({ top, behavior: "smooth" });
+}
+
+export { smoothScrollToId };
 
 type Props = { variant?: "desktop" | "mobile"; onNavigate?: () => void };
 
@@ -63,21 +66,14 @@ export function HomepageSectionNav({ variant = "desktop", onNavigate }: Props) {
 
   const handleClick = (section: HomepageSection) => {
     onNavigate?.();
-    // Update URL to clean path + hash without re-triggering full Index remount.
     navigate(`${section.path}#${section.id}`);
-    const el = document.getElementById(section.id);
-    if (el) {
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    }
+    requestAnimationFrame(() => smoothScrollToId(section.id));
   };
 
   if (variant === "mobile") {
     return (
       <div className="space-y-1">
         {HOMEPAGE_SECTIONS.map((s) => {
-          const Icon = s.icon;
           const isActive = activeId === s.id;
           return (
             <Button
@@ -86,7 +82,6 @@ export function HomepageSectionNav({ variant = "desktop", onNavigate }: Props) {
               className={`justify-start w-full ${isActive ? "text-primary" : ""}`}
               onClick={() => handleClick(s)}
             >
-              <Icon className="h-4 w-4 mr-2" />
               {s.label}
             </Button>
           );
@@ -96,29 +91,20 @@ export function HomepageSectionNav({ variant = "desktop", onNavigate }: Props) {
   }
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className="flex items-center gap-1">
-        {HOMEPAGE_SECTIONS.map((s) => {
-          const Icon = s.icon;
-          const isActive = activeId === s.id;
-          return (
-            <Tooltip key={s.id}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={s.label}
-                  onClick={() => handleClick(s)}
-                  className={isActive ? "text-primary bg-primary/10" : ""}
-                >
-                  <Icon className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{s.label}</TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </div>
-    </TooltipProvider>
+    <div className="flex items-center gap-1">
+      {HOMEPAGE_SECTIONS.map((s) => {
+        const isActive = activeId === s.id;
+        return (
+          <Button
+            key={s.id}
+            variant="ghost"
+            onClick={() => handleClick(s)}
+            className={isActive ? "text-primary" : ""}
+          >
+            {s.label}
+          </Button>
+        );
+      })}
+    </div>
   );
 }

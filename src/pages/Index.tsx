@@ -21,6 +21,7 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
+import { smoothScrollToId } from "@/components/HomepageSectionNav";
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
@@ -112,7 +113,8 @@ export default function Index() {
   );
 
   // Scroll to the section matching the current path (e.g. /faq -> #faq)
-  // or the explicit hash. Runs whenever the path/hash changes.
+  // or the explicit hash. Polls briefly so the scroll waits for the
+  // target section to actually mount (sections behind `!user` may render late).
   useEffect(() => {
     const pathToHash: Record<string, string> = {
       "/extension": "extension",
@@ -125,12 +127,23 @@ export default function Index() {
       pathToHash[location.pathname] ||
       (location.hash ? location.hash.replace("#", "") : "");
     if (!targetId) return;
-    // Wait for sections to mount before scrolling.
-    const timer = window.setTimeout(() => {
+
+    let cancelled = false;
+    let attempts = 0;
+    const tryScroll = () => {
+      if (cancelled) return;
       const el = document.getElementById(targetId);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
-    return () => window.clearTimeout(timer);
+      if (el) {
+        smoothScrollToId(targetId);
+        return;
+      }
+      attempts += 1;
+      if (attempts < 20) window.setTimeout(tryScroll, 50);
+    };
+    tryScroll();
+    return () => {
+      cancelled = true;
+    };
   }, [location.pathname, location.hash]);
 
   const handleDismissExtensionBanner = (e: React.MouseEvent) => {
