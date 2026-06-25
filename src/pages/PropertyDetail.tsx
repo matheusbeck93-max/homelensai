@@ -193,6 +193,34 @@ export default function PropertyDetail() {
         const specs = [beds, baths, sqft].filter(Boolean).join(" · ");
         const desc = `${addr}${priceStr ? ` listed at ${priceStr}` : ""}${specs ? `. ${specs}` : ""}. AI investment analysis, neighborhood data, and market insights on HomeLens.`;
         const url = `https://homelensais.com/property/${id}`;
+        const listingJsonLd = {
+          "@context": "https://schema.org",
+          "@type": "RealEstateListing",
+          "name": addr,
+          "url": url,
+          "description": desc.slice(0, 300),
+          ...(property.image_urls?.[0] ? { "image": property.image_urls[0] } : {}),
+          ...(property.price ? {
+            "offers": {
+              "@type": "Offer",
+              "price": Number(property.price),
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            }
+          } : {}),
+          "address": {
+            "@type": "PostalAddress",
+            ...(property.address ? { "streetAddress": property.address } : {}),
+            ...(property.city ? { "addressLocality": property.city } : {}),
+            ...(property.state ? { "addressRegion": property.state } : {}),
+            ...(property.zip ? { "postalCode": String(property.zip) } : {}),
+            "addressCountry": "US"
+          },
+          ...(property.bedrooms ? { "numberOfRooms": Number(property.bedrooms) } : {}),
+          ...(property.living_area ? {
+            "floorSize": { "@type": "QuantitativeValue", "value": Number(property.living_area), "unitCode": "FTK" }
+          } : {})
+        };
         return (
           <Helmet>
             <title>{title}</title>
@@ -204,6 +232,7 @@ export default function PropertyDetail() {
             <meta property="og:type" content="article" />
             <meta name="twitter:title" content={title} />
             <meta name="twitter:description" content={desc.slice(0, 160)} />
+            <script type="application/ld+json">{JSON.stringify(listingJsonLd)}</script>
           </Helmet>
         );
       })()}
