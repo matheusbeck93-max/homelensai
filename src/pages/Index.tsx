@@ -85,12 +85,24 @@ const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "HomeLens",
-  "url": "https://homelens.ai",
-  "logo": "https://homelens.ai/favicon.png",
+  "url": "https://homelensais.com/",
+  "logo": "https://homelensais.com/favicon.png",
   "description": "AI-powered decision platform that helps you evaluate homes, understand affordability, and make smarter real estate decisions.",
   "sameAs": [],
   "foundingDate": "2025",
   "knowsAbout": ["Real Estate", "Property Analysis", "Financial Modeling", "Market Intelligence"]
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "HomeLens",
+  "url": "https://homelensais.com/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://homelensais.com/?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
 };
 
 export default function Index() {
