@@ -94,6 +94,7 @@ const organizationJsonLd = {
 
 export default function Index() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<any>(null);
@@ -109,6 +110,28 @@ export default function Index() {
   const [extensionBannerDismissed, setExtensionBannerDismissed] = useState(() => 
     localStorage.getItem('extension-banner-dismissed') === 'true'
   );
+
+  // Scroll to the section matching the current path (e.g. /faq -> #faq)
+  // or the explicit hash. Runs whenever the path/hash changes.
+  useEffect(() => {
+    const pathToHash: Record<string, string> = {
+      "/extension": "extension",
+      "/investors": "investors",
+      "/chat-preview": "chat",
+      "/plans": "pricing",
+      "/faq": "faq",
+    };
+    const targetId =
+      pathToHash[location.pathname] ||
+      (location.hash ? location.hash.replace("#", "") : "");
+    if (!targetId) return;
+    // Wait for sections to mount before scrolling.
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(targetId);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, location.hash]);
 
   const handleDismissExtensionBanner = (e: React.MouseEvent) => {
     e.stopPropagation();
