@@ -263,7 +263,7 @@ export default function PropertyDetail() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Investment Analysis</CardTitle>
+                <CardTitle as="h2">Investment Analysis</CardTitle>
                 <CardDescription>Key metrics for this property</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -350,7 +350,7 @@ export default function PropertyDetail() {
             {analysis && (
               <Card>
                 <CardHeader>
-                  <CardTitle>AI Analysis Report</CardTitle>
+                  <CardTitle as="h2">AI Analysis Report</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="whitespace-pre-wrap">{analysis}</p>
@@ -372,7 +372,7 @@ export default function PropertyDetail() {
         {property.description && (
           <Card className="mt-8">
             <CardHeader>
-              <CardTitle>Property Description</CardTitle>
+              <CardTitle as="h2">Property Description</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">{property.description}</p>

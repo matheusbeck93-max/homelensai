@@ -425,7 +425,7 @@ export default function Calculators() {
             {/* Buying Power Results */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle as="h2" className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-primary" />
                   Buying Power Results
                 </CardTitle>
@@ -457,7 +457,7 @@ export default function Calculators() {
             {/* Mortgage Results */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle as="h2" className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-primary" />
                   Monthly Payment Breakdown (PITI)
                 </CardTitle>
@@ -507,7 +507,7 @@ export default function Calculators() {
             {/* AI Insights */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle as="h2" className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-primary" />
                   💡 AI Insight
                 </CardTitle>
