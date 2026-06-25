@@ -19,4 +19,9 @@
   <url><loc>https://homelensais.com/ccpa</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://homelensais.com/dmca</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://homelensais.com/do-not-sell</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://homelensais.com/extension</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://homelensais.com/investors</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://homelensais.com/chat-preview</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://homelensais.com/plans</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://homelensais.com/faq</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
 </urlset>

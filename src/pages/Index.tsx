@@ -191,9 +191,16 @@ export default function Index() {
     orgScript.id = 'org-jsonld';
     document.head.appendChild(orgScript);
 
+    const siteScript = document.createElement('script');
+    siteScript.type = 'application/ld+json';
+    siteScript.text = JSON.stringify(websiteJsonLd);
+    siteScript.id = 'website-jsonld';
+    document.head.appendChild(siteScript);
+
     return () => {
       document.getElementById('faq-jsonld')?.remove();
       document.getElementById('org-jsonld')?.remove();
+      document.getElementById('website-jsonld')?.remove();
     };
   }, []);
 
