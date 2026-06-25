@@ -315,7 +315,7 @@ export function StickyChat({
             onKeyDown={handleKeyPress}
             placeholder={attachments.length > 0 ? "Ask a question about these files..." : placeholder}
             disabled={loading}
-            className="flex-1 min-h-[40px] sm:min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 py-2 text-sm sm:text-base placeholder:text-muted-foreground/70"
+            className="flex-1 min-h-[40px] sm:min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1 py-2 text-sm sm:text-base placeholder:text-muted-foreground"
             rows={1}
           />
 

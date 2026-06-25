@@ -49,7 +49,7 @@ export function MarketSnapshotCard({
       <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
         {/* Left: RentCast metrics */}
         <div className="space-y-1.5">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
             Market / rent metrics
           </p>
           {snapshot.medianRent != null && (
@@ -82,7 +82,7 @@ export function MarketSnapshotCard({
 
         {/* Right: Census metrics */}
         <div className="space-y-1.5">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground/80 font-semibold">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
             Income & occupancy
           </p>
           {snapshot.medianHouseholdIncome != null && (
