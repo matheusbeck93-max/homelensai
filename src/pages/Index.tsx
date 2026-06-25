@@ -1109,11 +1109,15 @@ export default function Index() {
       )}
 
       {/* Pricing Section */}
-      {!hasStartedConversation && !user && <PricingSection />}
+      {!hasStartedConversation && !user && (
+        <div id="pricing" className="scroll-mt-20">
+          <PricingSection />
+        </div>
+      )}
 
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
-      <section className="py-16 px-4 bg-background">
+      <section id="faq" className="py-16 px-4 bg-background scroll-mt-20">
           <div className="max-w-3xl mx-auto">
             <motion.div
             initial={{ opacity: 0, y: 20 }}
