@@ -124,6 +124,12 @@ function App() {
                 <main>
                 <Routes>
                   <Route path="/" element={<Index />} />
+                 {/* Homepage section anchor aliases — render the homepage and scroll to a section. */}
+                 <Route path="/extension" element={<Index />} />
+                 <Route path="/investors" element={<Index />} />
+                 <Route path="/chat-preview" element={<Index />} />
+                 <Route path="/plans" element={<Index />} />
+                 <Route path="/faq" element={<Index />} />
                   <Route path="/property/:id" element={<PropertyDetail />} />
                   <Route path="/chats" element={<ProtectedRoute><Chats /></ProtectedRoute>} />
                   <Route path="/chat" element={<Navigate to="/chats" replace />} />
