@@ -1,64 +1,45 @@
-## Goal
 
-On the homepage (`/`) only:
-- Hide the current header nav items (My HomeLens, Chats, Calculators, Investor) when the user is **logged out**.
-- For logged-out visitors, replace them with a row of section-link icons that scroll to homepage sections and have their own clean URLs (e.g. `/faq`), each also setting the hash (`#faq`) for in-page anchoring.
-- Logged-in users keep the current nav exactly as it is today (no new icons).
-- Header on every other page is unchanged.
+## Deliverable
 
-## Section icons (logged-out, homepage)
+A single self-contained HTML file at `/mnt/documents/homelens-product-tour.html` that autoplays a silent 27-second 1920×1080 product tour. You open it in a browser (or the artifact preview), screen-record, and add audio separately.
 
-Add anchor IDs to the existing homepage sections in `src/pages/Index.tsx` and map each to a clean route + hash:
+## Approach
 
-| Icon | Label | Route | Hash | Section |
-|---|---|---|---|---|
-| Search | Search | `/` | `#hero` | Hero search |
-| Chrome | Extension | `/extension` | `#extension` | Chrome extension block |
-| TrendingUp | Investor | `/investors` | `#investors` | Investor tools grid |
-| MessageSquare | Chat | `/chat-preview` | `#chat` | Chat + buying power block |
-| Tag | Pricing | `/pricing-section` (anchor route) | `#pricing` | Pricing section |
-| HelpCircle | FAQ | `/faq` | `#faq` | FAQ section |
+- One static HTML page, no JS, no build step. All timing via pure CSS `@keyframes` + `animation-delay`.
+- Fixed 1920×1080 stage centered in the viewport (with CSS `transform: scale()` fallback so it fits any screen for recording; recording at native 1080p is fine).
+- 5 uploaded images copied into `/mnt/documents/assets/` next to the HTML so the file is portable.
+- Google Fonts: Lora (serif headlines) + Inter (sans body).
 
-(Final labels/icons are easy to tweak — these match the sections that actually exist on the homepage.)
+## Sequence & timing (total 27s)
 
-Note: `/pricing` already exists as its own page. To avoid collision, the homepage pricing anchor uses a distinct path (e.g. `/home/pricing` or simply the hash). I'll confirm with a single route alias that does not clash with existing pages.
+| # | Section | Start | Duration |
+|---|---|---|---|
+| 00 | Intro (logo + "HomeLens" + "PRODUCT TOUR") | 0s | 3s |
+| 01 | EXTENSION — image 1 | 3s | 4s |
+| 02 | PERSONALIZE — image 4 | 7s | 4s |
+| 03 | INVESTOR — image 2 | 11s | 4s |
+| 04 | AI CHAT — image 5 | 15s | 4s |
+| 05 | CALCULATOR — image 3 | 19s | 4s |
+| 06 | Outro (tagline + HOMELENS.AI) | 23s | 4s |
 
-## Behavior
+Each middle section: card slides in from right + fades (300ms ease-out), text fades up (translateY 12→0), holds ~3.4s, fades out (200ms). Shadow-block color rotates: slate blue → sage green → dusty rose → warm amber → muted plum (no repeats consecutively).
 
-- Clicking an icon calls `navigate('/faq', { replace: false })` and then sets `window.location.hash = 'faq'` so the URL ends up as `/faq#faq` and the browser scrolls to the anchored section.
-- Visiting `homelensais.com/faq` directly loads the homepage and auto-scrolls to the `#faq` section after mount.
-- Active state highlights the icon whose section is currently in view (IntersectionObserver, lightweight).
-- Mobile: icons collapse into the existing hamburger sheet as a "Jump to" group above the auth buttons.
+## Global style
 
-## Technical changes
+- Background `#F0EFE9` with faint 80px grid (CSS linear-gradients, ~6% opacity navy lines).
+- Two soft radial-gradient blobs: cool slate-blue top-left, sage green bottom-right, opacity ~12%, heavy blur, behind content.
+- Primary text `#1E2A3A`, secondary muted slate `#6B7785`, category label muted blue `#5A7A9E`.
+- Left 40% column: small caps "0X · CATEGORY" with leading horizontal rule, large Lora headline (2 lines), Inter body description.
+- Right 55%: product image inside a white rounded card (24px radius, subtle inner border, soft shadow) floating over a solid offset colored shadow-block (rotated ~2°, 24–32px offset).
+- House logo rendered inline as SVG (line icon, navy stroke).
 
-1. **`src/components/Navigation.tsx`**
-   - Detect `location.pathname === '/'` and `!user`.
-   - When both true: render a new `HomepageSectionNav` instead of `navItems`.
-   - When logged in: render existing `navItems` unchanged (current behavior).
-   - On non-`/` routes: unchanged.
+## Files to create
 
-2. **New `src/components/HomepageSectionNav.tsx`**
-   - Renders the icon row (desktop) and list (mobile sheet slot).
-   - Click handler: `navigate(route)` then `scrollIntoView` the matching `#hash` element.
-   - IntersectionObserver to highlight the active section.
+- `/mnt/documents/homelens-product-tour.html` — the page
+- `/mnt/documents/assets/01-extension.png` … `05-calculator.png` — copied from the 5 uploads
 
-3. **`src/pages/Index.tsx`**
-   - Add `id="hero" | "extension" | "investors" | "chat" | "pricing" | "faq"` to the existing `<section>` wrappers (no layout changes).
-   - On mount, if `location.pathname` matches one of the new section routes OR `location.hash` is set, smooth-scroll to that section after the page paints.
+## Notes
 
-4. **`src/App.tsx` (router)**
-   - Add routes that render `<Index />` for: `/features`, `/extension`, `/investors`, `/chat-preview`, `/faq`, and a homepage-pricing-anchor route that doesn't conflict with the existing `/pricing` page.
-   - Existing `/pricing` page route stays as-is.
-
-5. **SEO**
-   - Each alias route still serves the homepage HTML/meta — no separate `<title>` changes needed. Optional: set a per-route document title if you want (can confirm).
-
-## Out of scope
-
-- No business logic, no auth, no database changes.
-- No styling overhaul — icons reuse the existing nav `Button variant="ghost"` style with `size="icon"` and a tooltip showing the label.
-
-## Open mini-question (won't block)
-
-The existing `/pricing` page already exists. For the FAQ-style homepage pricing anchor, I propose using `/#pricing` (hash only) for that one icon while all others get clean paths. If you'd rather have a clean path there too, say the word and I'll use `/plans` or similar.
+- No audio elements, no captions, no interactions. Animation runs once on load from frame 0 to 27s, then stops on the outro fade-out state.
+- I will include a tiny `?loop=1` query toggle (loop via `animation-iteration-count: infinite` on the master timeline) just in case you want a looping preview while recording — default is play-once.
+- I'll spot-check by opening the HTML and screenshotting a few key timestamps before handing off.
