@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
@@ -94,6 +94,7 @@ const organizationJsonLd = {
 
 export default function Index() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<any>(null);
@@ -109,6 +110,28 @@ export default function Index() {
   const [extensionBannerDismissed, setExtensionBannerDismissed] = useState(() => 
     localStorage.getItem('extension-banner-dismissed') === 'true'
   );
+
+  // Scroll to the section matching the current path (e.g. /faq -> #faq)
+  // or the explicit hash. Runs whenever the path/hash changes.
+  useEffect(() => {
+    const pathToHash: Record<string, string> = {
+      "/extension": "extension",
+      "/investors": "investors",
+      "/chat-preview": "chat",
+      "/plans": "pricing",
+      "/faq": "faq",
+    };
+    const targetId =
+      pathToHash[location.pathname] ||
+      (location.hash ? location.hash.replace("#", "") : "");
+    if (!targetId) return;
+    // Wait for sections to mount before scrolling.
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(targetId);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, location.hash]);
 
   const handleDismissExtensionBanner = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -696,7 +719,7 @@ export default function Index() {
       {/* Chrome Extension + Investor feature sections */}
       {!hasStartedConversation && !user && (
         <>
-          <section className="py-16 sm:py-24 px-4 bg-background border-t">
+          <section id="extension" className="py-16 sm:py-24 px-4 bg-background border-t scroll-mt-20">
             <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -742,7 +765,7 @@ export default function Index() {
           </section>
 
           {/* Investor Tools — feature card grid */}
-          <section className="py-16 sm:py-24 px-4 bg-muted/30 border-t">
+          <section id="investors" className="py-16 sm:py-24 px-4 bg-muted/30 border-t scroll-mt-20">
             <div className="max-w-6xl mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -925,7 +948,7 @@ export default function Index() {
           </section>
 
           {/* Chat + Buying Power feature showcase */}
-          <section className="py-16 sm:py-24 px-4 bg-background border-t">
+          <section id="chat" className="py-16 sm:py-24 px-4 bg-background border-t scroll-mt-20">
             <div className="max-w-6xl mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -1109,11 +1132,15 @@ export default function Index() {
       )}
 
       {/* Pricing Section */}
-      {!hasStartedConversation && !user && <PricingSection />}
+      {!hasStartedConversation && !user && (
+        <div id="pricing" className="scroll-mt-20">
+          <PricingSection />
+        </div>
+      )}
 
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
-      <section className="py-16 px-4 bg-background">
+      <section id="faq" className="py-16 px-4 bg-background scroll-mt-20">
           <div className="max-w-3xl mx-auto">
             <motion.div
             initial={{ opacity: 0, y: 20 }}

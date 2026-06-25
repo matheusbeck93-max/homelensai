@@ -1,63 +1,64 @@
-# Chrome Extension Macro Badge — Scope
+## Goal
 
-Goal: when the extension detects a property listing, show a compact "Macro" badge in the popup with metro-level labor + housing + rate context, sourced from the same BLS/FRED tools used by the investor brief.
+On the homepage (`/`) only:
+- Hide the current header nav items (My HomeLens, Chats, Calculators, Investor) when the user is **logged out**.
+- For logged-out visitors, replace them with a row of section-link icons that scroll to homepage sections and have their own clean URLs (e.g. `/faq`), each also setting the hash (`#faq`) for in-page anchoring.
+- Logged-in users keep the current nav exactly as it is today (no new icons).
+- Header on every other page is unchanged.
 
-## What the user sees
+## Section icons (logged-out, homepage)
 
-A new card at the top of the popup (above the chat), shown only when `propertyData.city` + `state` are present:
+Add anchor IDs to the existing homepage sections in `src/pages/Index.tsx` and map each to a clean route + hash:
 
-```text
-┌─ Macro snapshot — Tampa, FL ──────────────┐
-│ Unemployment  3.6%   per BLS              │
-│ Wage YoY      +4.1%  vs price +6.2% (gap) │
-│ Mortgage 30y  6.52%  per FRED (live)      │
-│ HPI YoY       +5.8%  per FHFA             │
-│ source: BLS + FRED · cached 12m ago       │
-└───────────────────────────────────────────┘
-```
+| Icon | Label | Route | Hash | Section |
+|---|---|---|---|---|
+| Search | Search | `/` | `#hero` | Hero search |
+| Chrome | Extension | `/extension` | `#extension` | Chrome extension block |
+| TrendingUp | Investor | `/investors` | `#investors` | Investor tools grid |
+| MessageSquare | Chat | `/chat-preview` | `#chat` | Chat + buying power block |
+| Tag | Pricing | `/pricing-section` (anchor route) | `#pricing` | Pricing section |
+| HelpCircle | FAQ | `/faq` | `#faq` | FAQ section |
 
-Loading skeleton on first open, error → card hidden silently (don't block chat).
+(Final labels/icons are easy to tweak — these match the sections that actually exist on the homepage.)
 
-## Architecture
+Note: `/pricing` already exists as its own page. To avoid collision, the homepage pricing anchor uses a distinct path (e.g. `/home/pricing` or simply the hash). I'll confirm with a single route alias that does not clash with existing pages.
 
-New edge function `extension-macro-badge` (thin aggregator) so the extension makes one call instead of four, and so we don't expose individual tool endpoints. It reuses existing shared tools — no new BLS/FRED logic.
+## Behavior
 
-```text
-popup.tsx
-  └─ <MacroBadge city state />
-       └─ fetch /functions/v1/extension-macro-badge?city&state
-            └─ Promise.all([
-                 runGetMetroLaborMarket,
-                 runGetMetroWageGrowth,
-                 runGetMetroHousingIndex,
-                 runGetCurrentMortgageRates,
-               ])
-            └─ returns { labor, wage, hpi, rate, cachedAt }
-```
+- Clicking an icon calls `navigate('/faq', { replace: false })` and then sets `window.location.hash = 'faq'` so the URL ends up as `/faq#faq` and the browser scrolls to the anchored section.
+- Visiting `homelensais.com/faq` directly loads the homepage and auto-scrolls to the `#faq` section after mount.
+- Active state highlights the icon whose section is currently in view (IntersectionObserver, lightweight).
+- Mobile: icons collapse into the existing hamburger sheet as a "Jump to" group above the auth buttons.
 
-## Files
+## Technical changes
 
-New:
-- `supabase/functions/extension-macro-badge/index.ts` — Zod-validated `{city, state}`, calls the 4 macro tools in parallel, returns a flat JSON payload. Uses shared CORS + JWT validation. 30s edge response cache header.
-- `chrome-extension/components/MacroBadge.tsx` — presentational card, skeleton + error states, semantic tokens only.
-- `chrome-extension/lib/fetchMacroBadge.ts` — typed fetch wrapper with `chrome.storage.session` cache keyed by `${city}|${state}` (TTL 30 min, matches FRED cache horizon).
+1. **`src/components/Navigation.tsx`**
+   - Detect `location.pathname === '/'` and `!user`.
+   - When both true: render a new `HomepageSectionNav` instead of `navItems`.
+   - When logged in: render existing `navItems` unchanged (current behavior).
+   - On non-`/` routes: unchanged.
 
-Edited:
-- `chrome-extension/popup.tsx` — mount `<MacroBadge>` when `pendingProperty?.city && state` exist; hide on auth-gated empty state.
-- `chrome-extension/manifest.json` — no permission changes needed (already has `storage` + host perms for our Supabase URL).
+2. **New `src/components/HomepageSectionNav.tsx`**
+   - Renders the icon row (desktop) and list (mobile sheet slot).
+   - Click handler: `navigate(route)` then `scrollIntoView` the matching `#hash` element.
+   - IntersectionObserver to highlight the active section.
 
-## Caching & cost control
+3. **`src/pages/Index.tsx`**
+   - Add `id="hero" | "extension" | "investors" | "chat" | "pricing" | "faq"` to the existing `<section>` wrappers (no layout changes).
+   - On mount, if `location.pathname` matches one of the new section routes OR `location.hash` is set, smooth-scroll to that section after the page paints.
 
-- Per-session cache in `chrome.storage.session` so reopening the popup or revisiting the tab is free.
-- Server-side: piggybacks on existing FRED 24h cache + BLS prefetch cron — no new BLS daily call pressure for top-15 metros. Non-prefetched metros add ~2 BLS calls per first view (labor + wage). Stays well under the 500/day BLS cap with a key.
-- Telemetry: reuse the existing `bls_coverage_gap` warn pattern when labor/wage come back null.
+4. **`src/App.tsx` (router)**
+   - Add routes that render `<Index />` for: `/features`, `/extension`, `/investors`, `/chat-preview`, `/faq`, and a homepage-pricing-anchor route that doesn't conflict with the existing `/pricing` page.
+   - Existing `/pricing` page route stays as-is.
 
-## Out of scope (deferred)
+5. **SEO**
+   - Each alias route still serves the homepage HTML/meta — no separate `<title>` changes needed. Optional: set a per-route document title if you want (can confirm).
 
-- In-page badge injection on listing sites (separate content-script work).
-- Macro context inside the AI chat replies (already covered by `ai-chat` tool routing).
-- Per-metro Census prefetch (still deferred per earlier decision).
+## Out of scope
 
-## Effort
+- No business logic, no auth, no database changes.
+- No styling overhaul — icons reuse the existing nav `Button variant="ghost"` style with `size="icon"` and a tooltip showing the label.
 
-~0.5 day: new edge function + 2 small extension files + popup wiring + manual QA on Zillow/Redfin/Realtor.
+## Open mini-question (won't block)
+
+The existing `/pricing` page already exists. For the FAQ-style homepage pricing anchor, I propose using `/#pricing` (hash only) for that one icon while all others get clean paths. If you'd rather have a clean path there too, say the word and I'll use `/plans` or similar.
