@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
@@ -696,7 +696,7 @@ export default function Index() {
       {/* Chrome Extension + Investor feature sections */}
       {!hasStartedConversation && !user && (
         <>
-          <section className="py-16 sm:py-24 px-4 bg-background border-t">
+          <section id="extension" className="py-16 sm:py-24 px-4 bg-background border-t scroll-mt-20">
             <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -742,7 +742,7 @@ export default function Index() {
           </section>
 
           {/* Investor Tools — feature card grid */}
-          <section className="py-16 sm:py-24 px-4 bg-muted/30 border-t">
+          <section id="investors" className="py-16 sm:py-24 px-4 bg-muted/30 border-t scroll-mt-20">
             <div className="max-w-6xl mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -925,7 +925,7 @@ export default function Index() {
           </section>
 
           {/* Chat + Buying Power feature showcase */}
-          <section className="py-16 sm:py-24 px-4 bg-background border-t">
+          <section id="chat" className="py-16 sm:py-24 px-4 bg-background border-t scroll-mt-20">
             <div className="max-w-6xl mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
