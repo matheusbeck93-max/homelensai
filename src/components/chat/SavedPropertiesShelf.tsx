@@ -49,7 +49,7 @@ export function SavedPropertiesShelf({ properties, onDelete }: SavedPropertiesSh
         {open && (
           <div className="px-2 pb-2 space-y-1">
             {count === 0 ? (
-              <div className="px-2 py-3 text-[11px] text-muted-foreground/80 leading-snug">
+              <div className="px-2 py-3 text-[11px] text-muted-foreground leading-snug">
                 Bookmark any listing you analyze in chat — it'll show up here for quick access.
               </div>
             ) : (
