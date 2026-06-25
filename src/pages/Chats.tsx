@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
+import { Helmet } from "react-helmet-async";
 import { StickyChat, ChatAttachment } from "@/components/StickyChat";
 import { SavedChatsSidebar } from "@/components/chat/SavedChatsSidebar";
 import { ChatComparisonPanel, AnalyzedProperty } from "@/components/chat/ChatComparisonPanel";
@@ -593,6 +594,15 @@ export default function Chats() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <Helmet>
+        <title>AI Real Estate Chat — Analyze Listings | HomeLens</title>
+        <meta name="description" content="Ask the HomeLens AI assistant about any US property listing. Get instant Match Scores, market context, neighborhood insights, and investment math." />
+        <link rel="canonical" href="https://homelensais.com/chats" />
+        <meta property="og:title" content="AI Real Estate Chat — Analyze Listings | HomeLens" />
+        <meta property="og:description" content="Paste a Zillow or Redfin link and the HomeLens AI returns a Match Score, neighborhood data, and personalized investment analysis." />
+        <meta property="og:url" content="https://homelensais.com/chats" />
+        <meta property="og:type" content="website" />
+      </Helmet>
       <Navigation />
 
       {/* Saved Chats Sidebar */}
