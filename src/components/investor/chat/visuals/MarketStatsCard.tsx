@@ -37,7 +37,7 @@ export function MarketStatsCard({ event }: { event: ToolEvent }) {
             <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
               {it.label}
               {it.derived && (
-                <span className="text-[9px] normal-case text-muted-foreground/80">·derived</span>
+                <span className="text-[10px] normal-case text-muted-foreground">·derived</span>
               )}
             </div>
             <div className="text-sm font-semibold">{it.value}</div>
