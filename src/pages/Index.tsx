@@ -1170,6 +1170,9 @@ export default function Index() {
         </div>
       )}
 
+      {/* Blog Section */}
+      {!hasStartedConversation && !user && <HomepageBlogSection />}
+
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
       <section id="faq" className="py-16 px-4 bg-background scroll-mt-20">
