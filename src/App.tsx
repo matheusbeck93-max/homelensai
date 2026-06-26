@@ -10,6 +10,7 @@ import { ComparisonFloatingBar } from "@/components/comparison/ComparisonFloatin
 import { BackToTop } from "@/components/BackToTop";
 import { CookieConsent } from "@/components/CookieConsent";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { StaffRoute } from "@/components/StaffRoute";
 import { MilestoneBanner } from "@/components/stickiness/MilestoneBanner";
 import { EngagementPing } from "@/components/stickiness/EngagementPing";
 
@@ -99,6 +100,10 @@ const AdminTelemetry = lazyWithRetry(() => import("./pages/AdminTelemetry"));
 const AccountUsage = lazyWithRetry(() => import("./pages/account/Usage"));
 const EmailUnsubscribe = lazyWithRetry(() => import("./pages/account/EmailUnsubscribe"));
 const AccountMemory = lazyWithRetry(() => import("./pages/account/Memory"));
+const Blog = lazyWithRetry(() => import("./pages/Blog"));
+const BlogPost = lazyWithRetry(() => import("./pages/BlogPost"));
+const BlogAdmin = lazyWithRetry(() => import("./pages/admin/BlogAdmin"));
+const BlogEditor = lazyWithRetry(() => import("./pages/admin/BlogEditor"));
 
 const queryClient = new QueryClient();
 
@@ -130,6 +135,11 @@ function App() {
                  <Route path="/chat-preview" element={<Index />} />
                  <Route path="/plans" element={<Index />} />
                  <Route path="/faq" element={<Index />} />
+                 <Route path="/blog" element={<Blog />} />
+                 <Route path="/blog/:slug" element={<BlogPost />} />
+                 <Route path="/admin/blog" element={<StaffRoute><BlogAdmin /></StaffRoute>} />
+                 <Route path="/admin/blog/new" element={<StaffRoute><BlogEditor /></StaffRoute>} />
+                 <Route path="/admin/blog/:id/edit" element={<StaffRoute><BlogEditor /></StaffRoute>} />
                   <Route path="/property/:id" element={<PropertyDetail />} />
                   <Route path="/chats" element={<ProtectedRoute><Chats /></ProtectedRoute>} />
                   <Route path="/chat" element={<Navigate to="/chats" replace />} />

@@ -6,6 +6,7 @@ export type HomepageSection = {
   id: string;
   label: string;
   path: string;
+  external?: boolean; // when true, navigate to path as a separate page (no anchor scroll)
 };
 
 // Each entry maps a clean URL to a section anchor on the homepage.
@@ -17,6 +18,7 @@ export const HOMEPAGE_SECTIONS: HomepageSection[] = [
   { id: "chat", label: "Chat", path: "/chat-preview" },
   { id: "pricing", label: "Pricing", path: "/plans" },
   { id: "faq", label: "FAQ", path: "/faq" },
+  { id: "blog", label: "Blog", path: "/blog", external: true },
 ];
 
 export function pathToSectionId(pathname: string): string | null {
@@ -47,6 +49,7 @@ export function HomepageSectionNav({ variant = "desktop", onNavigate }: Props) {
   // Highlight the section currently scrolled into view.
   useEffect(() => {
     const targets = HOMEPAGE_SECTIONS
+      .filter((s) => !s.external)
       .map((s) => document.getElementById(s.id))
       .filter((el): el is HTMLElement => !!el);
     if (targets.length === 0) return;
@@ -66,6 +69,10 @@ export function HomepageSectionNav({ variant = "desktop", onNavigate }: Props) {
 
   const handleClick = (section: HomepageSection) => {
     onNavigate?.();
+    if (section.external) {
+      navigate(section.path);
+      return;
+    }
     navigate(`${section.path}#${section.id}`);
     requestAnimationFrame(() => smoothScrollToId(section.id));
   };

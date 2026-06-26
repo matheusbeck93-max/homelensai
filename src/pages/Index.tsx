@@ -23,6 +23,7 @@ import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
 import { smoothScrollToId } from "@/components/HomepageSectionNav";
 import { PricingSection } from "@/components/PricingSection";
+import { HomepageBlogSection } from "@/components/HomepageBlogSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
 
@@ -1169,6 +1170,9 @@ export default function Index() {
           <PricingSection />
         </div>
       )}
+
+      {/* Blog Section */}
+      {!hasStartedConversation && !user && <HomepageBlogSection />}
 
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
