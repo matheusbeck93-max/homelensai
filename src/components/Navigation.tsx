@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SubscriptionBadge } from "@/components/subscription/SubscriptionBadge";
 import { useSubscription } from "@/hooks/useSubscription";
-import { Home, Calculator, TrendingUp, Menu, Sparkles, LayoutDashboard, MessageSquare, UserPlus } from "lucide-react";
+import { Home, Calculator, TrendingUp, Menu, Sparkles, LayoutDashboard, MessageSquare, UserPlus, BookOpen } from "lucide-react";
 import { tierDisplayName } from "@/lib/subscriptionPlans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { HeaderUsageIndicator } from "@/components/layout/HeaderUsageIndicator";
