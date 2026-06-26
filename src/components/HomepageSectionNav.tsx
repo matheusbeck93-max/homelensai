@@ -49,6 +49,7 @@ export function HomepageSectionNav({ variant = "desktop", onNavigate }: Props) {
   // Highlight the section currently scrolled into view.
   useEffect(() => {
     const targets = HOMEPAGE_SECTIONS
+      .filter((s) => !s.external)
       .map((s) => document.getElementById(s.id))
       .filter((el): el is HTMLElement => !!el);
     if (targets.length === 0) return;
