@@ -62,6 +62,7 @@ export function Navigation() {
     { label: 'Chats', path: '/chats', icon: MessageSquare },
     { label: 'Calculators', path: '/calculators', icon: Calculator },
     { label: 'Investor', path: '/investor', icon: TrendingUp },
+    { label: 'Blog', path: '/blog', icon: BookOpen },
   ];
 
   // Show homepage section icons (Extension, Investors, Chat, Pricing, FAQ)
