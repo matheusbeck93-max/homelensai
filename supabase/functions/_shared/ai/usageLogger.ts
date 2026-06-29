@@ -23,6 +23,7 @@ export interface UsageLogEntry {
   errorCode?: string;
   requestId?: string;
   reasoningTokens?: number;
+  isDevCall?: boolean;
 }
 
 let cachedClient: ReturnType<typeof createClient> | null = null;
@@ -71,6 +72,7 @@ async function writeUsageRow(entry: UsageLogEntry): Promise<void> {
     status: entry.status ?? "ok",
     error_code: entry.errorCode ?? null,
     request_id: entry.requestId ?? null,
+    is_dev_call: entry.isDevCall ?? false,
   };
   const { error } = await client.from("ai_usage_log").insert(row);
   if (error) throw error;
