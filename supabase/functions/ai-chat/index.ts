@@ -9,7 +9,7 @@ import { sanitizeHistory } from '../_shared/conversationHistory.ts';
 import { loadUserInvestorContext, buildUserInvestorContextBlock } from '../_shared/userInvestorContext.ts';
 import { extractAllPropertyUrls, extractAllUrls } from '../_shared/urlDetection.ts';
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
-import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
+import { completeWithFallback, isSurfaceEnabled, BudgetExceededError, FeatureQuotaExceededError } from '../_shared/ai/router.ts';
 import { WEB_RESEARCH_TOOL, runWebResearch } from '../_shared/ai/tools/webResearch.ts';
 import { FOLLOWUP_TOOLS, runFollowupTool, isFollowupTool } from '../_shared/ai/tools/followups/index.ts';
 import { MACRO_TOOLS, runMacroTool, isMacroTool } from '../_shared/ai/tools/macro/index.ts';
@@ -35,7 +35,20 @@ function routerTierFor(tier?: string): 'free' | 'investor' {
 function routerErrorResponse(err: unknown): Response | null {
   if (err instanceof BudgetExceededError) {
     return new Response(
-      JSON.stringify({ error: 'Daily AI budget reached. Try again tomorrow.' }),
+      JSON.stringify({ error: 'Daily AI budget reached. Try again tomorrow.', code: 'BUDGET_EXCEEDED' }),
+      { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+  if (err instanceof Error && err.name === 'FeatureQuotaExceededError') {
+    const qErr = err as any;
+    return new Response(
+      JSON.stringify({
+        error: 'Monthly feature quota reached.',
+        code: 'QUOTA_EXCEEDED',
+        tier: qErr.tier,
+        feature: qErr.feature,
+        limit: qErr.limit,
+      }),
       { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
