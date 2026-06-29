@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { usePostBySlug, getSignedCoverUrl, usePublishedPosts } from "@/hooks/useBlogPosts";
 import { PostCard } from "@/components/blog/PostCard";
+import { ShareButtonArticle } from "@/components/blog/ShareButtonArticle";
 
 const SITE = "https://homelensais.com";
 
