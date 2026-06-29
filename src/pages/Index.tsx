@@ -1170,8 +1170,6 @@ export default function Index() {
         </div>
       )}
 
-      {/* Blog Section */}
-      {!hasStartedConversation && !user && <HomepageBlogSection />}
 
       {/* FAQ Section */}
       {!hasStartedConversation && !user &&
