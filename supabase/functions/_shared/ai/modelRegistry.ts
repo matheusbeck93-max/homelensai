@@ -9,7 +9,7 @@
  * cost numbers are placeholders until PR #2 (telemetry) confirms pricing.
  */
 
-export type ModelId = "gateway:standard" | "gateway:premium" | "gateway:fallback";
+export type ModelId = "gateway:standard" | "gateway:premium" | "gateway:fallback" | "gateway:haiku";
 
 export type ProviderName = "lovable_gateway" | "anthropic";
 
@@ -60,6 +60,23 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     id: "gateway:fallback",
     ...SONNET_BASE,
   },
+  "gateway:haiku": {
+    id: "gateway:haiku",
+    provider: "anthropic",
+    apiName: "claude-haiku-4-5",
+    contextWindow: 200_000,
+    supportsTools: true,
+    supportsVision: true,
+    costPerMTokIn: 0.80,
+    costPerMTokOut: 4.00,
+  },
+};
+
+export const MODEL_BY_OPERATION: Record<string, ModelId> = {
+  photo_categorization: "gateway:haiku",
+  followup_ranking: "gateway:haiku",
+  intent_detection: "gateway:haiku",
+  memory_categorization: "gateway:haiku",
 };
 
 export function getModelSpec(id: ModelId): ModelSpec {

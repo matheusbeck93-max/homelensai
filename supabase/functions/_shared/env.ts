@@ -26,3 +26,16 @@ export function getSupabaseEnv() {
     anonKey: Deno.env.get('SUPABASE_ANON_KEY') ?? '',
   };
 }
+
+/**
+ * Detect if request is from preview/staging or local dev environment.
+ * Used to isolate dev spend from production credit accounting.
+ */
+export function isDevCall(req?: Request | null): boolean {
+  if (Deno.env.get("DEV_MODE_AI_SKIP_LEDGER") === "1" || Deno.env.get("IS_DEV_ENV") === "true") {
+    return true;
+  }
+  if (!req) return false;
+  const origin = req.headers.get("origin") || req.headers.get("referer") || req.headers.get("host") || "";
+  return origin.includes("-preview--") || origin.includes("localhost") || origin.includes("127.0.0.1");
+}

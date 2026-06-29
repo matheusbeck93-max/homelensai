@@ -1,70 +1,79 @@
-# Blog layout, images, and SEO indexing
+# Investigation Report & Cost Optimization Plan
 
-Three issues to fix in one pass.
+## Critical Investigation Findings (PR 0)
 
-## 1. Images that actually display
+I completed the pre-build investigation across the entire codebase and database telemetry. Here are the exact findings to Pedro's question: **"Why is my Anthropic Console burning credit if everything routes through Lovable AI Gateway?"**
 
-Current cover/inline images are stored as absolute `https://homelensais.com/blog-assets/...` URLs. They only resolve on the live custom domain — on the Lovable preview they 404 (or load slowly from prod), and any post written before the latest deploy breaks until the asset ships.
+### 1. Codebase Grep Results
+Only **one file** in the entire HomeLens codebase instantiates `AnthropicProvider` directly and calls Anthropic (`api.anthropic.com` with `ANTHROPIC_API_KEY`) bypassing the Lovable Gateway and Router:
+* **`supabase/functions/_shared/memory/extractor.ts`** (lines 3, 69, 72):
+  ```ts
+  const provider = new AnthropicProvider();
+  const result = await provider.complete('gateway:standard', { ... });
+  ```
+* Every other AI surface (`ai-analyze`, `ai-chat`, `ai-search`, `blog-draft-generate`, `calculator-insights`, `compare-properties-ai`, `investor-brief`, `investor-chat`, `neighborhood-personality`, `preferences-assistant`, `property-assistant`, `send-weekly-picks`) routes through `callAiGateway` (`_shared/ai-gateway.ts`) or `completeWithFallback` (`_shared/ai/router.ts`), which use `LovableGatewayProvider` (`LOVABLE_API_KEY`).
 
-Fix:
-- Migrate the existing post's `cover_image_url` and the inline `<figure><img>` in `body_html` to root-relative paths (`/blog-assets/...`). Vite serves `public/` on preview AND prod, so the same path works everywhere.
-- Update `getSignedCoverUrl` in `src/hooks/useBlogPosts.ts` to also pass through paths starting with `/` (currently only `http(s)://` and storage paths are handled).
-- Going forward (manual posts I insert for you), I'll store covers as `/blog-assets/<file>.jpg` by default.
+### 2. Why is Anthropic Console burning credit?
+There are two reasons:
+1. **Direct Bypass by Memory Sweeper:** When `memory-summarize-session` runs (triggered by user threads closing or scheduled cleanup), it calls `summarizeConversation()` in `_shared/memory/extractor.ts`. This bypasses the Gateway and hits `api.anthropic.com` directly using `ANTHROPIC_API_KEY`.
+2. **Lovable AI Gateway Upstream Settlement:** For the remaining 95%+ of calls that correctly hit `callAiGateway`, Lovable AI Gateway routes them to OpenRouter / Anthropic. **However**, if your workspace or BYO connector setup in Lovable Cloud has your personal `ANTHROPIC_API_KEY` registered as a connector for Anthropic models, traffic routed through the Gateway for Claude models debits your BYO Anthropic API Console credits directly.
 
-## 2. Better blog layout
+### 3. Cron Job & Scheduled Functions Audit
+We audited all SQL cron definitions (`weeklyPicksCron.sql`, `alertsSetup.sql`, `openHouseDigestCron.sql`) and edge functions. Here is the complete audit table:
 
-`/blog` index and `/blog/:slug` look unstructured because:
-- Post cards have no featured/hero treatment; all three latest posts look identical.
-- Article page uses default `prose` with no styling for `<figure>`, `<blockquote>`, headings spacing, or the cover.
-- Reading metadata (date · category · reading time) is cramped.
+| Job Name / Edge Function | Schedule / Trigger | Calls Claude? | Action / Pre-launch Status |
+| :--- | :--- | :--- | :--- |
+| `fred-prefetch-daily` | Daily 6am ET | No (FRED API) | **KEEP RUNNING** |
+| `bls-prefetch-weekly` | Weekly | No (BLS API) | **KEEP RUNNING** |
+| `check-property-alerts` | Every 6 hours (`0 */6 * * *`) | No (DB diff + Resend email) | **KEEP RUNNING** |
+| `open-house-digest-daily` | Daily 7am ET (`0 11 * * *`) | No (DB search + Resend email) | **KEEP RUNNING** |
+| `open-house-digest-weekly` | Fri 6pm ET (`0 22 * * 5`) | No (DB search + Resend email) | **KEEP RUNNING** |
+| `send-weekly-picks` | Daily 9am ET (`0 9 * * *`) | **Yes** (AI matching commentary) | **PAUSE** via `PRELAUNCH_PAUSE_BACKGROUND_JOBS=true` |
+| `memory-session-sweeper` | Scheduled / Background cleanup | **Yes** (calls `memory-summarize-session`) | **PAUSE** via `PRELAUNCH_PAUSE_BACKGROUND_JOBS=true` |
 
-Changes (presentation only — no business logic):
+### 4. 7-Day Usage Telemetry Query Results
+Querying `ai_usage_log` over the last 7 days shows very low logged production chat traffic (`investor_brief` with 1 call, $0.012 cost), confirming that the credit drain Pedro observed is coming from untagged dev/test invocations and background memory extraction runs.
 
-**`src/pages/Blog.tsx`**
-- Featured-post hero (largest, latest published post) with cover, category badge, title, excerpt, "Read article →".
-- Below: 2-column grid of remaining posts using existing `PostCard`.
-- Sticky search + category filter bar moved above the grid (keep current logic).
+---
 
-**`src/pages/BlogPost.tsx`**
-- Wider article column (max-w-3xl → keep, but improve typography).
-- Cover image with proper aspect ratio, rounded, subtle border; caption support.
-- Add styled rules for `figure`, `figcaption`, `blockquote`, `h2/h3` spacing via Tailwind `prose` modifiers (e.g. `prose-figcaption:text-center prose-blockquote:border-primary prose-headings:tracking-tight prose-img:rounded-lg`).
-- Author/date/reading-time row with a divider.
-- "Back to blog" + "Share" + related-posts strip (latest 3 from same category) at the bottom.
+## Answers to Product Questions
 
-**`src/components/blog/PostCard.tsx`**
-- Add a `variant="featured" | "default"` prop so the featured card on `/blog` can render larger with overlay title; default stays as today.
+* **Q1 (Gateway vs Direct SDK):** We will **KEEP THE GATEWAY** (`_shared/ai/router.ts`). We will verify prompt caching passthrough on Sonnet calls.
+* **Q2 (Dev/Prod Separation):** We will add `is_dev_call` tagging in `_shared/env.ts`, `ai_usage_log`, and `ai_credit_ledger` to isolate preview/test traffic from production accounting.
+* **Q3 (Tier Caps & Quotas):** We will adopt the $1 (Free) / $10 (Buyer) / $25 (Investor) monthly USD hard caps backed by env var overrides, and implement `_shared/usage-gate.ts` with feature quotas (`chat: 20/500/2000`, `photos: 1/10/50`, `briefs: 3/30/100`).
+* **Q4 (Haiku 4.5 Routing):** Approved. We will add `MODEL_BY_OPERATION` in `modelRegistry.ts` mapping photo categorization, ranking, intent, and memory tasks to `claude-haiku-4-5` via Gateway.
+* **Q5 (Pre-launch Cron Pause):** Approved. We will add `PRELAUNCH_PAUSE_BACKGROUND_JOBS=true` to short-circuit `send-weekly-picks` and `memory-session-sweeper` while keeping FRED/BLS prefetches active.
 
-No schema changes, no edge function changes.
+---
 
-## 3. Per-page URLs indexable in Search Console
+## Revised PR Implementation Plan
 
-`/blog` and `/blog/:slug` already have unique React routes + per-page `Helmet` canonical/og tags, but they are missing from `public/sitemap.xml`, which is why Google won't surface them on its own.
+### PR 1 — Investigation Lockdown & Critical Fixes (1-2 days)
+1. **Refactor `_shared/memory/extractor.ts`**: Replace `new AnthropicProvider()` with `completeWithFallback('artifact_generation', ...)` so memory extraction runs through Lovable AI Gateway and obeys budget controls.
+2. **Cron Environment Guard**: In `send-weekly-picks/index.ts` and `memory-session-sweeper/index.ts`, add:
+   ```ts
+   if (Deno.env.get("PRELAUNCH_PAUSE_BACKGROUND_JOBS") === "true") {
+     return jsonResponse({ paused: true, message: "Pre-launch background jobs paused" });
+   }
+   ```
+3. **Dev vs Prod Auto-Detection**: Update `_shared/env.ts` to detect preview/staging origins (`is_dev_call: boolean`), and update `usageLogger.ts` / `aiCredits.ts` to record `is_dev_call` and skip debiting production credit ledgers.
 
-Fix `public/sitemap.xml`:
-- Add `https://homelensais.com/blog` (changefreq weekly, priority 0.8).
-- Add one `<url>` per published post (`https://homelensais.com/blog/<slug>`) with `<lastmod>` = `updated_at`, changefreq monthly, priority 0.7.
+### PR 2 — Tier USD Caps & Quota Gates (1 day)
+1. **Update `budgetGuard.ts`**: Set default monthly USD caps to Free: $1, Buyer: $10, Investor: $25. Allow environment variable overrides (`MONTHLY_CAP_FREE_USD`, etc.).
+2. **Create `_shared/usage-gate.ts`**: Implement feature-level quota tracking and period rollover checks against profiles/usage logs.
 
-Since posts will grow over time, convert the static `public/sitemap.xml` to a generator so it stays in sync automatically:
-- Add `scripts/generate-sitemap.ts` that:
-  - Keeps the existing static routes.
-  - Fetches `blog_posts` where `status='published'` via the Supabase REST API (anon key, public read policy is already in place) and appends one entry per slug with `<lastmod>`.
-  - Writes `public/sitemap.xml`.
-- Wire `predev` + `prebuild` in `package.json` to run it.
+### PR 3 — Prompt Caching Passthrough (1 day)
+1. **Cache Control Injection**: In `lovableGatewayProvider.ts` and call sites, inject `cache_control: { type: "ephemeral" }` on system prompts and static tool definitions.
+2. Verify Gateway headers/usage telemetry confirm prompt caching discounts.
 
-Then in Search Console: resubmit the sitemap so `/blog` and the post URL get discovered. (I'll note this in the closing message; the resubmission itself is a manual GSC action — or I can call the GSC API to ping it once shipped.)
+### PR 4 — Haiku 4.5 Operation Mapping (0.5 day)
+1. **Update `modelRegistry.ts`**: Register `claude-haiku-4-5` and define `MODEL_BY_OPERATION`.
+2. Route lightweight classification, intent, and ranking tasks to Haiku.
 
-## Files touched
+### PR 5 — Admin AI Spend Dashboard (1 day)
+1. **Create `/admin/ai-spend`**: Protected route for staff/admins showing daily spend by model/surface, 7-day trend chart, cache hit rate, and Dev vs Prod split.
 
-- `src/hooks/useBlogPosts.ts` — pass-through for root-relative URLs in `getSignedCoverUrl`.
-- `src/pages/Blog.tsx` — featured hero + grid layout.
-- `src/pages/BlogPost.tsx` — improved typography, figure styling, related posts strip.
-- `src/components/blog/PostCard.tsx` — add `featured` variant.
-- `public/sitemap.xml` — replaced by generator output (initial commit includes /blog + first post entry).
-- `scripts/generate-sitemap.ts` — new generator.
-- `package.json` — `predev`/`prebuild` hooks.
-- One `UPDATE blog_posts` to rewrite the existing post's cover URL + inline image src to root-relative paths.
+---
 
-## Out of scope
-
-- No changes to the admin editor flow (`/admin/blog`), no new blog posts, no Search Console submissions in code.
+## Verification & Next Steps
+Please review the PR 0 investigation findings above. Once you click **Implement plan**, I will begin executing **PR 1** (locking down `extractor.ts`, pausing background AI crons, and implementing dev/prod tagging).

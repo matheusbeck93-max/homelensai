@@ -52,7 +52,7 @@ export class LovableGatewayProvider implements ChatProvider {
   private buildBody(modelId: ModelId, req: ChatRequest, stream: boolean): Record<string, unknown> {
     const spec = getModelSpec(modelId);
     const messages: Array<Record<string, unknown>> = [];
-    if (req.system) messages.push({ role: "system", content: req.system });
+    if (req.system) messages.push({ role: "system", content: req.system, cache_control: { type: "ephemeral" } });
     for (const m of req.messages) {
       const msg: Record<string, unknown> = { role: m.role, content: m.content };
       if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;

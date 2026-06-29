@@ -20,7 +20,11 @@ export type SurfaceId =
   | "my_properties_strategy"
   | "artifact_generation"
   | "alerts_engine"
-  | "property_valuation_commentary";
+  | "property_valuation_commentary"
+  | "photo_categorization"
+  | "followup_ranking"
+  | "intent_detection"
+  | "memory_categorization";
 
 export interface SurfaceTierConfig {
   primary: ModelId;
@@ -44,6 +48,7 @@ export interface SurfaceConfig {
 const STD: ModelId = "gateway:standard";
 const PRE: ModelId = "gateway:premium";
 const FBK: ModelId = "gateway:fallback";
+const HAI: ModelId = "gateway:haiku";
 
 export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
   general_chat: {
@@ -136,6 +141,42 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
       free: { primary: STD, fallback: FBK },
       buyer: { primary: STD, fallback: FBK },
       investor: { primary: STD, fallback: FBK },
+    },
+    maxToolIterations: 0,
+  },
+  photo_categorization: {
+    description: "Cheap lightweight classification of property photos.",
+    tiers: {
+      free: { primary: HAI, fallback: FBK },
+      buyer: { primary: HAI, fallback: FBK },
+      investor: { primary: HAI, fallback: FBK },
+    },
+    maxToolIterations: 0,
+  },
+  followup_ranking: {
+    description: "Cheap ranking of follow-up chip suggestions.",
+    tiers: {
+      free: { primary: HAI, fallback: FBK },
+      buyer: { primary: HAI, fallback: FBK },
+      investor: { primary: HAI, fallback: FBK },
+    },
+    maxToolIterations: 0,
+  },
+  intent_detection: {
+    description: "Lightweight routing and intent classification.",
+    tiers: {
+      free: { primary: HAI, fallback: FBK },
+      buyer: { primary: HAI, fallback: FBK },
+      investor: { primary: HAI, fallback: FBK },
+    },
+    maxToolIterations: 0,
+  },
+  memory_categorization: {
+    description: "Categorizing durable user memories.",
+    tiers: {
+      free: { primary: HAI, fallback: FBK },
+      buyer: { primary: HAI, fallback: FBK },
+      investor: { primary: HAI, fallback: FBK },
     },
     maxToolIterations: 0,
   },

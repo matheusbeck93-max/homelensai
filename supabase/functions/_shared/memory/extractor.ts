@@ -4,7 +4,7 @@
  * budget pools used by user-facing chat.
  */
 
-import { AnthropicProvider } from '../ai/anthropicProvider.ts';
+import { completeWithFallback } from '../ai/router.ts';
 import type { ExtractedMemoryCandidate, MemoryCategory } from './types.ts';
 
 const SYSTEM_PROMPT = `You extract durable, useful long-term memories about a real-estate user from a chat transcript.
@@ -66,10 +66,9 @@ export async function summarizeConversation(
   const transcript = buildTranscript(messages);
   if (transcript.length < 40) return []; // nothing worth extracting
 
-  const provider = new AnthropicProvider();
   let raw: string;
   try {
-    const result = await provider.complete('gateway:standard', {
+    const result = await completeWithFallback('memory_categorization', {
       system: SYSTEM_PROMPT,
       messages: [
         { role: 'user', content: `Transcript:\n\n${transcript}` },
@@ -77,7 +76,7 @@ export async function summarizeConversation(
       maxTokens: 800,
       temperature: 0.1,
       responseFormat: 'json',
-    });
+    }, { userId: _userId, tier: 'buyer' });
     raw = result.text ?? '';
   } catch (err) {
     console.warn('[memory.extractor] anthropic call failed', err);

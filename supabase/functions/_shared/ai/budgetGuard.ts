@@ -27,7 +27,7 @@ export interface BudgetLimits {
  *   buyer    $9.97/mo  → $0.50/day  (~25 turns/day)
  *   investor $24.97/mo → $1.50/day  (~75 turns/day)
  */
-const DEFAULT_LIMITS: BudgetLimits = { free: 0.10, buyer: 0.50, investor: 1.50 };
+const DEFAULT_LIMITS: BudgetLimits = { free: 1, buyer: 10, investor: 25 };
 
 /**
  * Per-tier monthly USD ceiling. Defense-in-depth on top of daily caps,
@@ -36,7 +36,7 @@ const DEFAULT_LIMITS: BudgetLimits = { free: 0.10, buyer: 0.50, investor: 1.50 }
  *   buyer    $12 / month   (subscription $9.97/mo)
  *   investor $40 / month   (subscription $24.97/mo)
  */
-const DEFAULT_MONTHLY_LIMITS: BudgetLimits = { free: 3, buyer: 12, investor: 40 };
+const DEFAULT_MONTHLY_LIMITS: BudgetLimits = { free: 1, buyer: 10, investor: 25 };
 
 function envNum(name: string, fallback: number): number {
   const v = Deno.env.get(name);
@@ -47,17 +47,17 @@ function envNum(name: string, fallback: number): number {
 
 export function getBudgetLimits(): BudgetLimits {
   return {
-    free: envNum("AI_BUDGET_FREE_USD", DEFAULT_LIMITS.free),
-    buyer: envNum("AI_BUDGET_BUYER_USD", DEFAULT_LIMITS.buyer),
-    investor: envNum("AI_BUDGET_INVESTOR_USD", DEFAULT_LIMITS.investor),
+    free: envNum("DAILY_CAP_FREE_USD", envNum("AI_BUDGET_FREE_USD", DEFAULT_LIMITS.free)),
+    buyer: envNum("DAILY_CAP_BUYER_USD", envNum("AI_BUDGET_BUYER_USD", DEFAULT_LIMITS.buyer)),
+    investor: envNum("DAILY_CAP_INVESTOR_USD", envNum("AI_BUDGET_INVESTOR_USD", DEFAULT_LIMITS.investor)),
   };
 }
 
 export function getMonthlyBudgetLimits(): BudgetLimits {
   return {
-    free: envNum("AI_BUDGET_MONTHLY_FREE_USD", DEFAULT_MONTHLY_LIMITS.free),
-    buyer: envNum("AI_BUDGET_MONTHLY_BUYER_USD", DEFAULT_MONTHLY_LIMITS.buyer),
-    investor: envNum("AI_BUDGET_MONTHLY_INVESTOR_USD", DEFAULT_MONTHLY_LIMITS.investor),
+    free: envNum("MONTHLY_CAP_FREE_USD", envNum("AI_BUDGET_MONTHLY_FREE_USD", DEFAULT_MONTHLY_LIMITS.free)),
+    buyer: envNum("MONTHLY_CAP_BUYER_USD", envNum("AI_BUDGET_MONTHLY_BUYER_USD", DEFAULT_MONTHLY_LIMITS.buyer)),
+    investor: envNum("MONTHLY_CAP_INVESTOR_USD", envNum("AI_BUDGET_MONTHLY_INVESTOR_USD", DEFAULT_MONTHLY_LIMITS.investor)),
   };
 }
 
@@ -116,6 +116,7 @@ function getServiceClient(): SupabaseClient | null {
 export async function getTodaySpendUsd(
   userId: string,
   client: SupabaseClient | null = getServiceClient(),
+  isDevCall: boolean = false,
 ): Promise<number> {
   if (!client || !userId) return 0;
   const today = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
@@ -123,7 +124,8 @@ export async function getTodaySpendUsd(
     .from("ai_usage_log")
     .select("cost_usd")
     .eq("user_id", userId)
-    .eq("usage_date", today);
+    .eq("usage_date", today)
+    .eq("is_dev_call", isDevCall);
   if (error) {
     console.error("[ai-router] budget read failed:", error.message);
     return 0;
@@ -143,6 +145,7 @@ export async function getTodaySpendUsd(
 export async function getMonthSpendUsd(
   userId: string,
   client: SupabaseClient | null = getServiceClient(),
+  isDevCall: boolean = false,
 ): Promise<number> {
   if (!client || !userId) return 0;
   const now = new Date();
@@ -153,7 +156,8 @@ export async function getMonthSpendUsd(
     .from("ai_usage_log")
     .select("cost_usd")
     .eq("user_id", userId)
-    .gte("usage_date", firstOfMonth);
+    .gte("usage_date", firstOfMonth)
+    .eq("is_dev_call", isDevCall);
   if (error) {
     console.error("[ai-router] monthly budget read failed:", error.message);
     return 0;
@@ -188,6 +192,7 @@ export async function checkBudget(
     client?: SupabaseClient | null;
     limits?: BudgetLimits;
     monthlyLimits?: BudgetLimits;
+    isDevCall?: boolean;
   } = {},
 ): Promise<BudgetStatus> {
   const limits = opts.limits ?? getBudgetLimits();
@@ -211,8 +216,8 @@ export async function checkBudget(
     };
   }
   const [usedUsd, monthlyUsed] = await Promise.all([
-    getTodaySpendUsd(userId, client),
-    getMonthSpendUsd(userId, client),
+    getTodaySpendUsd(userId, client, opts.isDevCall ?? false),
+    getMonthSpendUsd(userId, client, opts.isDevCall ?? false),
   ]);
   const overDaily = usedUsd >= capUsd;
   const overMonthly = monthlyUsed >= monthlyCap;

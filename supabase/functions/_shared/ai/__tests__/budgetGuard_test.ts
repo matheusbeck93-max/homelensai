@@ -103,14 +103,14 @@ Deno.test("firstOfNextMonthIso — wraps year on December", () => {
 
 Deno.test("getBudgetLimits / getMonthlyBudgetLimits — default tier thresholds", () => {
   const daily = getBudgetLimits();
-  assertEquals(daily.free, 0.10);
-  assertEquals(daily.buyer, 0.50);
-  assertEquals(daily.investor, 1.50);
+  assertEquals(daily.free, 1);
+  assertEquals(daily.buyer, 10);
+  assertEquals(daily.investor, 25);
 
   const monthly = getMonthlyBudgetLimits();
-  assertEquals(monthly.free, 3);
-  assertEquals(monthly.buyer, 12);
-  assertEquals(monthly.investor, 40);
+  assertEquals(monthly.free, 1);
+  assertEquals(monthly.buyer, 10);
+  assertEquals(monthly.investor, 25);
 });
 
 Deno.test("perplexityCostUsd — computes input + output cost for sonar", () => {

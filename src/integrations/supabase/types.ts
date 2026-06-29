@@ -24,6 +24,7 @@ export type Database = {
           event_type: string
           function_name: string
           id: string
+          is_dev_call: boolean
           model: string | null
           note: string | null
           prompt_tokens: number | null
@@ -40,6 +41,7 @@ export type Database = {
           event_type: string
           function_name: string
           id?: string
+          is_dev_call?: boolean
           model?: string | null
           note?: string | null
           prompt_tokens?: number | null
@@ -56,6 +58,7 @@ export type Database = {
           event_type?: string
           function_name?: string
           id?: string
+          is_dev_call?: boolean
           model?: string | null
           note?: string | null
           prompt_tokens?: number | null
@@ -74,6 +77,7 @@ export type Database = {
           error_code: string | null
           id: string
           input_tokens: number
+          is_dev_call: boolean
           latency_ms: number | null
           model_id: string
           output_tokens: number
@@ -93,6 +97,7 @@ export type Database = {
           error_code?: string | null
           id?: string
           input_tokens?: number
+          is_dev_call?: boolean
           latency_ms?: number | null
           model_id: string
           output_tokens?: number
@@ -112,6 +117,7 @@ export type Database = {
           error_code?: string | null
           id?: string
           input_tokens?: number
+          is_dev_call?: boolean
           latency_ms?: number | null
           model_id?: string
           output_tokens?: number
@@ -1869,6 +1875,10 @@ export type Database = {
           min_bathrooms: number | null
           min_bedrooms: number | null
           min_sqft: number | null
+          monthly_briefs_count: number
+          monthly_chat_count: number
+          monthly_photos_count: number
+          monthly_quota_reset_date: string | null
           must_have_features: string[] | null
           onboarding_completed: boolean | null
           persona: string | null
@@ -1942,6 +1952,10 @@ export type Database = {
           min_bathrooms?: number | null
           min_bedrooms?: number | null
           min_sqft?: number | null
+          monthly_briefs_count?: number
+          monthly_chat_count?: number
+          monthly_photos_count?: number
+          monthly_quota_reset_date?: string | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
           persona?: string | null
@@ -2015,6 +2029,10 @@ export type Database = {
           min_bathrooms?: number | null
           min_bedrooms?: number | null
           min_sqft?: number | null
+          monthly_briefs_count?: number
+          monthly_chat_count?: number
+          monthly_photos_count?: number
+          monthly_quota_reset_date?: string | null
           must_have_features?: string[] | null
           onboarding_completed?: boolean | null
           persona?: string | null

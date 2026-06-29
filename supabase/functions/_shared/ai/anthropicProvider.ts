@@ -100,13 +100,22 @@ export class AnthropicProvider implements ChatProvider {
       messages,
       stream,
     };
-    if (systemParts.length > 0) body.system = systemParts.join("\n\n");
+    if (systemParts.length > 0) {
+      body.system = [
+        {
+          type: "text",
+          text: systemParts.join("\n\n"),
+          cache_control: { type: "ephemeral" },
+        },
+      ];
+    }
     if (req.temperature !== undefined) body.temperature = req.temperature;
     if (req.tools && req.tools.length > 0) {
       body.tools = req.tools.map((t) => ({
         name: t.name,
         description: t.description,
         input_schema: t.parameters,
+        cache_control: { type: "ephemeral" },
       }));
       body.tool_choice = translateToolChoice(req.toolChoice);
     }
