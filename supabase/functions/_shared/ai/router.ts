@@ -27,7 +27,7 @@ import { BudgetExceededError, checkBudget, type BudgetStatus } from "./budgetGua
 import { getFlagDecision, isSurfaceEnabled } from "./featureFlags.ts";
 import { checkAndIncrementFeatureQuota, FeatureQuotaExceededError, type FeatureKind } from "../usage-gate.ts";
 
-export { BudgetExceededError };
+export { BudgetExceededError, FeatureQuotaExceededError };
 export { getFlagDecision, isSurfaceEnabled };
 
 export interface RouterContext {

@@ -1,17 +1,45 @@
-### Phase 6: Operational Activation & Verification
+# PR #6 — Feature Quota Leak Lockdown & Frontend Upsell Wiring
 
-All code architecture changes (PR #1 through PR #5) and database schema migrations have landed and passed 100% of unit tests. To finalize the AI Cost Optimization rollout, we will execute the operational activation steps:
+## Executive Summary
+We just shipped PR #1 through #5 of the AI Cost Optimization & Spend Controls architecture, plus activated the background cron pause (`PRELAUNCH_PAUSE_BACKGROUND_JOBS=true`). 
 
-#### 1. Activate Pre-launch Cron Pause Guard
-- **Action**: Set `PRELAUNCH_PAUSE_BACKGROUND_JOBS=true` via Lovable Cloud environment secrets.
-- **Impact**: Immediately pauses the daily `send-weekly-picks` and 10-minute `memory-session-sweeper` crons in production (dropping background non-user LLM burn to zero) while keeping essential FRED and BLS macro prefetches active.
+Our post-deploy verification audit identified **one remaining production leak in PR #2 (Feature Quotas)** that must land before final sign-off:
+When `completeWithFallback` in `_shared/ai/router.ts` throws a `FeatureQuotaExceededError` (e.g., a Free user hits their 20 chats/month cap), the consumer edge functions catch the error in their outer fallback blocks, assume the gateway failed, and fall back to calling the Lovable AI Gateway directly. **This makes feature quotas ineffective in production.**
 
-#### 2. Verify Live Telemetry at `/admin/ai-spend`
-- **Action**: Confirm telemetry logging on the live staff dashboard (`/admin/ai-spend`).
-- **Verification checkpoints**:
-  - Spend isolation confirms dev/preview runs (`is_dev_call = true`) do not debit production credit allowances.
-  - Model breakdown verifies lightweight operations (photo categorization, intent, chip ranking) route cleanly to `claude-haiku-4-5`.
-  - Monthly USD cap enforcement ($1 Free / $10 Buyer / $25 Investor) and feature quotas accurately gate turn admission.
+---
 
-#### 3. 24h Sign-off & Burn Confirmation
-- **Action**: Monitor the Anthropic Console billing dashboard over the next 24 hours to confirm direct SDK charges drop to near-zero now that all memory extraction and fallback paths route through the unified gateway pipeline.
+## Scope of Work
+
+### 1. Edge Function Quota Interception
+Update `routerErrorResponse` and fallback `catch` blocks across primary AI chat endpoints:
+- `supabase/functions/ai-chat/index.ts`
+- `supabase/functions/investor-chat/index.ts`
+- `supabase/functions/owned-property-chat/index.ts`
+- `supabase/functions/preferences-chat/index.ts`
+
+**Implementation:**
+Explicitly check for `FeatureQuotaExceededError` alongside `BudgetExceededError`. When caught, immediately short-circuit and return HTTP `402 Payment Required` with a structured payload:
+```json
+{
+  "error": "You've reached your monthly AI limit on your current plan. Upgrade to continue.",
+  "code": "QUOTA_EXCEEDED"
+}
+```
+
+### 2. Frontend Upsell Nudge Wiring
+Update client-side chat hooks and error boundaries:
+- `src/hooks/useAiChat.ts`
+- `src/components/...` (Chat input / messages UI)
+
+**Implementation:**
+When a chat API call returns `status === 402` or `code === 'QUOTA_EXCEEDED'`, suppress generic error toasts and automatically present the `<PricingModal />` (or navigate to `/pricing`) to convert the paywall into an immediate upgrade conversion.
+
+### 3. Phase 6 Operational Verification (24h Sign-off)
+- Confirm on `/admin/ai-spend` that prompt cache hit rate stabilizes >70%.
+- Confirm in Anthropic Console billing dashboard that direct SDK billing drops to $0.00.
+
+---
+
+## Verification Plan
+1. **Automated Tests:** Update TypeScript edge unit tests (`router_test.ts`, etc.) to assert `402 Payment Required` is returned when feature quotas are exhausted.
+2. **Live Preview Check:** Temporarily set a profile's `monthly_chat_count` to 20 on Free tier and verify sending a chat prompt surfaces the upgrade paywall dialog cleanly.
