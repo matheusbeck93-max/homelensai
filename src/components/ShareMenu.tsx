@@ -75,9 +75,18 @@ export function ShareMenu({ property, children }: ShareMenuProps) {
     setOpen(false);
   };
 
-  const handleTwitter = () => {
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(twitterUrl, "_blank", "noopener,noreferrer");
+  const handleX = () => {
+    const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    window.open(xUrl, "_blank", "noopener,noreferrer");
+    setOpen(false);
+  };
+
+  const handleInstagram = () => {
+    navigator.clipboard.writeText(`${text} ${url}`);
+    toast({
+      title: "Copied to clipboard",
+      description: "Share this on Instagram by pasting it in your post or story",
+    });
     setOpen(false);
   };
 
