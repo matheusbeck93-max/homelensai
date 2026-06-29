@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Navigation } from "@/components/Navigation";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { usePostBySlug, getSignedCoverUrl, usePublishedPosts } from "@/hooks/useBlogPosts";
 import { PostCard } from "@/components/blog/PostCard";
+import { BlogSidebar, HeadingItem } from "@/components/blog/BlogSidebar";
 
 const SITE = "https://homelensais.com";
 
@@ -16,10 +17,35 @@ export default function BlogPost() {
   const { data: post, isLoading } = usePostBySlug(slug);
   const { data: allPosts = [] } = usePublishedPosts();
   const [cover, setCover] = useState<string | null>(null);
+  const [headings, setHeadings] = useState<HeadingItem[]>([]);
+  const articleRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (post?.cover_image_url) getSignedCoverUrl(post.cover_image_url).then(setCover);
   }, [post?.cover_image_url]);
+
+  // Parse headings and attach stable IDs after HTML injection
+  useEffect(() => {
+    if (!post || !articleRef.current) return;
+    const elements = articleRef.current.querySelectorAll("h2, h3");
+    const items: HeadingItem[] = [];
+    elements.forEach((el, index) => {
+      let id = el.getAttribute("id");
+      if (!id) {
+        id = el.textContent
+          ?.toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "") || `heading-${index}`;
+        el.setAttribute("id", id);
+      }
+      items.push({
+        id,
+        text: el.textContent || "",
+        level: el.tagName === "H2" ? 2 : 3,
+      });
+    });
+    setHeadings(items);
+  }, [post?.body_html]);
 
   const related = useMemo(() => {
     if (!post) return [];
@@ -32,7 +58,7 @@ export default function BlogPost() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navigation />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 pt-24 pb-16">
+        <main className="flex-1 container max-w-6xl mx-auto px-4 pt-24 pb-16">
           <p className="text-muted-foreground">Loading…</p>
         </main>
         <Footer />
@@ -44,7 +70,7 @@ export default function BlogPost() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navigation />
-        <main className="flex-1 container max-w-3xl mx-auto px-4 pt-24 pb-16">
+        <main className="flex-1 container max-w-6xl mx-auto px-4 pt-24 pb-16">
           <h1 className="text-3xl font-bold mb-3">Post not found</h1>
           <p className="text-muted-foreground mb-6">This post may have been moved or unpublished.</p>
           <Button asChild><Link to="/blog">Back to blog</Link></Button>
@@ -92,12 +118,13 @@ export default function BlogPost() {
 
       <Navigation />
 
-      <main className="flex-1 container max-w-3xl mx-auto px-4 pt-24 pb-16">
+      <main className="flex-1 container max-w-6xl mx-auto px-4 pt-24 pb-16">
         <Link to="/blog" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-4 w-4" /> Back to blog
         </Link>
 
-        <header className="mb-8">
+        {/* Main Title Banner & Hero Subtitle */}
+        <header className="mb-10 max-w-4xl">
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-4">
             {post.category && <Badge variant="secondary">{post.category}</Badge>}
             {date && <span>{date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>}
@@ -107,27 +134,35 @@ export default function BlogPost() {
           {post.excerpt && <p className="mt-5 text-lg sm:text-xl text-muted-foreground leading-relaxed">{post.excerpt}</p>}
         </header>
 
-        {cover && (
-          <div className="aspect-[16/9] overflow-hidden rounded-xl border border-border/60 bg-muted mb-10 shadow-sm">
-            <img src={cover} alt={post.title} className="h-full w-full object-cover" />
-          </div>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-12 items-start">
+          <div>
+            {/* Cover image right above article content */}
+            {cover && (
+              <div className="aspect-[16/9] overflow-hidden rounded-xl border border-border/60 bg-muted mb-10 shadow-sm">
+                <img src={cover} alt={post.title} className="h-full w-full object-cover" />
+              </div>
+            )}
 
-        <article
-          className="prose prose-neutral dark:prose-invert prose-lg max-w-none
-            prose-headings:tracking-tight prose-headings:font-bold
-            prose-h2:mt-12 prose-h2:mb-4 prose-h2:text-3xl
-            prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-xl
-            prose-p:leading-relaxed
-            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-            prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:not-italic
-            prose-img:rounded-lg prose-img:border prose-img:border-border/60
-            prose-figure:my-8
-            prose-figcaption:text-center prose-figcaption:text-sm prose-figcaption:text-muted-foreground prose-figcaption:mt-2
-            prose-ul:my-4 prose-li:my-1
-            prose-strong:text-foreground"
-          dangerouslySetInnerHTML={{ __html: post.body_html }}
-        />
+            <article
+              ref={articleRef}
+              className="prose prose-neutral dark:prose-invert prose-lg max-w-none
+                prose-headings:tracking-tight prose-headings:font-bold prose-headings:scroll-mt-24
+                prose-h2:mt-12 prose-h2:mb-4 prose-h2:text-3xl
+                prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-xl
+                prose-p:leading-relaxed
+                prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:not-italic
+                prose-img:rounded-lg prose-img:border prose-img:border-border/60
+                prose-figure:my-8
+                prose-figcaption:text-center prose-figcaption:text-sm prose-figcaption:text-muted-foreground prose-figcaption:mt-2
+                prose-ul:my-4 prose-li:my-1
+                prose-strong:text-foreground"
+              dangerouslySetInnerHTML={{ __html: post.body_html }}
+            />
+          </div>
+
+          <BlogSidebar headings={headings} title={title} url={url} />
+        </div>
 
         {post.tags?.length > 0 && (
           <div className="mt-12 pt-6 border-t flex flex-wrap gap-2">
