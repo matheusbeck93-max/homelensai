@@ -87,6 +87,8 @@ export function usePostByIdAdmin(id: string | undefined) {
 export async function getSignedCoverUrl(path: string | null | undefined): Promise<string | null> {
   if (!path) return null;
   if (/^https?:\/\//i.test(path)) return path;
+  // Root-relative paths (served from /public) work in preview and production.
+  if (path.startsWith("/")) return path;
   const { data, error } = await supabase
     .storage
     .from("blog-covers")

@@ -78,11 +78,19 @@ export default function Blog() {
           <p className="text-muted-foreground">Loading posts…</p>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <p>No posts yet. Check back soon for US real estate news and insights.</p>
+            <p>No posts match your search. Try a different keyword or category.</p>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((p) => <PostCard key={p.id} post={p} />)}
+          <div className="space-y-10">
+            {/* Featured = newest, only when not filtering */}
+            {!search && !category && filtered[0] && (
+              <PostCard post={filtered[0]} variant="featured" />
+            )}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {(!search && !category ? filtered.slice(1) : filtered).map((p) => (
+                <PostCard key={p.id} post={p} />
+              ))}
+            </div>
           </div>
         )}
       </main>
