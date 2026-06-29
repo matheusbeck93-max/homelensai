@@ -70,7 +70,8 @@ export function Navigation() {
     "/",
     ...HOMEPAGE_SECTIONS.map((s) => s.path),
   ]);
-  const isHomepageRoute = homepagePaths.has(location.pathname);
+  const isBlogRoute = location.pathname.startsWith("/blog");
+  const isHomepageRoute = homepagePaths.has(location.pathname) || isBlogRoute;
   const showSectionNav = isHomepageRoute && !user;
   const showAppNav = !showSectionNav;
 
