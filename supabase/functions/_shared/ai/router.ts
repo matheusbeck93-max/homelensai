@@ -25,6 +25,7 @@ import {
 import { logUsageAsync } from "./usageLogger.ts";
 import { BudgetExceededError, checkBudget, type BudgetStatus } from "./budgetGuard.ts";
 import { getFlagDecision, isSurfaceEnabled } from "./featureFlags.ts";
+import { checkAndIncrementFeatureQuota, FeatureQuotaExceededError, type FeatureKind } from "../usage-gate.ts";
 
 export { BudgetExceededError };
 export { getFlagDecision, isSurfaceEnabled };
@@ -35,6 +36,7 @@ export interface RouterContext {
   signal?: AbortSignal;
   /** Optional upstream request id for correlating logs with edge requests. */
   requestId?: string;
+  isDevCall?: boolean;
 }
 
 export interface RouterOptions {
@@ -85,6 +87,7 @@ function logUsage(
     status,
     errorCode,
     requestId: ctx.requestId,
+    isDevCall: ctx.isDevCall ?? false,
   });
 }
 
@@ -126,7 +129,7 @@ class DispatchingProvider implements ChatProvider {
 
 async function enforceBudget(ctx: RouterContext, opts: RouterOptions): Promise<BudgetStatus | null> {
   if (opts.skipBudgetCheck) return null;
-  const status = await checkBudget(ctx.userId, ctx.tier);
+  const status = await checkBudget(ctx.userId, ctx.tier, { isDevCall: ctx.isDevCall ?? false });
   if (!status.allowed) {
     const capType = status.capType ?? "daily";
     const used = capType === "monthly" ? (status.monthlyUsedUsd ?? 0) : status.usedUsd;
@@ -153,6 +156,23 @@ export async function completeWithFallback(
 ): Promise<CompleteResult> {
   const provider = opts.provider ?? defaultProvider();
   const { primary, fallback } = pickModel(surface, ctx.tier);
+
+  // Feature-level quota enforcement (PR #2)
+  if (ctx.userId && !opts.skipBudgetCheck && !ctx.isDevCall) {
+    let feature: FeatureKind = "chat";
+    if (surface === "investor_brief") feature = "briefs";
+    else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";
+    
+    try {
+      const fGate = await checkAndIncrementFeatureQuota(ctx.userId, ctx.tier, feature);
+      if (!fGate.allowed) {
+        throw new FeatureQuotaExceededError(ctx.tier, feature, 0);
+      }
+    } catch (err) {
+      if (err instanceof FeatureQuotaExceededError) throw err;
+    }
+  }
+
   try {
     await enforceBudget(ctx, opts);
   } catch (err) {
@@ -207,6 +227,23 @@ export async function* streamWithFallback(
 ): AsyncIterable<StreamEvent> {
   const provider = opts.provider ?? defaultProvider();
   const { primary, fallback } = pickModel(surface, ctx.tier);
+
+  // Feature-level quota enforcement (PR #2)
+  if (ctx.userId && !opts.skipBudgetCheck && !ctx.isDevCall) {
+    let feature: FeatureKind = "chat";
+    if (surface === "investor_brief") feature = "briefs";
+    else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";
+    
+    try {
+      const fGate = await checkAndIncrementFeatureQuota(ctx.userId, ctx.tier, feature);
+      if (!fGate.allowed) {
+        throw new FeatureQuotaExceededError(ctx.tier, feature, 0);
+      }
+    } catch (err) {
+      if (err instanceof FeatureQuotaExceededError) throw err;
+    }
+  }
+
   try {
     await enforceBudget(ctx, opts);
   } catch (err) {
