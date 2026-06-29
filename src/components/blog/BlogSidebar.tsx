@@ -122,11 +122,20 @@ export function BlogSidebar({ headings, title, url }: BlogSidebarProps) {
           <Button
             variant="outline"
             size="sm"
-            className="h-9 w-9 p-0 hover:bg-[#1DA1F2]/10 hover:text-[#1DA1F2] hover:border-[#1DA1F2]/30"
-            onClick={shareOnTwitter}
-            title="Share on X (Twitter)"
+            className="h-9 w-9 p-0 hover:bg-foreground/10 hover:text-foreground hover:border-foreground/30"
+            onClick={shareOnX}
+            title="Share on X"
           >
-            <Twitter className="h-4 w-4" />
+            <X className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 w-9 p-0 hover:bg-[#E1306C]/10 hover:text-[#E1306C] hover:border-[#E1306C]/30"
+            onClick={shareOnInstagram}
+            title="Copy link for Instagram"
+          >
+            <InstagramIcon className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
