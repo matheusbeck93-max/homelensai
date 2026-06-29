@@ -167,10 +167,19 @@ export function ShareMenu({ property, children }: ShareMenuProps) {
           <Button
             variant="ghost"
             className="w-full justify-start"
-            onClick={handleTwitter}
+            onClick={handleX}
           >
-            <Twitter className="h-4 w-4 mr-2" />
-            X (Twitter)
+            <X className="h-4 w-4 mr-2" />
+            X
+          </Button>
+          
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={handleInstagram}
+          >
+            <InstagramIcon className="h-4 w-4 mr-2" />
+            Instagram
           </Button>
         </div>
       </PopoverContent>
