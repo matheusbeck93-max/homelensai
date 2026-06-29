@@ -27,6 +27,10 @@ Deno.serve(async (req) => {
   if (cronCheck) return cronCheck;
 
 
+  if (Deno.env.get("PRELAUNCH_PAUSE_BACKGROUND_JOBS") === "true") {
+    return new Response(JSON.stringify({ paused: true, message: "Pre-launch background jobs paused" }), { status: 200, headers: corsHeaders });
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
