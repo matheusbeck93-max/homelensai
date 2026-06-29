@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Share2, Copy, Mail, MessageSquare, Facebook, Twitter } from "lucide-react";
+import { Share2, Copy, Mail, MessageSquare, Facebook, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -7,6 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { InstagramIcon } from "@/components/icons/InstagramIcon";
 import { HomeLensListing } from "@/types/ui-blocks";
 
 interface ShareMenuProps {
