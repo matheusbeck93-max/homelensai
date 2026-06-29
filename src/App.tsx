@@ -104,6 +104,7 @@ const Blog = lazyWithRetry(() => import("./pages/Blog"));
 const BlogPost = lazyWithRetry(() => import("./pages/BlogPost"));
 const BlogAdmin = lazyWithRetry(() => import("./pages/admin/BlogAdmin"));
 const BlogEditor = lazyWithRetry(() => import("./pages/admin/BlogEditor"));
+const AiSpendAdmin = lazyWithRetry(() => import("./pages/admin/AiSpendAdmin"));
 
 const queryClient = new QueryClient();
 
@@ -171,6 +172,7 @@ function App() {
                   <Route path="/dmca" element={<DMCAPolicy />} />
                   <Route path="/do-not-sell" element={<DoNotSell />} />
                   <Route path="/admin/telemetry" element={<AdminTelemetry />} />
+                  <Route path="/admin/ai-spend" element={<StaffRoute><AiSpendAdmin /></StaffRoute>} />
                   <Route path="/account/usage" element={<ProtectedRoute><AccountUsage /></ProtectedRoute>} />
                   <Route path="/account/email-unsubscribe" element={<EmailUnsubscribe />} />
                   <Route path="/account/memory" element={<ProtectedRoute><AccountMemory /></ProtectedRoute>} />
