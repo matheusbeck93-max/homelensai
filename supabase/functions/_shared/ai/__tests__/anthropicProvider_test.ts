@@ -33,7 +33,7 @@ Deno.test("complete() targets the Anthropic messages endpoint with correct heade
   assertEquals(capturedHeaders!.get("x-api-key"), "sk-ant-test");
   assertEquals(capturedHeaders!.get("anthropic-version"), "2023-06-01");
   assertEquals(capturedBody.model, "claude-sonnet-4-5");
-  assertEquals(capturedBody.system, "be terse");
+  assertEquals(capturedBody.system, [{ type: "text", text: "be terse", cache_control: { type: "ephemeral" } }]);
   assertEquals(capturedBody.temperature, 0.2);
   assertEquals(capturedBody.messages[0], { role: "user", content: "hello" });
 
