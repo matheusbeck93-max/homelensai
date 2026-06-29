@@ -59,8 +59,8 @@ export function BlogSidebar({ headings, title, url }: BlogSidebarProps) {
     }
   };
 
-  const shareOnTwitter = () => {
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, "_blank");
+  const shareOnX = () => {
+    window.open(`https://x.com/intent/post?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, "_blank");
   };
 
   const shareOnFacebook = () => {
@@ -69,6 +69,10 @@ export function BlogSidebar({ headings, title, url }: BlogSidebarProps) {
 
   const shareOnWhatsApp = () => {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${title} - ${url}`)}`, "_blank");
+  };
+
+  const shareOnInstagram = () => {
+    navigator.clipboard.writeText(`${title} - ${url}`);
   };
 
   const copyToClipboard = async () => {
