@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Share2, Copy, Mail, MessageSquare, Facebook, Twitter } from "lucide-react";
+import { Share2, Copy, Mail, MessageSquare, Facebook, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -7,6 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { InstagramIcon } from "@/components/icons/InstagramIcon";
 import { HomeLensListing } from "@/types/ui-blocks";
 
 interface ShareMenuProps {
@@ -74,9 +75,18 @@ export function ShareMenu({ property, children }: ShareMenuProps) {
     setOpen(false);
   };
 
-  const handleTwitter = () => {
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(twitterUrl, "_blank", "noopener,noreferrer");
+  const handleX = () => {
+    const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    window.open(xUrl, "_blank", "noopener,noreferrer");
+    setOpen(false);
+  };
+
+  const handleInstagram = () => {
+    navigator.clipboard.writeText(`${text} ${url}`);
+    toast({
+      title: "Copied to clipboard",
+      description: "Share this on Instagram by pasting it in your post or story",
+    });
     setOpen(false);
   };
 
@@ -157,10 +167,19 @@ export function ShareMenu({ property, children }: ShareMenuProps) {
           <Button
             variant="ghost"
             className="w-full justify-start"
-            onClick={handleTwitter}
+            onClick={handleX}
           >
-            <Twitter className="h-4 w-4 mr-2" />
-            X (Twitter)
+            <X className="h-4 w-4 mr-2" />
+            X
+          </Button>
+          
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={handleInstagram}
+          >
+            <InstagramIcon className="h-4 w-4 mr-2" />
+            Instagram
           </Button>
         </div>
       </PopoverContent>
