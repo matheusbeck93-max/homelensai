@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Share2, Twitter, Facebook, MessageCircle, Link2, Check } from "lucide-react";
+import { Share2, X, Facebook, MessageCircle, Link2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InstagramIcon } from "@/components/icons/InstagramIcon";
 import { cn } from "@/lib/utils";
 
 export interface HeadingItem {
