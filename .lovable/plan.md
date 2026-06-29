@@ -1,45 +1,34 @@
-# PR #6 — Feature Quota Leak Lockdown & Frontend Upsell Wiring
+# Next PR — #7: Close out Quota Lockdown + Verification
 
-## Executive Summary
-We just shipped PR #1 through #5 of the AI Cost Optimization & Spend Controls architecture, plus activated the background cron pause (`PRELAUNCH_PAUSE_BACKGROUND_JOBS=true`). 
+PR #6 (Feature Quota Leak Lockdown) landed the backend half: every chat edge function (`ai-chat`, `investor-chat`, `owned-property-chat`, `preferences-assistant`, `investor-brief`, `ai-analyze`) now intercepts `FeatureQuotaExceededError` and returns HTTP 402 with `code: "QUOTA_EXCEEDED"`. The frontend half and operational sign-off were not finished. PR #7 closes that loop.
 
-Our post-deploy verification audit identified **one remaining production leak in PR #2 (Feature Quotas)** that must land before final sign-off:
-When `completeWithFallback` in `_shared/ai/router.ts` throws a `FeatureQuotaExceededError` (e.g., a Free user hits their 20 chats/month cap), the consumer edge functions catch the error in their outer fallback blocks, assume the gateway failed, and fall back to calling the Lovable AI Gateway directly. **This makes feature quotas ineffective in production.**
+## Scope
 
----
+### 1. Frontend recognizes QUOTA_EXCEEDED (not just BUDGET_EXCEEDED)
+- `src/lib/edgeErrors.ts` — extend `isCreditsExhausted` to match `code === "QUOTA_EXCEEDED"` and 402 status (today it only handles 429 / `ai_credits_exhausted`).
+- `src/lib/ai/budgetCap.ts` — update `parseAndRecordBudget402` / `recordBudgetExceededFrom402` so a `QUOTA_EXCEEDED` 402 sets a **monthly** cap (not daily) and surfaces tier + feature from the payload. Today both codes get treated as a daily budget hit.
 
-## Scope of Work
+### 2. Wire upsell UI on every chat surface
+- `src/components/console/PreferencesChat.tsx` — add `useBudgetCap` + `<BudgetCapBlocker surface="preferences_assistant" />` + disabled composer (parity with `PropertyChat.tsx`). This is the only chat surface still missing the blocker.
+- `src/pages/Chats.tsx` — verify the main chat triggers `CreditsExhaustedDialog` **or** routes to `/pricing` on `QUOTA_EXCEEDED` (monthly), and keeps the daily reset dialog for `BUDGET_EXCEEDED`.
+- `CreditsExhaustedDialog.tsx` — branch copy/CTA for monthly vs daily (today it hard-codes "daily" and "100 credits").
 
-### 1. Edge Function Quota Interception
-Update `routerErrorResponse` and fallback `catch` blocks across primary AI chat endpoints:
-- `supabase/functions/ai-chat/index.ts`
-- `supabase/functions/investor-chat/index.ts`
-- `supabase/functions/owned-property-chat/index.ts`
-- `supabase/functions/preferences-chat/index.ts`
+### 3. Investor brief + SSE paths
+- Confirm `investor-brief` 402 surfaces in `useInvestorBrief` as a paywall (not a generic toast).
+- Confirm `investor-chat` SSE `QUOTA_EXCEEDED` events trigger the blocker mid-stream in `streamClient.ts`.
 
-**Implementation:**
-Explicitly check for `FeatureQuotaExceededError` alongside `BudgetExceededError`. When caught, immediately short-circuit and return HTTP `402 Payment Required` with a structured payload:
-```json
-{
-  "error": "You've reached your monthly AI limit on your current plan. Upgrade to continue.",
-  "code": "QUOTA_EXCEEDED"
-}
-```
+### 4. 24h verification (sign-off gate)
+- `/admin/ai-spend`: prompt-cache hit rate ≥ 70%, monthly quota counters incrementing per tier.
+- Anthropic Console: direct SDK billing = $0 (confirms no remaining `rawGateway` bypass).
+- Manual probe: set a test profile's `monthly_chat_count = 20` on Free → send a chat → expect blocker, not a fallback reply.
 
-### 2. Frontend Upsell Nudge Wiring
-Update client-side chat hooks and error boundaries:
-- `src/hooks/useAiChat.ts`
-- `src/components/...` (Chat input / messages UI)
+## Out of scope (defer)
+- Top-up flow copy refresh for the monthly path.
+- Per-feature analytics dashboard for QUOTA_EXCEEDED events.
 
-**Implementation:**
-When a chat API call returns `status === 402` or `code === 'QUOTA_EXCEEDED'`, suppress generic error toasts and automatically present the `<PricingModal />` (or navigate to `/pricing`) to convert the paywall into an immediate upgrade conversion.
+## Technical notes
+- 402 body shape standardized in PR #6: `{ error, code: "QUOTA_EXCEEDED" | "BUDGET_EXCEEDED", tier, feature, limit }`.
+- `useBudgetCap` already exposes `capType: "daily" | "monthly"` and `<BudgetCapBlocker />` already renders the right copy — the missing piece is the parser feeding it.
+- No DB migrations. No new edge functions.
 
-### 3. Phase 6 Operational Verification (24h Sign-off)
-- Confirm on `/admin/ai-spend` that prompt cache hit rate stabilizes >70%.
-- Confirm in Anthropic Console billing dashboard that direct SDK billing drops to $0.00.
-
----
-
-## Verification Plan
-1. **Automated Tests:** Update TypeScript edge unit tests (`router_test.ts`, etc.) to assert `402 Payment Required` is returned when feature quotas are exhausted.
-2. **Live Preview Check:** Temporarily set a profile's `monthly_chat_count` to 20 on Free tier and verify sending a chat prompt surfaces the upgrade paywall dialog cleanly.
+Estimated work: ~half a day, mostly client-side.
