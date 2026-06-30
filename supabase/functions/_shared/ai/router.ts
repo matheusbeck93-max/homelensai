@@ -126,7 +126,7 @@ function logUsage(
     status,
     errorCode,
     requestId: ctx.requestId,
-    isDevCall: ctx.isDevCall ?? false,
+    isDevCall: resolveIsDevCall(ctx),
   });
 }
 
@@ -168,7 +168,7 @@ class DispatchingProvider implements ChatProvider {
 
 async function enforceBudget(ctx: RouterContext, opts: RouterOptions): Promise<BudgetStatus | null> {
   if (opts.skipBudgetCheck) return null;
-  const status = await checkBudget(ctx.userId, ctx.tier, { isDevCall: ctx.isDevCall ?? false });
+  const status = await checkBudget(ctx.userId, ctx.tier, { isDevCall: resolveIsDevCall(ctx) });
   if (!status.allowed) {
     const capType = status.capType ?? "daily";
     const used = capType === "monthly" ? (status.monthlyUsedUsd ?? 0) : status.usedUsd;
@@ -197,7 +197,7 @@ export async function completeWithFallback(
   const { primary, fallback } = pickModel(surface, ctx.tier);
 
   // Feature-level quota enforcement (PR #2)
-  if (ctx.userId && !opts.skipBudgetCheck && !ctx.isDevCall) {
+  if (ctx.userId && !opts.skipBudgetCheck && !resolveIsDevCall(ctx)) {
     let feature: FeatureKind = "chat";
     if (surface === "investor_brief") feature = "briefs";
     else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";
@@ -268,7 +268,7 @@ export async function* streamWithFallback(
   const { primary, fallback } = pickModel(surface, ctx.tier);
 
   // Feature-level quota enforcement (PR #2)
-  if (ctx.userId && !opts.skipBudgetCheck && !ctx.isDevCall) {
+  if (ctx.userId && !opts.skipBudgetCheck && !resolveIsDevCall(ctx)) {
     let feature: FeatureKind = "chat";
     if (surface === "investor_brief") feature = "briefs";
     else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";
