@@ -37,6 +37,45 @@ export interface RouterContext {
   /** Optional upstream request id for correlating logs with edge requests. */
   requestId?: string;
   isDevCall?: boolean;
+  /** Origin/Referer of the upstream request — used to auto-tag dev calls. */
+  origin?: string;
+}
+const DEV_ORIGIN_PATTERNS = [
+  /^https?:\/\/localhost(:\d+)?$/i,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/i,
+  /\.lovable\.app$/i,
+  /\.lovableproject\.com$/i,
+  /lovable\.dev$/i,
+];
+
+/**
+ * Decide whether a request should be tagged is_dev_call=true. Explicit
+ * `isDevCall` always wins; otherwise we infer from the Origin/Referer.
+ * Called from `completeWithFallback` / `streamWithFallback`.
+ */
+export function isDevOrigin(origin?: string | null): boolean {
+  if (!origin) return false;
+  const trimmed = origin.trim();
+  return DEV_ORIGIN_PATTERNS.some((rx) => rx.test(trimmed));
+}
+
+function resolveIsDevCall(ctx: RouterContext): boolean {
+  if (typeof ctx.isDevCall === "boolean") return ctx.isDevCall;
+  return isDevOrigin(ctx.origin);
+}
+
+/**
+ * Convenience builder used by edge functions: pass the inbound Request and
+ * we'll extract the origin so the router can auto-tag dev calls.
+ */
+export function buildRouterContext(
+  base: Omit<RouterContext, "origin">,
+  req?: Request,
+): RouterContext {
+  const origin = req
+    ? req.headers.get("origin") ?? req.headers.get("referer") ?? undefined
+    : undefined;
+  return { ...base, origin };
 }
 
 export interface RouterOptions {
