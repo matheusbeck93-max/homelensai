@@ -27,6 +27,8 @@ import { getAuthenticatedUser } from '../_shared/auth.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { completeWithFallback, BudgetExceededError } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { FeatureQuotaExceededError } from '../_shared/usage-gate.ts';
+import { quotaErrorResponse } from '../_shared/quotaErrors.ts';
 import { getFredSeries } from '../_shared/fred-client.ts';
 import { FRED_SERIES } from '../_shared/fred-series.ts';
 import { detectRateMove } from '../_shared/macro-alerts.ts';
@@ -316,9 +318,9 @@ Deno.serve(async (req) => {
       );
       raw = result.text || '{}';
     } catch (err) {
-      if (err instanceof BudgetExceededError) {
+      if (err instanceof BudgetExceededError || err instanceof FeatureQuotaExceededError) {
         await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);
-        return jsonResponse({ error: 'Credits exhausted' }, 402);
+        return await quotaErrorResponse(err, req);
       }
       if (err instanceof ProviderError && err.status === 429) {
         await supabase.from('investor_briefs').update({ status: 'failed' }).eq('id', briefId);

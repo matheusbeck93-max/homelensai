@@ -14,6 +14,8 @@ import {
   BudgetExceededError,
 } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { FeatureQuotaExceededError } from '../_shared/usage-gate.ts';
+import { isQuotaError, quotaErrorSseEvent } from '../_shared/quotaErrors.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { executeFindOpenHouses } from '../_shared/openHouses/tool.ts';
@@ -1425,8 +1427,10 @@ async function callGateway(messages: any[], stream = false, routerCtx?: { userId
         headers: { 'Content-Type': 'application/json' },
       });
     } catch (err) {
-      if (err instanceof BudgetExceededError) {
-        throw new Error('Payment required, please add funds to your workspace.');
+      // Re-throw typed quota/budget errors so the SSE outer catch can
+      // emit the standardized `quota_exceeded` event (PR #6).
+      if (err instanceof BudgetExceededError || err instanceof FeatureQuotaExceededError) {
+        throw err;
       }
       if (err instanceof ProviderError && err.status === 429) {
         throw new Error('Rate limits exceeded, please try again later.');
@@ -1699,7 +1703,18 @@ Deno.serve(async (req) => {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('investor-chat error:', msg);
-        send('error', { message: msg });
+        // Mid-stream quota/budget trip → emit canonical SSE event so the
+        // client can render <BudgetCapBlocker /> (PR #6).
+        if (isQuotaError(e)) {
+          try {
+            controller.enqueue(await quotaErrorSseEvent(e));
+          } catch (encodeErr) {
+            console.error('investor-chat: failed to encode quota_exceeded event', encodeErr);
+            send('error', { message: msg });
+          }
+        } else {
+          send('error', { message: msg });
+        }
       } finally {
         controller.close();
       }

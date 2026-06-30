@@ -3,7 +3,10 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
-import { requireEnv } from '../_shared/env.ts';
+import { completeWithFallback, BudgetExceededError } from '../_shared/ai/router.ts';
+import { ProviderError } from '../_shared/ai/types.ts';
+import { FeatureQuotaExceededError } from '../_shared/usage-gate.ts';
+import { isQuotaError, quotaErrorResponse } from '../_shared/quotaErrors.ts';
 import {
   amortizedBalance,
   monthsBetween,
@@ -21,8 +24,6 @@ import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPromp
 
 const log = createLogger('owned-property-chat');
 
-const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
-const MODEL = 'google/gemini-2.5-flash';
 const MAX_TOOL_ITERATIONS = 4;
 
 const SYSTEM_PROMPT = `You are HomeLens Portfolio Advisor — an AI helping a US real-estate
@@ -272,27 +273,47 @@ for (const def of MACRO_TOOL_DEFS) {
 
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
-async function rawGateway(messages: any[]) {
-  const apiKey = requireEnv('LOVABLE_API_KEY');
-  const body = {
-    model: MODEL,
-    messages,
-    tools: TOOLS.map((t) => ({
-      type: 'function',
-      function: { name: t.name, description: t.description, parameters: t.parameters },
-    })),
-    tool_choice: 'auto',
+/**
+ * Route every owned-property-chat turn through the central AI router so it
+ * inherits prompt caching, Haiku routing on cheap paths, budget gating,
+ * and standardized 402 quota errors (PR #6).
+ *
+ * Returns the legacy gateway shape (`{ choices: [{ message }] }`) so the
+ * tool-call loop below stays unchanged.
+ */
+async function routedGateway(
+  messages: any[],
+  ctx: { userId: string; tier: 'free' | 'buyer' | 'investor' },
+) {
+  const system = messages.find((m) => m?.role === 'system')?.content ?? '';
+  const rest = messages.filter((m) => m?.role !== 'system');
+  const routed = await completeWithFallback(
+    'my_properties_strategy',
+    {
+      system: typeof system === 'string' ? system : undefined,
+      messages: rest.map((m: any) => ({
+        role: m.role,
+        content: typeof m.content === 'string' ? m.content : (m.content == null ? '' : JSON.stringify(m.content)),
+        ...(m.tool_call_id ? { tool_call_id: m.tool_call_id } : {}),
+        ...(m.tool_calls ? { tool_calls: m.tool_calls } : {}),
+      })),
+      tools: TOOLS.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters })),
+      toolChoice: 'auto',
+    },
+    { userId: ctx.userId, tier: ctx.tier },
+  );
+  return {
+    choices: [{
+      message: {
+        content: routed.text,
+        tool_calls: (routed.toolCalls ?? []).map((tc) => ({
+          id: tc.id,
+          type: 'function',
+          function: { name: tc.name, arguments: JSON.stringify(tc.arguments ?? {}) },
+        })),
+      },
+    }],
   };
-  const res = await fetch(GATEWAY_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Gateway ${res.status}: ${text.slice(0, 300)}`);
-  }
-  return res.json();
 }
 
 /** Pull top user memories for prompt injection. Parity with investor-chat. */
@@ -321,6 +342,7 @@ Deno.serve(async (req) => {
   try {
     const gate = await enforceFeature(req, 'INVESTOR_CALCULATOR');
     if (!gate.ok) return gate.error;
+    const userTier = gate.tier;
 
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader.startsWith('Bearer ')) return errorResponse('Unauthorized', 401, req);
@@ -394,7 +416,7 @@ Deno.serve(async (req) => {
     const collectedToolResults: any[] = [];
 
     for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-      const data = await rawGateway(convo);
+      const data = await routedGateway(convo, { userId: user.id, tier: userTier });
       const choice = data.choices?.[0];
       if (!choice) break;
       const assistantMsg = choice.message ?? {};
@@ -446,6 +468,12 @@ Deno.serve(async (req) => {
       req,
     );
   } catch (e) {
+    if (isQuotaError(e)) {
+      return await quotaErrorResponse(e, req);
+    }
+    if (e instanceof ProviderError && e.status === 429) {
+      return errorResponse('Rate limits exceeded, please try again later.', 429, req);
+    }
     log.error('chat failed', { error: getErrorMessage(e) });
     return errorResponse(getErrorMessage(e), 500, req);
   }
