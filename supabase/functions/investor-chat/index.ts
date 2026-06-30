@@ -1703,7 +1703,18 @@ Deno.serve(async (req) => {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('investor-chat error:', msg);
-        send('error', { message: msg });
+        // Mid-stream quota/budget trip → emit canonical SSE event so the
+        // client can render <BudgetCapBlocker /> (PR #6).
+        if (isQuotaError(e)) {
+          try {
+            controller.enqueue(await quotaErrorSseEvent(e));
+          } catch (encodeErr) {
+            console.error('investor-chat: failed to encode quota_exceeded event', encodeErr);
+            send('error', { message: msg });
+          }
+        } else {
+          send('error', { message: msg });
+        }
       } finally {
         controller.close();
       }
