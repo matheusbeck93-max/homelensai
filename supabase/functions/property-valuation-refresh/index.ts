@@ -3,11 +3,12 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
 import { fetchRentcastValuation, amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
+import { withCronLog } from '../_shared/cron-log.ts';
 
 const STALE_HOURS = 24;
 const BATCH_LIMIT = 50;
 
-Deno.serve(async (req) => {
+Deno.serve(withCronLog("property-valuation-refresh-hourly", async (req) => {
   const pre = handleCors(req);
   if (pre) return pre;
 
@@ -112,4 +113,4 @@ Deno.serve(async (req) => {
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-});
+}));

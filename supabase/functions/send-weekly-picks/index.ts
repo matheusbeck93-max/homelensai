@@ -12,11 +12,12 @@ import {
   BudgetExceededError,
 } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { withCronLog } from '../_shared/cron-log.ts';
 
 const log = createLogger('send-weekly-picks');
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
-Deno.serve(async (req) => {
+Deno.serve(withCronLog("send-weekly-picks", async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -328,4 +329,4 @@ Select the 5 best matches.`;
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

@@ -13,10 +13,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { sendTransactional } from '../_shared/email/sender.ts';
 import { searchOpenHouses } from '../_shared/openHouses/searchClient.ts';
 import { formatListingsAsCards } from '../_shared/openHouses/formatCards.ts';
+import { withCronLog } from '../_shared/cron-log.ts';
 
 const log = createLogger('send-open-house-digest');
 
-Deno.serve(async (req) => {
+Deno.serve(withCronLog("open-house-digest", async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -104,4 +105,4 @@ Deno.serve(async (req) => {
   }
 
   return jsonResponse({ ok: true, frequency, processed: results.length, results }, 200, req);
-});
+}));
