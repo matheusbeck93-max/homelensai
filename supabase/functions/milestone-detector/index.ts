@@ -92,6 +92,14 @@ Deno.serve(async (req) => {
     }
   }
 
+  await logCronRun({
+    jobName: 'milestone-detector-daily',
+    startedAt,
+    status: 'ok',
+    metadata: { processed_users: users?.length ?? 0, inserted: totalInserted, emails_sent: emailsQueued },
+    req,
+  });
+
   return new Response(
     JSON.stringify({
       processed_users: users?.length ?? 0,
@@ -100,5 +108,4 @@ Deno.serve(async (req) => {
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-  // Note: logCronRun is fire-and-forget for the success path below.
 });
