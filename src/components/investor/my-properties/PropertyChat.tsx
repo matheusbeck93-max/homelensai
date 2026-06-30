@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useBudgetCap, parseAndRecordBudget402 } from '@/lib/ai/budgetCap';
+import { parseEdgeError, isCreditsExhausted } from '@/lib/edgeErrors';
 import { BudgetCapBanner } from '@/components/ai/BudgetCapBanner';
 import { BudgetCapBlocker } from '@/components/ai/BudgetCapBlocker';
 import {
@@ -110,6 +111,17 @@ export function PropertyChat({ propertyId }: PropertyChatProps) {
       ]);
     } catch (e: any) {
       if (await parseAndRecordBudget402(e, 'owned_property_chat')) {
+        setMessages(messages);
+        return;
+      }
+      // PR #6: per-feature monthly quota (free/buyer) → upgrade toast.
+      const parsed = await parseEdgeError(e);
+      if (isCreditsExhausted(parsed)) {
+        const msg = (parsed.body && typeof parsed.body === 'object' && (parsed.body as any).message)
+          || "You've reached your monthly AI limit on this plan.";
+        toast.error(msg, {
+          action: { label: 'Upgrade', onClick: () => { window.location.href = '/pricing?source=feature_quota_owned_property_chat'; } },
+        });
         setMessages(messages);
         return;
       }

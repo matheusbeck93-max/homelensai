@@ -215,7 +215,13 @@ export function recordBudgetExceededFrom402(
   body: Record<string, unknown>,
   surface?: string,
 ): void {
-  if (!body || body.error !== "budget_exceeded") return;
+  // Accept either the legacy `error: 'budget_exceeded'` shape or the
+  // PR #6 canonical envelope `code: 'BUDGET_EXCEEDED'` (rich budget
+  // payload is spread alongside the code field by quotaErrors.ts).
+  if (!body) return;
+  const isBudget =
+    body.error === "budget_exceeded" || body.code === "BUDGET_EXCEEDED";
+  if (!isBudget) return;
   const tier = normalizeTier(body.tier);
   const used = Number(body.usage_today_usd ?? 0);
   const cap = Number(body.daily_limit_usd ?? 0);
@@ -277,7 +283,8 @@ export async function parseAndRecordBudget402(
     const cloned = ctx.clone();
     if (cloned.status !== 402) return false;
     const body = await cloned.json().catch(() => null);
-    if (!body || (body as { error?: string }).error !== "budget_exceeded") {
+    const b = body as { error?: string; code?: string };
+    if (!body || (b.error !== "budget_exceeded" && b.code !== "BUDGET_EXCEEDED")) {
       return false;
     }
     recordBudgetExceededFrom402(body as Record<string, unknown>, surface);

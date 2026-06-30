@@ -14,6 +14,7 @@ export type SseEvent =
       macro_answer?: Record<string, unknown>;
     }
   | { type: 'turn_done'; messageId: string | null; threadId: string }
+  | { type: 'quota_exceeded'; code: 'BUDGET_EXCEEDED' | 'QUOTA_EXCEEDED'; message?: string; upgradeUrl?: string; [k: string]: unknown }
   | { type: 'error'; message: string };
 
 /**
@@ -25,6 +26,14 @@ export class BudgetExceededError extends Error {
   constructor(message = 'Daily AI cap reached') {
     super(message);
     this.name = 'BudgetExceededError';
+  }
+}
+
+/** PR #6: thrown when a per-feature monthly quota (free/buyer tier) trips. */
+export class FeatureQuotaExceededError extends Error {
+  constructor(message = 'Monthly AI quota reached') {
+    super(message);
+    this.name = 'FeatureQuotaExceededError';
   }
 }
 
@@ -65,12 +74,17 @@ export async function streamInvestorChat(args: StreamTurnArgs): Promise<void> {
     if (res.status === 402) {
       try {
         const body = JSON.parse(text);
-        if (body && body.error === 'budget_exceeded') {
+        // PR #6: accept both legacy and canonical envelopes.
+        if (body && (body.code === 'BUDGET_EXCEEDED' || body.error === 'budget_exceeded')) {
           recordBudgetExceededFrom402(body, 'investor_chat');
           throw new BudgetExceededError();
         }
+        if (body && (body.code === 'QUOTA_EXCEEDED' || body.error === 'feature_quota_exceeded')) {
+          throw new FeatureQuotaExceededError(body.message || 'Monthly AI quota reached');
+        }
       } catch (e) {
         if (e instanceof BudgetExceededError) throw e;
+        if (e instanceof FeatureQuotaExceededError) throw e;
       }
     }
     throw new Error(`investor-chat ${res.status}: ${text || res.statusText}`);
@@ -98,6 +112,14 @@ export async function streamInvestorChat(args: StreamTurnArgs): Promise<void> {
       if (!dataStr) continue;
       try {
         const data = JSON.parse(dataStr);
+        // PR #6: mid-stream quota trip — record into the budget store and
+        // forward as a typed event so the UI can render <BudgetCapBlocker />
+        // or the credits-exhausted dialog without a generic toast.
+        if (event === 'quota_exceeded' && data && typeof data === 'object') {
+          if (data.code === 'BUDGET_EXCEEDED' || data.error === 'budget_exceeded') {
+            recordBudgetExceededFrom402(data, 'investor_chat');
+          }
+        }
         args.onEvent({ type: event as any, ...data });
       } catch (e) {
         console.error('SSE parse error', e, dataStr);
