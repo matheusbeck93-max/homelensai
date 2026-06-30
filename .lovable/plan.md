@@ -1,34 +1,22 @@
-# Next PR — #7: Close out Quota Lockdown + Verification
+# Plan: Create Chrome Extension Laptop Usage Video
 
-PR #6 (Feature Quota Leak Lockdown) landed the backend half: every chat edge function (`ai-chat`, `investor-chat`, `owned-property-chat`, `preferences-assistant`, `investor-brief`, `ai-analyze`) now intercepts `FeatureQuotaExceededError` and returns HTTP 402 with `code: "QUOTA_EXCEEDED"`. The frontend half and operational sign-off were not finished. PR #7 closes that loop.
+We will create a polished video showing a person using the HomeLens Chrome extension on a laptop, featuring the attached screenshot (`Captura de Tela 2026-06-15 às 16.16.29.heic`).
 
-## Scope
+## Recommended Approach: AI Video Generation (Option A) + Remotion Fallback/Alternative
 
-### 1. Frontend recognizes QUOTA_EXCEEDED (not just BUDGET_EXCEEDED)
-- `src/lib/edgeErrors.ts` — extend `isCreditsExhausted` to match `code === "QUOTA_EXCEEDED"` and 402 status (today it only handles 429 / `ai_credits_exhausted`).
-- `src/lib/ai/budgetCap.ts` — update `parseAndRecordBudget402` / `recordBudgetExceededFrom402` so a `QUOTA_EXCEEDED` 402 sets a **monthly** cap (not daily) and surfaces tier + feature from the payload. Today both codes get treated as a daily budget hit.
+To give you the exact experience requested ("Show the person sitting and using the extension on their laptop; their face does not need to be visible"), we propose the following plan:
 
-### 2. Wire upsell UI on every chat surface
-- `src/components/console/PreferencesChat.tsx` — add `useBudgetCap` + `<BudgetCapBlocker surface="preferences_assistant" />` + disabled composer (parity with `PropertyChat.tsx`). This is the only chat surface still missing the blocker.
-- `src/pages/Chats.tsx` — verify the main chat triggers `CreditsExhaustedDialog` **or** routes to `/pricing` on `QUOTA_EXCEEDED` (monthly), and keeps the daily reset dialog for `BUDGET_EXCEEDED`.
-- `CreditsExhaustedDialog.tsx` — branch copy/CTA for monthly vs daily (today it hard-codes "daily" and "100 credits").
+### Step 1: Convert & Prepare Screenshot
+- Convert `user-uploads://Captura_de_Tela_2026-06-15_às_16.16.29-2.heic` to a high-res PNG/JPG (`src/assets/laptop-screen-ext.png`).
 
-### 3. Investor brief + SSE paths
-- Confirm `investor-brief` 402 surfaces in `useInvestorBrief` as a paywall (not a generic toast).
-- Confirm `investor-chat` SSE `QUOTA_EXCEEDED` events trigger the blocker mid-stream in `streamClient.ts`.
+### Step 2: Generate Starting Frame Image (`imagegen`)
+- Generate a photorealistic starting frame: A person over-the-shoulder or side view, sitting in a modern, well-lit living room or office, working on a sleek laptop. The laptop screen cleanly displays our prepared HomeLens Chrome extension UI.
 
-### 4. 24h verification (sign-off gate)
-- `/admin/ai-spend`: prompt-cache hit rate ≥ 70%, monthly quota counters incrementing per tier.
-- Anthropic Console: direct SDK billing = $0 (confirms no remaining `rawGateway` bypass).
-- Manual probe: set a test profile's `monthly_chat_count = 20` on Free → send a chat → expect blocker, not a fallback reply.
+### Step 3: Generate Video (`videogen`)
+- Feed the starting frame and prompt into `videogen` to produce a 1080p cinematic video clip of the person typing/scrolling on the laptop.
+- Save the final MP4 artifact to `/mnt/documents/homelens-extension-laptop-usage.mp4`.
 
-## Out of scope (defer)
-- Top-up flow copy refresh for the monthly path.
-- Per-feature analytics dashboard for QUOTA_EXCEEDED events.
+### Step 4 (Alternative/Bonus if desired): Remotion Showcase Composition
+- If you also want an ultra-crisp agency motion graphic version (pure code animation), we can add a dedicated scene in `remotion/src/` displaying a sleek device mockup with kinetic typography.
 
-## Technical notes
-- 402 body shape standardized in PR #6: `{ error, code: "QUOTA_EXCEEDED" | "BUDGET_EXCEEDED", tier, feature, limit }`.
-- `useBudgetCap` already exposes `capType: "daily" | "monthly"` and `<BudgetCapBlocker />` already renders the right copy — the missing piece is the parser feeding it.
-- No DB migrations. No new edge functions.
-
-Estimated work: ~half a day, mostly client-side.
+Please click **Implement plan** to proceed!
