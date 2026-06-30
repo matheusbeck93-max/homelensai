@@ -92,3 +92,36 @@ export async function isPausedAndLog(jobName: string, req?: Request, startedAt: 
   await logCronRun({ jobName, startedAt, status: "skipped", metadata: { reason: "PRELAUNCH_PAUSE_BACKGROUND_JOBS" }, req });
   return true;
 }
+
+/**
+ * Wraps a Deno.serve handler so every invocation produces one cron_run_log
+ * row. OPTIONS (CORS preflight) requests are passed through untouched.
+ *
+ * Use:
+ *   Deno.serve(withCronLog("my-job-name", async (req) => { ... }));
+ */
+export function withCronLog(
+  jobName: string,
+  handler: (req: Request) => Promise<Response> | Response,
+): (req: Request) => Promise<Response> {
+  return async (req: Request) => {
+    if (req.method === "OPTIONS") return handler(req) as Response;
+    const startedAt = Date.now();
+    try {
+      const res = await handler(req);
+      const status = res.status >= 400 ? "error" : "ok";
+      logCronRun({ jobName, startedAt, status, metadata: { http_status: res.status }, req })
+        .catch((err) => console.error("[cron-log] wrap log failed:", err));
+      return res;
+    } catch (err) {
+      logCronRun({
+        jobName,
+        startedAt,
+        status: "error",
+        errorMessage: (err as Error)?.message ?? String(err),
+        req,
+      }).catch(() => {});
+      throw err;
+    }
+  };
+}
