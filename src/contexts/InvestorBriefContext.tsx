@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { ComposedCard } from '@/lib/investorBrief/types';
-import { streamInvestorChat, BudgetExceededError } from '@/lib/investorChat/streamClient';
+import { streamInvestorChat, BudgetExceededError, FeatureQuotaExceededError } from '@/lib/investorChat/streamClient';
 import { anchorFor, type CurrentTurn, type ToolEvent } from '@/lib/investorChat/turnTypes';
 
 export type BriefMode = 'brief' | 'chat';
@@ -347,6 +347,10 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
             });
           } else if (ev.type === 'error') {
             setCurrentTurn((prev) => ({ ...prev, status: 'error', error: ev.message }));
+          } else if (ev.type === 'quota_exceeded') {
+            // PR #6: mid-stream cap trip. BudgetCapBlocker / CreditsExhaustedDialog
+            // are already wired off the global stores; close the turn cleanly.
+            setCurrentTurn({ status: 'done', text: '', toolEvents: [] });
           }
         },
       });
@@ -355,6 +359,18 @@ export function InvestorBriefProvider({ children }: { children: ReactNode }) {
         // Cap state is already updated; suppress the generic error toast
         // so the BudgetCapBlocker is the only signal.
         setCurrentTurn({ status: 'done', text: '', toolEvents: [] });
+        return;
+      }
+      if (e instanceof FeatureQuotaExceededError) {
+        setCurrentTurn({ status: 'done', text: '', toolEvents: [] });
+        // Surface via the existing credits-exhausted UI (header chip already
+        // reflects monthly usage; toast keeps the trip visible).
+        try {
+          const { toast } = await import('sonner');
+          toast.error(e.message, {
+            action: { label: 'Upgrade', onClick: () => { window.location.href = '/pricing?source=feature_quota_investor_chat'; } },
+          });
+        } catch { /* sonner may not be available — best effort */ }
         return;
       }
       const msg = e instanceof Error ? e.message : String(e);
