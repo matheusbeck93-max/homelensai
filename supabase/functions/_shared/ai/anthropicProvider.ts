@@ -167,11 +167,15 @@ export class AnthropicProvider implements ChatProvider {
       }));
     const inputTokens = Number(data?.usage?.input_tokens ?? 0);
     const outputTokens = Number(data?.usage?.output_tokens ?? 0);
+    const cacheReadInputTokens = Number(data?.usage?.cache_read_input_tokens ?? 0);
+    const cacheCreationInputTokens = Number(data?.usage?.cache_creation_input_tokens ?? 0);
     const usage: Usage = {
       inputTokens,
       outputTokens,
       costUsd: estimateCostUsd(modelId, inputTokens, outputTokens),
       modelId,
+      cacheReadInputTokens,
+      cacheCreationInputTokens,
     };
     return { text, toolCalls: toolCalls.length > 0 ? toolCalls : undefined, usage };
   }
@@ -201,6 +205,8 @@ export class AnthropicProvider implements ChatProvider {
     const toolBlocks = new Map<number, { id: string; name: string; argsText: string; emitted: boolean }>();
     let inputTokens = 0;
     let outputTokens = 0;
+    let cacheReadInputTokens = 0;
+    let cacheCreationInputTokens = 0;
 
     try {
       while (true) {
@@ -223,6 +229,8 @@ export class AnthropicProvider implements ChatProvider {
             if (u) {
               inputTokens = Number(u.input_tokens ?? inputTokens);
               outputTokens = Number(u.output_tokens ?? outputTokens);
+              cacheReadInputTokens = Number(u.cache_read_input_tokens ?? cacheReadInputTokens);
+              cacheCreationInputTokens = Number(u.cache_creation_input_tokens ?? cacheCreationInputTokens);
             }
           } else if (t === "content_block_start") {
             const block = json?.content_block;
@@ -256,6 +264,8 @@ export class AnthropicProvider implements ChatProvider {
           } else if (t === "message_delta") {
             const u = json?.usage;
             if (u && typeof u.output_tokens === "number") outputTokens = u.output_tokens;
+            if (u && typeof u.cache_read_input_tokens === "number") cacheReadInputTokens = u.cache_read_input_tokens;
+            if (u && typeof u.cache_creation_input_tokens === "number") cacheCreationInputTokens = u.cache_creation_input_tokens;
           }
         }
       }
@@ -268,6 +278,8 @@ export class AnthropicProvider implements ChatProvider {
       outputTokens,
       costUsd: estimateCostUsd(modelId, inputTokens, outputTokens),
       modelId,
+      cacheReadInputTokens,
+      cacheCreationInputTokens,
     };
     yield { type: "done", usage };
   }
