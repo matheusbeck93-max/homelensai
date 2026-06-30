@@ -9,7 +9,12 @@
  * cost numbers are placeholders until PR #2 (telemetry) confirms pricing.
  */
 
-export type ModelId = "gateway:standard" | "gateway:premium" | "gateway:fallback" | "gateway:haiku";
+export type ModelId =
+  | "gateway:standard"
+  | "gateway:premium"
+  | "gateway:fallback"
+  | "gateway:haiku"
+  | "gateway:flash_lite";
 
 export type ProviderName = "lovable_gateway" | "anthropic";
 
@@ -70,13 +75,26 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     costPerMTokIn: 0.80,
     costPerMTokOut: 4.00,
   },
+  // PR #8 Option B: route the 4 background-classification ops through the
+  // Lovable AI Gateway on Gemini 3.1 Flash Lite (cheaper than Haiku, on
+  // Lovable billing). Not user-facing — never used for reasoning surfaces.
+  "gateway:flash_lite": {
+    id: "gateway:flash_lite",
+    provider: "lovable_gateway",
+    apiName: "google/gemini-3.1-flash-lite",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    costPerMTokIn: 0.10,
+    costPerMTokOut: 0.40,
+  },
 };
 
 export const MODEL_BY_OPERATION: Record<string, ModelId> = {
-  photo_categorization: "gateway:haiku",
-  followup_ranking: "gateway:haiku",
-  intent_detection: "gateway:haiku",
-  memory_categorization: "gateway:haiku",
+  photo_categorization: "gateway:flash_lite",
+  followup_ranking: "gateway:flash_lite",
+  intent_detection: "gateway:flash_lite",
+  memory_categorization: "gateway:flash_lite",
 };
 
 export function getModelSpec(id: ModelId): ModelSpec {

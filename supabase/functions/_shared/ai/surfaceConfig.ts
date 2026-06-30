@@ -48,7 +48,12 @@ export interface SurfaceConfig {
 const STD: ModelId = "gateway:standard";
 const PRE: ModelId = "gateway:premium";
 const FBK: ModelId = "gateway:fallback";
+// PR #8 Option B: background-classification surfaces now use Gemini 3.1
+// Flash Lite on the Lovable Gateway. `HAI` (Claude Haiku) is kept available
+// for anything that needs Anthropic specifically, but the 4 cheap ops have
+// migrated to `LITE`.
 const HAI: ModelId = "gateway:haiku";
+const LITE: ModelId = "gateway:flash_lite";
 
 export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
   general_chat: {
@@ -147,36 +152,36 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
   photo_categorization: {
     description: "Cheap lightweight classification of property photos.",
     tiers: {
-      free: { primary: HAI, fallback: FBK },
-      buyer: { primary: HAI, fallback: FBK },
-      investor: { primary: HAI, fallback: FBK },
+      free: { primary: LITE, fallback: HAI },
+      buyer: { primary: LITE, fallback: HAI },
+      investor: { primary: LITE, fallback: HAI },
     },
     maxToolIterations: 0,
   },
   followup_ranking: {
     description: "Cheap ranking of follow-up chip suggestions.",
     tiers: {
-      free: { primary: HAI, fallback: FBK },
-      buyer: { primary: HAI, fallback: FBK },
-      investor: { primary: HAI, fallback: FBK },
+      free: { primary: LITE, fallback: HAI },
+      buyer: { primary: LITE, fallback: HAI },
+      investor: { primary: LITE, fallback: HAI },
     },
     maxToolIterations: 0,
   },
   intent_detection: {
     description: "Lightweight routing and intent classification.",
     tiers: {
-      free: { primary: HAI, fallback: FBK },
-      buyer: { primary: HAI, fallback: FBK },
-      investor: { primary: HAI, fallback: FBK },
+      free: { primary: LITE, fallback: HAI },
+      buyer: { primary: LITE, fallback: HAI },
+      investor: { primary: LITE, fallback: HAI },
     },
     maxToolIterations: 0,
   },
   memory_categorization: {
     description: "Categorizing durable user memories.",
     tiers: {
-      free: { primary: HAI, fallback: FBK },
-      buyer: { primary: HAI, fallback: FBK },
-      investor: { primary: HAI, fallback: FBK },
+      free: { primary: LITE, fallback: HAI },
+      buyer: { primary: LITE, fallback: HAI },
+      investor: { primary: LITE, fallback: HAI },
     },
     maxToolIterations: 0,
   },
