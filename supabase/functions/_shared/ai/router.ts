@@ -37,6 +37,45 @@ export interface RouterContext {
   /** Optional upstream request id for correlating logs with edge requests. */
   requestId?: string;
   isDevCall?: boolean;
+  /** Origin/Referer of the upstream request — used to auto-tag dev calls. */
+  origin?: string;
+}
+const DEV_ORIGIN_PATTERNS = [
+  /^https?:\/\/localhost(:\d+)?$/i,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/i,
+  /\.lovable\.app$/i,
+  /\.lovableproject\.com$/i,
+  /lovable\.dev$/i,
+];
+
+/**
+ * Decide whether a request should be tagged is_dev_call=true. Explicit
+ * `isDevCall` always wins; otherwise we infer from the Origin/Referer.
+ * Called from `completeWithFallback` / `streamWithFallback`.
+ */
+export function isDevOrigin(origin?: string | null): boolean {
+  if (!origin) return false;
+  const trimmed = origin.trim();
+  return DEV_ORIGIN_PATTERNS.some((rx) => rx.test(trimmed));
+}
+
+function resolveIsDevCall(ctx: RouterContext): boolean {
+  if (typeof ctx.isDevCall === "boolean") return ctx.isDevCall;
+  return isDevOrigin(ctx.origin);
+}
+
+/**
+ * Convenience builder used by edge functions: pass the inbound Request and
+ * we'll extract the origin so the router can auto-tag dev calls.
+ */
+export function buildRouterContext(
+  base: Omit<RouterContext, "origin">,
+  req?: Request,
+): RouterContext {
+  const origin = req
+    ? req.headers.get("origin") ?? req.headers.get("referer") ?? undefined
+    : undefined;
+  return { ...base, origin };
 }
 
 export interface RouterOptions {
@@ -87,7 +126,7 @@ function logUsage(
     status,
     errorCode,
     requestId: ctx.requestId,
-    isDevCall: ctx.isDevCall ?? false,
+    isDevCall: resolveIsDevCall(ctx),
   });
 }
 
@@ -129,7 +168,7 @@ class DispatchingProvider implements ChatProvider {
 
 async function enforceBudget(ctx: RouterContext, opts: RouterOptions): Promise<BudgetStatus | null> {
   if (opts.skipBudgetCheck) return null;
-  const status = await checkBudget(ctx.userId, ctx.tier, { isDevCall: ctx.isDevCall ?? false });
+  const status = await checkBudget(ctx.userId, ctx.tier, { isDevCall: resolveIsDevCall(ctx) });
   if (!status.allowed) {
     const capType = status.capType ?? "daily";
     const used = capType === "monthly" ? (status.monthlyUsedUsd ?? 0) : status.usedUsd;
@@ -158,7 +197,7 @@ export async function completeWithFallback(
   const { primary, fallback } = pickModel(surface, ctx.tier);
 
   // Feature-level quota enforcement (PR #2)
-  if (ctx.userId && !opts.skipBudgetCheck && !ctx.isDevCall) {
+  if (ctx.userId && !opts.skipBudgetCheck && !resolveIsDevCall(ctx)) {
     let feature: FeatureKind = "chat";
     if (surface === "investor_brief") feature = "briefs";
     else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";
@@ -229,7 +268,7 @@ export async function* streamWithFallback(
   const { primary, fallback } = pickModel(surface, ctx.tier);
 
   // Feature-level quota enforcement (PR #2)
-  if (ctx.userId && !opts.skipBudgetCheck && !ctx.isDevCall) {
+  if (ctx.userId && !opts.skipBudgetCheck && !resolveIsDevCall(ctx)) {
     let feature: FeatureKind = "chat";
     if (surface === "investor_brief") feature = "briefs";
     else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";

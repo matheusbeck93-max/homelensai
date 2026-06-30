@@ -67,6 +67,8 @@ async function writeUsageRow(entry: UsageLogEntry): Promise<void> {
     input_tokens: entry.usage.inputTokens | 0,
     output_tokens: entry.usage.outputTokens | 0,
     reasoning_tokens: entry.reasoningTokens ?? 0,
+    cache_read_input_tokens: entry.usage.cacheReadInputTokens ?? 0,
+    cache_creation_input_tokens: entry.usage.cacheCreationInputTokens ?? 0,
     cost_usd: entry.usage.costUsd,
     latency_ms: entry.latencyMs ?? null,
     status: entry.status ?? "ok",

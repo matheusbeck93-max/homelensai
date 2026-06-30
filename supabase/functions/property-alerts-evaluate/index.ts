@@ -5,6 +5,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
+import { withCronLog } from '../_shared/cron-log.ts';
 
 const log = createLogger('property-alerts-evaluate');
 
@@ -93,7 +94,7 @@ function evalAppraisalDue(p: any): AlertRow | null {
   };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withCronLog("property-alerts-evaluate-6h", async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -184,4 +185,4 @@ Deno.serve(async (req) => {
     log.error('alerts evaluation failed', { error: getErrorMessage(e) });
     return errorResponse(getErrorMessage(e), 500, req);
   }
-});
+}));

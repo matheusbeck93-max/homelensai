@@ -52,7 +52,10 @@ export class LovableGatewayProvider implements ChatProvider {
   private buildBody(modelId: ModelId, req: ChatRequest, stream: boolean): Record<string, unknown> {
     const spec = getModelSpec(modelId);
     const messages: Array<Record<string, unknown>> = [];
-    if (req.system) messages.push({ role: "system", content: req.system, cache_control: { type: "ephemeral" } });
+    // cache_control is Anthropic-proprietary. The Gateway routes to
+    // Google/OpenAI models, both of which ignore it (and Anthropic models
+    // aren't reachable through the Gateway at all), so we don't send it.
+    if (req.system) messages.push({ role: "system", content: req.system });
     for (const m of req.messages) {
       const msg: Record<string, unknown> = { role: m.role, content: m.content };
       if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;
@@ -122,11 +125,21 @@ export class LovableGatewayProvider implements ChatProvider {
     }
     const inputTokens = Number(data?.usage?.prompt_tokens ?? 0);
     const outputTokens = Number(data?.usage?.completion_tokens ?? 0);
+    // OpenAI-shape cached prompt tokens (when the upstream model supports
+    // automatic caching and reports it). Gemini/GPT semantics differ from
+    // Anthropic's, but we surface the count for parity.
+    const cacheReadInputTokens = Number(
+      data?.usage?.prompt_tokens_details?.cached_tokens
+        ?? data?.usage?.cached_tokens
+        ?? 0,
+    );
     const usage: Usage = {
       inputTokens,
       outputTokens,
       costUsd: estimateCostUsd(modelId, inputTokens, outputTokens),
       modelId,
+      cacheReadInputTokens,
+      cacheCreationInputTokens: 0,
     };
 
     const toolCalls = Array.isArray(choice.message.tool_calls)
@@ -169,6 +182,7 @@ export class LovableGatewayProvider implements ChatProvider {
     const toolBuilders = new Map<number, { id: string; name: string; argsText: string; emitted: boolean }>();
     let inputTokens = 0;
     let outputTokens = 0;
+    let cacheReadInputTokens = 0;
 
     try {
       while (true) {
@@ -192,6 +206,12 @@ export class LovableGatewayProvider implements ChatProvider {
           if (json?.usage) {
             inputTokens = Number(json.usage.prompt_tokens ?? inputTokens);
             outputTokens = Number(json.usage.completion_tokens ?? outputTokens);
+            const cached = Number(
+              json.usage?.prompt_tokens_details?.cached_tokens
+                ?? json.usage?.cached_tokens
+                ?? 0,
+            );
+            if (cached > 0) cacheReadInputTokens = cached;
           }
 
           const choice = json?.choices?.[0];
@@ -236,6 +256,8 @@ export class LovableGatewayProvider implements ChatProvider {
       outputTokens,
       costUsd: estimateCostUsd(modelId, inputTokens, outputTokens),
       modelId,
+      cacheReadInputTokens,
+      cacheCreationInputTokens: 0,
     };
     yield { type: "done", usage };
   }

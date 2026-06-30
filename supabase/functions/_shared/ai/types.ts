@@ -56,6 +56,10 @@ export interface Usage {
   outputTokens: number;
   costUsd: number;
   modelId: ModelId;
+  /** Tokens served from Anthropic ephemeral prompt cache (input cost ~10%). */
+  cacheReadInputTokens?: number;
+  /** Tokens written into the Anthropic ephemeral cache (input cost ~125%). */
+  cacheCreationInputTokens?: number;
 }
 
 export type StreamEvent =

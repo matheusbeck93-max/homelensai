@@ -16,6 +16,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { getBlsSeries, blsLaus, blsOews, TOP_MSA_CODES } from '../_shared/bls-client.ts';
+import { withCronLog } from '../_shared/cron-log.ts';
 
 const log = createLogger('bls-prefetch-weekly');
 
@@ -38,7 +39,7 @@ const PREFETCH_METROS: string[] = [
   'austin',
 ];
 
-Deno.serve(async (req) => {
+Deno.serve(withCronLog("bls-prefetch-weekly", async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -95,4 +96,4 @@ Deno.serve(async (req) => {
     failed: results.length - okCount,
     results,
   });
-});
+}));

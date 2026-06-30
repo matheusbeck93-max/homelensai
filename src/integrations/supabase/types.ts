@@ -72,6 +72,8 @@ export type Database = {
         Row: {
           api_name: string
           attempt: string
+          cache_creation_input_tokens: number
+          cache_read_input_tokens: number
           cost_usd: number
           created_at: string
           error_code: string | null
@@ -92,6 +94,8 @@ export type Database = {
         Insert: {
           api_name: string
           attempt: string
+          cache_creation_input_tokens?: number
+          cache_read_input_tokens?: number
           cost_usd?: number
           created_at?: string
           error_code?: string | null
@@ -112,6 +116,8 @@ export type Database = {
         Update: {
           api_name?: string
           attempt?: string
+          cache_creation_input_tokens?: number
+          cache_read_input_tokens?: number
           cost_usd?: number
           created_at?: string
           error_code?: string | null
@@ -512,6 +518,42 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      cron_run_log: {
+        Row: {
+          ai_cost_usd: number
+          created_at: string
+          duration_ms: number | null
+          id: string
+          job_name: string
+          metadata: Json
+          ran_at: string
+          status: string
+          triggered_by: string
+        }
+        Insert: {
+          ai_cost_usd?: number
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          job_name: string
+          metadata?: Json
+          ran_at?: string
+          status?: string
+          triggered_by?: string
+        }
+        Update: {
+          ai_cost_usd?: number
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          job_name?: string
+          metadata?: Json
+          ran_at?: string
+          status?: string
+          triggered_by?: string
         }
         Relationships: []
       }

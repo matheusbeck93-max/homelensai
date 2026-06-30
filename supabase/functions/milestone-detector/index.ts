@@ -15,11 +15,19 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { detectAndPersist } from '../_shared/milestones/detector.ts';
 import { sendTransactional } from '../_shared/email/sender.ts';
+import { isPausedAndLog, logCronRun } from '../_shared/cron-log.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   const denied = requireCronAuth(req);
   if (denied) return denied;
+
+  const startedAt = Date.now();
+  if (await isPausedAndLog('milestone-detector-daily', req, startedAt)) {
+    return new Response(JSON.stringify({ skipped: 'PRELAUNCH_PAUSE_BACKGROUND_JOBS' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   const sb = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -35,6 +43,7 @@ Deno.serve(async (req) => {
     .limit(2000);
   if (error) {
     console.error('[milestone-detector] profile fetch failed', error);
+    await logCronRun({ jobName: 'milestone-detector-daily', startedAt, status: 'error', errorMessage: 'profile_fetch_failed', req });
     return new Response(JSON.stringify({ error: 'profile_fetch_failed' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,6 +91,14 @@ Deno.serve(async (req) => {
       console.error(`[milestone-detector] user ${u.id} failed`, err);
     }
   }
+
+  await logCronRun({
+    jobName: 'milestone-detector-daily',
+    startedAt,
+    status: 'ok',
+    metadata: { processed_users: users?.length ?? 0, inserted: totalInserted, emails_sent: emailsQueued },
+    req,
+  });
 
   return new Response(
     JSON.stringify({
