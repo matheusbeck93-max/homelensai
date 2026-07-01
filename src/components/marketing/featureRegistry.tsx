@@ -11,7 +11,7 @@ import {
   Briefcase,
   type LucideIcon,
 } from "lucide-react";
-import chatAsset from "@/assets/ai-chat-page.png.asset.json";
+import chatAsset from "@/assets/ai-chat-analysis.png.asset.json";
 import buyingPowerAsset from "@/assets/buying-power-page.png.asset.json";
 import chromeAsset from "@/assets/chrome-ext-home.jpg.asset.json";
 import savedAnalysesAsset from "@/assets/saved-analyses.png.asset.json";
