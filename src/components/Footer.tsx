@@ -10,7 +10,6 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { to: "/features/chrome-extension", label: "Chrome Extension" },
       { to: "/features/ai-chat", label: "AI Chat" },
       { to: "/features/buying-power", label: "Buying Power Calculator" },
-      { to: "/features/calculators", label: "Calculators" },
       { to: "/features/investor-brief", label: "Investor Brief" },
       { to: "/features/investor-calculator", label: "Investor Calculator" },
       { to: "/features/saved-analyses", label: "Saved Analyses" },
