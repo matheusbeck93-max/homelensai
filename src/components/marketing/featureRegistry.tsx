@@ -15,6 +15,9 @@ import chatAsset from "@/assets/chat-feature-real.png.asset.json";
 import buyingPowerAsset from "@/assets/buying-power-real.jpg.asset.json";
 import investorAsset from "@/assets/investor-home.jpg.asset.json";
 import chromeAsset from "@/assets/chrome-ext-home.jpg.asset.json";
+import savedAnalysesAsset from "@/assets/saved-analyses.png.asset.json";
+import myPropertiesAsset from "@/assets/my-properties.png.asset.json";
+import preferencesAsset from "@/assets/preferences.png.asset.json";
 
 export type FeatureSlug =
   | "chrome-extension"
@@ -112,6 +115,8 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Simple mode for quick screens, advanced mode for real underwriting. State and federal capital gains are separated, PMI is automatic, and every assumption is exposed.",
     icon: LineChart,
+    screenshot: buyingPowerAsset.url,
+    screenshotAlt: "HomeLens Investor Calculator underwriting a deal",
     benefits: [
       { title: "Simple and advanced modes", body: "Start with a quick cap-rate check, then flip to advanced when the deal deserves real underwriting." },
       { title: "Tax-aware exits", body: "Federal and state capital gains modeled separately, plus depreciation recapture and 1031 scenarios." },
@@ -126,6 +131,8 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Save AI analyses from the app or the Chrome extension. Each one keeps its match score, snapshot, and full chat history — ready to compare.",
     icon: BookmarkCheck,
+    screenshot: savedAnalysesAsset.url,
+    screenshotAlt: "HomeLens Saved Analyses library with match scores",
     benefits: [
       { title: "Auto-scored library", body: "Every save is tagged with its match score so the shortlist naturally sorts by fit." },
       { title: "Full context preserved", body: "Property snapshot, financial breakdown, and the full analysis chat — all saved together." },
@@ -140,6 +147,8 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Track equity, rental yield, expenses, and Schedule E figures for every property you own. Rentcast pulls live valuations so your net worth stays honest.",
     icon: Home,
+    screenshot: myPropertiesAsset.url,
+    screenshotAlt: "HomeLens My Properties portfolio dashboard",
     benefits: [
       { title: "Live valuations", body: "Automatic Rentcast-backed refreshes keep every property's estimated value current." },
       { title: "Schedule E ready", body: "Rental income, expenses, and depreciation exported in a format your accountant will thank you for." },
@@ -154,6 +163,8 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Your goals, budget, cities, buyer type, and priorities are woven into every match score, chat answer, and brief — automatically.",
     icon: SlidersHorizontal,
+    screenshot: preferencesAsset.url,
+    screenshotAlt: "HomeLens Preferences setup with conversational assistant",
     benefits: [
       { title: "Multi-city, multi-goal", body: "Track several target markets and multiple goals (buy, invest, house-hack) at the same time." },
       { title: "Free-form context", body: "The 'About me' field lets you add nuance a form can't capture — the AI reads it every turn." },
@@ -168,6 +179,8 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Financial fit, market context, fair-price indicator, neighborhood stats, flood risk, and a personalized match score — all from a single link.",
     icon: ScanSearch,
+    screenshot: chatAsset.url,
+    screenshotAlt: "HomeLens property analysis with match score and financials",
     benefits: [
       { title: "Fair-price indicator", body: "Every listing is checked against Zestimate and comparable sales to flag over- and under-priced homes." },
       { title: "Neighborhood at a glance", body: "Schools, crime trends, walkability, and local price direction summarized in plain English." },
