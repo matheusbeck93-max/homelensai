@@ -18,6 +18,7 @@ import chromeAsset from "@/assets/chrome-ext-home.jpg.asset.json";
 import savedAnalysesAsset from "@/assets/saved-analyses.png.asset.json";
 import myPropertiesAsset from "@/assets/my-properties.png.asset.json";
 import preferencesAsset from "@/assets/preferences.png.asset.json";
+import investorBriefAsset from "@/assets/investor-brief.png.asset.json";
 
 export type FeatureSlug =
   | "chrome-extension"
@@ -99,7 +100,7 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Labor market health, wage growth, permits, rate trajectory, and rental yield — synthesized into a brief that tells you where to look and where to walk away.",
     icon: TrendingUp,
-    screenshot: investorAsset.url,
+    screenshot: investorBriefAsset.url,
     screenshotAlt: "HomeLens Investor Brief dashboard",
     benefits: [
       { title: "Macro + micro in one view", body: "FRED, BLS, and Census data joined with property-level economics for the metros you care about." },
