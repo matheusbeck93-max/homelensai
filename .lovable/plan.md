@@ -1,47 +1,24 @@
-# Footer restructure + dropdown hover polish
+## Goal
+Reduce the excessive whitespace between the navigation bar and the hero content on all Feature pages (`/features/*`) and both Solution pages (`/solutions/buyer`, `/solutions/investor`). Homepage stays untouched.
 
-## 1. Footer: mirror header structure (`src/components/Footer.tsx`)
+## Change
 
-Replace the current 4-column layout (Product / Company / Resources / Legal) with 4 columns that mirror the public header:
+In `src/pages/marketing/FeaturePage.tsx` and `src/pages/marketing/SolutionPage.tsx`, update the hero `<section>`'s container padding from the current oversized top padding to a tight value (~40–60px below the navbar).
 
-**Features** (text-only links, no icons, one per line, in this exact order)
-- Chrome Extension → `/features/chrome-extension`
-- AI Chat → `/features/ai-chat`
-- Buying Power Calculator → `/features/buying-power`
-- Calculators → `/features/calculators`
-- Investor Brief → `/features/investor-brief`
-- Investor Calculator → `/features/investor-calculator`
-- Saved Analyses → `/features/saved-analyses`
-- My Properties → `/features/my-properties`
-- Set Preferences → `/features/preferences`
-- Property Analysis → `/features/property-analysis`
+Currently on `FeaturePage.tsx`:
+```
+<div className="container relative mx-auto px-4 pb-16 pt-24 md:pb-24 md:pt-32">
+```
 
-(Slugs will be verified against `FEATURES_BY_SLUG` in `src/components/marketing/featureRegistry.tsx` before writing; any missing slug gets flagged, not silently linked.)
+New:
+```
+<div className="container relative mx-auto px-4 pb-16 pt-6 md:pb-24 md:pt-10">
+```
 
-**Solutions** (text-only)
-- Buyer Plan → `/solutions/buyer`
-- Investor Plan → `/solutions/investor`
+Apply the equivalent reduction (from `pt-24 md:pt-32` → `pt-6 md:pt-10`) to the hero container on `SolutionPage.tsx`.
 
-**Company** — unchanged (Blog, FAQ, Support mailto).
-
-**Legal** — unchanged (Terms, Privacy, Cookies, Fair Housing, Accessibility, CCPA, DMCA, Do Not Sell).
-
-Simplify `FooterLinkItem` to drop the icon branch for these columns. Keep the logo block, brand tagline, bottom Security & Privacy chip, and copyright exactly as-is. Responsive grid becomes `grid-cols-1 md:grid-cols-2 lg:grid-cols-5` (1 brand col + 4 link cols) so the taller Features list stays scannable on tablets.
-
-## 2. Dropdown hover contrast (`src/components/marketing/PublicNav.tsx`)
-
-Current issue: `hover:bg-accent hover:text-accent-foreground` leaves the muted description and the primary-tinted icon badge low-contrast against the accent background.
-
-Fix on each `<Link>` inside the Features and Solutions mega-menus, using a `group` pattern so children respond to the parent hover:
-- Link wrapper: add `group` alongside existing hover classes.
-- Title `<span>`: already inherits `accent-foreground` — keep.
-- Description `<span>`: change `text-muted-foreground` to also include `group-hover:text-accent-foreground/90` so the description lifts to a WCAG-AA contrast level on hover/focus.
-- Icon badge: swap `bg-primary/10 text-primary` to also include `group-hover:bg-primary group-hover:text-primary-foreground` so the icon stays clearly visible on the accent background.
-- Mirror the same treatment on keyboard focus (`focus:` variants already present via `focus:bg-accent`) by using `group-focus:` equivalents.
-
-No layout, spacing, animation, or structural changes — visual states only.
-
-## Verification
-- Build passes.
-- Playwright screenshot of `/` footer at desktop + mobile widths.
-- Playwright hover screenshot of Features and Solutions mega-menus to confirm title, description, and icon all remain readable.
+## Scope guardrails
+- Only the hero top padding changes. Bottom padding, typography, grid layout, badge, headline, description, CTA buttons, and screenshot/video panel stay identical.
+- Benefits section and CTA section spacing untouched.
+- `src/pages/Index.tsx` (homepage) untouched.
+- No changes to `Navigation.tsx` or global CSS.
