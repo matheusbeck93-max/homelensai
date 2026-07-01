@@ -29,7 +29,8 @@ export type FeatureSlug =
   | "saved-analyses"
   | "my-properties"
   | "preferences"
-  | "property-analysis";
+  | "property-analysis"
+  | "calculators";
 
 export type FeatureDef = {
   slug: FeatureSlug;
@@ -90,6 +91,22 @@ export const FEATURES: FeatureDef[] = [
       { title: "Two ranges, not one", body: "See both the safe number and the max-approval number so you can decide where you want to live in that gap." },
       { title: "Real closing costs", body: "Down payment, PMI, taxes, insurance, and closing fees are all modeled — not hand-waved." },
       { title: "Rate-aware", body: "Live mortgage rates from FRED so the payment estimate matches what a lender would quote you today." },
+    ],
+  },
+  {
+    slug: "calculators",
+    name: "Calculators",
+    short: "Run the numbers that matter — affordability, investment returns, and total cost of ownership.",
+    headline: "Every number you need before you decide.",
+    subheadline:
+      "From buying power to full investment underwriting, HomeLens calculators turn guesswork into a clear financial picture in seconds.",
+    icon: Calculator,
+    screenshot: buyingPowerAsset.url,
+    screenshotAlt: "HomeLens calculators dashboard",
+    benefits: [
+      { title: "Buyer + investor tools", body: "Switch between affordability checks and deep deal underwriting without re-entering your assumptions." },
+      { title: "Live rate awareness", body: "Current mortgage rates, tax estimates, and PMI are built in so outputs match today's market." },
+      { title: "Explainable outputs", body: "Every result is broken down line-by-line and ready to share with your lender, agent, or partner." },
     ],
   },
   {

@@ -10,6 +10,7 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { to: "/features", label: "Features" },
       { to: "/solutions", label: "Solutions" },
       { to: "/pricing", label: "Pricing" },
+      { to: "/features/calculators", label: "Calculators" },
       { to: "/features/chrome-extension", label: "Chrome Extension" },
       { to: "/features/investor-brief", label: "Investor Brief" },
     ],
@@ -27,8 +28,6 @@ const columns: { title: string; links: FooterLink[] }[] = [
     links: [
       { to: "/solutions/buyer", label: "Buyer Plan" },
       { to: "/solutions/investor", label: "Investor Plan" },
-      { to: "/calculators", label: "Calculators" },
-      { to: "/open-houses", label: "Open Houses" },
     ],
   },
   {
