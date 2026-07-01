@@ -1,19 +1,29 @@
 import { Link } from "react-router-dom";
-import { Home, type LucideIcon } from "lucide-react";
-import { FEATURES_BY_SLUG, SOLUTIONS } from "@/components/marketing/featureRegistry";
+import { Home } from "lucide-react";
 
-type FooterLink = { to: string; label: string; external?: boolean; icon?: LucideIcon };
+type FooterLink = { to: string; label: string; external?: boolean };
 
 const columns: { title: string; links: FooterLink[] }[] = [
   {
-    title: "Product",
+    title: "Features",
     links: [
-      { to: "/features", label: "Features" },
-      { to: "/solutions", label: "Solutions" },
-      { to: "/pricing", label: "Pricing" },
-      { to: "/features/calculators", label: "Calculators", icon: FEATURES_BY_SLUG["calculators"].icon },
-      { to: "/features/chrome-extension", label: "Chrome Extension", icon: FEATURES_BY_SLUG["chrome-extension"].icon },
-      { to: "/features/investor-brief", label: "Investor Brief", icon: FEATURES_BY_SLUG["investor-brief"].icon },
+      { to: "/features/chrome-extension", label: "Chrome Extension" },
+      { to: "/features/ai-chat", label: "AI Chat" },
+      { to: "/features/buying-power", label: "Buying Power Calculator" },
+      { to: "/features/calculators", label: "Calculators" },
+      { to: "/features/investor-brief", label: "Investor Brief" },
+      { to: "/features/investor-calculator", label: "Investor Calculator" },
+      { to: "/features/saved-analyses", label: "Saved Analyses" },
+      { to: "/features/my-properties", label: "My Properties" },
+      { to: "/features/preferences", label: "Set Preferences" },
+      { to: "/features/property-analysis", label: "Property Analysis" },
+    ],
+  },
+  {
+    title: "Solutions",
+    links: [
+      { to: "/solutions/buyer", label: "Buyer Plan" },
+      { to: "/solutions/investor", label: "Investor Plan" },
     ],
   },
   {
@@ -22,13 +32,6 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { to: "/blog", label: "Blog" },
       { to: "/faq", label: "FAQ" },
       { to: "mailto:h2@homelens-ai.com", label: "Support", external: true },
-    ],
-  },
-  {
-    title: "Resources",
-    links: [
-      { to: "/solutions/buyer", label: "Buyer Plan", icon: SOLUTIONS.find((s) => s.slug === "buyer")?.icon },
-      { to: "/solutions/investor", label: "Investor Plan", icon: SOLUTIONS.find((s) => s.slug === "investor")?.icon },
     ],
   },
   {
@@ -47,22 +50,11 @@ const columns: { title: string; links: FooterLink[] }[] = [
 ];
 
 function FooterLinkItem({ link }: { link: FooterLink }) {
-  const Icon = link.icon;
-  const cls = "inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors";
-  const content = (
-    <>
-      {Icon && <Icon className="h-4 w-4 text-slate-400" />}
-      <span>{link.label}</span>
-    </>
-  );
+  const cls = "text-sm text-slate-300 hover:text-white transition-colors";
   return link.external ? (
-    <a href={link.to} className={cls}>
-      {content}
-    </a>
+    <a href={link.to} className={cls}>{link.label}</a>
   ) : (
-    <Link to={link.to} className={cls}>
-      {content}
-    </Link>
+    <Link to={link.to} className={cls}>{link.label}</Link>
   );
 }
 
@@ -70,7 +62,7 @@ export function Footer() {
   return (
     <footer className="bg-slate-950 text-slate-200 mt-auto">
       <div className="container max-w-7xl mx-auto px-6 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
           <div className="md:col-span-1">
             <Link to="/" className="inline-flex items-center gap-2 text-white">
               <Home className="h-5 w-5" strokeWidth={1.5} />
