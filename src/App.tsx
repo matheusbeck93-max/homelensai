@@ -105,6 +105,9 @@ const BlogPost = lazyWithRetry(() => import("./pages/BlogPost"));
 const BlogAdmin = lazyWithRetry(() => import("./pages/admin/BlogAdmin"));
 const BlogEditor = lazyWithRetry(() => import("./pages/admin/BlogEditor"));
 const AiSpendAdmin = lazyWithRetry(() => import("./pages/admin/AiSpendAdmin"));
+const FeaturePage = lazyWithRetry(() => import("./pages/marketing/FeaturePage"));
+const SolutionPage = lazyWithRetry(() => import("./pages/marketing/SolutionPage"));
+const Faq = lazyWithRetry(() => import("./pages/marketing/Faq"));
 
 const queryClient = new QueryClient();
 
@@ -130,12 +133,15 @@ function App() {
                 <main>
                 <Routes>
                   <Route path="/" element={<Index />} />
-                 {/* Homepage section anchor aliases — render the homepage and scroll to a section. */}
-                 <Route path="/extension" element={<Index />} />
-                 <Route path="/investors" element={<Index />} />
-                 <Route path="/chat-preview" element={<Index />} />
-                 <Route path="/plans" element={<Index />} />
-                 <Route path="/faq" element={<Index />} />
+                 {/* Marketing pages */}
+                 <Route path="/features/:slug" element={<FeaturePage />} />
+                 <Route path="/solutions/:slug" element={<SolutionPage />} />
+                 <Route path="/faq" element={<Faq />} />
+                 {/* Legacy anchor aliases → redirect to their new dedicated pages */}
+                 <Route path="/extension" element={<Navigate to="/features/chrome-extension" replace />} />
+                 <Route path="/investors" element={<Navigate to="/solutions/investor" replace />} />
+                 <Route path="/chat-preview" element={<Navigate to="/features/ai-chat" replace />} />
+                 <Route path="/plans" element={<Navigate to="/pricing" replace />} />
                  <Route path="/blog" element={<Blog />} />
                  <Route path="/blog/:slug" element={<BlogPost />} />
                  <Route path="/admin/blog" element={<StaffRoute><BlogAdmin /></StaffRoute>} />

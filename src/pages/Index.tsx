@@ -21,7 +21,14 @@ import { PullToRefreshIndicator } from "@/components/PullToRefreshIndicator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
 import { Footer } from "@/components/Footer";
-import { smoothScrollToId } from "@/components/HomepageSectionNav";
+// Local helper (previously exported by HomepageSectionNav, now retired).
+function smoothScrollToId(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const headerOffset = 80;
+  const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+  window.scrollTo({ top, behavior: "smooth" });
+}
 import { PricingSection } from "@/components/PricingSection";
 import { useTypingPlaceholder } from "@/hooks/useTypingPlaceholder";
 import chromeExtensionImg from "@/assets/chrome-ext-home.jpg.asset.json";
