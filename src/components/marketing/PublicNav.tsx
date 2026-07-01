@@ -26,16 +26,16 @@ export function PublicNav() {
                     <NavigationMenuLink asChild>
                       <Link
                         to={`/features/${f.slug}`}
-                        className="flex gap-3 rounded-md p-3 hover:bg-accent hover:text-accent-foreground focus:bg-accent"
+                        className="group flex gap-3 rounded-md p-3 hover:bg-accent focus:bg-accent"
                       >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground group-focus:bg-primary group-focus:text-primary-foreground">
                           <Icon className="h-5 w-5" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-sm font-semibold leading-tight">
+                          <span className="block text-sm font-semibold leading-tight text-foreground group-hover:text-accent-foreground group-focus:text-accent-foreground">
                             {f.name}
                           </span>
-                          <span className="mt-0.5 block text-xs text-muted-foreground leading-snug">
+                          <span className="mt-0.5 block text-xs text-muted-foreground leading-snug group-hover:text-accent-foreground/90 group-focus:text-accent-foreground/90">
                             {f.short}
                           </span>
                         </span>
@@ -59,16 +59,16 @@ export function PublicNav() {
                     <NavigationMenuLink asChild>
                       <Link
                         to={`/solutions/${s.slug}`}
-                        className="flex gap-3 rounded-md p-3 hover:bg-accent hover:text-accent-foreground focus:bg-accent"
+                        className="group flex gap-3 rounded-md p-3 hover:bg-accent focus:bg-accent"
                       >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground group-focus:bg-primary group-focus:text-primary-foreground">
                           <Icon className="h-5 w-5" />
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-sm font-semibold leading-tight">
+                          <span className="block text-sm font-semibold leading-tight text-foreground group-hover:text-accent-foreground group-focus:text-accent-foreground">
                             {s.name}
                           </span>
-                          <span className="mt-0.5 block text-xs text-muted-foreground leading-snug">
+                          <span className="mt-0.5 block text-xs text-muted-foreground leading-snug group-hover:text-accent-foreground/90 group-focus:text-accent-foreground/90">
                             {s.short}
                           </span>
                         </span>
