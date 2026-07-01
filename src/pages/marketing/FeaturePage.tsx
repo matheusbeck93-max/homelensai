@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, useParams, Navigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Check } from "lucide-react";
@@ -131,6 +132,7 @@ export default function FeaturePage() {
           </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }
