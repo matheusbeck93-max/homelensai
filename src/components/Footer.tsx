@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { Home } from "lucide-react";
+import { Home, type LucideIcon } from "lucide-react";
+import { FEATURES_BY_SLUG, SOLUTIONS } from "@/components/marketing/featureRegistry";
 
-type FooterLink = { to: string; label: string; external?: boolean };
+type FooterLink = { to: string; label: string; external?: boolean; icon?: LucideIcon };
 
 const columns: { title: string; links: FooterLink[] }[] = [
   {
@@ -10,9 +11,9 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { to: "/features", label: "Features" },
       { to: "/solutions", label: "Solutions" },
       { to: "/pricing", label: "Pricing" },
-      { to: "/features/calculators", label: "Calculators" },
-      { to: "/features/chrome-extension", label: "Chrome Extension" },
-      { to: "/features/investor-brief", label: "Investor Brief" },
+      { to: "/features/calculators", label: "Calculators", icon: FEATURES_BY_SLUG["calculators"].icon },
+      { to: "/features/chrome-extension", label: "Chrome Extension", icon: FEATURES_BY_SLUG["chrome-extension"].icon },
+      { to: "/features/investor-brief", label: "Investor Brief", icon: FEATURES_BY_SLUG["investor-brief"].icon },
     ],
   },
   {
@@ -26,8 +27,8 @@ const columns: { title: string; links: FooterLink[] }[] = [
   {
     title: "Resources",
     links: [
-      { to: "/solutions/buyer", label: "Buyer Plan" },
-      { to: "/solutions/investor", label: "Investor Plan" },
+      { to: "/solutions/buyer", label: "Buyer Plan", icon: SOLUTIONS.find((s) => s.slug === "buyer")?.icon },
+      { to: "/solutions/investor", label: "Investor Plan", icon: SOLUTIONS.find((s) => s.slug === "investor")?.icon },
     ],
   },
   {
@@ -46,14 +47,21 @@ const columns: { title: string; links: FooterLink[] }[] = [
 ];
 
 function FooterLinkItem({ link }: { link: FooterLink }) {
-  const cls = "text-sm text-slate-300 hover:text-white transition-colors";
+  const Icon = link.icon;
+  const cls = "inline-flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors";
+  const content = (
+    <>
+      {Icon && <Icon className="h-4 w-4 text-slate-400" />}
+      <span>{link.label}</span>
+    </>
+  );
   return link.external ? (
     <a href={link.to} className={cls}>
-      {link.label}
+      {content}
     </a>
   ) : (
     <Link to={link.to} className={cls}>
-      {link.label}
+      {content}
     </Link>
   );
 }
