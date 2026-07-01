@@ -42,7 +42,7 @@ export default function FeaturePage() {
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
-        <div className="container relative mx-auto px-4 pb-16 pt-24 md:pb-24 md:pt-32">
+        <div className="container relative mx-auto px-4 pb-16 pt-6 md:pb-24 md:pt-10">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">

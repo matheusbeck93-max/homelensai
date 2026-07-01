@@ -71,7 +71,7 @@ export default function SolutionPage() {
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent" />
-        <div className="container relative mx-auto px-4 pb-16 pt-24 md:pt-32">
+        <div className="container relative mx-auto px-4 pb-16 pt-6 md:pt-10">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mx-auto inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
               <Icon className="h-3.5 w-3.5 text-primary" />
