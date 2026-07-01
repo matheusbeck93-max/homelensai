@@ -10,7 +10,7 @@ import { StreakIndicator } from "@/components/stickiness/StreakIndicator";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { HomepageSectionNav, HOMEPAGE_SECTIONS } from "@/components/HomepageSectionNav";
+import { PublicNav, PublicNavMobile } from "@/components/marketing/PublicNav";
 import {
   Sheet,
   SheetContent,
@@ -64,16 +64,10 @@ export function Navigation() {
     { label: 'Investor', path: '/investor', icon: TrendingUp },
   ];
 
-  // Show homepage section icons (Extension, Investors, Chat, Pricing, FAQ)
-  // only to logged-out visitors on the homepage or its anchor-aliased routes.
-  const homepagePaths = new Set<string>([
-    "/",
-    ...HOMEPAGE_SECTIONS.map((s) => s.path),
-  ]);
-  const isBlogRoute = location.pathname.startsWith("/blog");
-  const isHomepageRoute = homepagePaths.has(location.pathname) || isBlogRoute;
-  const showSectionNav = isHomepageRoute && !user;
-  const showAppNav = !showSectionNav;
+  // Show the public marketing menu (Features / Solutions / Pricing / FAQ) to
+  // any logged-out visitor. Authenticated users always see the app nav.
+  const showPublicNav = !user;
+  const showAppNav = !showPublicNav;
 
   const handleGoHome = () => {
     
@@ -103,7 +97,7 @@ export function Navigation() {
         {/* Desktop Navigation */}
         {!isMobile && (
           <div className="flex items-center gap-6">
-            {showSectionNav && <HomepageSectionNav variant="desktop" />}
+            {showPublicNav && <PublicNav />}
             {showAppNav && navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -183,11 +177,8 @@ export function Navigation() {
                   </SheetHeader>
                   <div className="flex flex-col gap-4 mt-6">
                     <div className="space-y-1">
-                      {showSectionNav && (
-                        <HomepageSectionNav
-                          variant="mobile"
-                          onNavigate={() => setMobileOpen(false)}
-                        />
+                      {showPublicNav && (
+                        <PublicNavMobile onNavigate={() => setMobileOpen(false)} />
                       )}
                       {showAppNav && navItems.map((item) => {
                         const Icon = item.icon;
