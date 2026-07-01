@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -95,6 +96,7 @@ export default function Faq() {
           </Button>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }
