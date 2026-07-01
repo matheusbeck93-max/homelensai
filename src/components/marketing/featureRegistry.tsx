@@ -11,14 +11,14 @@ import {
   Briefcase,
   type LucideIcon,
 } from "lucide-react";
-import chatAsset from "@/assets/chat-feature-real.png.asset.json";
-import buyingPowerAsset from "@/assets/buying-power-real.jpg.asset.json";
-import investorAsset from "@/assets/investor-home.jpg.asset.json";
+import chatAsset from "@/assets/ai-chat-page.png.asset.json";
+import buyingPowerAsset from "@/assets/buying-power-page.png.asset.json";
 import chromeAsset from "@/assets/chrome-ext-home.jpg.asset.json";
 import savedAnalysesAsset from "@/assets/saved-analyses.png.asset.json";
 import myPropertiesAsset from "@/assets/my-properties.png.asset.json";
 import preferencesAsset from "@/assets/preferences.png.asset.json";
 import investorBriefAsset from "@/assets/investor-brief.png.asset.json";
+import investorCalculatorAsset from "@/assets/investor-calculator.png.asset.json";
 
 export type FeatureSlug =
   | "chrome-extension"
@@ -29,8 +29,7 @@ export type FeatureSlug =
   | "saved-analyses"
   | "my-properties"
   | "preferences"
-  | "property-analysis"
-  | "calculators";
+  | "property-analysis";
 
 export type FeatureDef = {
   slug: FeatureSlug;
@@ -94,22 +93,6 @@ export const FEATURES: FeatureDef[] = [
     ],
   },
   {
-    slug: "calculators",
-    name: "Calculators",
-    short: "Run the numbers that matter — affordability, investment returns, and total cost of ownership.",
-    headline: "Every number you need before you decide.",
-    subheadline:
-      "From buying power to full investment underwriting, HomeLens calculators turn guesswork into a clear financial picture in seconds.",
-    icon: Calculator,
-    screenshot: buyingPowerAsset.url,
-    screenshotAlt: "HomeLens calculators dashboard",
-    benefits: [
-      { title: "Buyer + investor tools", body: "Switch between affordability checks and deep deal underwriting without re-entering your assumptions." },
-      { title: "Live rate awareness", body: "Current mortgage rates, tax estimates, and PMI are built in so outputs match today's market." },
-      { title: "Explainable outputs", body: "Every result is broken down line-by-line and ready to share with your lender, agent, or partner." },
-    ],
-  },
-  {
     slug: "investor-brief",
     name: "Investor Brief",
     short: "A full market brief with macro signals and deal filters.",
@@ -133,7 +116,7 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Simple mode for quick screens, advanced mode for real underwriting. State and federal capital gains are separated, PMI is automatic, and every assumption is exposed.",
     icon: LineChart,
-    screenshot: buyingPowerAsset.url,
+    screenshot: investorCalculatorAsset.url,
     screenshotAlt: "HomeLens Investor Calculator underwriting a deal",
     benefits: [
       { title: "Simple and advanced modes", body: "Start with a quick cap-rate check, then flip to advanced when the deal deserves real underwriting." },
