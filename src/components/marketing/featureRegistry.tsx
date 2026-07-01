@@ -29,7 +29,8 @@ export type FeatureSlug =
   | "saved-analyses"
   | "my-properties"
   | "preferences"
-  | "property-analysis";
+  | "property-analysis"
+  | "calculators";
 
 export type FeatureDef = {
   slug: FeatureSlug;
