@@ -171,11 +171,11 @@ export function Navigation() {
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-[300px]">
-                  <SheetHeader>
+                <SheetContent side="right" className="w-[300px] p-0 flex flex-col">
+                  <SheetHeader className="px-6 pt-6 pb-2 shrink-0">
                     <SheetTitle>Menu</SheetTitle>
                   </SheetHeader>
-                  <div className="flex flex-col gap-4 mt-6">
+                  <div className="flex flex-col gap-4 mt-2 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">
                     <div className="space-y-1">
                       {showPublicNav && (
                         <PublicNavMobile onNavigate={() => setMobileOpen(false)} />
