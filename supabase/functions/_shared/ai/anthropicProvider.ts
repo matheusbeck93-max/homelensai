@@ -122,7 +122,16 @@ export class AnthropicProvider implements ChatProvider {
       if (shouldCacheSystem(systemText)) {
         systemBlock.cache_control = { type: "ephemeral" };
       }
-      body.system = [systemBlock];
+      const blocks: Array<Record<string, unknown>> = [systemBlock];
+      // Per-request content (memories, active card context, etc.) MUST
+      // NOT invalidate the cached prefix. Emit as a second block with no
+      // cache_control so Anthropic still caches everything above.
+      if (req.systemDynamic && req.systemDynamic.length > 0) {
+        blocks.push({ type: "text", text: req.systemDynamic });
+      }
+      body.system = blocks;
+    } else if (req.systemDynamic && req.systemDynamic.length > 0) {
+      body.system = [{ type: "text", text: req.systemDynamic }];
     }
     if (req.temperature !== undefined) body.temperature = req.temperature;
     if (req.tools && req.tools.length > 0) {
