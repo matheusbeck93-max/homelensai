@@ -18,6 +18,7 @@ import { ProviderError } from '../_shared/ai/types.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { loadMemoriesForContext, renderMemoriesBlock } from '../_shared/memory/retriever.ts';
 import { fetchRentcastEnrichmentBlock } from '../_shared/rentcast-enrichment.ts';
+import { withOrigin } from '../_shared/ai/requestContext.ts';
 
 const CI_BLOCK_EXTENSION = '\n\n' + ciBehaviorPromptBlock({ surface: 'extension' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
 const CI_BLOCK_FIRECRAWL = '\n\n' + ciBehaviorPromptBlock({ surface: 'property' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
@@ -99,7 +100,7 @@ const chatRequestSchema = z.object({
   })).optional(),
 });
 
-Deno.serve(async (req) => {
+Deno.serve(withOrigin(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -2176,4 +2177,4 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

@@ -29,6 +29,7 @@ import {
   resolveRentcastTier as sharedResolveRentcastTier,
   type RentcastTier,
 } from '../_shared/rentcast.ts';
+import { withOrigin } from '../_shared/ai/requestContext.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -1469,7 +1470,7 @@ async function callGateway(messages: any[], stream = false, routerCtx?: { userId
 // Server
 // ──────────────────────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
+Deno.serve(withOrigin(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -1729,7 +1730,7 @@ Deno.serve(async (req) => {
       Connection: 'keep-alive',
     },
   });
-});
+}));
 
 const PERSONA_PRIORITY_KPIS: Record<string, string[]> = {
   first_time_buyer: ['affordability index', 'mortgage payment (PITI)', 'days on market', 'appreciation', 'school and crime trends'],

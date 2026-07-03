@@ -6,6 +6,7 @@ import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
 import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
+import { withOrigin } from '../_shared/ai/requestContext.ts';
 
 const sanitize = (s: unknown, max = 200) =>
   String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, max);
@@ -28,7 +29,7 @@ const PropertySchema = z.object({
   roi_percent: z.number().finite().min(-100).max(1000).optional(),
 });
 
-Deno.serve(async (req) => {
+Deno.serve(withOrigin(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -119,4 +120,4 @@ Response style:
     console.error('Error in ai-analyze:', error);
     return errorResponse('Unable to complete analysis.', 500);
   }
-});
+}));

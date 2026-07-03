@@ -35,6 +35,7 @@ import { detectRateMove } from '../_shared/macro-alerts.ts';
 import { runGetAreaGrowthMetrics } from '../_shared/ai/tools/macro/getAreaGrowthMetrics.ts';
 import { runGetMetroLaborMarket } from '../_shared/ai/tools/macro/getMetroLaborMarket.ts';
 import { runGetMetroWageGrowth } from '../_shared/ai/tools/macro/getMetroWageGrowth.ts';
+import { withOrigin } from '../_shared/ai/requestContext.ts';
 
 /**
  * Frozen-at-generation macro snapshot for the brief. Cache-first FRED
@@ -207,7 +208,7 @@ function buildSystemPrompt(): string {
   ].join('\n');
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withOrigin(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -394,4 +395,4 @@ Deno.serve(async (req) => {
     console.error('investor-brief unexpected error', err);
     return jsonResponse({ error: 'Internal error' }, 500);
   }
-});
+}));
