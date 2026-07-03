@@ -61,7 +61,7 @@ function isPropertySearch(text: string): boolean {
   return searchPatterns.some(p => p.test(text));
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => withRequestOrigin(req, async () => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -673,4 +673,4 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));
