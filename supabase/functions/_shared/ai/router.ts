@@ -205,7 +205,7 @@ export async function completeWithFallback(
   if (ctx.userId && !opts.skipBudgetCheck && !resolveIsDevCall(ctx)) {
     let feature: FeatureKind = "chat";
     if (surface === "investor_brief") feature = "briefs";
-    else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";
+    else if (surface === "extension_listing_analysis") feature = "photos";
     
     try {
       const fGate = await checkAndIncrementFeatureQuota(ctx.userId, ctx.tier, feature);
@@ -276,7 +276,7 @@ export async function* streamWithFallback(
   if (ctx.userId && !opts.skipBudgetCheck && !resolveIsDevCall(ctx)) {
     let feature: FeatureKind = "chat";
     if (surface === "investor_brief") feature = "briefs";
-    else if (surface === "extension_listing_analysis" || surface === "photo_categorization") feature = "photos";
+    else if (surface === "extension_listing_analysis") feature = "photos";
     
     try {
       const fGate = await checkAndIncrementFeatureQuota(ctx.userId, ctx.tier, feature);
