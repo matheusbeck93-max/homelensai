@@ -20,6 +20,7 @@ import {
   type StreamEvent,
   type Usage,
 } from "./types.ts";
+import { isDebugRequestLogEnabled, logDebugRequestAsync } from "./debugRequestLog.ts";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -189,7 +190,24 @@ export class AnthropicProvider implements ChatProvider {
 
   async complete(modelId: ModelId, req: ChatRequest, signal?: AbortSignal): Promise<CompleteResult> {
     const body = this.buildBody(modelId, req, false);
-    const response = await this.sendRequest(body, false, signal);
+    const t0 = Date.now();
+    let response: Response;
+    try {
+      response = await this.sendRequest(body, false, signal);
+    } catch (err) {
+      if (isDebugRequestLogEnabled()) {
+        const perr = err instanceof ProviderError ? err : null;
+        logDebugRequestAsync({
+          modelId,
+          requestBody: body,
+          status: "error",
+          latencyMs: Date.now() - t0,
+          errorMessage: perr?.message ?? (err as Error)?.message,
+        });
+      }
+      throw err;
+    }
+    const providerRequestId = response.headers.get("request-id") ?? response.headers.get("x-request-id") ?? undefined;
     const data = await response.json();
     const blocks = Array.isArray(data?.content) ? data.content : [];
     const text = blocks
@@ -215,6 +233,17 @@ export class AnthropicProvider implements ChatProvider {
       cacheReadInputTokens,
       cacheCreationInputTokens,
     };
+    if (isDebugRequestLogEnabled()) {
+      logDebugRequestAsync({
+        modelId,
+        requestBody: body,
+        responseText: text,
+        usage,
+        status: "ok",
+        latencyMs: Date.now() - t0,
+        providerRequestId,
+      });
+    }
     return { text, toolCalls: toolCalls.length > 0 ? toolCalls : undefined, usage };
   }
 
