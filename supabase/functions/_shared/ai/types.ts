@@ -34,6 +34,14 @@ export interface ChatTool {
 
 export interface ChatRequest {
   system?: string;
+  /**
+   * Dynamic/per-request additions to the system prompt. Emitted as a
+   * SECOND system block *without* cache_control so that per-user data
+   * (memories, active card context, session filters) doesn't invalidate
+   * the cached prefix in `system`. Prefer this over concatenating into
+   * `system` for anything that changes call-to-call.
+   */
+  systemDynamic?: string;
   messages: ChatMessage[];
   tools?: ChatTool[];
   /**
