@@ -24,6 +24,19 @@ import {
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
+/**
+ * Sonnet + Haiku ephemeral cache minimum is 1024 input tokens. Attaching
+ * `cache_control` to a block below that returns HTTP 400 on some model
+ * versions (Haiku 4.5 rejected all 14 memory_categorization calls on
+ * 2026-06-29). Rough heuristic: 1 token ≈ 4 chars for English prose, so
+ * gate cache_control at ~4200 chars to stay safely above the 1024 floor.
+ */
+const CACHE_CONTROL_MIN_CHARS = 4200;
+
+function shouldCacheSystem(text: string): boolean {
+  return text.length >= CACHE_CONTROL_MIN_CHARS;
+}
+
 type FetchFn = typeof fetch;
 
 export interface AnthropicProviderOptions {
@@ -101,22 +114,40 @@ export class AnthropicProvider implements ChatProvider {
       stream,
     };
     if (systemParts.length > 0) {
-      body.system = [
-        {
-          type: "text",
-          text: systemParts.join("\n\n"),
-          cache_control: { type: "ephemeral" },
-        },
-      ];
+      const systemText = systemParts.join("\n\n");
+      const systemBlock: Record<string, unknown> = {
+        type: "text",
+        text: systemText,
+      };
+      if (shouldCacheSystem(systemText)) {
+        systemBlock.cache_control = { type: "ephemeral" };
+      }
+      body.system = [systemBlock];
     }
     if (req.temperature !== undefined) body.temperature = req.temperature;
     if (req.tools && req.tools.length > 0) {
-      body.tools = req.tools.map((t) => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.parameters,
-        cache_control: { type: "ephemeral" },
-      }));
+      // Only mark the LAST tool with cache_control. Anthropic caches every
+      // block up to and including the marked one, so a single marker at
+      // the end covers the full tool array. Also skip cache_control when
+      // the serialized payload is well under the 1024-token minimum.
+      const toolPayloadChars = req.tools.reduce(
+        (sum, t) =>
+          sum + (t.name?.length ?? 0) + (t.description?.length ?? 0) +
+          JSON.stringify(t.parameters ?? {}).length,
+        0,
+      );
+      const cacheTools = toolPayloadChars >= CACHE_CONTROL_MIN_CHARS;
+      body.tools = req.tools.map((t, idx) => {
+        const block: Record<string, unknown> = {
+          name: t.name,
+          description: t.description,
+          input_schema: t.parameters,
+        };
+        if (cacheTools && idx === req.tools!.length - 1) {
+          block.cache_control = { type: "ephemeral" };
+        }
+        return block;
+      });
       body.tool_choice = translateToolChoice(req.toolChoice);
     }
     return body;
@@ -139,12 +170,10 @@ export class AnthropicProvider implements ChatProvider {
     });
     if (!response.ok) {
       const text = await response.text().catch(() => "");
+      const requestId = response.headers.get("request-id") ?? response.headers.get("x-request-id") ?? undefined;
       const retryable = response.status === 429 || response.status >= 500;
-      throw new ProviderError(
-        `Anthropic ${response.status}: ${(text || response.statusText).slice(0, 500)}`,
-        response.status,
-        retryable,
-      );
+      const msg = `Anthropic ${response.status}${requestId ? ` [req=${requestId}]` : ""}: ${(text || response.statusText).slice(0, 500)}`;
+      throw new ProviderError(msg, response.status, retryable);
     }
     return response;
   }
