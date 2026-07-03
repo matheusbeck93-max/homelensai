@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { SeoCanonical } from "@/components/seo/SeoCanonical";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -479,6 +480,7 @@ export default function Index() {
         isRefreshing={isRefreshing} />
 
       <Navigation />
+      <SeoCanonical />
 
       {/* Chrome Extension Banner - only for logged-in users who haven't dismissed */}
       {user && !extensionBannerDismissed && !hasStartedConversation && (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SeoCanonical } from "@/components/seo/SeoCanonical";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -155,6 +156,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 to-accent/10 p-4 flex items-center justify-center">
+      <SeoCanonical />
       <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-8 items-center">
         <aside className="hidden lg:flex flex-col gap-6 px-2">
           <div className="flex items-center gap-2">
