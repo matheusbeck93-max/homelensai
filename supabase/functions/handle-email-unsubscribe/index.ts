@@ -15,6 +15,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { corsHeaders } from '../_shared/cors.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const PostSchema = z.object({ token: z.string().min(8).max(128) });
 
@@ -25,7 +26,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -101,4 +102,4 @@ Deno.serve(async (req) => {
   }
 
   return json({ error: 'method not allowed' }, 405);
-});
+})(req)));

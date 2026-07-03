@@ -5,10 +5,11 @@ import { createLogger } from '../_shared/logging.ts';
 import { getOrCacheStripeCustomerId } from '../_shared/stripeCustomer.ts';
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('manage-subscription');
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -53,4 +54,4 @@ Deno.serve(async (req) => {
     log.step("ERROR", { message: getErrorMessage(error) });
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));

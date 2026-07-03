@@ -22,6 +22,7 @@ import {
 } from "../_shared/ai/budgetGuard.ts";
 import { getActiveCreditBalance, getPlanCreditBalance, TOPUP_CREDIT_EXPIRY_DAYS } from "../_shared/credits.ts";
 import type { Tier } from "../_shared/ai/types.ts";
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const TIER_DISPLAY: Record<Tier, string> = {
   free: "Free",
@@ -82,7 +83,7 @@ function toNum(v: unknown): number {
   return 0;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const pre = handleCors(req);
   if (pre) return pre;
   const cors = buildCorsHeaders(req);
@@ -352,4 +353,4 @@ Deno.serve(async (req) => {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
-});
+})(req)));

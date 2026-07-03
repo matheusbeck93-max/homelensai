@@ -16,6 +16,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { getFredSeries, type FredSeriesPayload } from '../_shared/fred-client.ts';
 import { FRED_SERIES } from '../_shared/fred-series.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('fred-mortgage-snapshot');
 
@@ -50,7 +51,7 @@ function buildNarrative(rates30: FredSeriesPayload | null, t10: FredSeriesPayloa
   return bits.length ? bits.join('; ') + '.' : 'Rate environment stable over recent weeks.';
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -134,4 +135,4 @@ Deno.serve(async (req) => {
     log.error('fred-mortgage-snapshot failed', { error: getErrorMessage(err) });
     return errorResponse(getErrorMessage(err), 500);
   }
-});
+})(req)));

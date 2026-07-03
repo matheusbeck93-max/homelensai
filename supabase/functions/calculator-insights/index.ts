@@ -4,8 +4,9 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -113,4 +114,4 @@ Response style:
     console.error('Error in calculator-insights function:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));

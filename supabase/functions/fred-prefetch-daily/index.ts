@@ -16,10 +16,11 @@ import { getFredSeries } from '../_shared/fred-client.ts';
 import { PREFETCH_SERIES } from '../_shared/fred-series.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { withCronLog } from '../_shared/cron-log.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('fred-prefetch-daily');
 
-Deno.serve(withCronLog("fred-prefetch-daily", async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (withCronLog("fred-prefetch-daily", async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -62,4 +63,4 @@ Deno.serve(withCronLog("fred-prefetch-daily", async (req) => {
     failed: results.length - okCount,
     results,
   });
-}));
+}))(req)));

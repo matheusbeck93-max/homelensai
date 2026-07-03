@@ -3,10 +3,11 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { getAuthenticatedUser } from '../_shared/auth.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
 import { fetchRentcastValuation, amortizedBalance, monthsBetween } from '../_shared/rentcast.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const RATE_LIMIT_MS = 60 * 60 * 1000; // 1/hr per property
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const pre = handleCors(req);
   if (pre) return pre;
 
@@ -144,4 +145,4 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+})(req)));

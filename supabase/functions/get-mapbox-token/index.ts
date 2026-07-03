@@ -2,8 +2,9 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { getAuthenticatedUser } from '../_shared/auth.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -19,4 +20,4 @@ Deno.serve(async (req) => {
     console.error('Error in get-mapbox-token:', errorMessage);
     return errorResponse('Unable to retrieve map token.', 500);
   }
-});
+})(req)));

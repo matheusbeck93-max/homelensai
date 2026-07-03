@@ -4,8 +4,9 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => withRequestOrigin(req, async () => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -66,4 +67,4 @@ Deno.serve(async (req) => {
     console.error('Error in generate-image:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+}));

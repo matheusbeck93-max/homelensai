@@ -5,10 +5,11 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { getOrCacheStripeCustomerId } from '../_shared/stripeCustomer.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('customer-portal');
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -53,4 +54,4 @@ Deno.serve(async (req) => {
     log.step("ERROR", { message: getErrorMessage(error) });
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));

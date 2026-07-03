@@ -22,6 +22,7 @@ import {
 import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts';
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('perplexity-chat');
 
@@ -60,7 +61,7 @@ function isPropertySearch(text: string): boolean {
   return searchPatterns.some(p => p.test(text));
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => withRequestOrigin(req, async () => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -672,4 +673,4 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+}));

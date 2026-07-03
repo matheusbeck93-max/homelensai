@@ -6,10 +6,11 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('ai-search');
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -151,4 +152,4 @@ If user profile preferences exist and user query doesn't specify certain filters
     log.error('Error:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));

@@ -2,6 +2,7 @@ import { handleCors, corsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('gsc-insights');
 
@@ -43,7 +44,7 @@ function isAuthorized(email: string | null | undefined): boolean {
   return list.split(',').map((s) => s.trim()).includes(email.toLowerCase());
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -173,4 +174,4 @@ Deno.serve(async (req) => {
     log.error?.('gsc-insights failed', { error: String(err) });
     return errorResponse(err instanceof Error ? err.message : 'Unknown error', 500);
   }
-});
+})(req)));

@@ -4,6 +4,7 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { getAuthenticatedUserProfile } from '../_shared/auth.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('extension-save-property');
 
@@ -32,7 +33,7 @@ function viewUrlForTier(tier?: string | null): string {
   return '/chats';
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -131,4 +132,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+})(req)));

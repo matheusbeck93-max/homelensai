@@ -13,10 +13,11 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { getFredSeries } from '../_shared/fred-client.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('fred-get-series');
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -38,4 +39,4 @@ Deno.serve(async (req) => {
     log.error('fred-get-series failed', { error: getErrorMessage(err) });
     return errorResponse(getErrorMessage(err), 500);
   }
-});
+})(req)));

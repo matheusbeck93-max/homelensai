@@ -5,13 +5,14 @@ import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import {
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
   isLegacyPriceId,
   targetPriceIdForTier,
 } from '../_shared/subscriptions.ts';
 
 const log = createLogger('legacy-upgrade-portal');
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -102,4 +103,4 @@ Deno.serve(async (req) => {
     log.error('legacy-upgrade-portal failed', err);
     return errorResponse(getErrorMessage(err), 500);
   }
-});
+})(req)));

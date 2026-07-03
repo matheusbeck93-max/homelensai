@@ -4,6 +4,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('market-trends');
 
@@ -24,7 +25,7 @@ interface MarketTrendsResponse {
   generatedAt: string;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -173,7 +174,7 @@ Respond ONLY with valid JSON, no markdown or explanation.`;
     log.error('Error:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));
 
 function generateFallbackData(location: string): MarketTrendsResponse {
   const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

@@ -17,6 +17,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { sendTransactional } from '../_shared/email/sender.ts';
 import { withCronLog } from '../_shared/cron-log.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 function localParts(tz: string, now: Date): { hour: number; ymd: string } {
   const fmt = new Intl.DateTimeFormat('en-US', {
@@ -34,7 +35,7 @@ function localParts(tz: string, now: Date): { hour: number; ymd: string } {
   return { hour, ymd };
 }
 
-Deno.serve(withCronLog("streak-protection-nudge-hourly", async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (withCronLog("streak-protection-nudge-hourly", async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   const denied = requireCronAuth(req);
   if (denied) return denied;
@@ -104,4 +105,4 @@ Deno.serve(withCronLog("streak-protection-nudge-hourly", async (req) => {
     JSON.stringify({ considered, sent, total_candidates: candidates?.length ?? 0 }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-}));
+}))(req)));

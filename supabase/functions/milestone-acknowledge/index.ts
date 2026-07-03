@@ -10,10 +10,11 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { corsHeaders } from '../_shared/cors.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const BodySchema = z.object({ id: z.string().uuid() });
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders });
@@ -55,4 +56,4 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify({ ok: true }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-});
+})(req)));

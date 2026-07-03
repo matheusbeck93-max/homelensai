@@ -12,6 +12,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('upgrade-cta-click');
 
@@ -21,7 +22,7 @@ const BodySchema = z.object({
   from_tier: z.enum(['free', 'buyer', 'investor']),
 });
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -65,4 +66,4 @@ Deno.serve(async (req) => {
     log.error('handler error', { error: getErrorMessage(e) });
     return errorResponse(getErrorMessage(e), 500, req);
   }
-});
+})(req)));

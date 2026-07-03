@@ -4,6 +4,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { retryWithBackoff } from '../_shared/http.ts';
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('enrich-property');
 
@@ -47,7 +48,7 @@ function checkRateLimit(userId: string): { allowed: boolean; remaining: number }
   return { allowed: true, remaining: RATE_LIMIT.maxRequests - currentEntry.count };
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
 
     const insights: any = {};
 
-    // 1) RentCast API - Rent estimates and market data
+    // 1)(req))) RentCast API - Rent estimates and market data
     if (RENTCAST_API_KEY) {
       try {
         const rentcastParams = new URLSearchParams({

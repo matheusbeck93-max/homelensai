@@ -4,13 +4,14 @@ import { jsonResponse, errorResponse, validationError } from '../_shared/respons
 import { requireEnv } from '../_shared/env.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const RequestSchema = z.object({
   instructions: z.string().max(2000).optional(),
   voice: z.enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']).default('alloy'),
 }).strict();
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -60,4 +61,4 @@ Deno.serve(async (req) => {
     console.error("Error in realtime-token:", error);
     return errorResponse('Unable to create voice session.', 500);
   }
-});
+})(req)));
