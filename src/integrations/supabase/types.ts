@@ -1281,6 +1281,7 @@ export type Database = {
           id: string
           note: string | null
           property_id: string
+          user_id: string
         }
         Insert: {
           created_at?: string
@@ -1290,6 +1291,7 @@ export type Database = {
           id?: string
           note?: string | null
           property_id: string
+          user_id: string
         }
         Update: {
           created_at?: string
@@ -1299,6 +1301,7 @@ export type Database = {
           id?: string
           note?: string | null
           property_id?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -1319,6 +1322,7 @@ export type Database = {
           id: string
           improvement_date: string
           property_id: string
+          user_id: string
         }
         Insert: {
           category?: string | null
@@ -1328,6 +1332,7 @@ export type Database = {
           id?: string
           improvement_date: string
           property_id: string
+          user_id: string
         }
         Update: {
           category?: string | null
@@ -1337,6 +1342,7 @@ export type Database = {
           id?: string
           improvement_date?: string
           property_id?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -1397,6 +1403,7 @@ export type Database = {
           property_tax_yearly: number | null
           security_deposit: number | null
           updated_at: string
+          user_id: string
           vacancy_pct: number | null
         }
         Insert: {
@@ -1412,6 +1419,7 @@ export type Database = {
           property_tax_yearly?: number | null
           security_deposit?: number | null
           updated_at?: string
+          user_id: string
           vacancy_pct?: number | null
         }
         Update: {
@@ -1427,6 +1435,7 @@ export type Database = {
           property_tax_yearly?: number | null
           security_deposit?: number | null
           updated_at?: string
+          user_id?: string
           vacancy_pct?: number | null
         }
         Relationships: [
@@ -1449,6 +1458,7 @@ export type Database = {
           property_id: string
           source: string
           source_payload: Json | null
+          user_id: string
           value: number
         }
         Insert: {
@@ -1460,6 +1470,7 @@ export type Database = {
           property_id: string
           source: string
           source_payload?: Json | null
+          user_id: string
           value: number
         }
         Update: {
@@ -1471,6 +1482,7 @@ export type Database = {
           property_id?: string
           source?: string
           source_payload?: Json | null
+          user_id?: string
           value?: number
         }
         Relationships: [
