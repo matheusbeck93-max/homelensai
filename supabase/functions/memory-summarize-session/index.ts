@@ -17,10 +17,11 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { summarizeConversation, type TranscriptMessage } from '../_shared/memory/extractor.ts';
 import { pruneMemories } from '../_shared/memory/prune.ts';
 import { resolveMemoryTier } from '../_shared/memory/types.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const BodySchema = z.object({ conversationId: z.string().uuid() });
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders });
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
     .eq('id', conversationId);
 
   return json({ ok: true, inserted, ...pruneResult });
-});
+})(req)));
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

@@ -4,6 +4,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { requireEnv } from '../_shared/env.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 // Cap text at the ElevenLabs streaming endpoint's effective limit. Reject
 // anything longer instead of silently truncating (the old behavior was
@@ -18,7 +19,7 @@ function charsToFakeTokens(chars: number): number {
   return Math.min(chars / 2, 2000);
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -88,4 +89,4 @@ Deno.serve(async (req) => {
     console.error('TTS error:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));
