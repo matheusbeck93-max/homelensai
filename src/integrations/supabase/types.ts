@@ -68,6 +68,69 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_debug_requests: {
+        Row: {
+          api_name: string
+          cache_creation_input_tokens: number | null
+          cache_read_input_tokens: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          input_tokens: number | null
+          is_dev_call: boolean | null
+          latency_ms: number | null
+          model_id: string
+          output_tokens: number | null
+          provider_request_id: string | null
+          request_body: Json | null
+          response_text: string | null
+          status: string | null
+          surface: string
+          tier: string | null
+          user_id: string | null
+        }
+        Insert: {
+          api_name: string
+          cache_creation_input_tokens?: number | null
+          cache_read_input_tokens?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_tokens?: number | null
+          is_dev_call?: boolean | null
+          latency_ms?: number | null
+          model_id: string
+          output_tokens?: number | null
+          provider_request_id?: string | null
+          request_body?: Json | null
+          response_text?: string | null
+          status?: string | null
+          surface: string
+          tier?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          api_name?: string
+          cache_creation_input_tokens?: number | null
+          cache_read_input_tokens?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_tokens?: number | null
+          is_dev_call?: boolean | null
+          latency_ms?: number | null
+          model_id?: string
+          output_tokens?: number | null
+          provider_request_id?: string | null
+          request_body?: Json | null
+          response_text?: string | null
+          status?: string | null
+          surface?: string
+          tier?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_usage_log: {
         Row: {
           api_name: string
@@ -77,6 +140,7 @@ export type Database = {
           cost_usd: number
           created_at: string
           error_code: string | null
+          error_message: string | null
           id: string
           input_tokens: number
           is_dev_call: boolean
@@ -99,6 +163,7 @@ export type Database = {
           cost_usd?: number
           created_at?: string
           error_code?: string | null
+          error_message?: string | null
           id?: string
           input_tokens?: number
           is_dev_call?: boolean
@@ -121,6 +186,7 @@ export type Database = {
           cost_usd?: number
           created_at?: string
           error_code?: string | null
+          error_message?: string | null
           id?: string
           input_tokens?: number
           is_dev_call?: boolean
