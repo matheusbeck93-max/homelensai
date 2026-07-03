@@ -33,7 +33,9 @@ Deno.test("complete() targets the Anthropic messages endpoint with correct heade
   assertEquals(capturedHeaders!.get("x-api-key"), "sk-ant-test");
   assertEquals(capturedHeaders!.get("anthropic-version"), "2023-06-01");
   assertEquals(capturedBody.model, "claude-sonnet-4-5");
-  assertEquals(capturedBody.system, [{ type: "text", text: "be terse", cache_control: { type: "ephemeral" } }]);
+  // Small system prompts (< ~4200 chars) MUST NOT carry cache_control — Anthropic
+  // returns 400 when marking a block below the 1024-token ephemeral-cache floor.
+  assertEquals(capturedBody.system, [{ type: "text", text: "be terse" }]);
   assertEquals(capturedBody.temperature, 0.2);
   assertEquals(capturedBody.messages[0], { role: "user", content: "hello" });
 
@@ -118,4 +120,38 @@ Deno.test("complete() surfaces 429 as retryable ProviderError", async () => {
   } catch (e) { thrown = e; }
   assertEquals(thrown?.status, 429);
   assertEquals(thrown?.retryable, true);
+});
+
+Deno.test("complete() attaches cache_control on system blocks >= 4200 chars", async () => {
+  let capturedBody: any;
+  const fetchImpl: typeof fetch = async (_u, init: any) => {
+    capturedBody = JSON.parse((init?.body as string) ?? "{}");
+    return jsonResponse({ content: [{ type: "text", text: "ok" }], usage: { input_tokens: 1000, output_tokens: 1 } });
+  };
+  const provider = new AnthropicProvider({ apiKey: "x", fetchImpl });
+  const bigSystem = "You are a helpful assistant. ".repeat(200); // ~5600 chars
+  await provider.complete("gateway:standard", {
+    system: bigSystem,
+    messages: [{ role: "user", content: "hi" }],
+  });
+  assertEquals(capturedBody.system[0].cache_control, { type: "ephemeral" });
+});
+
+Deno.test("complete() emits systemDynamic as a second uncached system block", async () => {
+  let capturedBody: any;
+  const fetchImpl: typeof fetch = async (_u, init: any) => {
+    capturedBody = JSON.parse((init?.body as string) ?? "{}");
+    return jsonResponse({ content: [{ type: "text", text: "ok" }], usage: { input_tokens: 1, output_tokens: 1 } });
+  };
+  const provider = new AnthropicProvider({ apiKey: "x", fetchImpl });
+  const bigSystem = "STATIC ".repeat(1000); // > 4200 chars → cached
+  await provider.complete("gateway:standard", {
+    system: bigSystem,
+    systemDynamic: "per-user preferences change every call",
+    messages: [{ role: "user", content: "hi" }],
+  });
+  assertEquals(capturedBody.system.length, 2);
+  assertEquals(capturedBody.system[0].cache_control, { type: "ephemeral" });
+  assertEquals(capturedBody.system[1].text, "per-user preferences change every call");
+  assertEquals(capturedBody.system[1].cache_control, undefined);
 });
