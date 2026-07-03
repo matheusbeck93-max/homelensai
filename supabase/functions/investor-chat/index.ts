@@ -1757,18 +1757,25 @@ function buildSystemPrompt(
   personaContext?: { persona: string; secondary: string[] },
   investorContext?: UserInvestorContext,
   sessionFilters?: SessionFilters | null,
-) {
+): { static: string; dynamic: string } {
   const personaBlock = personaContext ? buildPersonaBlock(personaContext.persona, personaContext.secondary) : '';
   const contextBlock = investorContext ? buildUserInvestorContextBlock(investorContext) : '';
   const sessionBlock = sessionFilters && Object.keys(sessionFilters).length
     ? `\n\nACTIVE SESSION FILTERS (transient, this conversation only):\n${JSON.stringify(sessionFilters)}`
     : '\n\nACTIVE SESSION FILTERS: none';
-  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock + '\n\n' + CI_SIGNALS_BLOCK;
-  const title = activeCardContext?.card?.title ?? 'unknown';
-  const summary = activeCardContext?.summary ?? '';
-  return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}${sessionBlock}
-
-The user is deep-diving on a brief card titled "${title}". Context: ${summary}.
+  // STATIC prefix: identical byte-for-byte across every call for this
+  // model version. This is what Anthropic ephemeral-caches.
+  const staticPrefix = `${SYSTEM_PROMPT}\n\n${CI_SIGNALS_BLOCK}`;
+  // DYNAMIC suffix: per-user / per-request content. Passed separately
+  // through ChatRequest.systemDynamic so it never invalidates the cache.
+  const dynamicParts: string[] = [];
+  if (personaBlock) dynamicParts.push(personaBlock.trim());
+  if (contextBlock) dynamicParts.push(contextBlock.trim());
+  dynamicParts.push(sessionBlock.trim());
+  if (activeCardContext) {
+    const title = activeCardContext?.card?.title ?? 'unknown';
+    const summary = activeCardContext?.summary ?? '';
+    dynamicParts.push(`The user is deep-diving on a brief card titled "${title}". Context: ${summary}.
 
 The right-hand panel already shows that card's source visual at full detail — do NOT re-fetch the same underlying data the card is already showing. Instead, use follow-up tool calls to elaborate:
 - Surface a different cut of the same domain (per-ZIP, per-time-bucket, per-property breakdowns).
@@ -1776,7 +1783,7 @@ The right-hand panel already shows that card's source visual at full detail — 
 - Stack a related visual (e.g., for a cap rate trend, add the user's target line or recent comps).
 - Project the trend forward.
 
-The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.
-
-${CI_SIGNALS_BLOCK}`;
+The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.`);
+  }
+  return { static: staticPrefix, dynamic: dynamicParts.join('\n\n') };
 }
