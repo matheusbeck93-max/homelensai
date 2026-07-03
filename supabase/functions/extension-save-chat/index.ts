@@ -4,6 +4,7 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { getAuthenticatedUser } from '../_shared/auth.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('extension-save-chat');
 
@@ -28,7 +29,7 @@ function deriveTitle(input: { title?: string | null; messages: { role: string; c
   return base.length > 60 ? base.slice(0, 57) + '...' : base;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -139,4 +140,4 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-});
+})(req)));

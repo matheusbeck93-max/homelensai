@@ -9,6 +9,7 @@ import {
   cacheStripeCustomerId,
 } from "../_shared/stripeCustomer.ts";
 import { getCreditPack, type CreditPackSize } from "../_shared/credits.ts";
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 /**
  * Creates a Stripe Checkout session for a one-time AI credit pack purchase.
@@ -28,7 +29,7 @@ const VALID_PACKS: ReadonlySet<CreditPackSize> = new Set<CreditPackSize>([
   "large",
 ]);
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -143,4 +144,4 @@ Deno.serve(async (req) => {
     log.error("buy-credits failed", { error: getErrorMessage(e) });
     return errorResponse(getErrorMessage(e), 500, req);
   }
-});
+})(req)));

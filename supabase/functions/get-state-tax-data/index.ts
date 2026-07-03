@@ -7,6 +7,7 @@ import { requireEnv } from '../_shared/env.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { fetchWithTimeout } from '../_shared/http.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('get-state-tax-data');
 
@@ -37,7 +38,7 @@ function normalizeState(input: string): string | null {
   return null;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -120,4 +121,4 @@ Deno.serve(async (req) => {
     log.error('Error:', error);
     return errorResponse('Failed to fetch tax data');
   }
-});
+})(req)));

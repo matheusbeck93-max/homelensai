@@ -9,6 +9,7 @@ import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { callAiGateway, type AiMessage } from '../_shared/ai-gateway.ts';
 import type { Tier } from '../_shared/ai/types.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('property-assistant');
 
@@ -149,7 +150,7 @@ function buildPropertyLinks(query: string) {
   return links;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -270,4 +271,4 @@ Universal rules:
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
+})(req)));

@@ -5,10 +5,11 @@ import { errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('generate-property-pdf');
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -184,4 +185,4 @@ Deno.serve(async (req) => {
     log.error('Error:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));

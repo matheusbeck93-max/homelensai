@@ -21,6 +21,7 @@ import { findOpenHousesSchema, type FindOpenHousesArgs } from '../_shared/openHo
 import type { OpenHouseListing, OpenHouseSearchResult } from '../_shared/openHouses/types.ts';
 import { checkAndIncrementOpenHouseQuota } from '../_shared/openHouses/limiter.ts';
 import { searchOpenHousesOrchestrated, MAX_LISTINGS } from '../_shared/openHouses/dataSources.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('open-houses-search');
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -43,7 +44,7 @@ function buildFilterHash(f: FindOpenHousesArgs): Promise<string> {
   }));
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -140,4 +141,4 @@ Deno.serve(async (req) => {
     log.error('open-houses-search failed', { error: err instanceof Error ? err.message : String(err) });
     return errorResponse('Unable to search open houses right now.', 500, req);
   }
-});
+})(req)));

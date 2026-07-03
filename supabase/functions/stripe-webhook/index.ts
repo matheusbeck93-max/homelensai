@@ -5,6 +5,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { isLegacyPriceId, isCurrentPriceId } from '../_shared/subscriptions.ts';
 import { getCreditPackByPriceId, TOPUP_CREDIT_EXPIRY_DAYS } from '../_shared/credits.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 /**
  * Stripe webhook handler.
@@ -40,7 +41,7 @@ const PRODUCT_TIER_MAP: Record<string, 'free' | 'buyer' | 'investor'> = {
   'prod_UZ17Q3M67mTUP4': 'investor', // Investor annual
 };
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -198,7 +199,7 @@ Deno.serve(async (req) => {
     log.error('Handler error', err);
     return errorResponse(getErrorMessage(err), 500);
   }
-});
+})(req)));
 
 async function getCustomerEmail(stripe: Stripe, customerId: string): Promise<string | null> {
   const customer = await stripe.customers.retrieve(customerId);

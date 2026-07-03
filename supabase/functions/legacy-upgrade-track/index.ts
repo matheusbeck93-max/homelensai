@@ -3,12 +3,13 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/responses.ts';
 import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('legacy-upgrade-track');
 
 type Action = 'shown' | 'dismissed' | 'later' | 'no_thanks';
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -67,4 +68,4 @@ Deno.serve(async (req) => {
     log.error('legacy-upgrade-track failed', err);
     return errorResponse(getErrorMessage(err), 500);
   }
-});
+})(req)));

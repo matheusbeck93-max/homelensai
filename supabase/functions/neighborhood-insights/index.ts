@@ -4,6 +4,7 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('neighborhood-insights');
 
@@ -57,7 +58,7 @@ interface NeighborhoodInsights {
   lastUpdated?: string;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -180,7 +181,7 @@ Respond ONLY with valid JSON in this exact format:
     log.error('Error:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));
 
 function generateFallbackInsights(city: string, state: string, zip: string): NeighborhoodInsights {
   const zipNum = parseInt(zip) || 22206;

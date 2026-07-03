@@ -14,10 +14,11 @@ import { sendTransactional } from '../_shared/email/sender.ts';
 import { searchOpenHouses } from '../_shared/openHouses/searchClient.ts';
 import { formatListingsAsCards } from '../_shared/openHouses/formatCards.ts';
 import { withCronLog } from '../_shared/cron-log.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('send-open-house-digest');
 
-Deno.serve(withCronLog("open-house-digest", async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (withCronLog("open-house-digest", async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -105,4 +106,4 @@ Deno.serve(withCronLog("open-house-digest", async (req) => {
   }
 
   return jsonResponse({ ok: true, frequency, processed: results.length, results }, 200, req);
-}));
+}))(req)));

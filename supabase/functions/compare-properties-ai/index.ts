@@ -5,8 +5,9 @@ import { callAiGateway } from '../_shared/ai-gateway.ts';
 import { precheckAiCredits, deductAiCredits } from '../_shared/aiCredits.ts';
 import { enforceFeature } from '../_shared/tierGate.ts';
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -137,4 +138,4 @@ Response style:
     console.error('Error in compare-properties-ai:', error);
     return errorResponse(getErrorMessage(error));
   }
-});
+})(req)));

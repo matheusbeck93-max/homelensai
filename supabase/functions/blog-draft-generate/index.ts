@@ -1,8 +1,9 @@
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { getAuthenticatedUserProfile } from '../_shared/auth.ts';
 import { callAiGateway } from '../_shared/ai-gateway.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -104,4 +105,4 @@ Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+})(req)));

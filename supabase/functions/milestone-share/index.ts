@@ -14,6 +14,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { corsHeaders } from '../_shared/cors.ts';
 import { z } from 'https://esm.sh/zod@3.23.8';
 import { renderPng, buildSvg } from '../_shared/milestones/renderShareImage.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const BodySchema = z.object({ id: z.string().uuid() });
 
@@ -21,7 +22,7 @@ function tweetText(headline: string): string {
   return `${headline} — tracking with HomeLens 🏡 homelensais.com`;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders });
@@ -132,4 +133,4 @@ Deno.serve(async (req) => {
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-});
+})(req)));

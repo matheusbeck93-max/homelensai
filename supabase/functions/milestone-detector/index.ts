@@ -16,8 +16,9 @@ import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { detectAndPersist } from '../_shared/milestones/detector.ts';
 import { sendTransactional } from '../_shared/email/sender.ts';
 import { isPausedAndLog, logCronRun } from '../_shared/cron-log.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   const denied = requireCronAuth(req);
   if (denied) return denied;
@@ -108,4 +109,4 @@ Deno.serve(async (req) => {
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
-});
+})(req)));

@@ -17,6 +17,7 @@ import { z } from 'https://esm.sh/zod@3.23.8';
 import { corsHeaders } from '../_shared/cors.ts';
 import { recordEngagement, type EngagementAction } from '../_shared/streaks/engagement.ts';
 import { routeStickinessEvent } from '../_shared/stickiness/orchestrator.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const BodySchema = z.object({
   action: z.enum([
@@ -37,7 +38,7 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
@@ -75,4 +76,4 @@ Deno.serve(async (req) => {
     console.error('[streak-engagement-record] failed', err);
     return json({ error: 'internal' }, 500);
   }
-});
+})(req)));

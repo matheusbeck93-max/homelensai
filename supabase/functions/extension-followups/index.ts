@@ -24,6 +24,7 @@ import { handleCors } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse, validationError } from '../_shared/responses.ts';
 import { loadProfile } from '../_shared/profileLoader.ts';
 import { createLogger } from '../_shared/logging.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('extension-followups');
 
@@ -106,7 +107,7 @@ function serviceClient() {
 // Handler
 // ────────────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -256,4 +257,4 @@ Deno.serve(async (req) => {
     log.error('handler_error', { error: (err as Error)?.message });
     return errorResponse('internal_error', 500, req);
   }
-});
+})(req)));

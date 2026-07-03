@@ -6,6 +6,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { z } from 'https://esm.sh/zod@3.23.8';
 import { enforceFeature } from '../_shared/tierGate.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('save-analysis');
 
@@ -20,7 +21,7 @@ const BodySchema = z.object({
   source: z.enum(['app', 'extension']).default('app'),
 });
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -98,4 +99,4 @@ Deno.serve(async (req) => {
     log.step('ERROR', { message: getErrorMessage(err) });
     return errorResponse(getErrorMessage(err));
   }
-});
+})(req)));

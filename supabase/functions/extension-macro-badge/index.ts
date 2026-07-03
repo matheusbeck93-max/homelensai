@@ -32,6 +32,7 @@ import { runGetMetroLaborMarket } from '../_shared/ai/tools/macro/getMetroLaborM
 import { runGetMetroWageGrowth } from '../_shared/ai/tools/macro/getMetroWageGrowth.ts';
 import { runGetMetroHousingIndex } from '../_shared/ai/tools/macro/getMetroHousingIndex.ts';
 import { runGetCurrentMortgageRates } from '../_shared/ai/tools/macro/getCurrentMortgageRates.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const BodySchema = z.object({
   city: z.string().trim().min(1).max(80),
@@ -47,7 +48,7 @@ function isOk(o: unknown): o is { ok: true } & Record<string, unknown> {
   return !!o && typeof o === 'object' && (o as { ok?: boolean }).ok === true;
 }
 
-Deno.serve(async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -161,4 +162,4 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-});
+})(req)));

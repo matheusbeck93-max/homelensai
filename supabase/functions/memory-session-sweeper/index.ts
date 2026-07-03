@@ -13,8 +13,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { corsHeaders } from '../_shared/cors.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { withCronLog } from '../_shared/cron-log.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
-Deno.serve(withCronLog("memory-session-sweeper-every-10-min", async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (withCronLog("memory-session-sweeper-every-10-min", async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const denied = requireCronAuth(req);
@@ -75,4 +76,4 @@ Deno.serve(withCronLog("memory-session-sweeper-every-10-min", async (req) => {
   return new Response(JSON.stringify({ fetched: stale?.length ?? 0, scanned: needsSummary.length, results }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-}));
+}))(req)));

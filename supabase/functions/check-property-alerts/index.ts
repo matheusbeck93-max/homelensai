@@ -7,11 +7,12 @@ import { getErrorMessage } from '../_shared/errors.ts';
 import { createLogger } from '../_shared/logging.ts';
 import { requireCronAuth } from '../_shared/cronAuth.ts';
 import { withCronLog } from '../_shared/cron-log.ts';
+import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
 
 const log = createLogger('check-property-alerts');
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
-Deno.serve(withCronLog("check-property-alerts", async (req) => {
+Deno.serve((req: Request) => withRequestOrigin(req, () => (withCronLog("check-property-alerts", async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -138,4 +139,4 @@ Deno.serve(withCronLog("check-property-alerts", async (req) => {
     log.error('Error:', error);
     return errorResponse(getErrorMessage(error));
   }
-}));
+}))(req)));
