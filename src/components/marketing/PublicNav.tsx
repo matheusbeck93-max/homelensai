@@ -8,6 +8,12 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import { FEATURES, SOLUTIONS } from "./featureRegistry";
 
@@ -104,69 +110,75 @@ export function PublicNavMobile({ onNavigate }: { onNavigate?: () => void }) {
     navigate(path);
   };
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Features
-        </div>
-        <div className="space-y-1">
-          {FEATURES.map((f) => {
-            const Icon = f.icon;
-            return (
-              <button
-                key={f.slug}
-                onClick={() => go(`/features/${f.slug}`)}
-                className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent"
-              >
-                <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium leading-tight">{f.name}</span>
-                  <span className="block text-xs text-muted-foreground leading-snug">
-                    {f.short}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+    <div className="space-y-2">
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="features" className="border-b">
+          <AccordionTrigger className="px-3 py-3 text-sm font-medium hover:no-underline">
+            Features
+          </AccordionTrigger>
+          <AccordionContent className="pb-2">
+            <div className="space-y-1">
+              {FEATURES.map((f) => {
+                const Icon = f.icon;
+                return (
+                  <button
+                    key={f.slug}
+                    onClick={() => go(`/features/${f.slug}`)}
+                    className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent"
+                  >
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium leading-tight">{f.name}</span>
+                      <span className="block text-xs text-muted-foreground leading-snug">
+                        {f.short}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
 
-      <div>
-        <div className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Solutions
-        </div>
-        <div className="space-y-1">
-          {SOLUTIONS.map((s) => {
-            const Icon = s.icon;
-            return (
-              <button
-                key={s.slug}
-                onClick={() => go(`/solutions/${s.slug}`)}
-                className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent"
-              >
-                <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium leading-tight">{s.name}</span>
-                  <span className="block text-xs text-muted-foreground leading-snug">
-                    {s.short}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        <AccordionItem value="solutions" className="border-b">
+          <AccordionTrigger className="px-3 py-3 text-sm font-medium hover:no-underline">
+            Solutions
+          </AccordionTrigger>
+          <AccordionContent className="pb-2">
+            <div className="space-y-1">
+              {SOLUTIONS.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <button
+                    key={s.slug}
+                    onClick={() => go(`/solutions/${s.slug}`)}
+                    className="flex w-full items-start gap-3 rounded-md px-3 py-2 text-left hover:bg-accent"
+                  >
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium leading-tight">{s.name}</span>
+                      <span className="block text-xs text-muted-foreground leading-snug">
+                        {s.short}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <div className="space-y-1">
         <button
           onClick={() => go("/pricing")}
-          className="flex w-full rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-accent"
+          className="flex w-full rounded-md px-3 py-3 text-left text-sm font-medium hover:bg-accent"
         >
           Pricing
         </button>
         <button
           onClick={() => go("/faq")}
-          className="flex w-full rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-accent"
+          className="flex w-full rounded-md px-3 py-3 text-left text-sm font-medium hover:bg-accent"
         >
           FAQ
         </button>
