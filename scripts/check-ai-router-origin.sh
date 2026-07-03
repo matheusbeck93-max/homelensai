@@ -18,10 +18,10 @@ cd "$ROOT"
 FAIL=0
 
 while IFS= read -r file; do
-  # Skip the router + tests + shared helpers themselves.
+  # Skip shared helpers (they inherit origin from their callers via
+  # AsyncLocalStorage — the callers are the ones checked here) and tests.
   case "$file" in
-    supabase/functions/_shared/ai/*) continue ;;
-    supabase/functions/_shared/memory/extractor.ts) continue ;;
+    supabase/functions/_shared/*) continue ;;
     *__tests__*) continue ;;
   esac
 
