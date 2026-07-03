@@ -1598,7 +1598,14 @@ Deno.serve(withOrigin(async (req) => {
       send('thread', { threadId: effectiveThreadId });
 
       let convo: any[] = [
-        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext, investorContext, incomingSessionFilters) },
+        ...(() => {
+          const s = buildSystemPrompt(activeCardContext, personaContext, investorContext, incomingSessionFilters);
+          // Two system messages: first = static (cached), second = dynamic
+          // (not cached). callGateway maps the extra one to ChatRequest.systemDynamic.
+          const out: any[] = [{ role: 'system', content: s.static }];
+          if (s.dynamic) out.push({ role: 'system', content: s.dynamic, _dynamic: true });
+          return out;
+        })(),
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ];
 
