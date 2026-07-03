@@ -112,6 +112,7 @@ function logUsage(
   latencyMs?: number,
   status: "ok" | "error" = "ok",
   errorCode?: string,
+  errorMessage?: string,
 ): void {
   if (Deno.env.get("AI_ROUTER_DEBUG") === "1") {
     console.log(
@@ -130,6 +131,7 @@ function logUsage(
     latencyMs,
     status,
     errorCode,
+    errorMessage,
     requestId: ctx.requestId,
     isDevCall: resolveIsDevCall(ctx),
   });
@@ -245,7 +247,7 @@ export async function completeWithFallback(
   } catch (err) {
     const primaryLatency = Date.now() - t0;
     if (err instanceof ProviderError && err.retryable) {
-      logUsage(surface, ctx, zeroUsage(primary), "primary", primaryLatency, "error", String(err.status));
+      logUsage(surface, ctx, zeroUsage(primary), "primary", primaryLatency, "error", String(err.status), err.message);
       const t1 = Date.now();
       try {
         const result = await provider.complete(fallback, req, ctx.signal);
@@ -253,12 +255,14 @@ export async function completeWithFallback(
         return result;
       } catch (err2) {
         const code = err2 instanceof ProviderError ? String(err2.status) : "unknown";
-        logUsage(surface, ctx, zeroUsage(fallback), "fallback", Date.now() - t1, "error", code);
+        const msg2 = err2 instanceof Error ? err2.message : String(err2);
+        logUsage(surface, ctx, zeroUsage(fallback), "fallback", Date.now() - t1, "error", code, msg2);
         throw err2;
       }
     }
     const code = err instanceof ProviderError ? String(err.status) : "unknown";
-    logUsage(surface, ctx, zeroUsage(primary), "primary", primaryLatency, "error", code);
+    const msg = err instanceof Error ? err.message : String(err);
+    logUsage(surface, ctx, zeroUsage(primary), "primary", primaryLatency, "error", code, msg);
     throw err;
   }
 }
@@ -335,6 +339,7 @@ export async function* streamWithFallback(
       Date.now() - t0,
       "error",
       primaryError.status ? String(primaryError.status) : "stream_error",
+      primaryError.message,
     );
     yield primaryError;
     return;
@@ -348,6 +353,7 @@ export async function* streamWithFallback(
     Date.now() - t0,
     "error",
     primaryError.status ? String(primaryError.status) : "stream_error",
+    primaryError.message,
   );
 
   let fallbackUsage: Usage | undefined;
@@ -366,6 +372,7 @@ export async function* streamWithFallback(
         Date.now() - t1,
         "error",
         ev.status ? String(ev.status) : "stream_error",
+        ev.message,
       );
       yield ev;
       return;
