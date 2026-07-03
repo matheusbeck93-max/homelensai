@@ -5,6 +5,7 @@
  */
 
 import { completeWithFallback } from '../ai/router.ts';
+import { withExplicitOrigin } from '../ai/requestContext.ts';
 import type { ExtractedMemoryCandidate, MemoryCategory } from './types.ts';
 
 const SYSTEM_PROMPT = `You extract durable, useful long-term memories about a real-estate user from a chat transcript.
@@ -68,15 +69,19 @@ export async function summarizeConversation(
 
   let raw: string;
   try {
-    const result = await completeWithFallback('memory_categorization', {
-      system: SYSTEM_PROMPT,
-      messages: [
-        { role: 'user', content: `Transcript:\n\n${transcript}` },
-      ],
-      maxTokens: 800,
-      temperature: 0.1,
-      responseFormat: 'json',
-    }, { userId: _userId, tier: 'buyer' });
+    // Cron/background job: no user-facing origin. Explicit undefined
+    // documents intent (not a dev call, not user traffic).
+    const result = await withExplicitOrigin(undefined, () =>
+      completeWithFallback('memory_categorization', {
+        system: SYSTEM_PROMPT,
+        messages: [
+          { role: 'user', content: `Transcript:\n\n${transcript}` },
+        ],
+        maxTokens: 800,
+        temperature: 0.1,
+        responseFormat: 'json',
+      }, { userId: _userId, tier: 'buyer' }),
+    );
     raw = result.text ?? '';
   } catch (err) {
     console.warn('[memory.extractor] anthropic call failed', err);

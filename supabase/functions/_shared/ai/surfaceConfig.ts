@@ -21,9 +21,6 @@ export type SurfaceId =
   | "artifact_generation"
   | "alerts_engine"
   | "property_valuation_commentary"
-  | "photo_categorization"
-  | "followup_ranking"
-  | "intent_detection"
   | "memory_categorization";
 
 export interface SurfaceTierConfig {
@@ -146,33 +143,6 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
       free: { primary: STD, fallback: FBK },
       buyer: { primary: STD, fallback: FBK },
       investor: { primary: STD, fallback: FBK },
-    },
-    maxToolIterations: 0,
-  },
-  photo_categorization: {
-    description: "Cheap lightweight classification of property photos. RESERVED — no caller today; wire a feature before deploying.",
-    tiers: {
-      free: { primary: LITE, fallback: HAI },
-      buyer: { primary: LITE, fallback: HAI },
-      investor: { primary: LITE, fallback: HAI },
-    },
-    maxToolIterations: 0,
-  },
-  followup_ranking: {
-    description: "Cheap ranking of follow-up chip suggestions. RESERVED — `rankFollowups` in the client is deterministic; no LLM caller today.",
-    tiers: {
-      free: { primary: LITE, fallback: HAI },
-      buyer: { primary: LITE, fallback: HAI },
-      investor: { primary: LITE, fallback: HAI },
-    },
-    maxToolIterations: 0,
-  },
-  intent_detection: {
-    description: "Lightweight routing and intent classification. RESERVED — no caller today.",
-    tiers: {
-      free: { primary: LITE, fallback: HAI },
-      buyer: { primary: LITE, fallback: HAI },
-      investor: { primary: LITE, fallback: HAI },
     },
     maxToolIterations: 0,
   },

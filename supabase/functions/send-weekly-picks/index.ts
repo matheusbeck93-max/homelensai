@@ -11,6 +11,7 @@ import {
   isSurfaceEnabled,
   BudgetExceededError,
 } from '../_shared/ai/router.ts';
+import { withExplicitOrigin } from '../_shared/ai/requestContext.ts';
 import { ProviderError } from '../_shared/ai/types.ts';
 import { withCronLog } from '../_shared/cron-log.ts';
 
@@ -168,15 +169,18 @@ Select the 5 best matches.`;
         let aiContent = '';
         if (true /* router always on */) {
           try {
-            const routed = await completeWithFallback(
-              'alerts_engine',
-              {
-                system: systemPrompt,
-                messages: [{ role: 'user', content: userPrompt }],
-                temperature: 0.3,
-                maxTokens: 500,
-              },
-              { userId: user.id, tier: 'buyer' },
+            // Cron: explicit undefined origin (not dev, not user traffic).
+            const routed = await withExplicitOrigin(undefined, () =>
+              completeWithFallback(
+                'alerts_engine',
+                {
+                  system: systemPrompt,
+                  messages: [{ role: 'user', content: userPrompt }],
+                  temperature: 0.3,
+                  maxTokens: 500,
+                },
+                { userId: user.id, tier: 'buyer' },
+              ),
             );
             aiContent = routed.text;
           } catch (err) {

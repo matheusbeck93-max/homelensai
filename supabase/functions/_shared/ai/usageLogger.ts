@@ -21,6 +21,7 @@ export interface UsageLogEntry {
   latencyMs?: number;
   status?: "ok" | "error";
   errorCode?: string;
+  errorMessage?: string;
   requestId?: string;
   reasoningTokens?: number;
   isDevCall?: boolean;
@@ -73,6 +74,7 @@ async function writeUsageRow(entry: UsageLogEntry): Promise<void> {
     latency_ms: entry.latencyMs ?? null,
     status: entry.status ?? "ok",
     error_code: entry.errorCode ?? null,
+    error_message: entry.errorMessage ? entry.errorMessage.slice(0, 2000) : null,
     request_id: entry.requestId ?? null,
     is_dev_call: entry.isDevCall ?? false,
   };
