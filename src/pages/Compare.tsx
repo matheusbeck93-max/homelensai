@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SeoCanonical } from "@/components/seo/SeoCanonical";
 import { useNavigate } from "react-router-dom";
 import { useComparison } from "@/contexts/ComparisonContext";
 import { Navigation } from "@/components/Navigation";
@@ -22,6 +23,7 @@ export default function Compare() {
     return (
       <div className="min-h-screen flex flex-col">
         <Navigation />
+      <SeoCanonical />
         <div className="flex-1 flex items-center justify-center">
           <Card>
             <CardHeader>
