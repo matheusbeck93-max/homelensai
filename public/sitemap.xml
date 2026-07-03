@@ -6,24 +6,59 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://homelensais.com/extension</loc>
+    <loc>https://homelensais.com/features/chrome-extension</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://homelensais.com/investors</loc>
+    <loc>https://homelensais.com/features/ai-chat</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://homelensais.com/chat-preview</loc>
+    <loc>https://homelensais.com/features/buying-power</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://homelensais.com/plans</loc>
+    <loc>https://homelensais.com/features/investor-brief</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/features/investor-calculator</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/features/saved-analyses</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/features/my-properties</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/features/preferences</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/features/property-analysis</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/solutions/buyer</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/solutions/investor</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://homelensais.com/faq</loc>
@@ -124,6 +159,12 @@
     <loc>https://homelensais.com/do-not-sell</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/blog/home-buying-process-step-by-step</loc>
+    <lastmod>2026-07-03</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://homelensais.com/blog/why-house-on-market-so-long</loc>
