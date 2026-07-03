@@ -19,10 +19,19 @@ interface SitemapEntry {
 
 const staticEntries: SitemapEntry[] = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
-  { path: "/extension", changefreq: "monthly", priority: "0.7" },
-  { path: "/investors", changefreq: "monthly", priority: "0.7" },
-  { path: "/chat-preview", changefreq: "monthly", priority: "0.6" },
-  { path: "/plans", changefreq: "monthly", priority: "0.7" },
+  // Feature pages
+  { path: "/features/chrome-extension", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/ai-chat", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/buying-power", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/investor-brief", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/investor-calculator", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/saved-analyses", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/my-properties", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/preferences", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/property-analysis", changefreq: "monthly", priority: "0.8" },
+  // Solution pages
+  { path: "/solutions/buyer", changefreq: "monthly", priority: "0.8" },
+  { path: "/solutions/investor", changefreq: "monthly", priority: "0.8" },
   { path: "/faq", changefreq: "monthly", priority: "0.6" },
   { path: "/blog", changefreq: "weekly", priority: "0.8" },
   { path: "/calculators", changefreq: "monthly", priority: "0.8" },
