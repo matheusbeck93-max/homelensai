@@ -1388,12 +1388,18 @@ function sseEvent(event: string, data: Json): Uint8Array {
 async function callGateway(messages: any[], stream = false, routerCtx?: { userId: string; tier: 'free' | 'buyer' | 'investor' }) {
   if (!stream && routerCtx && true /* router always on */) {
     try {
-      const system = messages.find((m) => m.role === 'system')?.content ?? '';
-      const rest = messages.filter((m) => m !== messages.find((mm) => mm.role === 'system'));
+      // Split system messages: the first one (no _dynamic marker) is the
+      // static, cacheable prefix; any subsequent system message flagged
+      // `_dynamic: true` is per-request content routed through
+      // ChatRequest.systemDynamic so the cached prefix stays byte-stable.
+      const staticSys = messages.find((m) => m.role === 'system' && !m._dynamic)?.content ?? '';
+      const dynamicSys = messages.find((m) => m.role === 'system' && m._dynamic)?.content ?? '';
+      const rest = messages.filter((m) => m.role !== 'system');
       const routed = await completeWithFallback(
         'investor_chat',
         {
-          system: typeof system === 'string' ? system : undefined,
+          system: typeof staticSys === 'string' ? staticSys : undefined,
+          systemDynamic: typeof dynamicSys === 'string' && dynamicSys.length > 0 ? dynamicSys : undefined,
           messages: rest.map((m: any) => ({
             role: m.role,
             content: typeof m.content === 'string' ? m.content : (m.content == null ? '' : JSON.stringify(m.content)),
