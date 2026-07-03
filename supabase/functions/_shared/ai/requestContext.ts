@@ -35,3 +35,15 @@ export function withExplicitOrigin<T>(origin: string | undefined, fn: () => T): 
 export function getCurrentOrigin(): string | undefined {
   return storage.getStore()?.origin;
 }
+
+/**
+ * Convenience wrapper for `Deno.serve`. Usage:
+ *
+ *     Deno.serve(withOrigin(async (req) => { ...handler... }));
+ *
+ * Establishes the async-local request origin so downstream router calls
+ * can auto-tag `is_dev_call` without threading `req` through helpers.
+ */
+export function withOrigin<H extends (req: Request) => Promise<Response> | Response>(handler: H): H {
+  return ((req: Request) => withRequestOrigin(req, () => handler(req))) as H;
+}
