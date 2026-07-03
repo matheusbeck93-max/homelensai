@@ -150,7 +150,7 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     maxToolIterations: 0,
   },
   photo_categorization: {
-    description: "Cheap lightweight classification of property photos.",
+    description: "Cheap lightweight classification of property photos. RESERVED — no caller today; wire a feature before deploying.",
     tiers: {
       free: { primary: LITE, fallback: HAI },
       buyer: { primary: LITE, fallback: HAI },
@@ -159,7 +159,7 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     maxToolIterations: 0,
   },
   followup_ranking: {
-    description: "Cheap ranking of follow-up chip suggestions.",
+    description: "Cheap ranking of follow-up chip suggestions. RESERVED — `rankFollowups` in the client is deterministic; no LLM caller today.",
     tiers: {
       free: { primary: LITE, fallback: HAI },
       buyer: { primary: LITE, fallback: HAI },
@@ -168,7 +168,7 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     maxToolIterations: 0,
   },
   intent_detection: {
-    description: "Lightweight routing and intent classification.",
+    description: "Lightweight routing and intent classification. RESERVED — no caller today.",
     tiers: {
       free: { primary: LITE, fallback: HAI },
       buyer: { primary: LITE, fallback: HAI },
@@ -177,7 +177,7 @@ export const SURFACE_CONFIG: Record<SurfaceId, SurfaceConfig> = {
     maxToolIterations: 0,
   },
   memory_categorization: {
-    description: "Categorizing durable user memories.",
+    description: "Categorizing durable user memories. Called from `_shared/memory/extractor.ts` after chat sessions.",
     tiers: {
       free: { primary: LITE, fallback: HAI },
       buyer: { primary: LITE, fallback: HAI },

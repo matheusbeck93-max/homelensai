@@ -21,6 +21,7 @@ import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses
 import { FOLLOWUP_TOOL_DEFS } from '../_shared/ai/tools/followups/index.ts';
 import { MACRO_TOOL_DEFS } from '../_shared/ai/tools/macro/index.ts';
 import { FOLLOWUP_CASCADE_PROMPT_BLOCK } from '../_shared/ai/followupSystemPrompt.ts';
+import { withOrigin } from '../_shared/ai/requestContext.ts';
 
 const log = createLogger('owned-property-chat');
 
@@ -335,7 +336,7 @@ async function loadMemoryBlock(svc: ReturnType<typeof createClient>, userId: str
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(withOrigin(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -477,4 +478,4 @@ Deno.serve(async (req) => {
     log.error('chat failed', { error: getErrorMessage(e) });
     return errorResponse(getErrorMessage(e), 500, req);
   }
-});
+}));

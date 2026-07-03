@@ -29,6 +29,7 @@ import {
   resolveRentcastTier as sharedResolveRentcastTier,
   type RentcastTier,
 } from '../_shared/rentcast.ts';
+import { withOrigin } from '../_shared/ai/requestContext.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MODEL = 'google/gemini-2.5-flash';
@@ -1387,12 +1388,18 @@ function sseEvent(event: string, data: Json): Uint8Array {
 async function callGateway(messages: any[], stream = false, routerCtx?: { userId: string; tier: 'free' | 'buyer' | 'investor' }) {
   if (!stream && routerCtx && true /* router always on */) {
     try {
-      const system = messages.find((m) => m.role === 'system')?.content ?? '';
-      const rest = messages.filter((m) => m !== messages.find((mm) => mm.role === 'system'));
+      // Split system messages: the first one (no _dynamic marker) is the
+      // static, cacheable prefix; any subsequent system message flagged
+      // `_dynamic: true` is per-request content routed through
+      // ChatRequest.systemDynamic so the cached prefix stays byte-stable.
+      const staticSys = messages.find((m) => m.role === 'system' && !m._dynamic)?.content ?? '';
+      const dynamicSys = messages.find((m) => m.role === 'system' && m._dynamic)?.content ?? '';
+      const rest = messages.filter((m) => m.role !== 'system');
       const routed = await completeWithFallback(
         'investor_chat',
         {
-          system: typeof system === 'string' ? system : undefined,
+          system: typeof staticSys === 'string' ? staticSys : undefined,
+          systemDynamic: typeof dynamicSys === 'string' && dynamicSys.length > 0 ? dynamicSys : undefined,
           messages: rest.map((m: any) => ({
             role: m.role,
             content: typeof m.content === 'string' ? m.content : (m.content == null ? '' : JSON.stringify(m.content)),
@@ -1469,7 +1476,7 @@ async function callGateway(messages: any[], stream = false, routerCtx?: { userId
 // Server
 // ──────────────────────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
+Deno.serve(withOrigin(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -1597,7 +1604,14 @@ Deno.serve(async (req) => {
       send('thread', { threadId: effectiveThreadId });
 
       let convo: any[] = [
-        { role: 'system', content: buildSystemPrompt(activeCardContext, personaContext, investorContext, incomingSessionFilters) },
+        ...(() => {
+          const s = buildSystemPrompt(activeCardContext, personaContext, investorContext, incomingSessionFilters);
+          // Two system messages: first = static (cached), second = dynamic
+          // (not cached). callGateway maps the extra one to ChatRequest.systemDynamic.
+          const out: any[] = [{ role: 'system', content: s.static }];
+          if (s.dynamic) out.push({ role: 'system', content: s.dynamic, _dynamic: true });
+          return out;
+        })(),
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ];
 
@@ -1729,7 +1743,7 @@ Deno.serve(async (req) => {
       Connection: 'keep-alive',
     },
   });
-});
+}));
 
 const PERSONA_PRIORITY_KPIS: Record<string, string[]> = {
   first_time_buyer: ['affordability index', 'mortgage payment (PITI)', 'days on market', 'appreciation', 'school and crime trends'],
@@ -1756,18 +1770,25 @@ function buildSystemPrompt(
   personaContext?: { persona: string; secondary: string[] },
   investorContext?: UserInvestorContext,
   sessionFilters?: SessionFilters | null,
-) {
+): { static: string; dynamic: string } {
   const personaBlock = personaContext ? buildPersonaBlock(personaContext.persona, personaContext.secondary) : '';
   const contextBlock = investorContext ? buildUserInvestorContextBlock(investorContext) : '';
   const sessionBlock = sessionFilters && Object.keys(sessionFilters).length
     ? `\n\nACTIVE SESSION FILTERS (transient, this conversation only):\n${JSON.stringify(sessionFilters)}`
     : '\n\nACTIVE SESSION FILTERS: none';
-  if (!activeCardContext) return SYSTEM_PROMPT + personaBlock + contextBlock + sessionBlock + '\n\n' + CI_SIGNALS_BLOCK;
-  const title = activeCardContext?.card?.title ?? 'unknown';
-  const summary = activeCardContext?.summary ?? '';
-  return `${SYSTEM_PROMPT}${personaBlock}${contextBlock}${sessionBlock}
-
-The user is deep-diving on a brief card titled "${title}". Context: ${summary}.
+  // STATIC prefix: identical byte-for-byte across every call for this
+  // model version. This is what Anthropic ephemeral-caches.
+  const staticPrefix = `${SYSTEM_PROMPT}\n\n${CI_SIGNALS_BLOCK}`;
+  // DYNAMIC suffix: per-user / per-request content. Passed separately
+  // through ChatRequest.systemDynamic so it never invalidates the cache.
+  const dynamicParts: string[] = [];
+  if (personaBlock) dynamicParts.push(personaBlock.trim());
+  if (contextBlock) dynamicParts.push(contextBlock.trim());
+  dynamicParts.push(sessionBlock.trim());
+  if (activeCardContext) {
+    const title = activeCardContext?.card?.title ?? 'unknown';
+    const summary = activeCardContext?.summary ?? '';
+    dynamicParts.push(`The user is deep-diving on a brief card titled "${title}". Context: ${summary}.
 
 The right-hand panel already shows that card's source visual at full detail — do NOT re-fetch the same underlying data the card is already showing. Instead, use follow-up tool calls to elaborate:
 - Surface a different cut of the same domain (per-ZIP, per-time-bucket, per-property breakdowns).
@@ -1775,7 +1796,7 @@ The right-hand panel already shows that card's source visual at full detail — 
 - Stack a related visual (e.g., for a cap rate trend, add the user's target line or recent comps).
 - Project the trend forward.
 
-The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.
-
-${CI_SIGNALS_BLOCK}`;
+The user's preferences, saved properties, saved analyses, and recent activity are already loaded in your context — reference them directly. Don't ask the user for data we already have.`);
+  }
+  return { static: staticPrefix, dynamic: dynamicParts.join('\n\n') };
 }

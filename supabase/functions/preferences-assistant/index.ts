@@ -6,6 +6,7 @@ import { createLogger } from '../_shared/logging.ts';
 import { getSupabaseEnv } from '../_shared/env.ts';
 import { completeWithFallback, isSurfaceEnabled, BudgetExceededError } from '../_shared/ai/router.ts';
 import { ProviderError, type ChatTool } from '../_shared/ai/types.ts';
+import { withOrigin } from '../_shared/ai/requestContext.ts';
 
 const log = createLogger('preferences-assistant');
 
@@ -1095,7 +1096,7 @@ function dedupNoteInPatch(patch: Patch, prevNotes: string): Patch {
 
 // ---------- HTTP ----------
 
-Deno.serve(async (req) => {
+Deno.serve(withOrigin(async (req) => {
   const preflight = handleCors(req);
   if (preflight) return preflight;
 
@@ -1267,4 +1268,4 @@ Deno.serve(async (req) => {
     log.step('ERROR', { message: getErrorMessage(error) });
     return errorResponse(getErrorMessage(error), 500, req);
   }
-});
+}));

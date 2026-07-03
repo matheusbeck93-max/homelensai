@@ -55,7 +55,15 @@ export class LovableGatewayProvider implements ChatProvider {
     // cache_control is Anthropic-proprietary. The Gateway routes to
     // Google/OpenAI models, both of which ignore it (and Anthropic models
     // aren't reachable through the Gateway at all), so we don't send it.
-    if (req.system) messages.push({ role: "system", content: req.system });
+    // Concatenate static + dynamic system prompts. The Gateway ignores
+    // Anthropic-style cache_control, so there's no reason to split them
+    // into separate blocks here.
+    const systemParts: string[] = [];
+    if (req.system) systemParts.push(req.system);
+    if (req.systemDynamic) systemParts.push(req.systemDynamic);
+    if (systemParts.length > 0) {
+      messages.push({ role: "system", content: systemParts.join("\n\n") });
+    }
     for (const m of req.messages) {
       const msg: Record<string, unknown> = { role: m.role, content: m.content };
       if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;

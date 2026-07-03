@@ -26,6 +26,7 @@ import { logUsageAsync } from "./usageLogger.ts";
 import { BudgetExceededError, checkBudget, type BudgetStatus } from "./budgetGuard.ts";
 import { getFlagDecision, isSurfaceEnabled } from "./featureFlags.ts";
 import { checkAndIncrementFeatureQuota, FeatureQuotaExceededError, type FeatureKind } from "../usage-gate.ts";
+import { getCurrentOrigin } from "./requestContext.ts";
 
 export { BudgetExceededError, FeatureQuotaExceededError };
 export { getFlagDecision, isSurfaceEnabled };
@@ -61,7 +62,11 @@ export function isDevOrigin(origin?: string | null): boolean {
 
 function resolveIsDevCall(ctx: RouterContext): boolean {
   if (typeof ctx.isDevCall === "boolean") return ctx.isDevCall;
-  return isDevOrigin(ctx.origin);
+  // Prefer explicit ctx.origin, fall back to AsyncLocalStorage-scoped
+  // request origin. That lets deep helpers call the router without
+  // threading `req` through every intermediate function.
+  const origin = ctx.origin ?? getCurrentOrigin();
+  return isDevOrigin(origin);
 }
 
 /**

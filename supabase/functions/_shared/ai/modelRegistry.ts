@@ -90,6 +90,12 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   },
 };
 
+/**
+ * @deprecated Not read anywhere. `surfaceConfig.ts` is the single source
+ * of truth for surface → model routing (see `pickModel` in `router.ts`).
+ * Kept only so external consumers (docs, dashboards) that imported this
+ * map don't 500 during a rolling deploy. Delete after 2026-08-01.
+ */
 export const MODEL_BY_OPERATION: Record<string, ModelId> = {
   photo_categorization: "gateway:flash_lite",
   followup_ranking: "gateway:flash_lite",
