@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { SeoCanonical } from "@/components/seo/SeoCanonical";
 import { Link, useParams, Navigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -38,6 +39,7 @@ export default function FeaturePage() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
+      <SeoCanonical />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">

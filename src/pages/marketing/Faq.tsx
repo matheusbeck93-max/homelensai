@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { SeoCanonical } from "@/components/seo/SeoCanonical";
 import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -63,6 +64,7 @@ export default function Faq() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
+      <SeoCanonical />
 
       <section className="container mx-auto max-w-3xl px-4 pb-16 pt-24 md:pt-32">
         <div className="text-center">
