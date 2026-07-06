@@ -166,6 +166,7 @@ function App() {
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/checkout/success" element={<CheckoutSuccess />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                   <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
                   <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
