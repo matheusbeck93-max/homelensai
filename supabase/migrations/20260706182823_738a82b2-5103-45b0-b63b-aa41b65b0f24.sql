@@ -1,0 +1,2 @@
+ALTER TABLE public.mcp_usage_log DROP CONSTRAINT IF EXISTS mcp_usage_log_outcome_check;
+ALTER TABLE public.mcp_usage_log ADD CONSTRAINT mcp_usage_log_outcome_check CHECK (outcome IN ('ok','gated','error','rate_limited'));

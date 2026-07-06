@@ -12,7 +12,7 @@
   "mcp": {
     "server": {
       "name": "homelens-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "HomeLens AI"
     },
     "tools": [
@@ -119,6 +119,392 @@
               "maximum": 100
             }
           }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "analyze_listing",
+        "title": "Analyze a property listing",
+        "description": "Analyze a US real estate listing URL (Zillow, Redfin, Realtor.com, etc.) using HomeLens AI. Returns a MATCH_SCORE (0-10), verdict, and buyability summary tailored to the user's saved goals. Free tier: 3 calls per day.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "maxLength": 2000,
+              "format": "uri",
+              "description": "Public URL to the property listing (Zillow, Redfin, Realtor.com, etc.)."
+            },
+            "question": {
+              "description": "Optional specific question to focus the analysis (e.g. 'is this a good rental?').",
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          "required": [
+            "url"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "neighborhood_insights",
+        "title": "Neighborhood insights",
+        "description": "Get schools, walkability, crime, and demographic insights for a US address or neighborhood using HomeLens (Perplexity-backed). Requires Buyer or Investor plan.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "address": {
+              "description": "Street address (optional if city/state provided).",
+              "type": "string",
+              "maxLength": 200
+            },
+            "city": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "City name."
+            },
+            "state": {
+              "type": "string",
+              "maxLength": 2,
+              "description": "Two-letter state code (e.g. CA, NY)."
+            },
+            "zip": {
+              "description": "ZIP code (optional).",
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          "required": [
+            "city",
+            "state"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "market_trends",
+        "title": "US market trends",
+        "description": "Get real estate market trends (median price, days-on-market, inventory) for a US metro or city. Free tier: 5 calls per day.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "Metro or city name, e.g. 'Austin, TX' or 'Miami-Dade County'."
+            }
+          },
+          "required": [
+            "location"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "state_tax_and_flood",
+        "title": "State tax + flood risk",
+        "description": "Get state income tax, effective property tax rate, and flood-zone risk indicators for a US state (and address when provided).",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "maxLength": 50,
+              "description": "US state name or two-letter code (e.g. 'California' or 'CA')."
+            },
+            "address": {
+              "description": "Optional full address for flood-zone lookup.",
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          "required": [
+            "state"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "mortgage_calculator",
+        "title": "Mortgage calculator",
+        "description": "Calculate a full US mortgage payment (P&I, PMI, taxes, insurance, HOA). Automatically adds PMI when down payment < 20%. Includes HomeLens AI commentary on affordability.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "homePrice": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Home price in USD."
+            },
+            "downPayment": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Down payment amount in USD."
+            },
+            "interestRate": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30,
+              "description": "Annual interest rate as a percent (e.g. 6.5)."
+            },
+            "loanTermYears": {
+              "default": 30,
+              "description": "Loan term in years (default 30).",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 40
+            },
+            "propertyTaxRate": {
+              "description": "Annual property tax rate as a percent. Defaults to ~1.1%.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "insuranceMonthly": {
+              "description": "Monthly insurance premium in USD.",
+              "type": "number",
+              "minimum": 0
+            },
+            "hoaMonthly": {
+              "description": "Monthly HOA fee in USD.",
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "homePrice",
+            "downPayment",
+            "interestRate"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "rental_calculator",
+        "title": "Rental / investment calculator",
+        "description": "Compute rental-property metrics: monthly cash flow, cap rate, cash-on-cash return, and DSCR. Investor plan only.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "purchasePrice": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Purchase price in USD."
+            },
+            "downPayment": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Down payment in USD."
+            },
+            "interestRate": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 30,
+              "description": "Annual mortgage interest rate as a percent."
+            },
+            "loanTermYears": {
+              "default": 30,
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 40
+            },
+            "monthlyRent": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Expected monthly rent in USD."
+            },
+            "monthlyExpenses": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Monthly operating expenses (taxes, insurance, HOA, maintenance, mgmt) in USD."
+            },
+            "vacancyRatePct": {
+              "default": 5,
+              "description": "Assumed vacancy rate as a percent (default 5).",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 50
+            },
+            "closingCosts": {
+              "description": "Closing costs in USD (default 3% of purchase price).",
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "purchasePrice",
+            "downPayment",
+            "interestRate",
+            "monthlyRent",
+            "monthlyExpenses"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "compare_properties",
+        "title": "Compare properties",
+        "description": "Compare 2 to 4 US real estate listing URLs side-by-side with HomeLens AI ranking and reasoning. Requires Buyer or Investor plan.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "urls": {
+              "minItems": 2,
+              "maxItems": 4,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri"
+              },
+              "description": "2 to 4 public listing URLs (Zillow, Redfin, Realtor.com, etc.)."
+            }
+          },
+          "required": [
+            "urls"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "save_analysis",
+        "title": "Save an analysis to HomeLens",
+        "description": "Save a property analysis (typically produced by analyze_listing) to the user's HomeLens Saved Analyses dashboard. Requires Buyer or Investor plan.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false,
+          "idempotentHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "analysisSummary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50000,
+              "description": "The analysis text to save."
+            },
+            "propertyUrl": {
+              "description": "Listing URL, if known.",
+              "type": "string",
+              "maxLength": 2000,
+              "format": "uri"
+            },
+            "propertyAddress": {
+              "description": "Full address, if known.",
+              "type": "string",
+              "maxLength": 500
+            },
+            "propertyPrice": {
+              "description": "List price in USD, if known.",
+              "type": "number",
+              "minimum": 0
+            },
+            "matchScore": {
+              "description": "MATCH_SCORE (0-10) from analyze_listing, if known.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            }
+          },
+          "required": [
+            "analysisSummary"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "save_property",
+        "title": "Save a property to HomeLens",
+        "description": "Save a US property listing URL to the user's HomeLens saved-properties list. Available to all HomeLens users.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false,
+          "idempotentHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "maxLength": 2000,
+              "format": "uri",
+              "description": "Listing URL (Zillow, Redfin, Realtor.com, etc.)."
+            },
+            "address": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "Full property address."
+            },
+            "city": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "state": {
+              "description": "Two-letter state code.",
+              "type": "string",
+              "maxLength": 2
+            },
+            "price": {
+              "type": "number",
+              "minimum": 0
+            },
+            "beds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "baths": {
+              "type": "number",
+              "minimum": 0
+            },
+            "sqft": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "url",
+            "address"
+          ]
         },
         "outputSchema": null
       }
