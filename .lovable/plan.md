@@ -1,114 +1,82 @@
-# Tier gating + discoverability for HomeLens MCP
 
-## Goal
+# HomeLens MCP — Full Analyst Pack
 
-1. Make it impossible for a Free user connected via Claude/ChatGPT to reach Premium data.
-2. Give users a clear place to discover the MCP URL and install instructions.
-3. Log MCP tool usage so we can see adoption per tier.
+Turn the MCP connector from a read-only memory layer into a real analyst. Every new tool wraps an existing edge function on the server, runs under the user's Supabase JWT (RLS), enforces tier via `requireTier()`, and logs to `mcp_usage_log`.
 
-## How gating actually works (why this is safe)
+## New tools
 
-Every MCP tool handler executes inside our `supabase/functions/mcp` edge function. When Claude/ChatGPT calls a tool, we already have the user's Supabase JWT (mcp-js verifies it against Supabase's OIDC issuer). Inside the handler we:
+| Tool | Wraps | Tier | Purpose |
+|---|---|---|---|
+| `analyze_listing` | `ai-chat` (+`fetch-property` fallback) | Free (rate-limited) / Premium | Paste a Zillow/Redfin/Realtor URL → returns MATCH_SCORE, verdict, key facts, buyability summary. Killer demo. |
+| `neighborhood_insights` | `neighborhood-insights` | Buyer/Investor | Schools, crime, trends, walkability for a city/ZIP via Perplexity. |
+| `market_trends` | `market-trends` + FRED snapshot | Free | Median price, DOM, inventory, current 30-yr rate for a metro. |
+| `state_tax_and_flood` | `get-state-tax-data` | Free | State income/property tax + flood-zone risk by address/state. |
+| `mortgage_calculator` | `calculator-insights` (mortgage mode) | Free | P&I, PMI, taxes, insurance, total monthly, amortization summary. |
+| `rental_calculator` | `calculator-insights` (rental mode) | Investor | Cash flow, cap rate, cash-on-cash, DSCR, break-even. |
+| `compare_properties` | `compare-properties-ai` | Buyer/Investor | 2–4 URLs → side-by-side with HomeLens ranking + reasoning. |
+| `save_analysis` | `save-analysis` | Buyer/Investor | Persist an analysis from the conversation → appears in `/console`. |
+| `save_property` | direct insert into `saved_properties` | Free | Save a listing URL to the user's dashboard. |
 
-1. Read the caller's row from `public.profiles` using a **service-role** client (bypasses RLS on `subscription_status`, which the user cannot write to — the existing `prevent_privileged_profile_updates` trigger already blocks that).
-2. Compare `subscription_status` to the tool's required tier.
-3. If Free and the tool is Premium, return an "Upgrade at homelensais.com/pricing" text block instead of data. The user still *sees* the tool exists in their assistant (good for conversion), but the tool never returns Premium data.
+Existing read tools (`echo`, `get_profile`, `list_saved_properties`, `list_saved_analyses`, `list_owned_properties`) stay unchanged.
 
-The client cannot bypass this because the check runs on our server, using the identity Supabase Auth issued. There is no client-side flag to flip.
+## Free-tier abuse protection
 
-## Tier map for the current 5 tools
+`analyze_listing` and calculators cost AI credits. Add a per-user daily cap enforced in the MCP tool wrapper (not just the underlying function), reusing the existing `daily_analysis_count` on `profiles`:
 
-| Tool                       | Tier     | Rationale                                                              |
-| -------------------------- | -------- | ---------------------------------------------------------------------- |
-| `echo`                     | Free     | Connectivity check.                                                    |
-| `get_profile`              | Free     | User's own preferences — safe demo of value.                           |
-| `list_saved_properties`    | Free     | Free users can already save properties in-app.                         |
-| `list_saved_analyses`      | Premium  | Saved Analyses is already a Premium in-app feature — keep it consistent. |
-| `list_owned_properties`    | Premium  | Investor portfolio is Premium in-app.                                  |
+- Free: 3 `analyze_listing` calls/day via MCP, then friendly upgrade message.
+- Premium: uses existing plan credit budget (already enforced by the AI router).
+- All calls logged to `mcp_usage_log` with `outcome ∈ {ok, gated, rate_limited, error}` and `latency_ms`.
 
-Any future *write* or *AI-powered* tools (e.g. `run_match_score`, `save_analysis`, `get_neighborhood_intel`) default to Premium unless explicitly opened up.
+## Tool response contract
 
-## Implementation
+Every tool returns MCP `content` blocks in this shape so Claude/ChatGPT render nicely:
+1. One short `text` summary (human sentence, no markdown headers) — this is what the LLM will paraphrase.
+2. One `text` block with a compact JSON payload (facts the model can quote precisely — score, price, monthly payment, etc.).
+3. For gated/rate-limited: a single `text` block with the friendly upgrade line + `https://homelensais.com/pricing` (instructions in `defineMcp` already tell assistants to relay verbatim).
 
-### 1. Tier helper for MCP tools
+Never return raw HTML, images, or long markdown — assistants truncate it.
 
-New file `src/lib/mcp/tiers.ts`:
+## Files to change
 
-- `type Tier = "free" | "premium"`
-- `async function requireTier(ctx, minTier): Promise<{ ok: true } | { ok: false, upgrade: ToolResult }>`
-  - Uses a Supabase **service-role** client (not the user-scoped one) to read `profiles.subscription_status` by `ctx.getUserId()`.
-  - Treats `"active"`, `"trialing"`, `"canceling"` (any non-`null` non-`"free"` status) as Premium — matches existing `useSubscription` logic.
-  - When gate fails, returns a ready-to-return tool result:
-    > "This HomeLens tool requires Premium ($4.97/mo). Upgrade at https://homelensais.com/pricing to enable saved analyses, investor portfolio, and AI insights from your assistant."
-- Cache the tier lookup for the duration of the request (single Map keyed by user id) so a batch of tool calls in one turn doesn't hammer the DB.
+**New:**
+- `src/lib/mcp/tools/analyze_listing.ts`
+- `src/lib/mcp/tools/neighborhood_insights.ts`
+- `src/lib/mcp/tools/market_trends.ts`
+- `src/lib/mcp/tools/state_tax_and_flood.ts`
+- `src/lib/mcp/tools/mortgage_calculator.ts`
+- `src/lib/mcp/tools/rental_calculator.ts`
+- `src/lib/mcp/tools/compare_properties.ts`
+- `src/lib/mcp/tools/save_analysis.ts`
+- `src/lib/mcp/tools/save_property.ts`
+- `src/lib/mcp/rateLimit.ts` — free-tier daily cap helper (reads/increments `profiles.daily_analysis_count` via service role, resets on date rollover).
+- `src/lib/mcp/internalCall.ts` — shared helper: calls an internal edge function with the user's JWT so RLS + existing auth guards still apply. Avoids duplicating business logic.
 
-### 2. Wire gating into the two Premium tools
+**Edited:**
+- `src/lib/mcp/index.ts` — register 9 new tools, update `instructions` (mention analysis, calculators, comparisons; reinforce verbatim upgrade line + daily cap message).
+- `src/lib/mcp/tiers.ts` — add `"buyer_or_investor"` helper if not already there.
+- `src/pages/Integrations.tsx` — update tools/tiers table with the 9 new tools; add example prompts ("Paste a Zillow URL and ask 'is this a good buy?'", "Compare these 3 listings", "What's the true monthly cost at 6.5%?").
+- `.lovable/mcp/manifest.json` — regenerated via `app_mcp_server--extract_mcp_manifest`.
 
-Edit `src/lib/mcp/tools/list_saved_analyses.ts` and `src/lib/mcp/tools/list_owned_properties.ts`:
+**Redeploy:** `mcp` edge function.
 
-```ts
-const gate = await requireTier(ctx, "premium");
-if (!gate.ok) return gate.upgrade;
-// ...existing query
-```
+## Technical notes
 
-Free tools (`echo`, `get_profile`, `list_saved_properties`) stay as-is.
-
-### 3. Log MCP tool usage
-
-New migration adds `public.mcp_usage_log`:
-
-- `id uuid pk`, `user_id uuid`, `tool_name text`, `tier_at_call text`, `outcome text` (`ok` | `gated` | `error`), `latency_ms int`, `created_at timestamptz default now()`
-- RLS: users can `select` their own rows; only service_role writes.
-- GRANTs for authenticated (select) + service_role (all).
-
-Add a thin `logMcpCall(...)` helper (`src/lib/mcp/usageLog.ts`) that fires-and-forgets an insert with the service-role client. Call it from each tool handler after the response is prepared. Not user-blocking; failures are swallowed with `console.warn`.
-
-### 4. Public marketing page `/integrations`
-
-New `src/pages/Integrations.tsx` + route in `src/App.tsx`. Reuses existing marketing components (`PublicNav`, `Footer`, Card, Button, brand tokens — no new design system).
-
-Sections:
-- **Hero**: "Bring HomeLens into your AI assistant." Subhead explains the value in one line. Primary CTA: copy MCP URL. Secondary: link to pricing.
-- **The MCP URL card**: shows `https://yckcdxtatwolzilboahx.supabase.co/functions/v1/mcp` with a copy-to-clipboard button.
-- **Per-client install steps** (tabbed): Claude Desktop, ChatGPT (Custom Connectors), Cursor, Codex. 3 concise steps each — the URL, "sign in with Google," "approve on the HomeLens consent screen."
-- **Tools & tiers table**: lists the 5 tools with a Free/Premium badge each, matching the tier map above. Sets expectations before install.
-- **FAQ / safety**: "Only your data" (RLS explanation in plain English), "Revoke any time" (link to `/console`), "We never see your Claude/ChatGPT conversations."
-
-Link the page from:
-- Footer under "Product"
-- Pricing page (small "Also works with Claude, ChatGPT, Cursor →" line under the Premium tier)
-- `/console` (small integration card)
-
-### 5. Add MCP mention to pricing
-
-In `src/components/PricingSection.tsx`, add one bullet to each tier so the value is visible where users are already deciding:
-- Free: "Connect to Claude/ChatGPT (basic tools)"
-- Premium: "Connect to Claude/ChatGPT (all tools, including Saved Analyses + Portfolio)"
-
-### 6. Update MCP `instructions` string
-
-In `src/lib/mcp/index.ts`, add one line so the connecting assistant knows some tools may return an upgrade message:
-
-> "Some tools require HomeLens Premium; when a tool returns an upgrade message, relay it verbatim and stop — do not retry."
-
-Regenerate the manifest and redeploy the `mcp` function.
-
-## Out of scope (deliberately)
-
-- Hiding Premium tools from Free users' tool list. We chose the "friendly upgrade message" path — tools stay visible so Free users see what they'd unlock.
-- Rate limiting per user (can add later if abuse shows up in `mcp_usage_log`).
-- Write tools / AI-powered tools. When those land they'll follow the same `requireTier("premium")` pattern by default.
-
-## Files touched
-
-- **New**: `src/lib/mcp/tiers.ts`, `src/lib/mcp/usageLog.ts`, `src/pages/Integrations.tsx`, one migration for `mcp_usage_log`.
-- **Edited**: `src/lib/mcp/index.ts` (instructions), `src/lib/mcp/tools/list_saved_analyses.ts`, `src/lib/mcp/tools/list_owned_properties.ts`, `src/App.tsx` (route), `src/components/Footer.tsx` (link), `src/components/PricingSection.tsx` (bullets).
-- **Redeploy**: `supabase/functions/mcp` after MCP edits; run `extract_mcp_manifest`.
+- **Internal call pattern:** Each new MCP tool calls its wrapped edge function via `internalCall(functionName, body, ctx)` which POSTs to `${SUPABASE_URL}/functions/v1/${functionName}` with `Authorization: Bearer ${ctx.getToken()}` and the publishable key. This preserves RLS + existing per-function tier/rate logic without re-implementing it.
+- **No new AI credits path:** All AI cost still routes through the existing `ai-chat`/`calculator-insights`/`neighborhood-insights` functions, which already log to `ai_usage_log` and enforce the budget system. MCP layer only adds an extra per-user daily cap for `analyze_listing` (the highest-leverage abuse vector).
+- **MATCH_SCORE contract preserved:** `analyze_listing` parses the `MATCH_SCORE: X/10` prefix from the ai-chat response (existing memory rule) and returns it as a structured field in the JSON block so assistants can quote the number reliably.
+- **Zero client changes** beyond the Integrations page copy update.
 
 ## Verification
 
-1. Sign in as a Free test user in Claude → call `list_saved_analyses` → assert the upgrade message text is returned (not data).
-2. Upgrade the same user to Premium in Stripe test mode → call the same tool → assert real rows return.
-3. `SELECT tool_name, tier_at_call, outcome, count(*) FROM mcp_usage_log GROUP BY 1,2,3` after the two tests shows the expected `gated` vs `ok` rows.
-4. Visit `/integrations` on desktop + mobile, copy the MCP URL, walk the Claude install steps end-to-end.
+1. In Claude with a **Free** account: paste a Zillow URL → `analyze_listing` returns score + summary. Call 4× in a row → 4th returns rate-limit upgrade message. Call `rental_calculator` → returns Premium upgrade message.
+2. Upgrade to **Investor**: `rental_calculator` returns real numbers; `compare_properties` with 3 URLs returns ranking.
+3. Call `save_analysis` after `analyze_listing` → row appears in `/console` Saved Analyses.
+4. SQL: `SELECT tool_name, tier_at_call, outcome, count(*) FROM mcp_usage_log WHERE created_at > now() - interval '1 day' GROUP BY 1,2,3` shows expected `ok` / `gated` / `rate_limited` mix.
+5. `/integrations` page shows updated tool list and example prompts render correctly on mobile + desktop.
+
+## Out of scope (follow-ups)
+
+- Hiding gated tools entirely from Free users' catalog (right now they appear and return upgrade text — better for discovery/upsell).
+- Write tools that modify owned properties (`add_owned_property`, `log_improvement`) — wait to see analyst-pack usage first.
+- Voice/TTS output through MCP (ElevenLabs).
+- MCP-specific SEO landing pages per client (Claude, ChatGPT, Cursor).
