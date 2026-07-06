@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import type { ToolContext } from "@lovable.dev/mcp-js";
 
+declare const process: { env: Record<string, string | undefined> };
+
 /**
  * Create a Supabase client scoped to the connected MCP user's access token,
  * so all queries run under RLS as that user (never service role).
