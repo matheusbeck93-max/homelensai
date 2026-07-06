@@ -19,6 +19,23 @@ const TOOLS: { name: string; description: string; tier: ToolTier }[] = [
   { name: "list_saved_properties", description: "Every property you've saved in HomeLens.", tier: "Free" },
   { name: "list_saved_analyses", description: "Your saved AI property analyses with match scores.", tier: "Buyer+" },
   { name: "list_owned_properties", description: "Your investor portfolio: purchase price, value estimates, rental status.", tier: "Investor" },
+  { name: "analyze_listing", description: "Paste a Zillow / Redfin / Realtor URL → MATCH_SCORE + buyability verdict. Free: 3/day.", tier: "Free" },
+  { name: "market_trends", description: "Median price, days-on-market, and inventory for a US metro. Free: 5/day.", tier: "Free" },
+  { name: "state_tax_and_flood", description: "State income tax, property tax rate, and flood-zone indicators.", tier: "Free" },
+  { name: "mortgage_calculator", description: "Full PITI monthly payment (auto PMI, taxes, insurance, HOA) with AI commentary.", tier: "Free" },
+  { name: "save_property", description: "Save a listing URL to your HomeLens dashboard.", tier: "Free" },
+  { name: "neighborhood_insights", description: "Schools, crime, walkability, and demographics for a US address.", tier: "Buyer+" },
+  { name: "compare_properties", description: "Rank 2–4 listings side-by-side with reasoning tuned to your buyer type.", tier: "Buyer+" },
+  { name: "save_analysis", description: "Save an analysis from your assistant to your HomeLens Saved Analyses.", tier: "Buyer+" },
+  { name: "rental_calculator", description: "Cash flow, cap rate, cash-on-cash, and DSCR for rental properties.", tier: "Investor" },
+];
+
+const EXAMPLE_PROMPTS = [
+  "Paste this Zillow link and tell me — is this a good buy for a first-time buyer? (uses analyze_listing + get_profile)",
+  "Compare these three listings and rank them for cash flow. (uses compare_properties + rental_calculator)",
+  "What's the real monthly cost at 6.5% with 10% down on a $650k house? (uses mortgage_calculator)",
+  "Give me schools, crime, and walkability for 78704 in Austin. (uses neighborhood_insights)",
+  "Save this analysis to my HomeLens dashboard. (uses save_analysis)",
 ];
 
 const CLIENTS = [
@@ -198,6 +215,28 @@ export default function Integrations() {
                 See plans →
               </Link>
             </div>
+          </section>
+
+          {/* Example prompts */}
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-2xl font-semibold">Try asking your assistant</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Once connected, these prompts work in Claude, ChatGPT, or any MCP client.
+              </p>
+            </div>
+            <Card>
+              <CardContent className="p-0 divide-y divide-border">
+                {EXAMPLE_PROMPTS.map((p) => (
+                  <div key={p} className="px-5 py-4 text-sm">
+                    <span className="text-foreground">&ldquo;{p.split(" (")[0]}&rdquo;</span>
+                    {p.includes(" (") ? (
+                      <span className="ml-2 text-xs text-muted-foreground">({p.split(" (")[1].replace(/\)$/, ")")}</span>
+                    ) : null}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           </section>
 
           {/* Safety / FAQ */}
