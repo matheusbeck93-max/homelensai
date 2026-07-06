@@ -99,6 +99,7 @@ const DoNotSell = lazyWithRetry(() => import("./pages/DoNotSell"));
 const AdminTelemetry = lazyWithRetry(() => import("./pages/AdminTelemetry"));
 const AccountUsage = lazyWithRetry(() => import("./pages/account/Usage"));
 const EmailUnsubscribe = lazyWithRetry(() => import("./pages/account/EmailUnsubscribe"));
+const OAuthConsent = lazyWithRetry(() => import("./pages/OAuthConsent"));
 const AccountMemory = lazyWithRetry(() => import("./pages/account/Memory"));
 const Blog = lazyWithRetry(() => import("./pages/Blog"));
 const BlogPost = lazyWithRetry(() => import("./pages/BlogPost"));
