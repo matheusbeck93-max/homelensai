@@ -40,6 +40,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'HomeLens chat on any tab (Google Extension)',
       'Auto-detect property listings (Google Extension)',
       'Google Extension analysis — 3x per day',
+      'Connect to Claude / ChatGPT / Cursor (basic tools)',
     ],
     limitations: [
       'Match Score & Investment Score',
@@ -81,6 +82,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Mortgage Calculator',
       'Buying Power Calculator',
       'Unlimited Google Extension analysis',
+      'Connect to Claude / ChatGPT — includes saved analyses',
     ],
   },
   investor: {
@@ -108,6 +110,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Investor email digests',
       'Priority API limits (2,000 credits/day)',
       'Priority support',
+      'Connect to Claude / ChatGPT — includes investor portfolio',
     ],
   },
 };
@@ -141,6 +144,7 @@ export const BUYER_ANNUAL_PLAN: SubscriptionPlan = {
     'Mortgage Calculator',
     'Buying Power Calculator',
     'Unlimited Google Extension analysis',
+      'Connect to Claude / ChatGPT — includes saved analyses',
   ],
   billingPeriod: 'annual',
   discount: 'Save 20%',
@@ -171,6 +175,7 @@ export const INVESTOR_ANNUAL_PLAN: SubscriptionPlan = {
     'Investor email digests',
     'Priority API limits (2,000 credits/day)',
     'Priority support',
+      'Connect to Claude / ChatGPT — includes investor portfolio',
   ],
   billingPeriod: 'annual',
   discount: 'Save 20%',

@@ -1773,6 +1773,36 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_usage_log: {
+        Row: {
+          created_at: string
+          id: string
+          latency_ms: number | null
+          outcome: string
+          tier_at_call: string
+          tool_name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          outcome: string
+          tier_at_call: string
+          tool_name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          outcome?: string
+          tier_at_call?: string
+          tool_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

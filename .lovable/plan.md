@@ -1,98 +1,114 @@
+# Tier gating + discoverability for HomeLens MCP
 
-Root-cause diagnosis for all 4 issues, based on code reading + direct DB queries. No files changed yet.
+## Goal
 
-## Issue 1 — Flash Lite migration cannot be verified (0 calls)
+1. Make it impossible for a Free user connected via Claude/ChatGPT to reach Premium data.
+2. Give users a clear place to discover the MCP URL and install instructions.
+3. Log MCP tool usage so we can see adoption per tier.
 
-**Root cause: two bugs, both real.**
+## How gating actually works (why this is safe)
 
-**(a) `MODEL_BY_OPERATION` is dead code.** `supabase/functions/_shared/ai/modelRegistry.ts:93–98` defines the map, but `rg MODEL_BY_OPERATION supabase/functions` returns exactly one hit — the definition. Nothing imports it. Routing is driven entirely by `SURFACE_CONFIG` in `_shared/ai/surfaceConfig.ts` via `pickModel()` in `router.ts:88`. The good news: `SURFACE_CONFIG` already points the four ops at `LITE` (`surfaceConfig.ts:152–187`), so the *config* is correct — the map just misleads readers into thinking that's where the wiring lives.
+Every MCP tool handler executes inside our `supabase/functions/mcp` edge function. When Claude/ChatGPT calls a tool, we already have the user's Supabase JWT (mcp-js verifies it against Supabase's OIDC issuer). Inside the handler we:
 
-**(b) Three of the four ops have zero real callers.** Grep for the surface-id strings across the whole codebase (`rg "'photo_categorization'|'followup_ranking'|'intent_detection'|'memory_categorization'" supabase/functions`) returns:
-- `memory_categorization` → 1 caller: `_shared/memory/extractor.ts:71` (real)
-- `photo_categorization` → 0 callers (only appears in a `feature = "photos"` branch in `router.ts:203,274`)
-- `followup_ranking` → 0 callers
-- `intent_detection` → 0 callers
+1. Read the caller's row from `public.profiles` using a **service-role** client (bypasses RLS on `subscription_status`, which the user cannot write to — the existing `prevent_privileged_profile_updates` trigger already blocks that).
+2. Compare `subscription_status` to the tool's required tier.
+3. If Free and the tool is Premium, return an "Upgrade at homelensais.com/pricing" text block instead of data. The user still *sees* the tool exists in their assistant (good for conversion), but the tool never returns Premium data.
 
-So the reason production shows zero Flash Lite rows is (a) `MODEL_BY_OPERATION` was never referenced by the router, and (b) three of the four features aren't wired to the router at all — the photo, followup, and intent flows currently either hit a different code path or don't fire an LLM call. `memory_categorization` is the only op that *should* be firing Flash Lite today.
+The client cannot bypass this because the check runs on our server, using the identity Supabase Auth issued. There is no client-side flag to flip.
 
-**Fix scope:** delete `MODEL_BY_OPERATION` (or wire it in and drop it from `surfaceConfig` — pick one source of truth). Then audit the three unwired ops: find the code that classifies photos / ranks followups / detects intent (candidate files: `_shared/memory/*`, `chrome-extension` uploaders, ai-chat entrypoint, `lib/conversationalIntelligence/rankFollowups.ts`), decide whether they should route through the AI router at all, and either wire them to `completeWithFallback(<surface>, …)` or remove the unused surfaces from `SURFACE_CONFIG` so the "which ops exist" story stops lying.
+## Tier map for the current 5 tools
 
-**Verification:** after wiring, trigger each op end-to-end (upload a photo, open ai-chat, save a memory) and confirm one row per op lands in `ai_usage_log` with `api_name = 'google/gemini-3.1-flash-lite'`. No synthetic router bypass — use the real UI paths.
+| Tool                       | Tier     | Rationale                                                              |
+| -------------------------- | -------- | ---------------------------------------------------------------------- |
+| `echo`                     | Free     | Connectivity check.                                                    |
+| `get_profile`              | Free     | User's own preferences — safe demo of value.                           |
+| `list_saved_properties`    | Free     | Free users can already save properties in-app.                         |
+| `list_saved_analyses`      | Premium  | Saved Analyses is already a Premium in-app feature — keep it consistent. |
+| `list_owned_properties`    | Premium  | Investor portfolio is Premium in-app.                                  |
 
-**ETA:** map cleanup 30 min; wiring/audit of the three ops 3–4 h (depends on whether the features already exist and just skipped the router, or need to be built).
+Any future *write* or *AI-powered* tools (e.g. `run_match_score`, `save_analysis`, `get_neighborhood_intel`) default to Premium unless explicitly opened up.
 
-## Issue 2 — Prompt caching produces 0 hits on most surfaces
+## Implementation
 
-**Root cause: cache is on, but the cached block often can't qualify.**
+### 1. Tier helper for MCP tools
 
-`_shared/ai/anthropicProvider.ts:103–111` always attaches `cache_control: { type: "ephemeral" }` to the `system` block, and `:113–119` also attaches it to every `tool`. That's correct wiring.
+New file `src/lib/mcp/tiers.ts`:
 
-The production data explains the "0 hits" pattern once you break it down by surface (30-day, status=ok, Sonnet only):
+- `type Tier = "free" | "premium"`
+- `async function requireTier(ctx, minTier): Promise<{ ok: true } | { ok: false, upgrade: ToolResult }>`
+  - Uses a Supabase **service-role** client (not the user-scoped one) to read `profiles.subscription_status` by `ctx.getUserId()`.
+  - Treats `"active"`, `"trialing"`, `"canceling"` (any non-`null` non-`"free"` status) as Premium — matches existing `useSubscription` logic.
+  - When gate fails, returns a ready-to-return tool result:
+    > "This HomeLens tool requires Premium ($4.97/mo). Upgrade at https://homelensais.com/pricing to enable saved analyses, investor portfolio, and AI insights from your assistant."
+- Cache the tier lookup for the duration of the request (single Map keyed by user id) so a batch of tool calls in one turn doesn't hammer the DB.
 
-| surface | rows | cache-hit rows | avg input tokens |
-|---|---|---|---|
-| general_chat | 36 | **5** | 10,255 |
-| extension_listing_analysis | 28 | 0 | 2,398 |
-| investor_brief | 8 | 0 | **860** |
-| investor_chat | 6 | 0 | 8,706 |
-| preferences_assistant | 2 | 0 | 2,846 |
+### 2. Wire gating into the two Premium tools
 
-Three distinct failure modes:
+Edit `src/lib/mcp/tools/list_saved_analyses.ts` and `src/lib/mcp/tools/list_owned_properties.ts`:
 
-1. **Below the 1024-token minimum.** `investor_brief` averages 860 input tokens — the *entire* request is under the Sonnet ephemeral-cache floor, so `cache_control` on `system` is silently dropped. `extension_listing_analysis` at 2,398 avg is close enough that the `system` slice alone may be under 1024.
-2. **Per-call templating inside `system`.** `investor_chat` sends 8.7 K input tokens per call but never hits cache. Very likely the system prompt embeds per-request data (active card context, session filters, user memory) *before* the cache marker's block, so no two calls share a byte-identical prefix. `anthropicProvider.buildBody` only ever emits *one* `system` block that concatenates every system message with `\n\n`, so any dynamic string mixed into `req.system` invalidates the whole cache.
-3. **General_chat works partially (5 / 36).** Confirms the plumbing itself is fine; the misses on the other 31 are the same templating issue.
+```ts
+const gate = await requireTier(ctx, "premium");
+if (!gate.ok) return gate.upgrade;
+// ...existing query
+```
 
-**Fix scope:**
-- Split `system` into a `[static_prefix, dynamic_suffix]` pair in `anthropicProvider.buildBody`: only the first block carries `cache_control`, the second doesn't. Route callers to pass their invariant prompt through `req.system` and everything per-user/per-request through a first `user` turn (or a new `req.systemDynamic` field).
-- Audit each caller (`ai-chat/index.ts:404,899,1904,1978`, `investor-chat/index.ts:1392`, `investor-brief/index.ts:309`, `preferences-assistant/index.ts:664`, `owned-property-chat/index.ts:290`) to move dynamic strings out of `system`.
-- For `investor_brief` specifically, either accept it's un-cacheable (input < 1024 tokens) or pad the system block with additional static instructions to cross the threshold.
+Free tools (`echo`, `get_profile`, `list_saved_properties`) stay as-is.
 
-**Verification (as requested — no synthetic 5-call test):**
-- Add an `AI_ROUTER_DEBUG_LOG_REQUESTS=1` env flag that, when set, writes the outgoing Anthropic body to a temp `ai_debug_requests` table (surface, timestamp, first 4 KB of `system`, block sizes, cache_control positions). Turn it on for ~1 hour in prod, sample one live request per surface, confirm cache-control markers are present and cached blocks are ≥ 1024 tokens.
-- Success criterion: after the fix, `cache_read_input_tokens > 0` on ≥ 50 % of Sonnet rows for `general_chat`, `investor_chat`, `extension_listing_analysis`, `preferences_assistant` over a 24 h window.
+### 3. Log MCP tool usage
 
-**ETA:** 4–6 h (provider split is small; caller audit is the bulk).
+New migration adds `public.mcp_usage_log`:
 
-## Issue 3 — 14 Haiku errors on 2026-06-29: all HTTP 400
+- `id uuid pk`, `user_id uuid`, `tool_name text`, `tier_at_call text`, `outcome text` (`ok` | `gated` | `error`), `latency_ms int`, `created_at timestamptz default now()`
+- RLS: users can `select` their own rows; only service_role writes.
+- GRANTs for authenticated (select) + service_role (all).
 
-Direct query on the 14 rows: every one is `api_name='claude-haiku-4-5'`, `status='error'`, `error_code='400'`, `request_id=NULL`. All from `_shared/memory/extractor.ts:71` (only caller of `memory_categorization`). All fired in a 9-second burst suggesting one user session flushed 14 conversations through the extractor at once.
+Add a thin `logMcpCall(...)` helper (`src/lib/mcp/usageLog.ts`) that fires-and-forgets an insert with the service-role client. Call it from each tool handler after the response is prepared. Not user-blocking; failures are swallowed with `console.warn`.
 
-**Root cause (high-confidence):**
-- `extractor.ts:78` passes `responseFormat: 'json'` in the `ChatRequest`, but `anthropicProvider.buildBody` **never reads that field** — Anthropic doesn't accept an `openai`-style `response_format`. So that's a no-op, not the cause.
-- Real cause is almost certainly the payload: the extractor uses `SYSTEM_PROMPT` (~450 tokens) with `cache_control: ephemeral`. On some Anthropic model+version combinations, cache_control on a system block below the 1024-token minimum returns 400 *"cache_control is only supported…"* rather than being silently ignored. This matches Haiku 4.5 rejecting the request while Sonnet accepts it, and the 14 rows all failing identically.
-- `request_id` is null because `AnthropicProvider.sendRequest` throws with only the status + first 500 chars of the body; the router logs `error_code=String(err.status)` but never captures the response body or Anthropic's `request-id` header.
+### 4. Public marketing page `/integrations`
 
-**Fix scope:**
-- In `AnthropicProvider.buildBody`, only attach `cache_control` when the block is likely ≥ 1024 tokens (rough heuristic: `text.length >= 4000` chars) OR make it opt-in per `ChatRequest`.
-- Extend `ProviderError` to carry the response body (redacted) + `request-id`, and persist both into `ai_usage_log.error_code` / a new `error_message` column so we don't guess next time.
-- Once wired, re-run the extractor path against Flash Lite (which is where `memory_categorization` routes today) — Flash Lite has a 1 M context and different minimums, so the same payload should not 400. If it does, we'll see the exact body from the new logging.
+New `src/pages/Integrations.tsx` + route in `src/App.tsx`. Reuses existing marketing components (`PublicNav`, `Footer`, Card, Button, brand tokens — no new design system).
 
-**Verification:** trigger the memory-extractor path from a real chat (send a >40-char conversation, wait for the sweeper), confirm at least one `memory_categorization` row lands with `status='ok'` and `api_name='google/gemini-3.1-flash-lite'`. Do **not** close until we see a green row.
+Sections:
+- **Hero**: "Bring HomeLens into your AI assistant." Subhead explains the value in one line. Primary CTA: copy MCP URL. Secondary: link to pricing.
+- **The MCP URL card**: shows `https://yckcdxtatwolzilboahx.supabase.co/functions/v1/mcp` with a copy-to-clipboard button.
+- **Per-client install steps** (tabbed): Claude Desktop, ChatGPT (Custom Connectors), Cursor, Codex. 3 concise steps each — the URL, "sign in with Google," "approve on the HomeLens consent screen."
+- **Tools & tiers table**: lists the 5 tools with a Free/Premium badge each, matching the tier map above. Sets expectations before install.
+- **FAQ / safety**: "Only your data" (RLS explanation in plain English), "Revoke any time" (link to `/console`), "We never see your Claude/ChatGPT conversations."
 
-**ETA:** 2 h (small provider tweak + one extra `error_message` column + a real-traffic smoke through the memory sweeper).
+Link the page from:
+- Footer under "Product"
+- Pricing page (small "Also works with Claude, ChatGPT, Cursor →" line under the Premium tier)
+- `/console` (small integration card)
 
-## Issue 4 — `is_dev_call` is always false
+### 5. Add MCP mention to pricing
 
-**Root cause: `buildRouterContext` exists but no edge function uses it.**
+In `src/components/PricingSection.tsx`, add one bullet to each tier so the value is visible where users are already deciding:
+- Free: "Connect to Claude/ChatGPT (basic tools)"
+- Premium: "Connect to Claude/ChatGPT (all tools, including Saved Analyses + Portfolio)"
 
-`_shared/ai/router.ts:71–79` defines the helper that extracts `origin` from the inbound `Request`. `rg buildRouterContext supabase/functions` returns exactly one hit — the definition. Every real caller builds the router context by hand (e.g. `ai-chat/index.ts:404`, `investor-chat/index.ts:1392`, `investor-brief/index.ts:309`), passing only `{ userId, tier }`. Neither `origin` nor `isDevCall` is set, so `resolveIsDevCall(ctx)` at `router.ts:129` always returns `false`, and `logUsageAsync` writes `is_dev_call: false` for every row (`usageLogger.ts:77`).
+### 6. Update MCP `instructions` string
 
-The `isDevOrigin` matcher itself is correct; it just never receives an origin.
+In `src/lib/mcp/index.ts`, add one line so the connecting assistant knows some tools may return an upgrade message:
 
-**Fix scope:**
-- Update every `completeWithFallback` / `streamWithFallback` call site to build ctx through `buildRouterContext({ userId, tier, requestId }, req)`. Call sites to touch: `ai-chat/index.ts` (×4), `investor-chat/index.ts`, `investor-brief/index.ts`, `ai-analyze/index.ts`, `owned-property-chat/index.ts`, `preferences-assistant/index.ts`, `send-weekly-picks/index.ts` (this one has no inbound `Request` — pass `{ isDevCall: false }` explicitly), `_shared/memory/extractor.ts` (background sweeper — same, explicit `false`), `_shared/ai-gateway.ts` router path.
-- Add a lint/CI check (grep test) that fails if `completeWithFallback(` appears without a sibling `buildRouterContext` or explicit `isDevCall` — prevents regression.
+> "Some tools require HomeLens Premium; when a tool returns an upgrade message, relay it verbatim and stop — do not retry."
 
-**Verification:** after deploy, Pedro reloads the app on `id-preview--*.lovable.app` and sends one chat message. Query `SELECT count(*) FROM ai_usage_log WHERE is_dev_call=true AND created_at > now() - interval '10 minutes'` and confirm it returns ≥ 1. Then check a production origin (`homelensais.com`) and confirm its row lands with `is_dev_call=false`.
+Regenerate the manifest and redeploy the `mcp` function.
 
-**ETA:** 1.5 h (mechanical edit across ~9 files + verification).
+## Out of scope (deliberately)
 
-## Suggested execution order
+- Hiding Premium tools from Free users' tool list. We chose the "friendly upgrade message" path — tools stay visible so Free users see what they'd unlock.
+- Rate limiting per user (can add later if abuse shows up in `mcp_usage_log`).
+- Write tools / AI-powered tools. When those land they'll follow the same `requireTier("premium")` pattern by default.
 
-1. **Issue 4** first (small, unblocks Pedro's own testing not polluting metrics).
-2. **Issue 3** next (unblocks Issue 1's verification — Flash Lite calls need to actually work).
-3. **Issue 1** (map cleanup + wire missing ops).
-4. **Issue 2** (biggest scope; needs live request logging before we know exact fix per surface).
+## Files touched
 
-Total: ~11–14 h across all four, plus ~24 h of production observation for Issue 2's post-fix cache-hit-rate check.
+- **New**: `src/lib/mcp/tiers.ts`, `src/lib/mcp/usageLog.ts`, `src/pages/Integrations.tsx`, one migration for `mcp_usage_log`.
+- **Edited**: `src/lib/mcp/index.ts` (instructions), `src/lib/mcp/tools/list_saved_analyses.ts`, `src/lib/mcp/tools/list_owned_properties.ts`, `src/App.tsx` (route), `src/components/Footer.tsx` (link), `src/components/PricingSection.tsx` (bullets).
+- **Redeploy**: `supabase/functions/mcp` after MCP edits; run `extract_mcp_manifest`.
+
+## Verification
+
+1. Sign in as a Free test user in Claude → call `list_saved_analyses` → assert the upgrade message text is returned (not data).
+2. Upgrade the same user to Premium in Stripe test mode → call the same tool → assert real rows return.
+3. `SELECT tool_name, tier_at_call, outcome, count(*) FROM mcp_usage_log GROUP BY 1,2,3` after the two tests shows the expected `gated` vs `ok` rows.
+4. Visit `/integrations` on desktop + mobile, copy the MCP URL, walk the Claude install steps end-to-end.
