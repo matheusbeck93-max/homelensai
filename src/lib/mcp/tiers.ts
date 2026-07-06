@@ -70,13 +70,16 @@ function requirementLabel(req: TierRequirement): string {
  * Returns { ok: true, tier } on success, or { ok: false, tier, upgrade }
  * with a ready-to-return upgrade message when the caller's tier is too low.
  */
+export interface TierGateResult {
+  ok: boolean;
+  tier: Tier;
+  upgrade?: ToolResult;
+}
+
 export async function requireTier(
   ctx: ToolContext,
   req: TierRequirement,
-): Promise<
-  | { ok: true; tier: Tier }
-  | { ok: false; tier: Tier; upgrade: ToolResult }
-> {
+): Promise<TierGateResult> {
   const userId = ctx.getUserId();
   const tier = userId ? await loadTier(userId) : ("free" as Tier);
   if (meetsRequirement(tier, req)) return { ok: true, tier };
