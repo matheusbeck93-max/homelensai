@@ -32,7 +32,7 @@ export default defineTool({
     const tier = await currentTier(ctx);
 
     const limit = await checkDailyLimit(ctx, tier, TOOL, FREE_DAILY_LIMIT);
-    if (!limit.ok) {
+    if (limit.ok === false) {
       logMcpCall({ userId: ctx.getUserId(), toolName: TOOL, tierAtCall: tier, outcome: "rate_limited", latencyMs: Date.now() - started });
       return limit.blocked;
     }
