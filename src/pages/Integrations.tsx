@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Navigation from "@/components/Navigation";
+import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 
 const MCP_URL = "https://yckcdxtatwolzilboahx.supabase.co/functions/v1/mcp";
