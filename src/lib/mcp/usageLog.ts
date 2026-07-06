@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 declare const process: { env: Record<string, string | undefined> };
 
-type Outcome = "ok" | "gated" | "error";
+type Outcome = "ok" | "gated" | "error" | "rate_limited";
 
 /**
  * Fire-and-forget log of an MCP tool invocation. Uses the service-role client
