@@ -84,6 +84,90 @@ var list_saved_properties_default = defineTool3({
 // src/lib/mcp/tools/list_saved_analyses.ts
 import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z3 } from "npm:zod@^4.4.3";
+
+// src/lib/mcp/tiers.ts
+import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.76.1";
+var tierCache = /* @__PURE__ */ new Map();
+function serviceRoleClient() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return createClient2(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+async function loadTier(userId) {
+  const existing = tierCache.get(userId);
+  if (existing) return existing;
+  const p = (async () => {
+    try {
+      const { data } = await serviceRoleClient().from("profiles").select("subscription_status").eq("id", userId).maybeSingle();
+      const raw = data?.subscription_status;
+      if (raw === "buyer" || raw === "investor") return raw;
+      if (raw === "premium") return "investor";
+      if (raw === "paid") return "buyer";
+      return "free";
+    } catch {
+      return "free";
+    }
+  })();
+  tierCache.set(userId, p);
+  setTimeout(() => tierCache.delete(userId), 3e4);
+  return p;
+}
+function meetsRequirement(tier, req) {
+  if (req.kind === "paid") return tier === "buyer" || tier === "investor";
+  if (req.kind === "investor") return tier === "investor";
+  return false;
+}
+function requirementLabel(req) {
+  return req.kind === "investor" ? "Investor" : "Buyer or Investor";
+}
+async function requireTier(ctx, req) {
+  const userId = ctx.getUserId();
+  const tier = userId ? await loadTier(userId) : "free";
+  if (meetsRequirement(tier, req)) return { ok: true, tier };
+  const need = requirementLabel(req);
+  return {
+    ok: false,
+    tier,
+    upgrade: {
+      content: [
+        {
+          type: "text",
+          text: `This HomeLens tool requires a ${need} plan. You are currently on ${tier[0].toUpperCase() + tier.slice(1)}. Upgrade at https://homelensais.com/pricing to unlock saved analyses, investor portfolio, and other paid features from your assistant.`
+        }
+      ],
+      isError: false,
+      structuredContent: { upgrade_required: true, current_tier: tier, required: need }
+    }
+  };
+}
+
+// src/lib/mcp/usageLog.ts
+import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.76.1";
+function logMcpCall(params) {
+  try {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) return;
+    const client = createClient3(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+    void client.from("mcp_usage_log").insert({
+      user_id: params.userId,
+      tool_name: params.toolName,
+      tier_at_call: params.tierAtCall,
+      outcome: params.outcome,
+      latency_ms: params.latencyMs
+    }).then(({ error }) => {
+      if (error) console.warn("[mcp] usage log insert failed:", error.message);
+    });
+  } catch (err) {
+    console.warn("[mcp] usage log threw:", err);
+  }
+}
+
+// src/lib/mcp/tools/list_saved_analyses.ts
 var list_saved_analyses_default = defineTool4({
   name: "list_saved_analyses",
   title: "List saved AI analyses",
@@ -94,8 +178,36 @@ var list_saved_analyses_default = defineTool4({
   annotations: { readOnlyHint: true, openWorldHint: false },
   handler: async ({ limit }, ctx) => {
     if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const gate = await requireTier(ctx, { kind: "paid" });
+    if (!gate.ok) {
+      logMcpCall({
+        userId: ctx.getUserId(),
+        toolName: "list_saved_analyses",
+        tierAtCall: gate.tier,
+        outcome: "gated",
+        latencyMs: Date.now() - started
+      });
+      return gate.upgrade;
+    }
     const { data, error } = await supabaseForUser(ctx).from("saved_analyses").select("*").order("created_at", { ascending: false }).limit(limit ?? 20);
-    if (error) return errorResult(error.message);
+    if (error) {
+      logMcpCall({
+        userId: ctx.getUserId(),
+        toolName: "list_saved_analyses",
+        tierAtCall: gate.tier,
+        outcome: "error",
+        latencyMs: Date.now() - started
+      });
+      return errorResult(error.message);
+    }
+    logMcpCall({
+      userId: ctx.getUserId(),
+      toolName: "list_saved_analyses",
+      tierAtCall: gate.tier,
+      outcome: "ok",
+      latencyMs: Date.now() - started
+    });
     return {
       content: [{ type: "text", text: JSON.stringify(data ?? [], null, 2) }],
       structuredContent: { count: data?.length ?? 0, analyses: data ?? [] }
@@ -116,8 +228,36 @@ var list_owned_properties_default = defineTool5({
   annotations: { readOnlyHint: true, openWorldHint: false },
   handler: async ({ limit }, ctx) => {
     if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const gate = await requireTier(ctx, { kind: "investor" });
+    if (!gate.ok) {
+      logMcpCall({
+        userId: ctx.getUserId(),
+        toolName: "list_owned_properties",
+        tierAtCall: gate.tier,
+        outcome: "gated",
+        latencyMs: Date.now() - started
+      });
+      return gate.upgrade;
+    }
     const { data, error } = await supabaseForUser(ctx).from("investor_owned_properties").select("id,address_line1,city,state,zip,property_type,beds,baths,sqft,year_built,purchase_date,purchase_price,current_value_estimate,current_value_source,is_rented,is_primary_residence,has_mortgage,loan_current_balance,status,created_at").order("created_at", { ascending: false }).limit(limit ?? 50);
-    if (error) return errorResult(error.message);
+    if (error) {
+      logMcpCall({
+        userId: ctx.getUserId(),
+        toolName: "list_owned_properties",
+        tierAtCall: gate.tier,
+        outcome: "error",
+        latencyMs: Date.now() - started
+      });
+      return errorResult(error.message);
+    }
+    logMcpCall({
+      userId: ctx.getUserId(),
+      toolName: "list_owned_properties",
+      tierAtCall: gate.tier,
+      outcome: "ok",
+      latencyMs: Date.now() - started
+    });
     return {
       content: [{ type: "text", text: JSON.stringify(data ?? [], null, 2) }],
       structuredContent: { count: data?.length ?? 0, properties: data ?? [] }
@@ -131,7 +271,7 @@ var mcp_default = defineMcp({
   name: "homelens-mcp",
   title: "HomeLens AI",
   version: "0.1.0",
-  instructions: "HomeLens AI tools for US real estate. Use `get_profile` to load the user's goals, budget, and target cities before making recommendations. Use `list_saved_properties` / `list_saved_analyses` / `list_owned_properties` to read the user's HomeLens data. `echo` verifies connectivity.",
+  instructions: "HomeLens AI tools for US real estate. Use `get_profile` to load the user's goals, budget, and target cities before making recommendations. Use `list_saved_properties` / `list_saved_analyses` / `list_owned_properties` to read the user's HomeLens data. `echo` verifies connectivity. Some tools (list_saved_analyses, list_owned_properties) require a paid HomeLens plan; when a tool returns an upgrade message, relay it verbatim to the user and stop \u2014 do not retry.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"

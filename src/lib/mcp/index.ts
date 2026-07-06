@@ -15,7 +15,7 @@ export default defineMcp({
   title: "HomeLens AI",
   version: "0.1.0",
   instructions:
-    "HomeLens AI tools for US real estate. Use `get_profile` to load the user's goals, budget, and target cities before making recommendations. Use `list_saved_properties` / `list_saved_analyses` / `list_owned_properties` to read the user's HomeLens data. `echo` verifies connectivity.",
+    "HomeLens AI tools for US real estate. Use `get_profile` to load the user's goals, budget, and target cities before making recommendations. Use `list_saved_properties` / `list_saved_analyses` / `list_owned_properties` to read the user's HomeLens data. `echo` verifies connectivity. Some tools (list_saved_analyses, list_owned_properties) require a paid HomeLens plan; when a tool returns an upgrade message, relay it verbatim to the user and stop — do not retry.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
