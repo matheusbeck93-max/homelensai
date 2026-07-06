@@ -13,7 +13,7 @@ export type TierRequirement =
 type ToolResult = {
   content: { type: "text"; text: string }[];
   isError?: boolean;
-  structuredContent?: unknown;
+  structuredContent?: Record<string, unknown>;
 };
 
 // Per-request memoization so a batch of tool calls in one turn only hits the DB once.
