@@ -30,6 +30,7 @@ const columns: { title: string; links: FooterLink[] }[] = [
     links: [
       { to: "/blog", label: "Blog" },
       { to: "/faq", label: "FAQ" },
+      { to: "/integrations", label: "AI Integrations" },
       { to: "mailto:h2@homelens-ai.com", label: "Support", external: true },
     ],
   },

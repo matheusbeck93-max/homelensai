@@ -109,6 +109,7 @@ const AiSpendAdmin = lazyWithRetry(() => import("./pages/admin/AiSpendAdmin"));
 const FeaturePage = lazyWithRetry(() => import("./pages/marketing/FeaturePage"));
 const SolutionPage = lazyWithRetry(() => import("./pages/marketing/SolutionPage"));
 const Faq = lazyWithRetry(() => import("./pages/marketing/Faq"));
+const Integrations = lazyWithRetry(() => import("./pages/Integrations"));
 
 const queryClient = new QueryClient();
 
@@ -164,6 +165,7 @@ function App() {
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/open-houses" element={<Navigate to="/" replace />} />
                   <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/integrations" element={<Integrations />} />
                   <Route path="/checkout/success" element={<CheckoutSuccess />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
