@@ -142,6 +142,10 @@ async function requireTier(ctx, req) {
     }
   };
 }
+async function currentTier(ctx) {
+  const userId = ctx.getUserId();
+  return userId ? loadTier(userId) : "free";
+}
 
 // src/lib/mcp/usageLog.ts
 import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.76.1";
@@ -265,13 +269,541 @@ var list_owned_properties_default = defineTool5({
   }
 });
 
+// src/lib/mcp/tools/analyze_listing.ts
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z5 } from "npm:zod@^4.4.3";
+
+// src/lib/mcp/rateLimit.ts
+import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.76.1";
+function serviceClient() {
+  return createClient4(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
+async function checkDailyLimit(ctx, tier, toolName, dailyLimit) {
+  if (tier === "buyer" || tier === "investor") return { ok: true };
+  const userId = ctx.getUserId();
+  if (!userId) return { ok: true };
+  try {
+    const since = /* @__PURE__ */ new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    const { count } = await serviceClient().from("mcp_usage_log").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("tool_name", toolName).eq("outcome", "ok").gte("created_at", since.toISOString());
+    if ((count ?? 0) < dailyLimit) return { ok: true };
+  } catch {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    blocked: {
+      content: [
+        {
+          type: "text",
+          text: `You have hit the free daily limit of ${dailyLimit} \`${toolName}\` calls through HomeLens MCP. Upgrade to Buyer or Investor at https://homelensais.com/pricing for higher limits, saved analyses, neighborhood insights, and rental calculators from your assistant.`
+        }
+      ],
+      structuredContent: { rate_limited: true, daily_limit: dailyLimit, tool: toolName }
+    }
+  };
+}
+
+// src/lib/mcp/internalCall.ts
+async function internalCall(functionName, body, ctx) {
+  const url = process.env.SUPABASE_URL;
+  const apikey = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
+  const token = ctx.getToken();
+  const res = await fetch(`${url}/functions/v1/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey,
+      Authorization: `Bearer ${token ?? apikey}`
+    },
+    body: JSON.stringify(body)
+  });
+  const text = await res.text();
+  let data = text;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+  }
+  return { ok: res.ok, status: res.status, data };
+}
+function extractErr(data) {
+  if (!data) return "Request failed.";
+  if (typeof data === "string") return data.slice(0, 500);
+  const d = data;
+  const msg = typeof d.error === "string" && d.error || typeof d.message === "string" && d.message || typeof d.code === "string" && d.code || "Request failed.";
+  return String(msg).slice(0, 500);
+}
+
+// src/lib/mcp/tools/analyze_listing.ts
+var TOOL = "analyze_listing";
+var FREE_DAILY_LIMIT = 3;
+function parseScore(text) {
+  const m = text.match(/MATCH_SCORE:\s*(\d{1,2})\s*\/\s*10/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) && n >= 0 && n <= 10 ? n : null;
+}
+var analyze_listing_default = defineTool6({
+  name: TOOL,
+  title: "Analyze a property listing",
+  description: "Analyze a US real estate listing URL (Zillow, Redfin, Realtor.com, etc.) using HomeLens AI. Returns a MATCH_SCORE (0-10), verdict, and buyability summary tailored to the user's saved goals. Free tier: 3 calls per day.",
+  inputSchema: {
+    url: z5.string().url().max(2e3).describe("Public URL to the property listing (Zillow, Redfin, Realtor.com, etc.)."),
+    question: z5.string().max(500).optional().describe("Optional specific question to focus the analysis (e.g. 'is this a good rental?').")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  handler: async ({ url, question }, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const tier = await currentTier(ctx);
+    const limit = await checkDailyLimit(ctx, tier, TOOL, FREE_DAILY_LIMIT);
+    if (limit.ok === false) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL, tierAtCall: tier, outcome: "rate_limited", latencyMs: Date.now() - started });
+      return limit.blocked;
+    }
+    const userMsg = (question?.trim() ? `${question.trim()}
+
+` : "Analyze this property for me. ") + `Property URL: ${url}`;
+    const res = await internalCall(
+      "ai-chat",
+      {
+        messages: [{ role: "user", content: userMsg }],
+        conversationMode: false
+      },
+      ctx
+    );
+    if (!res.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL, tierAtCall: tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: `Analysis failed: ${extractErr(res.data)}` }], isError: true };
+    }
+    const text = res.data?.generatedText ?? res.data?.response ?? "";
+    const score = parseScore(text);
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL, tierAtCall: tier, outcome: "ok", latencyMs: Date.now() - started });
+    return {
+      content: [
+        { type: "text", text: text || "(No analysis text returned.)" },
+        { type: "text", text: JSON.stringify({ url, match_score: score, has_score: score !== null }, null, 2) }
+      ],
+      structuredContent: { url, match_score: score, analysis: text }
+    };
+  }
+});
+
+// src/lib/mcp/tools/neighborhood_insights.ts
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z6 } from "npm:zod@^4.4.3";
+var TOOL2 = "neighborhood_insights";
+var neighborhood_insights_default = defineTool7({
+  name: TOOL2,
+  title: "Neighborhood insights",
+  description: "Get schools, walkability, crime, and demographic insights for a US address or neighborhood using HomeLens (Perplexity-backed). Requires Buyer or Investor plan.",
+  inputSchema: {
+    address: z6.string().max(200).optional().describe("Street address (optional if city/state provided)."),
+    city: z6.string().max(100).describe("City name."),
+    state: z6.string().max(2).describe("Two-letter state code (e.g. CA, NY)."),
+    zip: z6.string().max(10).optional().describe("ZIP code (optional).")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  handler: async ({ address, city, state, zip }, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const gate = await requireTier(ctx, { kind: "paid" });
+    if (!gate.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL2, tierAtCall: gate.tier, outcome: "gated", latencyMs: Date.now() - started });
+      return gate.upgrade;
+    }
+    const res = await internalCall(
+      "neighborhood-insights",
+      { address: address ?? "", city, state, zip: zip ?? "" },
+      ctx
+    );
+    if (!res.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL2, tierAtCall: gate.tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: `Neighborhood insights failed: ${extractErr(res.data)}` }], isError: true };
+    }
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL2, tierAtCall: gate.tier, outcome: "ok", latencyMs: Date.now() - started });
+    const d = res.data;
+    return {
+      content: [
+        { type: "text", text: d?.aiSummary ?? `Neighborhood data for ${city}, ${state}.` },
+        { type: "text", text: JSON.stringify(res.data, null, 2).slice(0, 8e3) }
+      ],
+      structuredContent: res.data
+    };
+  }
+});
+
+// src/lib/mcp/tools/market_trends.ts
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z7 } from "npm:zod@^4.4.3";
+var TOOL3 = "market_trends";
+var FREE_DAILY_LIMIT2 = 5;
+var market_trends_default = defineTool8({
+  name: TOOL3,
+  title: "US market trends",
+  description: "Get real estate market trends (median price, days-on-market, inventory) for a US metro or city. Free tier: 5 calls per day.",
+  inputSchema: {
+    location: z7.string().max(200).describe("Metro or city name, e.g. 'Austin, TX' or 'Miami-Dade County'.")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  handler: async ({ location }, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const tier = await currentTier(ctx);
+    const limit = await checkDailyLimit(ctx, tier, TOOL3, FREE_DAILY_LIMIT2);
+    if (limit.ok === false) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL3, tierAtCall: tier, outcome: "rate_limited", latencyMs: Date.now() - started });
+      return limit.blocked;
+    }
+    const res = await internalCall("market-trends", { location }, ctx);
+    if (!res.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL3, tierAtCall: tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: `Market trends failed: ${extractErr(res.data)}` }], isError: true };
+    }
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL3, tierAtCall: tier, outcome: "ok", latencyMs: Date.now() - started });
+    const d = res.data;
+    return {
+      content: [
+        { type: "text", text: d?.insights ?? `Market trends for ${location}.` },
+        { type: "text", text: JSON.stringify(res.data, null, 2).slice(0, 8e3) }
+      ],
+      structuredContent: res.data
+    };
+  }
+});
+
+// src/lib/mcp/tools/state_tax_and_flood.ts
+import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z8 } from "npm:zod@^4.4.3";
+var TOOL4 = "state_tax_and_flood";
+var state_tax_and_flood_default = defineTool9({
+  name: TOOL4,
+  title: "State tax + flood risk",
+  description: "Get state income tax, effective property tax rate, and flood-zone risk indicators for a US state (and address when provided).",
+  inputSchema: {
+    state: z8.string().max(50).describe("US state name or two-letter code (e.g. 'California' or 'CA')."),
+    address: z8.string().max(300).optional().describe("Optional full address for flood-zone lookup.")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  handler: async ({ state, address }, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const tier = await currentTier(ctx);
+    const res = await internalCall(
+      "get-state-tax-data",
+      { state, address: address ?? "" },
+      ctx
+    );
+    if (!res.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL4, tierAtCall: tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: `Tax/flood lookup failed: ${extractErr(res.data)}` }], isError: true };
+    }
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL4, tierAtCall: tier, outcome: "ok", latencyMs: Date.now() - started });
+    return {
+      content: [
+        { type: "text", text: `State tax and flood data for ${state}${address ? ` (${address})` : ""}.` },
+        { type: "text", text: JSON.stringify(res.data, null, 2).slice(0, 6e3) }
+      ],
+      structuredContent: res.data
+    };
+  }
+});
+
+// src/lib/mcp/tools/mortgage_calculator.ts
+import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z9 } from "npm:zod@^4.4.3";
+var TOOL5 = "mortgage_calculator";
+function computeMortgage(input) {
+  const loanAmount = Math.max(0, input.homePrice - input.downPayment);
+  const r = input.interestRate / 100 / 12;
+  const n = input.loanTermYears * 12;
+  const monthlyPI = r === 0 ? loanAmount / n : loanAmount * r / (1 - Math.pow(1 + r, -n));
+  const dpPct = input.homePrice > 0 ? input.downPayment / input.homePrice * 100 : 0;
+  const monthlyPMI = dpPct < 20 ? loanAmount * 75e-4 / 12 : 0;
+  const taxRate = input.propertyTaxRate ?? 1.1;
+  const monthlyTax = input.homePrice * (taxRate / 100) / 12;
+  const insurance = input.insuranceMonthly ?? Math.round(input.homePrice * 35e-4 / 12);
+  const hoa = input.hoaMonthly ?? 0;
+  const total = monthlyPI + monthlyPMI + monthlyTax + insurance + hoa;
+  return {
+    loanAmount: Math.round(loanAmount),
+    downPaymentPercent: Number(dpPct.toFixed(1)),
+    monthlyPI: Math.round(monthlyPI),
+    monthlyPMI: Math.round(monthlyPMI),
+    monthlyPropertyTax: Math.round(monthlyTax),
+    monthlyInsurance: Math.round(insurance),
+    hoaMonthly: Math.round(hoa),
+    totalMonthlyPayment: Math.round(total),
+    propertyTaxRate: taxRate,
+    interestRate: input.interestRate,
+    loanTerm: input.loanTermYears,
+    homePrice: input.homePrice,
+    downPayment: input.downPayment
+  };
+}
+var mortgage_calculator_default = defineTool10({
+  name: TOOL5,
+  title: "Mortgage calculator",
+  description: "Calculate a full US mortgage payment (P&I, PMI, taxes, insurance, HOA). Automatically adds PMI when down payment < 20%. Includes HomeLens AI commentary on affordability.",
+  inputSchema: {
+    homePrice: z9.number().positive().describe("Home price in USD."),
+    downPayment: z9.number().nonnegative().describe("Down payment amount in USD."),
+    interestRate: z9.number().positive().max(30).describe("Annual interest rate as a percent (e.g. 6.5)."),
+    loanTermYears: z9.number().int().positive().max(40).default(30).describe("Loan term in years (default 30)."),
+    propertyTaxRate: z9.number().nonnegative().max(10).optional().describe("Annual property tax rate as a percent. Defaults to ~1.1%."),
+    insuranceMonthly: z9.number().nonnegative().optional().describe("Monthly insurance premium in USD."),
+    hoaMonthly: z9.number().nonnegative().optional().describe("Monthly HOA fee in USD.")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  handler: async (input, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const tier = await currentTier(ctx);
+    const mortgage = computeMortgage(input);
+    const ai = await internalCall(
+      "calculator-insights",
+      { buyingPower: {}, mortgage },
+      ctx
+    );
+    const commentary = ai.ok ? ai.data?.insights ?? ai.data?.response ?? "" : "";
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL5, tierAtCall: tier, outcome: "ok", latencyMs: Date.now() - started });
+    const summary = `Estimated total monthly payment: $${mortgage.totalMonthlyPayment.toLocaleString()} (P&I $${mortgage.monthlyPI.toLocaleString()}, tax $${mortgage.monthlyPropertyTax.toLocaleString()}, insurance $${mortgage.monthlyInsurance.toLocaleString()}` + (mortgage.monthlyPMI ? `, PMI $${mortgage.monthlyPMI.toLocaleString()}` : "") + (mortgage.hoaMonthly ? `, HOA $${mortgage.hoaMonthly.toLocaleString()}` : "") + `).`;
+    return {
+      content: [
+        { type: "text", text: summary },
+        ...commentary ? [{ type: "text", text: commentary }] : [],
+        { type: "text", text: JSON.stringify(mortgage, null, 2) }
+      ],
+      structuredContent: { mortgage, commentary }
+    };
+  }
+});
+
+// src/lib/mcp/tools/rental_calculator.ts
+import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z10 } from "npm:zod@^4.4.3";
+var TOOL6 = "rental_calculator";
+var rental_calculator_default = defineTool11({
+  name: TOOL6,
+  title: "Rental / investment calculator",
+  description: "Compute rental-property metrics: monthly cash flow, cap rate, cash-on-cash return, and DSCR. Investor plan only.",
+  inputSchema: {
+    purchasePrice: z10.number().positive().describe("Purchase price in USD."),
+    downPayment: z10.number().nonnegative().describe("Down payment in USD."),
+    interestRate: z10.number().positive().max(30).describe("Annual mortgage interest rate as a percent."),
+    loanTermYears: z10.number().int().positive().max(40).default(30),
+    monthlyRent: z10.number().positive().describe("Expected monthly rent in USD."),
+    monthlyExpenses: z10.number().nonnegative().describe("Monthly operating expenses (taxes, insurance, HOA, maintenance, mgmt) in USD."),
+    vacancyRatePct: z10.number().nonnegative().max(50).default(5).describe("Assumed vacancy rate as a percent (default 5)."),
+    closingCosts: z10.number().nonnegative().optional().describe("Closing costs in USD (default 3% of purchase price).")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  handler: async (input, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const gate = await requireTier(ctx, { kind: "investor" });
+    if (!gate.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL6, tierAtCall: gate.tier, outcome: "gated", latencyMs: Date.now() - started });
+      return gate.upgrade;
+    }
+    const loanAmount = Math.max(0, input.purchasePrice - input.downPayment);
+    const r = input.interestRate / 100 / 12;
+    const n = input.loanTermYears * 12;
+    const monthlyPI = r === 0 ? loanAmount / n : loanAmount * r / (1 - Math.pow(1 + r, -n));
+    const vacancyLoss = input.monthlyRent * (input.vacancyRatePct / 100);
+    const effectiveRent = input.monthlyRent - vacancyLoss;
+    const monthlyCashFlow = effectiveRent - input.monthlyExpenses - monthlyPI;
+    const noiAnnual = (effectiveRent - input.monthlyExpenses) * 12;
+    const capRate = input.purchasePrice > 0 ? noiAnnual / input.purchasePrice * 100 : 0;
+    const closing = input.closingCosts ?? input.purchasePrice * 0.03;
+    const cashInvested = input.downPayment + closing;
+    const cashOnCash = cashInvested > 0 ? monthlyCashFlow * 12 / cashInvested * 100 : 0;
+    const annualDebtService = monthlyPI * 12;
+    const dscr = annualDebtService > 0 ? noiAnnual / annualDebtService : 0;
+    const result = {
+      monthlyPI: Math.round(monthlyPI),
+      effectiveMonthlyRent: Math.round(effectiveRent),
+      monthlyCashFlow: Math.round(monthlyCashFlow),
+      annualNOI: Math.round(noiAnnual),
+      capRatePct: Number(capRate.toFixed(2)),
+      cashOnCashPct: Number(cashOnCash.toFixed(2)),
+      dscr: Number(dscr.toFixed(2)),
+      cashInvested: Math.round(cashInvested),
+      loanAmount: Math.round(loanAmount),
+      inputs: input
+    };
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL6, tierAtCall: gate.tier, outcome: "ok", latencyMs: Date.now() - started });
+    const verdict = monthlyCashFlow >= 0 && dscr >= 1.2 ? "Positive cash flow with healthy DSCR." : monthlyCashFlow >= 0 ? "Positive cash flow but DSCR is thin \u2014 lenders may push back." : "Negative cash flow at these assumptions.";
+    const summary = `Monthly cash flow: $${result.monthlyCashFlow.toLocaleString()}. Cap rate ${result.capRatePct}%, cash-on-cash ${result.cashOnCashPct}%, DSCR ${result.dscr}. ${verdict}`;
+    return {
+      content: [
+        { type: "text", text: summary },
+        { type: "text", text: JSON.stringify(result, null, 2) }
+      ],
+      structuredContent: result
+    };
+  }
+});
+
+// src/lib/mcp/tools/compare_properties.ts
+import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z11 } from "npm:zod@^4.4.3";
+var TOOL7 = "compare_properties";
+var compare_properties_default = defineTool12({
+  name: TOOL7,
+  title: "Compare properties",
+  description: "Compare 2 to 4 US real estate listing URLs side-by-side with HomeLens AI ranking and reasoning. Requires Buyer or Investor plan.",
+  inputSchema: {
+    urls: z11.array(z11.string().url()).min(2).max(4).describe("2 to 4 public listing URLs (Zillow, Redfin, Realtor.com, etc.).")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  handler: async ({ urls }, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const gate = await requireTier(ctx, { kind: "paid" });
+    if (!gate.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL7, tierAtCall: gate.tier, outcome: "gated", latencyMs: Date.now() - started });
+      return gate.upgrade;
+    }
+    const properties = [];
+    for (const url of urls) {
+      const r = await internalCall("fetch-property", { url }, ctx);
+      if (r.ok) {
+        const p = r.data?.property ?? r.data;
+        properties.push({ ...p, sourceUrl: url });
+      }
+    }
+    if (properties.length < 2) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL7, tierAtCall: gate.tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: "Could not fetch at least 2 properties. Check the URLs." }], isError: true };
+    }
+    const res = await internalCall("compare-properties-ai", { properties }, ctx);
+    if (!res.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL7, tierAtCall: gate.tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: `Comparison failed: ${extractErr(res.data)}` }], isError: true };
+    }
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL7, tierAtCall: gate.tier, outcome: "ok", latencyMs: Date.now() - started });
+    const d = res.data;
+    const summary = d?.analysis ?? d?.recommendation ?? d?.response ?? "Comparison complete.";
+    return {
+      content: [
+        { type: "text", text: typeof summary === "string" ? summary : JSON.stringify(summary).slice(0, 4e3) },
+        { type: "text", text: JSON.stringify(res.data, null, 2).slice(0, 8e3) }
+      ],
+      structuredContent: res.data
+    };
+  }
+});
+
+// src/lib/mcp/tools/save_analysis.ts
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z12 } from "npm:zod@^4.4.3";
+var TOOL8 = "save_analysis";
+var save_analysis_default = defineTool13({
+  name: TOOL8,
+  title: "Save an analysis to HomeLens",
+  description: "Save a property analysis (typically produced by analyze_listing) to the user's HomeLens Saved Analyses dashboard. Requires Buyer or Investor plan.",
+  inputSchema: {
+    analysisSummary: z12.string().min(1).max(5e4).describe("The analysis text to save."),
+    propertyUrl: z12.string().url().max(2e3).optional().describe("Listing URL, if known."),
+    propertyAddress: z12.string().max(500).optional().describe("Full address, if known."),
+    propertyPrice: z12.number().nonnegative().optional().describe("List price in USD, if known."),
+    matchScore: z12.number().int().min(0).max(10).optional().describe("MATCH_SCORE (0-10) from analyze_listing, if known.")
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false, idempotentHint: false },
+  handler: async (input, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const gate = await requireTier(ctx, { kind: "paid" });
+    if (!gate.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL8, tierAtCall: gate.tier, outcome: "gated", latencyMs: Date.now() - started });
+      return gate.upgrade;
+    }
+    const body = {
+      analysisSummary: input.analysisSummary,
+      propertyUrl: input.propertyUrl ?? null,
+      propertyAddress: input.propertyAddress ?? null,
+      propertyPrice: input.propertyPrice ?? null,
+      investmentScore: input.matchScore != null ? input.matchScore * 10 : null,
+      source: "app"
+    };
+    const res = await internalCall("save-analysis", body, ctx);
+    if (!res.ok) {
+      logMcpCall({ userId: ctx.getUserId(), toolName: TOOL8, tierAtCall: gate.tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: `Save failed: ${extractErr(res.data)}` }], isError: true };
+    }
+    logMcpCall({ userId: ctx.getUserId(), toolName: TOOL8, tierAtCall: gate.tier, outcome: "ok", latencyMs: Date.now() - started });
+    return {
+      content: [
+        { type: "text", text: "Analysis saved to your HomeLens dashboard. View it at https://homelensais.com/console." }
+      ],
+      structuredContent: res.data
+    };
+  }
+});
+
+// src/lib/mcp/tools/save_property.ts
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z13 } from "npm:zod@^4.4.3";
+var TOOL9 = "save_property";
+var save_property_default = defineTool14({
+  name: TOOL9,
+  title: "Save a property to HomeLens",
+  description: "Save a US property listing URL to the user's HomeLens saved-properties list. Available to all HomeLens users.",
+  inputSchema: {
+    url: z13.string().url().max(2e3).describe("Listing URL (Zillow, Redfin, Realtor.com, etc.)."),
+    address: z13.string().max(500).describe("Full property address."),
+    city: z13.string().max(120).optional(),
+    state: z13.string().max(2).optional().describe("Two-letter state code."),
+    price: z13.number().nonnegative().optional(),
+    beds: z13.number().int().nonnegative().optional(),
+    baths: z13.number().nonnegative().optional(),
+    sqft: z13.number().int().nonnegative().optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false, idempotentHint: false },
+  handler: async (input, ctx) => {
+    if (!ctx.isAuthenticated()) return notAuthed();
+    const started = Date.now();
+    const tier = await currentTier(ctx);
+    const userId = ctx.getUserId();
+    const { data, error } = await supabaseForUser(ctx).from("saved_properties").insert({
+      user_id: userId,
+      property_url: input.url,
+      property_address: input.address,
+      city: input.city ?? null,
+      state: input.state ?? null,
+      price: input.price ?? null,
+      beds: input.beds ?? null,
+      baths: input.baths ?? null,
+      sqft: input.sqft ?? null,
+      source: "mcp"
+    }).select().maybeSingle();
+    if (error) {
+      logMcpCall({ userId, toolName: TOOL9, tierAtCall: tier, outcome: "error", latencyMs: Date.now() - started });
+      return { content: [{ type: "text", text: `Save failed: ${error.message}` }], isError: true };
+    }
+    logMcpCall({ userId, toolName: TOOL9, tierAtCall: tier, outcome: "ok", latencyMs: Date.now() - started });
+    return {
+      content: [
+        { type: "text", text: "Property saved to your HomeLens dashboard." },
+        { type: "text", text: JSON.stringify(data ?? {}, null, 2) }
+      ],
+      structuredContent: data ?? {}
+    };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "yckcdxtatwolzilboahx";
 var mcp_default = defineMcp({
   name: "homelens-mcp",
   title: "HomeLens AI",
-  version: "0.1.0",
-  instructions: "HomeLens AI tools for US real estate. Use `get_profile` to load the user's goals, budget, and target cities before making recommendations. Use `list_saved_properties` / `list_saved_analyses` / `list_owned_properties` to read the user's HomeLens data. `echo` verifies connectivity. Some tools (list_saved_analyses, list_owned_properties) require a paid HomeLens plan; when a tool returns an upgrade message, relay it verbatim to the user and stop \u2014 do not retry.",
+  version: "0.2.0",
+  instructions: "HomeLens AI tools for US real estate. Call `get_profile` first to load the user's goals, budget, and target cities before making recommendations. Use `analyze_listing` (paste any Zillow/Redfin/Realtor URL) for a MATCH_SCORE and buyability verdict; `neighborhood_insights` for schools/crime/walkability; `market_trends` for metro-level price and inventory data; `state_tax_and_flood` for tax rates and flood risk; `mortgage_calculator` and `rental_calculator` for full PITI and cash-flow math; `compare_properties` to rank 2\u20134 listings side-by-side. Use `list_saved_properties` / `list_saved_analyses` / `list_owned_properties` to read the user's HomeLens data, and `save_property` / `save_analysis` to write back. Free-tier limits: analyze_listing 3/day, market_trends 5/day via MCP. Paid features (neighborhood_insights, rental_calculator, compare_properties, saved analyses, owned portfolio) require a Buyer or Investor plan. When a tool returns an upgrade or rate-limit message, relay it VERBATIM to the user (including the pricing URL) and stop \u2014 do not retry, do not paraphrase, do not suggest alternatives.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -281,7 +813,16 @@ var mcp_default = defineMcp({
     get_profile_default,
     list_saved_properties_default,
     list_saved_analyses_default,
-    list_owned_properties_default
+    list_owned_properties_default,
+    analyze_listing_default,
+    neighborhood_insights_default,
+    market_trends_default,
+    state_tax_and_flood_default,
+    mortgage_calculator_default,
+    rental_calculator_default,
+    compare_properties_default,
+    save_analysis_default,
+    save_property_default
   ]
 });
 
