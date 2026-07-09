@@ -280,7 +280,56 @@ export default function Calculators() {
 
           <TabsContent value="buying-power" className="mt-0">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Buying Power Summary */}\n              <Card>\n                <CardHeader>\n                  <div className="flex items-center justify-between">\n                    <CardTitle as="h2" className="flex items-center gap-2">\n                      <DollarSign className="h-5 w-5 text-primary" />\n                      Buying Power Summary\n                    </CardTitle>\n                    <Button \n                      variant="ghost" \n                      size="sm"\n                      onClick={handleResetBuyingPower}\n                      aria-label="Reset buying power"\n                    >\n                      <RotateCcw className="h-4 w-4" />\n                    </Button>\n                  </div>\n                  <CardDescription>Calculate your home buying capacity</CardDescription>\n                </CardHeader>\n                <CardContent className="space-y-4">\n                  <div>\n                    <Label>Annual Income (USD)</Label>\n                    <Input\n                      type="number"\n                      value={annualIncome || ""}\n                      onChange={(e) => setAnnualIncome(Number(e.target.value))}\n                      className="mt-1"\n                    />\n                  </div>\n                  <div>\n                    <Label>Monthly Debts (USD)</Label>\n                    <Input\n                      type="number"\n                      value={monthlyDebts || ""}\n                      onChange={(e) => setMonthlyDebts(Number(e.target.value))}\n                      className="mt-1"\n                    />\n                  </div>\n                  <div>\n                    <Label>Down Payment Available (USD)</Label>\n                    <Input\n                      type="number"\n                      value={downPaymentAvailable || ""}\n                      onChange={(e) => setDownPaymentAvailable(Number(e.target.value))}\n                      className="mt-1"\n                    />\n                  </div>\n                </CardContent>\n              </Card>\n              {/* Buying Power Results */}
+              {/* Buying Power Summary */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle as="h2" className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      Buying Power Summary
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleResetBuyingPower}
+                      aria-label="Reset buying power"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <CardDescription>Calculate your home buying capacity</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Annual Income (USD)</Label>
+                    <Input
+                      type="number"
+                      value={annualIncome || ""}
+                      onChange={(e) => setAnnualIncome(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Monthly Debts (USD)</Label>
+                    <Input
+                      type="number"
+                      value={monthlyDebts || ""}
+                      onChange={(e) => setMonthlyDebts(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Down Payment Available (USD)</Label>
+                    <Input
+                      type="number"
+                      value={downPaymentAvailable || ""}
+                      onChange={(e) => setDownPaymentAvailable(Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+              {/* Buying Power Results */}
               <Card>
                 <CardHeader>
                   <CardTitle as="h2" className="flex items-center gap-2">
