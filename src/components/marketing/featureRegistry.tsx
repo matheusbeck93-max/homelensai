@@ -9,6 +9,7 @@ import {
   ScanSearch,
   Chrome,
   Briefcase,
+  Repeat,
   type LucideIcon,
 } from "lucide-react";
 import chatAsset from "@/assets/ai-chat-analysis.png.asset.json";
@@ -26,6 +27,7 @@ export type FeatureSlug =
   | "buying-power"
   | "investor-brief"
   | "investor-calculator"
+  | "brrrr-calculator"
   | "saved-analyses"
   | "my-properties"
   | "preferences"
@@ -122,6 +124,22 @@ export const FEATURES: FeatureDef[] = [
       { title: "Simple and advanced modes", body: "Start with a quick cap-rate check, then flip to advanced when the deal deserves real underwriting." },
       { title: "Tax-aware exits", body: "Federal and state capital gains modeled separately, plus depreciation recapture and 1031 scenarios." },
       { title: "Chat with your numbers", body: "Ask the AI to explain, sanity-check, or optimize any assumption in the calculator." },
+    ],
+  },
+  {
+    slug: "brrrr-calculator",
+    name: "BRRRR Calculator",
+    short: "Model buy-rehab-rent-refinance deals in seconds.",
+    headline: "The BRRRR math, honest and fast.",
+    subheadline:
+      "Plug in purchase, rehab, ARV, rent, and refi terms. See all-in cost, capital left in the deal, monthly cash flow, and cash-on-cash return after refinance — with an AI read on the deal.",
+    icon: Repeat,
+    screenshot: investorCalculatorAsset.url,
+    screenshotAlt: "HomeLens BRRRR calculator with cash-on-cash after refinance",
+    benefits: [
+      { title: "All-in cost, not just purchase price", body: "Closing costs, rehab, and holding costs during the rehab window are all rolled into the true capital in the deal." },
+      { title: "Capital recycled vs left in deal", body: "See exactly how much cash comes back out at refi and how much stays trapped in the property." },
+      { title: "AI verdict on the deal", body: "One-click AI read on ARV realism, cash flow adequacy, and concrete next steps for the deal." },
     ],
   },
   {

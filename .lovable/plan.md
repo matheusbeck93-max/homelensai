@@ -1,98 +1,84 @@
-# BRRRR Calculator Page
+# BRRRR + Buying Power tabs, BRRRR feature page, homepage feature card
 
-Adds a dedicated `/calculators/brrrr` page that captures the high-intent "BRRRR calculator" search demand flagged by the SEO scanner, while matching the look and mechanics of the existing `/calculators` page.
+Three focused additions. No changes to existing calc math, AI edge functions, auth, or RLS.
 
-## What the user gets
+## 1. Tabs on `/calculators`
 
-A single-page BRRRR (Buy, Rehab, Rent, Refinance, Repeat) calculator that:
+Today `src/pages/Calculators.tsx` renders Buying Power + Mortgage stacked in a 2-column grid, plus a text link to `/calculators/brrrr`. Wrap the existing sections in shadcn `Tabs` so the page has three tabs:
 
-- Uses the same two-column layout, cards, typography, and buttons as `/calculators` so it feels native.
-- Computes the numbers investors actually care about (all-in cost, ARV-based refi, capital left in deal, monthly cash flow, cash-on-cash return after refi).
-- Sends the results to a new AI insights edge function that returns a plain-English read (deal health, capital recycled, risks, next steps).
-- Ships with per-page SEO metadata, JSON-LD, sitemap entry, and internal links from `/calculators` and `/faq`.
+- **Buying Power** — the existing Buying Power Summary card (inputs) + Buying Power Results card.
+- **Mortgage** — the existing Mortgage Calculator card + Mortgage Results card + the "Generate AI insights" block (unchanged behavior, still uses `calculator-insights`).
+- **BRRRR** — renders the existing `CalculatorBrrrr` page body as a tab.
 
-## Inputs (grouped in 2 cards)
+Details:
+- Use `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` from `@/components/ui/tabs`, `defaultValue="buying-power"`, `TabsList` with `grid grid-cols-3` on mobile.
+- Sync tab to URL via `?tab=buying-power|mortgage|brrrr` so links + refresh preserve state and so `/calculators?tab=brrrr` is a valid entry point. Keep `/calculators/brrrr` working (unchanged) — just add a small redirect note: the standalone route stays for SEO/canonical.
+- Refactor `CalculatorBrrrr.tsx` to export both the full page (default export, keeps its own `<Helmet>` + `Navigation` for the standalone route) **and** a named `BrrrrCalculatorPanel` component containing just the calculator UI (inputs + results + AI insights, no `Navigation`/`Helmet`). The tab imports `BrrrrCalculatorPanel`; the standalone page keeps rendering it too. No duplication of math.
+- Remove the "Investor? Try the BRRRR calculator" inline paragraph in `Calculators.tsx` — the tab replaces it.
+- Update the page `<title>`/description on `/calculators` to mention all three: "Buying Power, Mortgage & BRRRR Calculators | HomeLens".
 
-**Acquisition & Rehab**
-- Purchase price
-- Closing costs
-- Rehab budget
-- Holding months + monthly holding cost (taxes, insurance, utilities during rehab)
+## 2. BRRRR feature page
 
-**Refinance & Rent**
-- After-Repair Value (ARV)
-- Refi LTV % (default 75%)
-- Refi interest rate %
-- Loan term (years, default 30)
-- Monthly rent
-- Monthly operating expenses (taxes, insurance, PM, maintenance, vacancy allowance)
+Add BRRRR to the marketing feature system so `/features/brrrr-calculator` renders via the existing `FeaturePage` component.
 
-Defaults mirror the existing calculator (e.g. tax 1.2%, sensible LTV/term) so the page produces a result on first paint after minimal typing.
+Edit `src/components/marketing/featureRegistry.tsx`:
+- Add a new `FeatureSlug` value: `"brrrr-calculator"`.
+- Add a `FEATURES` entry:
+  - `name`: "BRRRR Calculator"
+  - `icon`: `Repeat` (from `lucide-react`)
+  - `short`: "Model buy-rehab-rent-refinance deals in seconds."
+  - `headline`: "The BRRRR math, honest and fast."
+  - `subheadline`: "Plug in purchase, rehab, ARV, rent, and refi terms. See all-in cost, capital left in the deal, monthly cash flow, and cash-on-cash return after refinance — with an AI read on the deal."
+  - Three benefits: "All-in cost, not just purchase price", "Capital recycled vs left in deal", "AI verdict on the deal".
+  - `screenshot`: reuse `investorCalculatorAsset.url` (closest existing asset — avoids generating a new image; can be swapped later).
 
-## Calculations (client-side, pure)
+The generic `FeaturePage` already renders any registered slug at `/features/:slug`, so no routing changes are needed.
 
-```text
-allInCost         = purchasePrice + closingCosts + rehabBudget + holdingMonths * monthlyHoldingCost
-refiLoanAmount    = ARV * (refiLtvPct / 100)
-cashLeftInDeal    = max(allInCost - refiLoanAmount, 0)
-cashRecycled      = min(allInCost, refiLoanAmount)   // capital pulled back out
-monthlyPI         = amortize(refiLoanAmount, refiRate, refiTermYears)
-monthlyCashFlow   = monthlyRent - monthlyOpEx - monthlyPI
-annualCashFlow    = monthlyCashFlow * 12
-cashOnCashPct     = cashLeftInDeal > 0 ? (annualCashFlow / cashLeftInDeal) * 100 : Infinity
-equityCreated     = ARV - allInCost
+Also update `FeaturePage.tsx` CTA: when `slug === "brrrr-calculator"`, the "Get started free" button links to `/calculators?tab=brrrr` in addition to the signup CTA (small extra `<Button variant="ghost">` "Open the calculator" — kept minimal).
+
+## 3. Homepage feature card
+
+In `src/pages/Index.tsx`, add a new card to the "Investor Tools — feature card grid" array (currently 6 cards):
+
+```
+{
+  icon: Repeat,
+  title: "BRRRR Calculator",
+  desc: "Model buy-rehab-rent-refi deals.",
+  href: "/features/brrrr-calculator",
+  body: <mini-preview: ARV $310k · Cash left $12k · CoC 11.4%>
+}
 ```
 
-A results card renders each value with clear labels, formatted currency, and a color cue on cash-on-cash (green ≥ 8%, yellow 4-8%, red < 4%) — matching the DTI color pattern already in `/calculators`.
-
-## AI insights
-
-New Supabase edge function `supabase/functions/brrrr-insights/index.ts`:
-
-- Mirrors `calculator-insights` structure: `handleCors`, `precheckAiCredits('brrrr-insights')`, `callAiGateway`, `deductAiCredits`, `jsonResponse`/`errorResponse`, wrapped in `withRequestOrigin`.
-- Uses Lovable AI Gateway (`openai/gpt-5.5`, no direct provider key) with a system prompt tuned for BRRRR: deal health verdict first, then bullets covering ARV realism, capital recycled vs left in deal, cash flow adequacy, and 2-3 concrete next steps. Answer-first, ~180 words max.
-- Registered in `supabase/config.toml` alongside `calculator-insights` (`verify_jwt = true`).
-
-Frontend calls it via `supabase.functions.invoke("brrrr-insights", { body: { inputs, results } })`, reuses `useBudgetCap` + `BudgetCapBanner` + `BudgetCapBlocker`, and surfaces 429/402 errors via existing `parseAndRecordBudget402` helper.
+Import `Repeat` from `lucide-react`. Grid already uses `lg:grid-cols-3`, so a 7th card wraps cleanly.
 
 ## SEO
 
-`src/pages/CalculatorBrrrr.tsx` head via `react-helmet-async`:
-
-- `<title>`: "BRRRR Calculator — Cash-on-Cash After Refinance | HomeLens"
-- `<meta name="description">`: "Free BRRRR calculator. Enter purchase, rehab, ARV, and rent to see all-in cost, capital left in deal, monthly cash flow, and cash-on-cash return after refinance."
-- `<link rel="canonical" href="https://homelensais.com/calculators/brrrr" />`
-- Matching `og:*` and `twitter:*` (title/description/url), `og:type=website`.
-- JSON-LD `SoftwareApplication` (subtype `FinancialApplication`, `applicationCategory: FinanceApplication`, `offers.price: 0`) plus a `BreadcrumbList` (Home → Calculators → BRRRR).
-- Internal links: add a "BRRRR calculator" card/link on `/calculators` and one FAQ entry on `/faq` pointing to the new page.
-- Sitemap: append `{ path: "/calculators/brrrr", changefreq: "monthly", priority: "0.7" }` to `staticEntries` in `scripts/generate-sitemap.ts`.
-
-## Routing & access
-
-- New route in `src/App.tsx`: `<Route path="/calculators/brrrr" element={<CalculatorBrrrr />} />`.
-- Public route (no `ProtectedRoute` wrapper) so it's crawlable; the AI-insights button routes signed-out users to `/auth?redirect=/calculators/brrrr` (same pattern `/calculators` uses).
+- `/calculators/brrrr` keeps its existing canonical + JSON-LD (no change).
+- `/calculators` title/description updated to include BRRRR.
+- `/features/brrrr-calculator` inherits per-page `<Helmet>` tags already emitted by `FeaturePage.tsx`.
+- Sitemap: add `/features/brrrr-calculator` to `scripts/generate-sitemap.ts` `staticEntries` (priority 0.6, monthly). `/calculators/brrrr` already listed.
 
 ## Files
 
-Create
-- `src/pages/CalculatorBrrrr.tsx`
-- `supabase/functions/brrrr-insights/index.ts`
-
 Edit
-- `src/App.tsx` (route + lazy import if others are lazy)
-- `src/pages/Calculators.tsx` (link card to BRRRR)
-- `src/pages/marketing/Faq.tsx` (one FAQ item + JSON-LD updated automatically since it's built from the array)
-- `scripts/generate-sitemap.ts` (add entry)
-- `supabase/config.toml` (register new function)
+- `src/pages/Calculators.tsx` — wrap in `Tabs`, add BRRRR tab, update Helmet title/desc.
+- `src/pages/CalculatorBrrrr.tsx` — extract `BrrrrCalculatorPanel` named export; default export still renders standalone page.
+- `src/components/marketing/featureRegistry.tsx` — add `brrrr-calculator` feature entry + slug.
+- `src/pages/marketing/FeaturePage.tsx` — small BRRRR-specific extra CTA link.
+- `src/pages/Index.tsx` — add BRRRR card to investor feature grid.
+- `scripts/generate-sitemap.ts` — add `/features/brrrr-calculator`.
 
-No changes to auth, RLS, existing tables, or the mortgage/buying-power calculator logic.
+Create
+- (none)
 
 ## Verification
 
-- `tsgo` for typecheck.
-- Manual: load `/calculators/brrrr`, confirm inputs → results update live, "Generate AI insights" returns text, head tags render (`view-source`), sitemap includes the new URL after `predev`.
+- `tsgo` typecheck.
+- Manual: `/calculators` shows 3 tabs, each tab renders its calculator, `?tab=brrrr` deep-link works, `/calculators/brrrr` still works standalone, `/features/brrrr-calculator` renders, homepage grid shows new BRRRR card linking to it.
 
 ## Out of scope
 
-- No new database tables or saved-BRRRR persistence (can follow up if requested).
-- No portfolio-level BRRRR repetition modeling (single-deal calculator only).
+- No new AI edge function (BRRRR insights already deployed).
+- No new screenshot asset for BRRRR (reuses investor calculator image; can commission a dedicated one later).
+- No changes to mortgage/buying-power math.

@@ -25,6 +25,7 @@ const staticEntries: SitemapEntry[] = [
   { path: "/features/buying-power", changefreq: "monthly", priority: "0.8" },
   { path: "/features/investor-brief", changefreq: "monthly", priority: "0.8" },
   { path: "/features/investor-calculator", changefreq: "monthly", priority: "0.8" },
+  { path: "/features/brrrr-calculator", changefreq: "monthly", priority: "0.8" },
   { path: "/features/saved-analyses", changefreq: "monthly", priority: "0.8" },
   { path: "/features/my-properties", changefreq: "monthly", priority: "0.8" },
   { path: "/features/preferences", changefreq: "monthly", priority: "0.8" },
