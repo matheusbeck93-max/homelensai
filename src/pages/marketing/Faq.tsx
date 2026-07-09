@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -61,10 +62,41 @@ export default function Faq() {
     document.title = "FAQ · HomeLens";
   }, []);
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: f.a.join(" "),
+      },
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>FAQ · HomeLens</title>
+        <meta
+          name="description"
+          content="Answers to common questions about HomeLens: how listing analysis works, Pro plan features, the Chrome extension, and how our financial estimates are built."
+        />
+        <meta property="og:title" content="HomeLens FAQ — how the decision platform works" />
+        <meta
+          property="og:description"
+          content="How HomeLens analyzes listings, what Pro unlocks, and how the Chrome extension brings AI analysis to Zillow, Redfin, and Realtor."
+        />
+        <meta name="twitter:title" content="HomeLens FAQ — how the decision platform works" />
+        <meta
+          name="twitter:description"
+          content="How HomeLens analyzes listings, what Pro unlocks, and how the Chrome extension brings AI analysis to Zillow, Redfin, and Realtor."
+        />
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
+      </Helmet>
 
       <section className="container mx-auto max-w-3xl px-4 pb-16 pt-24 md:pt-32">
         <div className="text-center">
