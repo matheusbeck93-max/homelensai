@@ -31,6 +31,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://homelensais.com/features/brrrr-calculator</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://homelensais.com/features/saved-analyses</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -74,6 +79,11 @@
     <loc>https://homelensais.com/calculators</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://homelensais.com/calculators/brrrr</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://homelensais.com/investor</loc>
