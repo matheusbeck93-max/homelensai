@@ -271,312 +271,275 @@ export default function Calculators() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Input Section */}
-          <div className="space-y-6">
-            {/* Buying Power Summary */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
+            <TabsTrigger value="buying-power">Buying Power</TabsTrigger>
+            <TabsTrigger value="mortgage">Mortgage</TabsTrigger>
+            <TabsTrigger value="brrrr">BRRRR</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="buying-power" className="mt-0">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Buying Power Summary */}\n              <Card>\n                <CardHeader>\n                  <div className="flex items-center justify-between">\n                    <CardTitle as="h2" className="flex items-center gap-2">\n                      <DollarSign className="h-5 w-5 text-primary" />\n                      Buying Power Summary\n                    </CardTitle>\n                    <Button \n                      variant="ghost" \n                      size="sm"\n                      onClick={handleResetBuyingPower}\n                      aria-label="Reset buying power"\n                    >\n                      <RotateCcw className="h-4 w-4" />\n                    </Button>\n                  </div>\n                  <CardDescription>Calculate your home buying capacity</CardDescription>\n                </CardHeader>\n                <CardContent className="space-y-4">\n                  <div>\n                    <Label>Annual Income (USD)</Label>\n                    <Input\n                      type="number"\n                      value={annualIncome || ""}\n                      onChange={(e) => setAnnualIncome(Number(e.target.value))}\n                      className="mt-1"\n                    />\n                  </div>\n                  <div>\n                    <Label>Monthly Debts (USD)</Label>\n                    <Input\n                      type="number"\n                      value={monthlyDebts || ""}\n                      onChange={(e) => setMonthlyDebts(Number(e.target.value))}\n                      className="mt-1"\n                    />\n                  </div>\n                  <div>\n                    <Label>Down Payment Available (USD)</Label>\n                    <Input\n                      type="number"\n                      value={downPaymentAvailable || ""}\n                      onChange={(e) => setDownPaymentAvailable(Number(e.target.value))}\n                      className="mt-1"\n                    />\n                  </div>\n                </CardContent>\n              </Card>\n              {/* Buying Power Results */}
+              <Card>
+                <CardHeader>
                   <CardTitle as="h2" className="flex items-center gap-2">
                     <DollarSign className="h-5 w-5 text-primary" />
-                    Buying Power Summary
+                    Buying Power Results
                   </CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={handleResetBuyingPower}
-                    aria-label="Reset buying power"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-                <CardDescription>Calculate your home buying capacity</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Annual Income (USD)</Label>
-                  <Input
-                    type="number"
-                    value={annualIncome || ""}
-                    onChange={(e) => setAnnualIncome(Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Monthly Debts (USD)</Label>
-                  <Input
-                    type="number"
-                    value={monthlyDebts || ""}
-                    onChange={(e) => setMonthlyDebts(Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Down Payment Available (USD)</Label>
-                  <Input
-                    type="number"
-                    value={downPaymentAvailable || ""}
-                    onChange={(e) => setDownPaymentAvailable(Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Mortgage Calculator */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle as="h2" className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-primary" />
-                    Mortgage Calculator
-                  </CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={handleResetMortgage}
-                    aria-label="Reset mortgage calculator"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-                <CardDescription>Calculate your monthly PITI payment</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Home Price ($)</Label>
-                    <Input
-                      type="number"
-                      value={homePrice || ""}
-                      onChange={(e) => setHomePrice(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Down Payment ($)</Label>
-                    <Input
-                      type="number"
-                      value={downPayment || ""}
-                      onChange={(e) => setDownPayment(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Interest Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={interestRate || ""}
-                      onChange={(e) => setInterestRate(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Loan Term (years)</Label>
-                    <Input
-                      type="number"
-                      value={loanTerm || ""}
-                      onChange={(e) => setLoanTerm(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Property Tax Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={propertyTaxRate || ""}
-                      onChange={(e) => setPropertyTaxRate(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Annual Insurance ($)</Label>
-                    <Input
-                      type="number"
-                      value={insuranceAnnual || ""}
-                      onChange={(e) => setInsuranceAnnual(Number(e.target.value))}
-                      className="mt-1"
-                      placeholder="Auto-estimated if empty"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Monthly HOA ($)</Label>
-                    <Input
-                      type="number"
-                      value={hoaMonthly || ""}
-                      onChange={(e) => setHoaMonthly(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>Closing Costs ($)</Label>
-                    <Input
-                      type="number"
-                      value={closingCosts || ""}
-                      onChange={(e) => setClosingCosts(Number(e.target.value))}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Results Section */}
-          <div className="space-y-6">
-            {/* Buying Power Results */}
-            <Card>
-              <CardHeader>
-                <CardTitle as="h2" className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  Buying Power Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Your DTI Ratio</p>
-                    <p className={`text-2xl font-bold ${actualDTI < 30 ? 'text-green-600' : actualDTI < 43 ? 'text-yellow-600' : 'text-red-600'}`}>
-                      {actualDTI.toFixed(1)}%
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Estimated Buying Power</p>
-                    <p className="text-2xl font-bold text-primary">${Math.round(estimatedBuyingPower).toLocaleString()}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Max Affordable Payment</p>
-                    <p className="text-2xl font-bold">${Math.round(maxAffordablePayment).toLocaleString()}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Down Payment Available</p>
-                    <p className="text-2xl font-bold">${downPaymentAvailable.toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Mortgage Results */}
-            <Card>
-              <CardHeader>
-                <CardTitle as="h2" className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  Monthly Payment Breakdown (PITI)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm text-muted-foreground">Principal & Interest</span>
-                    <span className="font-semibold">${Math.round(monthlyPI).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm text-muted-foreground">Property Taxes</span>
-                    <span className="font-semibold">${Math.round(monthlyPropertyTax).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm text-muted-foreground">Homeowners Insurance</span>
-                    <span className="font-semibold">${Math.round(monthlyInsurance).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm text-muted-foreground">HOA Fees</span>
-                    <span className="font-semibold">${hoaMonthly.toLocaleString()}</span>
-                  </div>
-                  {monthlyPMI > 0 && (
-                    <div className="flex justify-between items-center pb-2 border-b">
-                      <span className="text-sm text-muted-foreground">PMI (Down &lt; 20%)</span>
-                      <span className="font-semibold text-yellow-600">${Math.round(monthlyPMI).toLocaleString()}</span>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Your DTI Ratio</p>
+                      <p className={`text-2xl font-bold ${actualDTI < 30 ? 'text-green-600' : actualDTI < 43 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {actualDTI.toFixed(1)}%
+                      </p>
                     </div>
-                  )}
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="font-bold">Total Monthly Payment</span>
-                    <span className="text-2xl font-bold text-primary">${Math.round(totalMonthlyPayment).toLocaleString()}</span>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Estimated Buying Power</p>
+                      <p className="text-2xl font-bold text-primary">${Math.round(estimatedBuyingPower).toLocaleString()}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Max Affordable Payment</p>
+                      <p className="text-2xl font-bold">${Math.round(maxAffordablePayment).toLocaleString()}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Down Payment Available</p>
+                      <p className="text-2xl font-bold">${downPaymentAvailable.toLocaleString()}</p>
+                    </div>
                   </div>
-                </div>
-                {downPaymentPercent < 20 && (
-                  <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg space-y-1">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      ⚠️ PMI required: Down payment is {downPaymentPercent.toFixed(1)}% (less than 20%)
-                    </p>
-                    <p className="text-xs text-yellow-700 dark:text-yellow-300">
-                      PMI auto-populated with typical rate (0.5%). Adjust if needed.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
-            {/* AI Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle as="h2" className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  💡 AI Insight
-                </CardTitle>
-                <CardDescription>Get personalized analysis from AI</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {cap.warningLevel === "approaching" && (
-                  <BudgetCapBanner surface="calculator_insights" />
-                )}
-                {isCapExceeded && (
-                  <BudgetCapBlocker surface="calculator_insights" compact />
-                )}
-                {!aiInsights ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground mb-4">
-                      Generate AI-powered insights based on your buying power
-                    </p>
+          <TabsContent value="mortgage" className="mt-0">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Mortgage Calculator */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle as="h2" className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      Mortgage Calculator
+                    </CardTitle>
                     <Button 
-                      onClick={handleGenerateInsights}
-                      disabled={isLoadingInsights || isCapExceeded}
+                      variant="ghost" 
+                      size="sm"
+                      onClick={handleResetMortgage}
+                      aria-label="Reset mortgage calculator"
                     >
-                      {isLoadingInsights ? "Generating..." : "Generate Insights"}
+                      <RotateCcw className="h-4 w-4" />
                     </Button>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <div className="space-y-2 text-foreground whitespace-pre-wrap">
-                        {aiInsights}
-                      </div>
+                  <CardDescription>Calculate your monthly PITI payment</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Home Price ($)</Label>
+                      <Input
+                        type="number"
+                        value={homePrice || ""}
+                        onChange={(e) => setHomePrice(Number(e.target.value))}
+                        className="mt-1"
+                      />
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline"
-                        onClick={handleGenerateInsights}
-                        disabled={isLoadingInsights || isCapExceeded}
-                        className="flex-1"
-                      >
-                        Regenerate Insights
-                      </Button>
-                      <Button 
-                        onClick={() => navigate('/chats', { 
-                          state: { 
-                            initialMessage: `[CALCULATORS_AI_INSIGHT]\n\n${aiInsights}`,
-                            newConversation: true,
-                            skipAuthCheck: true
-                          } 
-                        })}
-                        className="flex-1"
-                      >
-                        Start Chat with this Insight
-                      </Button>
+                    <div>
+                      <Label>Down Payment ($)</Label>
+                      <Input
+                        type="number"
+                        value={downPayment || ""}
+                        onChange={(e) => setDownPayment(Number(e.target.value))}
+                        className="mt-1"
+                      />
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Interest Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={interestRate || ""}
+                        onChange={(e) => setInterestRate(Number(e.target.value))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Loan Term (years)</Label>
+                      <Input
+                        type="number"
+                        value={loanTerm || ""}
+                        onChange={(e) => setLoanTerm(Number(e.target.value))}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Property Tax Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={propertyTaxRate || ""}
+                        onChange={(e) => setPropertyTaxRate(Number(e.target.value))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Annual Insurance ($)</Label>
+                      <Input
+                        type="number"
+                        value={insuranceAnnual || ""}
+                        onChange={(e) => setInsuranceAnnual(Number(e.target.value))}
+                        className="mt-1"
+                        placeholder="Auto-estimated if empty"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Monthly HOA ($)</Label>
+                      <Input
+                        type="number"
+                        value={hoaMonthly || ""}
+                        onChange={(e) => setHoaMonthly(Number(e.target.value))}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Closing Costs ($)</Label>
+                      <Input
+                        type="number"
+                        value={closingCosts || ""}
+                        onChange={(e) => setClosingCosts(Number(e.target.value))}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <div className="space-y-6">
+                {/* Mortgage Results */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle as="h2" className="flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-primary" />
+                      Monthly Payment Breakdown (PITI)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <span className="text-sm text-muted-foreground">Principal & Interest</span>
+                        <span className="font-semibold">${Math.round(monthlyPI).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <span className="text-sm text-muted-foreground">Property Taxes</span>
+                        <span className="font-semibold">${Math.round(monthlyPropertyTax).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <span className="text-sm text-muted-foreground">Homeowners Insurance</span>
+                        <span className="font-semibold">${Math.round(monthlyInsurance).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center pb-2 border-b">
+                        <span className="text-sm text-muted-foreground">HOA Fees</span>
+                        <span className="font-semibold">${hoaMonthly.toLocaleString()}</span>
+                      </div>
+                      {monthlyPMI > 0 && (
+                        <div className="flex justify-between items-center pb-2 border-b">
+                          <span className="text-sm text-muted-foreground">PMI (Down &lt; 20%)</span>
+                          <span className="font-semibold text-yellow-600">${Math.round(monthlyPMI).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2">
+                        <span className="font-bold">Total Monthly Payment</span>
+                        <span className="text-2xl font-bold text-primary">${Math.round(totalMonthlyPayment).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    {downPaymentPercent < 20 && (
+                      <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg space-y-1">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                          ⚠️ PMI required: Down payment is {downPaymentPercent.toFixed(1)}% (less than 20%)
+                        </p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                          PMI auto-populated with typical rate (0.5%). Adjust if needed.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                {/* AI Insights */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle as="h2" className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      💡 AI Insight
+                    </CardTitle>
+                    <CardDescription>Get personalized analysis from AI</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {cap.warningLevel === "approaching" && (
+                      <BudgetCapBanner surface="calculator_insights" />
+                    )}
+                    {isCapExceeded && (
+                      <BudgetCapBlocker surface="calculator_insights" compact />
+                    )}
+                    {!aiInsights ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground mb-4">
+                          Generate AI-powered insights based on your buying power
+                        </p>
+                        <Button 
+                          onClick={handleGenerateInsights}
+                          disabled={isLoadingInsights || isCapExceeded}
+                        >
+                          {isLoadingInsights ? "Generating..." : "Generate Insights"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-muted/50 p-4 rounded-lg">
+                          <div className="space-y-2 text-foreground whitespace-pre-wrap">
+                            {aiInsights}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline"
+                            onClick={handleGenerateInsights}
+                            disabled={isLoadingInsights || isCapExceeded}
+                            className="flex-1"
+                          >
+                            Regenerate Insights
+                          </Button>
+                          <Button 
+                            onClick={() => navigate('/chats', { 
+                              state: { 
+                                initialMessage: `[CALCULATORS_AI_INSIGHT]\n\n${aiInsights}`,
+                                newConversation: true,
+                                skipAuthCheck: true
+                              } 
+                            })}
+                            className="flex-1"
+                          >
+                            Start Chat with this Insight
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="brrrr" className="mt-0">
+            <BrrrrCalculatorPanel showHeading />
+          </TabsContent>
+        </Tabs>
         </div>
       </div>
     </div>
