@@ -237,15 +237,15 @@ export default function Calculators() {
   return (
     <div className="min-h-screen bg-background">
       <Helmet>
-        <title>Mortgage & Buying Power Calculators | HomeLens</title>
-        <meta name="description" content="Calculate your home buying power and monthly mortgage payments with taxes, insurance, PMI, and HOA. Free AI-powered calculators for US home buyers." />
+        <title>Buying Power, Mortgage & BRRRR Calculators | HomeLens</title>
+        <meta name="description" content="Free calculators for US home buyers and investors: buying power, mortgage payment breakdown (PITI + PMI + HOA), and BRRRR cash-on-cash after refinance." />
         <link rel="canonical" href="https://homelensais.com/calculators" />
-        <meta property="og:title" content="Mortgage & Buying Power Calculators | HomeLens" />
-        <meta property="og:description" content="Calculate buying power and mortgage payments with taxes, PMI, HOA. Free AI-powered tools for US home buyers." />
+        <meta property="og:title" content="Buying Power, Mortgage & BRRRR Calculators | HomeLens" />
+        <meta property="og:description" content="Free calculators for buyers and investors: buying power, mortgage PITI, and BRRRR cash-on-cash." />
         <meta property="og:url" content="https://homelensais.com/calculators" />
         <meta property="og:type" content="website" />
-        <meta name="twitter:title" content="Mortgage & Buying Power Calculators | HomeLens" />
-        <meta name="twitter:description" content="Calculate buying power and mortgage payments with taxes, PMI, HOA. Free AI-powered tools for US home buyers." />
+        <meta name="twitter:title" content="Buying Power, Mortgage & BRRRR Calculators | HomeLens" />
+        <meta name="twitter:description" content="Free calculators for buyers and investors: buying power, mortgage PITI, and BRRRR cash-on-cash." />
       </Helmet>
       <Navigation />
       
@@ -254,14 +254,7 @@ export default function Calculators() {
           <div>
             <h1 className="text-4xl font-bold mb-2">Financial Calculators</h1>
             <p className="text-muted-foreground">
-              Calculate your buying power and mortgage payments
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Investor?{" "}
-              <Link to="/calculators/brrrr" className="text-primary underline">
-                Try the BRRRR calculator
-              </Link>{" "}
-              to model buy-rehab-rent-refinance deals.
+              Buying power, mortgage payment, and BRRRR — pick a tab.
             </p>
           </div>
           <div className="flex items-center gap-2">
