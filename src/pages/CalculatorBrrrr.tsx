@@ -210,7 +210,7 @@ export default function CalculatorBrrrr() {
       <Navigation />
 
       <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">
-        <BudgetCapBanner />
+        <BudgetCapBanner surface="brrrr_insights" />
 
         <div className="mb-8 space-y-3">
           <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
@@ -379,7 +379,7 @@ export default function CalculatorBrrrr() {
                   <Sparkles className="h-4 w-4 mr-2" />
                   {isLoadingInsights ? "Analyzing…" : "Generate AI insights"}
                 </Button>
-                {isCapExceeded && <BudgetCapBlocker />}
+                {isCapExceeded && <BudgetCapBlocker surface="brrrr_insights" compact />}
                 {aiInsights && (
                   <div className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-4 text-sm">
                     {aiInsights}
