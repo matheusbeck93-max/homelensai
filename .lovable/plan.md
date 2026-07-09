@@ -1,34 +1,98 @@
-## Adjustments to Full-Features Vertical Video
+# BRRRR Calculator Page
 
-Two focused tweaks to `HomeLens-Full-Features-Vertical.mp4`, then re-render.
+Adds a dedicated `/calculators/brrrr` page that captures the high-intent "BRRRR calculator" search demand flagged by the SEO scanner, while matching the look and mechanics of the existing `/calculators` page.
 
-### 1. Make animations fill the 9:16 frame better
-Scale up type, cards, icons, and padding across scenes so less negative space remains.
+## What the user gets
 
-- **FScene1Logo** — logo mark ~1.4x larger, wordmark font size up (~140 → 180), tagline larger.
-- **FScene2Hero** — headline 68 → 96, search bar padding + font (28 → 36), icon box bigger.
-- **FScene3Capabilities** — header 54 → 72; capability cards taller (padding 22 → 32), icon 64 → 84, title 28 → 36, description 18 → 22; horizontal padding 60 → 40 so cards stretch wider.
-- **FScene4Extension** — listing card + extension panel enlarged (see #2), heading 48 → 64.
-- **FScene5Investor** — 2×2 grid tiles taller and edge-to-edge, header 54 → 72, tile labels ~28 → 36.
-- **FScene6AskAfford** — chat bubble + affordability card widened to near-full frame, key numbers ~60 → 88.
-- **FScene7Pricing** — three pricing cards taller/wider, price numbers larger, header 54 → 72.
-- **FScene8Close** — logo + wordmark + URL scaled up, more visual weight.
+A single-page BRRRR (Buy, Rehab, Rent, Refinance, Repeat) calculator that:
 
-Horizontal side padding reduced from ~60px to ~40px in scenes with card grids to give elements more room.
+- Uses the same two-column layout, cards, typography, and buttons as `/calculators` so it feels native.
+- Computes the numbers investors actually care about (all-in cost, ARV-based refi, capital left in deal, monthly cash flow, cash-on-cash return after refi).
+- Sends the results to a new AI insights edge function that returns a plain-English read (deal health, capital recycled, risks, next steps).
+- Ships with per-page SEO metadata, JSON-LD, sitemap entry, and internal links from `/calculators` and `/faq`.
 
-### 2. FScene4Extension — add a real house image to the faux listing
-Currently the "listing card" behind the extension panel is just a blue gradient block.
+## Inputs (grouped in 2 cards)
 
-- Generate a photorealistic exterior house image (`imagegen--generate_image`, standard quality, 1024x768, warm daylight suburban craftsman) → save to `remotion/public/images/listing-house.jpg`.
-- In `FScene4Extension.tsx`, replace the gradient placeholder `<div>` with `<Img src={staticFile("images/listing-house.jpg")}>` filling the card's photo area (object-fit: cover). Keep the price/beds/baths footer below it.
-- Also enlarge the listing card (wider, taller photo area ~360 → 480) and the extension panel so the composition dominates the frame.
+**Acquisition & Rehab**
+- Purchase price
+- Closing costs
+- Rehab budget
+- Holding months + monthly holding cost (taxes, insurance, utilities during rehab)
 
-### 3. Re-render
-Run `node remotion/scripts/render-full-features-vertical.mjs` → overwrites `/mnt/documents/HomeLens-Full-Features-Vertical.mp4`.
+**Refinance & Rent**
+- After-Repair Value (ARV)
+- Refi LTV % (default 75%)
+- Refi interest rate %
+- Loan term (years, default 30)
+- Monthly rent
+- Monthly operating expenses (taxes, insurance, PM, maintenance, vacancy allowance)
 
-### Files touched
-- `remotion/src/scenes-full/FScene1Logo.tsx` … `FScene8Close.tsx` (size tweaks)
-- `remotion/src/scenes-full/FScene4Extension.tsx` (house image + sizing)
-- `remotion/public/images/listing-house.jpg` (new)
+Defaults mirror the existing calculator (e.g. tax 1.2%, sensible LTV/term) so the page produces a result on first paint after minimal typing.
 
-No changes to composition duration, scene order, palette, or fonts.
+## Calculations (client-side, pure)
+
+```text
+allInCost         = purchasePrice + closingCosts + rehabBudget + holdingMonths * monthlyHoldingCost
+refiLoanAmount    = ARV * (refiLtvPct / 100)
+cashLeftInDeal    = max(allInCost - refiLoanAmount, 0)
+cashRecycled      = min(allInCost, refiLoanAmount)   // capital pulled back out
+monthlyPI         = amortize(refiLoanAmount, refiRate, refiTermYears)
+monthlyCashFlow   = monthlyRent - monthlyOpEx - monthlyPI
+annualCashFlow    = monthlyCashFlow * 12
+cashOnCashPct     = cashLeftInDeal > 0 ? (annualCashFlow / cashLeftInDeal) * 100 : Infinity
+equityCreated     = ARV - allInCost
+```
+
+A results card renders each value with clear labels, formatted currency, and a color cue on cash-on-cash (green ≥ 8%, yellow 4-8%, red < 4%) — matching the DTI color pattern already in `/calculators`.
+
+## AI insights
+
+New Supabase edge function `supabase/functions/brrrr-insights/index.ts`:
+
+- Mirrors `calculator-insights` structure: `handleCors`, `precheckAiCredits('brrrr-insights')`, `callAiGateway`, `deductAiCredits`, `jsonResponse`/`errorResponse`, wrapped in `withRequestOrigin`.
+- Uses Lovable AI Gateway (`openai/gpt-5.5`, no direct provider key) with a system prompt tuned for BRRRR: deal health verdict first, then bullets covering ARV realism, capital recycled vs left in deal, cash flow adequacy, and 2-3 concrete next steps. Answer-first, ~180 words max.
+- Registered in `supabase/config.toml` alongside `calculator-insights` (`verify_jwt = true`).
+
+Frontend calls it via `supabase.functions.invoke("brrrr-insights", { body: { inputs, results } })`, reuses `useBudgetCap` + `BudgetCapBanner` + `BudgetCapBlocker`, and surfaces 429/402 errors via existing `parseAndRecordBudget402` helper.
+
+## SEO
+
+`src/pages/CalculatorBrrrr.tsx` head via `react-helmet-async`:
+
+- `<title>`: "BRRRR Calculator — Cash-on-Cash After Refinance | HomeLens"
+- `<meta name="description">`: "Free BRRRR calculator. Enter purchase, rehab, ARV, and rent to see all-in cost, capital left in deal, monthly cash flow, and cash-on-cash return after refinance."
+- `<link rel="canonical" href="https://homelensais.com/calculators/brrrr" />`
+- Matching `og:*` and `twitter:*` (title/description/url), `og:type=website`.
+- JSON-LD `SoftwareApplication` (subtype `FinancialApplication`, `applicationCategory: FinanceApplication`, `offers.price: 0`) plus a `BreadcrumbList` (Home → Calculators → BRRRR).
+- Internal links: add a "BRRRR calculator" card/link on `/calculators` and one FAQ entry on `/faq` pointing to the new page.
+- Sitemap: append `{ path: "/calculators/brrrr", changefreq: "monthly", priority: "0.7" }` to `staticEntries` in `scripts/generate-sitemap.ts`.
+
+## Routing & access
+
+- New route in `src/App.tsx`: `<Route path="/calculators/brrrr" element={<CalculatorBrrrr />} />`.
+- Public route (no `ProtectedRoute` wrapper) so it's crawlable; the AI-insights button routes signed-out users to `/auth?redirect=/calculators/brrrr` (same pattern `/calculators` uses).
+
+## Files
+
+Create
+- `src/pages/CalculatorBrrrr.tsx`
+- `supabase/functions/brrrr-insights/index.ts`
+
+Edit
+- `src/App.tsx` (route + lazy import if others are lazy)
+- `src/pages/Calculators.tsx` (link card to BRRRR)
+- `src/pages/marketing/Faq.tsx` (one FAQ item + JSON-LD updated automatically since it's built from the array)
+- `scripts/generate-sitemap.ts` (add entry)
+- `supabase/config.toml` (register new function)
+
+No changes to auth, RLS, existing tables, or the mortgage/buying-power calculator logic.
+
+## Verification
+
+- `tsgo` for typecheck.
+- Manual: load `/calculators/brrrr`, confirm inputs → results update live, "Generate AI insights" returns text, head tags render (`view-source`), sitemap includes the new URL after `predev`.
+
+## Out of scope
+
+- No new database tables or saved-BRRRR persistence (can follow up if requested).
+- No portfolio-level BRRRR repetition modeling (single-deal calculator only).
