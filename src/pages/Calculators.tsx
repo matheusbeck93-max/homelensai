@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { RotateCcw, Save, DollarSign, Sparkles } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RotateCcw, Save, DollarSign, Sparkles, ChevronDown } from "lucide-react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +39,22 @@ export default function Calculators() {
   const [annualIncome, setAnnualIncome] = useState(0);
   const [monthlyDebts, setMonthlyDebts] = useState(0);
   const [downPaymentAvailable, setDownPaymentAvailable] = useState(0);
+
+  // Buying Power — advanced assumptions
+  const BP_DEFAULTS = {
+    rateApr: 7.0,
+    termYears: 30,
+    propertyTaxPct: 1.2,
+    insurancePct: 0.35,
+    pmiPct: 0.5,
+    dtiCapPct: 43,
+    minDownPct: 3.5,
+    hoaMonthly: 0,
+  };
+  const [bpAssumptions, setBpAssumptions] = useState(BP_DEFAULTS);
+  const [bpAdvancedOpen, setBpAdvancedOpen] = useState(false);
+  const updateBp = (k: keyof typeof BP_DEFAULTS, v: number) =>
+    setBpAssumptions((prev) => ({ ...prev, [k]: v }));
 
   // Mortgage Calculator
   const [homePrice, setHomePrice] = useState(0);
@@ -85,12 +102,14 @@ export default function Calculators() {
     setPmiRate(0.5);
     setClosingCosts(0);
     setAiInsights("");
+    setBpAssumptions(BP_DEFAULTS);
   };
 
   const handleResetBuyingPower = () => {
     setAnnualIncome(0);
     setMonthlyDebts(0);
     setDownPaymentAvailable(0);
+    setBpAssumptions(BP_DEFAULTS);
   };
 
   const handleResetMortgage = () => {
@@ -139,18 +158,19 @@ export default function Calculators() {
     }
   };
 
-  // Buying Power Calculations (independent of financing terms)
-  const monthlyIncome = annualIncome / 12;
-  
-  // Calculate actual DTI based on income and debts
-  const actualDTI = monthlyIncome > 0 ? (monthlyDebts / monthlyIncome) * 100 : 0;
-  
-  // Maximum affordable monthly mortgage payment (28% of gross income, industry standard)
-  // This is the max housing payment they can afford, separate from existing debts
-  const maxAffordablePayment = monthlyIncome * 0.28;
-  
-  // Buying power is independent - just show what they can afford based on down payment
-  const estimatedBuyingPower = downPaymentAvailable > 0 ? downPaymentAvailable / 0.20 : 0; // Assuming 20% down standard
+  // Buying Power Calculations — income + DTI based, capped by down payment
+  const {
+    monthlyIncome,
+    actualDTI,
+    maxAffordablePayment,
+    maxHousingPayment,
+    estimatedBuyingPower,
+  } = computeBuyingPower({
+    annualIncome,
+    monthlyDebts,
+    downPaymentAvailable,
+    assumptions: bpAssumptions,
+  });
 
   // Mortgage Calculations
   const loanAmount = homePrice - downPayment;
@@ -196,7 +216,9 @@ export default function Calculators() {
             downPaymentAvailable,
             estimatedBuyingPower: Math.round(estimatedBuyingPower),
             maxAffordablePayment: Math.round(maxAffordablePayment),
-            actualDTI: actualDTI.toFixed(2)
+            maxHousingPayment: Math.round(maxHousingPayment),
+            actualDTI: actualDTI.toFixed(2),
+            assumptions: bpAssumptions,
           },
           mortgage: {
             homePrice,
