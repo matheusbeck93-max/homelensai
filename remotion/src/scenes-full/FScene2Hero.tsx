@@ -23,30 +23,30 @@ export const FScene2Hero = ({ colors }: Props) => {
   const caret = Math.floor(frame / 12) % 2 === 0;
 
   return (
-    <AbsoluteFill style={{ fontFamily, opacity: op, justifyContent: "center", alignItems: "center", padding: "0 60px" }}>
+    <AbsoluteFill style={{ fontFamily, opacity: op, justifyContent: "center", alignItems: "center", padding: "0 40px" }}>
       <div style={{ textAlign: "center", transform: `translateY(${titleY}px)` }}>
-        <div style={{ fontSize: 15, letterSpacing: 3, textTransform: "uppercase", color: colors.accent, marginBottom: 16, fontWeight: 500 }}>
+        <div style={{ fontSize: 22, letterSpacing: 4, textTransform: "uppercase", color: colors.accent, marginBottom: 24, fontWeight: 500 }}>
           Your AI Real Estate Advisor
         </div>
-        <div style={{ fontSize: 68, fontWeight: 700, color: colors.white, lineHeight: 1.1, letterSpacing: -1.5 }}>
+        <div style={{ fontSize: 104, fontWeight: 700, color: colors.white, lineHeight: 1.05, letterSpacing: -2.5 }}>
           Meet your{"\n"}real estate advisor.
         </div>
       </div>
       <div style={{
-        marginTop: 60, width: "100%", opacity: barOp, transform: `translateY(${barY}px)`,
+        marginTop: 80, width: "100%", opacity: barOp, transform: `translateY(${barY}px)`,
         background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: 20, padding: "26px 28px", display: "flex", alignItems: "center", gap: 16,
+        borderRadius: 24, padding: "36px 36px", display: "flex", alignItems: "center", gap: 22,
         boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
       }}>
         <div style={{
-          width: 44, height: 44, borderRadius: 12, background: colors.primary,
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: colors.white,
+          width: 64, height: 64, borderRadius: 16, background: colors.primary,
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, color: colors.white,
         }}>⌕</div>
-        <div style={{ flex: 1, fontSize: 28, color: colors.white, fontWeight: 400 }}>
+        <div style={{ flex: 1, fontSize: 34, color: colors.white, fontWeight: 400 }}>
           {typed}<span style={{ opacity: caret ? 1 : 0, color: colors.accent }}>|</span>
         </div>
       </div>
-      <div style={{ marginTop: 20, fontSize: 18, color: colors.mutedDark }}>
+      <div style={{ marginTop: 28, fontSize: 24, color: colors.mutedDark }}>
         Powered by AI · Search in natural language
       </div>
     </AbsoluteFill>

@@ -22,13 +22,13 @@ export const FScene7Pricing = ({ colors }: Props) => {
   const headY = interpolate(spring({ frame, fps, config: { damping: 22 } }), [0, 1], [24, 0]);
 
   return (
-    <AbsoluteFill style={{ fontFamily, opacity: op, padding: "160px 50px 80px", flexDirection: "column" }}>
-      <div style={{ textAlign: "center", opacity: headOp, transform: `translateY(${headY}px)`, marginBottom: 44 }}>
-        <div style={{ fontSize: 54, fontWeight: 700, color: colors.white, letterSpacing: -1, lineHeight: 1.15 }}>
+    <AbsoluteFill style={{ fontFamily, opacity: op, padding: "140px 40px 60px", flexDirection: "column" }}>
+      <div style={{ textAlign: "center", opacity: headOp, transform: `translateY(${headY}px)`, marginBottom: 56 }}>
+        <div style={{ fontSize: 82, fontWeight: 700, color: colors.white, letterSpacing: -2, lineHeight: 1.1 }}>
           Simple, transparent{"\n"}pricing.
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         {TIERS.map((t, i) => {
           const delay = 20 + i * 14;
           const cOp = interpolate(frame, [delay, delay + 15], [0, 1], { extrapolateRight: "clamp" });
@@ -38,21 +38,21 @@ export const FScene7Pricing = ({ colors }: Props) => {
               opacity: cOp, transform: `scale(${cScale})`,
               background: t.highlight ? colors.primary : "rgba(255,255,255,0.06)",
               border: t.highlight ? `2px solid ${colors.accent}` : `1px solid ${colors.primary}44`,
-              borderRadius: 20, padding: 24,
-              display: "flex", alignItems: "center", gap: 20,
+              borderRadius: 22, padding: 34,
+              display: "flex", alignItems: "center", gap: 24,
             }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, letterSpacing: 2, textTransform: "uppercase", color: t.highlight ? colors.white : colors.accent, fontWeight: 500 }}>
+                <div style={{ fontSize: 18, letterSpacing: 3, textTransform: "uppercase", color: t.highlight ? colors.white : colors.accent, fontWeight: 500 }}>
                   {t.note}
                 </div>
-                <div style={{ fontSize: 30, fontWeight: 700, color: colors.white, marginTop: 4 }}>{t.name}</div>
-                <div style={{ fontSize: 15, color: t.highlight ? colors.offWhite : colors.muted, marginTop: 6 }}>
+                <div style={{ fontSize: 44, fontWeight: 700, color: colors.white, marginTop: 6 }}>{t.name}</div>
+                <div style={{ fontSize: 20, color: t.highlight ? colors.offWhite : colors.muted, marginTop: 10, lineHeight: 1.35 }}>
                   {t.feats.join(" · ")}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 44, fontWeight: 700, color: colors.white, letterSpacing: -1 }}>{t.price}</div>
-                <div style={{ fontSize: 14, color: t.highlight ? colors.offWhite : colors.mutedDark }}>/mo</div>
+                <div style={{ fontSize: 64, fontWeight: 700, color: colors.white, letterSpacing: -1.5 }}>{t.price}</div>
+                <div style={{ fontSize: 18, color: t.highlight ? colors.offWhite : colors.mutedDark }}>/mo</div>
               </div>
             </div>
           );

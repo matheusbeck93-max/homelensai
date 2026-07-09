@@ -20,9 +20,9 @@ export const FScene6AskAfford = ({ colors }: Props) => {
   const affOp = interpolate(frame, [38, 58], [0, 1], { extrapolateRight: "clamp" });
 
   return (
-    <AbsoluteFill style={{ fontFamily, opacity: op, padding: "150px 60px 80px", flexDirection: "column", gap: 30 }}>
-      <div style={{ textAlign: "center", opacity: headOp, transform: `translateY(${headY}px)`, marginBottom: 20 }}>
-        <div style={{ fontSize: 48, fontWeight: 700, color: colors.white, letterSpacing: -1, lineHeight: 1.15 }}>
+    <AbsoluteFill style={{ fontFamily, opacity: op, padding: "130px 40px 60px", flexDirection: "column", gap: 36 }}>
+      <div style={{ textAlign: "center", opacity: headOp, transform: `translateY(${headY}px)`, marginBottom: 12 }}>
+        <div style={{ fontSize: 72, fontWeight: 700, color: colors.white, letterSpacing: -2, lineHeight: 1.1 }}>
           Ask anything.{"\n"}Know what you can afford.
         </div>
       </div>
@@ -31,23 +31,23 @@ export const FScene6AskAfford = ({ colors }: Props) => {
       <div style={{
         opacity: chatOp, transform: `translateY(${chatY}px)`,
         background: "rgba(255,255,255,0.07)", border: `1px solid ${colors.primary}33`,
-        borderRadius: 20, padding: 24,
+        borderRadius: 22, padding: 32,
       }}>
-        <div style={{ fontSize: 14, letterSpacing: 2, textTransform: "uppercase", color: colors.accent, fontWeight: 500, marginBottom: 12 }}>
+        <div style={{ fontSize: 20, letterSpacing: 3, textTransform: "uppercase", color: colors.accent, fontWeight: 500, marginBottom: 18 }}>
           AI Chat
         </div>
         <div style={{
-          background: `${colors.primary}22`, borderRadius: 14, padding: "14px 16px",
-          fontSize: 20, color: colors.white, marginBottom: 12,
+          background: `${colors.primary}22`, borderRadius: 16, padding: "20px 22px",
+          fontSize: 28, color: colors.white, marginBottom: 16, lineHeight: 1.35,
         }}>Is 742 Maple Ave a smart buy for $535k?</div>
         <div style={{
-          background: colors.dark, borderRadius: 14, padding: "14px 16px",
-          fontSize: 18, color: colors.offWhite, lineHeight: 1.5,
+          background: colors.dark, borderRadius: 16, padding: "20px 22px",
+          fontSize: 24, color: colors.offWhite, lineHeight: 1.5,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
             <div style={{
-              padding: "4px 10px", background: colors.success, borderRadius: 999,
-              fontSize: 14, fontWeight: 700, color: colors.white,
+              padding: "6px 14px", background: colors.success, borderRadius: 999,
+              fontSize: 18, fontWeight: 700, color: colors.white,
             }}>Match 8.4/10</div>
           </div>
           Strong fundamentals: priced ~4% below Zestimate, low flood risk, top-decile schools.
@@ -58,18 +58,18 @@ export const FScene6AskAfford = ({ colors }: Props) => {
       <div style={{
         opacity: affOp, transform: `translateY(${affY}px)`,
         background: "rgba(255,255,255,0.07)", border: `1px solid ${colors.primary}33`,
-        borderRadius: 20, padding: 24,
+        borderRadius: 22, padding: 32,
       }}>
-        <div style={{ fontSize: 14, letterSpacing: 2, textTransform: "uppercase", color: colors.accent, fontWeight: 500, marginBottom: 12 }}>
+        <div style={{ fontSize: 20, letterSpacing: 3, textTransform: "uppercase", color: colors.accent, fontWeight: 500, marginBottom: 16 }}>
           Buying Power
         </div>
-        <div style={{ fontSize: 20, color: colors.muted, marginBottom: 6 }}>Home price you can afford</div>
-        <div style={{ fontSize: 64, fontWeight: 700, color: colors.white, letterSpacing: -1.5 }}>$612,400</div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16, gap: 16 }}>
+        <div style={{ fontSize: 26, color: colors.muted, marginBottom: 10 }}>Home price you can afford</div>
+        <div style={{ fontSize: 104, fontWeight: 700, color: colors.white, letterSpacing: -2.5 }}>$612,400</div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24, gap: 20 }}>
           {[["Monthly", "$3,140"], ["Rate", "6.5%"], ["Down", "20%"]].map(([k, v]) => (
             <div key={k} style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, color: colors.mutedDark }}>{k}</div>
-              <div style={{ fontSize: 20, color: colors.white, fontWeight: 700, marginTop: 4 }}>{v}</div>
+              <div style={{ fontSize: 18, color: colors.mutedDark }}>{k}</div>
+              <div style={{ fontSize: 28, color: colors.white, fontWeight: 700, marginTop: 6 }}>{v}</div>
             </div>
           ))}
         </div>
