@@ -55,6 +55,13 @@ const FAQS = [
       "Once installed, it detects when you're viewing a listing and lets you get an instant AI analysis, see a personalized Property Match Score, ask follow-up questions, and sync everything with your HomeLens account.",
     ],
   },
+  {
+    q: "Do you have a BRRRR calculator?",
+    a: [
+      "Yes. The HomeLens BRRRR calculator models the full Buy, Rehab, Rent, Refinance, Repeat cycle: all-in cost, refi loan against ARV, capital left in the deal, monthly cash flow, and cash-on-cash return after refinance.",
+      "It's free and doesn't require an account to run the numbers. You can open it at /calculators/brrrr.",
+    ],
+  },
 ];
 
 export default function Faq() {

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCcw, Save, DollarSign, Sparkles } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -244,6 +244,13 @@ export default function Calculators() {
             <h1 className="text-4xl font-bold mb-2">Financial Calculators</h1>
             <p className="text-muted-foreground">
               Calculate your buying power and mortgage payments
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Investor?{" "}
+              <Link to="/calculators/brrrr" className="text-primary underline">
+                Try the BRRRR calculator
+              </Link>{" "}
+              to model buy-rehab-rent-refinance deals.
             </p>
           </div>
           <div className="flex items-center gap-2">
