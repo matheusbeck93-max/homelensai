@@ -20,6 +20,7 @@ import myPropertiesAsset from "@/assets/my-properties.png.asset.json";
 import preferencesAsset from "@/assets/preferences.png.asset.json";
 import investorBriefAsset from "@/assets/investor-brief.png.asset.json";
 import investorCalculatorAsset from "@/assets/investor-calculator.png.asset.json";
+import brrrrCalculatorAsset from "@/assets/brrrr-calculator.png.asset.json";
 
 export type FeatureSlug =
   | "chrome-extension"
