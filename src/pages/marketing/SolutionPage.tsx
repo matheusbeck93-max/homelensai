@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { Link, useParams, Navigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -17,6 +18,8 @@ type SolutionCopy = {
   benefits: { title: string; body: string }[];
   ctaHref: string;
   icon: typeof Home;
+  metaTitle: string;
+  metaDescription: string;
 };
 
 const SOLUTIONS_COPY: Record<"buyer" | "investor", SolutionCopy> = {
@@ -28,6 +31,9 @@ const SOLUTIONS_COPY: Record<"buyer" | "investor", SolutionCopy> = {
     videoUrl: buyerVideo.url,
     icon: Home,
     ctaHref: "/pricing",
+    metaTitle: "HomeLens for Buyers — score every listing before you offer",
+    metaDescription:
+      "Buying Power, listing match scores, and neighborhood signals help homebuyers see if a property is right for them at the right price.",
     benefits: [
       { title: "Know your real number", body: "Buying Power shows both the safe range and the max approval — no more shopping in the wrong tier." },
       { title: "Score every listing", body: "Paste a URL or use the Chrome extension to see how each home stacks up against your profile." },
@@ -43,6 +49,9 @@ const SOLUTIONS_COPY: Record<"buyer" | "investor", SolutionCopy> = {
     videoUrl: investorVideo.url,
     icon: Briefcase,
     ctaHref: "/pricing",
+    metaTitle: "HomeLens for Investors — underwrite deals and track portfolios",
+    metaDescription:
+      "Macro market briefs, full deal underwriting (cap rate, cash-on-cash, IRR), and portfolio tracking for real estate investors — all in one place.",
     benefits: [
       { title: "Macro market briefs", body: "Labor, wages, permits, and rate signals synthesized per metro — updated on a rolling schedule." },
       { title: "Full deal underwriting", body: "Cap rate, cash-on-cash, IRR, and tax-aware exit modeling — with every assumption exposed." },
@@ -69,6 +78,14 @@ export default function SolutionPage() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>{copy.metaTitle}</title>
+        <meta name="description" content={copy.metaDescription} />
+        <meta property="og:title" content={copy.metaTitle} />
+        <meta property="og:description" content={copy.metaDescription} />
+        <meta name="twitter:title" content={copy.metaTitle} />
+        <meta name="twitter:description" content={copy.metaDescription} />
+      </Helmet>
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">

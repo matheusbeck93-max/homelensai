@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { Link, useParams, Navigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
@@ -40,6 +41,14 @@ export default function FeaturePage() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>{`${feature.name} · HomeLens`}</title>
+        <meta name="description" content={feature.short} />
+        <meta property="og:title" content={`${feature.name} · HomeLens`} />
+        <meta property="og:description" content={feature.short} />
+        <meta name="twitter:title" content={`${feature.name} · HomeLens`} />
+        <meta name="twitter:description" content={feature.short} />
+      </Helmet>
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">

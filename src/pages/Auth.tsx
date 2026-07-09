@@ -164,9 +164,10 @@ export default function Auth() {
             <span className="text-xl font-semibold text-foreground">HomeLens AI</span>
           </div>
           <h1 className="text-3xl xl:text-4xl font-bold leading-tight text-foreground">
-            Big decisions deserve the full picture.
+            Sign in or create your HomeLens account
           </h1>
           <p className="text-base text-muted-foreground">
+            Big decisions deserve the full picture.{" "}
             Free AI copilot for US home buyers and investors. Paste any Zillow, Redfin, or Realtor listing — get an instant match score, fair-price read, and neighborhood intel.
           </p>
           <ul className="space-y-4 mt-2">

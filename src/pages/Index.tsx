@@ -536,6 +536,7 @@ export default function Index() {
                 onBlur={() => setHeroFocused(false)}
                 placeholder={heroFocused ? "Type your question..." : typingPlaceholder}
                 disabled={conversationLoading || searchLoading}
+                aria-label="Search for properties or ask a question"
                 className="h-12 sm:h-14 text-sm sm:text-base" />
 
                 <Button
