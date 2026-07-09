@@ -30,7 +30,7 @@ function amortize(principal: number, annualRatePct: number, years: number): numb
   return (principal * (r * Math.pow(1 + r, n))) / (Math.pow(1 + r, n) - 1);
 }
 
-export default function CalculatorBrrrr() {
+export function BrrrrCalculatorPanel({ showHeading = false }: { showHeading?: boolean }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const cap = useBudgetCap();
@@ -165,76 +165,25 @@ export default function CalculatorBrrrr() {
     }
   };
 
-  const softwareJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: "HomeLens BRRRR Calculator",
-    applicationCategory: "FinanceApplication",
-    applicationSubCategory: "FinancialApplication",
-    operatingSystem: "Web",
-    url: PAGE_URL,
-    description: PAGE_DESC,
-    offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
-  };
-
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://homelensais.com/" },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Calculators",
-        item: "https://homelensais.com/calculators",
-      },
-      { "@type": "ListItem", position: 3, name: "BRRRR Calculator", item: PAGE_URL },
-    ],
-  };
-
   return (
-    <div className="min-h-screen bg-background">
-      <Helmet>
-        <title>{PAGE_TITLE}</title>
-        <meta name="description" content={PAGE_DESC} />
-        <link rel="canonical" href={PAGE_URL} />
-        <meta property="og:title" content={PAGE_TITLE} />
-        <meta property="og:description" content={PAGE_DESC} />
-        <meta property="og:url" content={PAGE_URL} />
-        <meta property="og:type" content="website" />
-        <meta name="twitter:title" content={PAGE_TITLE} />
-        <meta name="twitter:description" content={PAGE_DESC} />
-        <script type="application/ld+json">{JSON.stringify(softwareJsonLd)}</script>
-        <script type="application/ld+json">{JSON.stringify(breadcrumbJsonLd)}</script>
-      </Helmet>
-      <Navigation />
-
-      <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">
-        <BudgetCapBanner surface="brrrr_insights" />
-
-        <div className="mb-8 space-y-3">
-          <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-            <Link to="/" className="hover:text-foreground">Home</Link>
-            <span className="mx-1.5">/</span>
-            <Link to="/calculators" className="hover:text-foreground">Calculators</Link>
-            <span className="mx-1.5">/</span>
-            <span className="text-foreground">BRRRR</span>
-          </nav>
-          <h1 className="text-4xl font-bold">BRRRR Calculator</h1>
+    <div className="space-y-6">
+      <BudgetCapBanner surface="brrrr_insights" />
+      {showHeading && (
+        <div className="space-y-2">
           <p className="max-w-2xl text-muted-foreground">
             Model a Buy, Rehab, Rent, Refinance, Repeat deal end to end. See all-in cost,
             how much capital you pull back out at refi, monthly cash flow, and cash-on-cash
             return once the property is stabilized.
           </p>
-          <div>
-            <Button variant="outline" size="sm" onClick={handleReset}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset to defaults
-            </Button>
-          </div>
         </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
+      )}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleReset}>
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Reset to defaults
+        </Button>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
           {/* Inputs */}
           <div className="space-y-6">
             <Card>
@@ -389,8 +338,59 @@ export default function CalculatorBrrrr() {
             </Card>
           </div>
         </div>
+    </div>
+  );
+}
 
-        {/* Explainer for SEO / users */}
+export default function CalculatorBrrrr() {
+  const softwareJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "HomeLens BRRRR Calculator",
+    applicationCategory: "FinanceApplication",
+    applicationSubCategory: "FinancialApplication",
+    operatingSystem: "Web",
+    url: PAGE_URL,
+    description: PAGE_DESC,
+    offers: { "@type": "Offer", price: 0, priceCurrency: "USD" },
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://homelensais.com/" },
+      { "@type": "ListItem", position: 2, name: "Calculators", item: "https://homelensais.com/calculators" },
+      { "@type": "ListItem", position: 3, name: "BRRRR Calculator", item: PAGE_URL },
+    ],
+  };
+  return (
+    <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{PAGE_TITLE}</title>
+        <meta name="description" content={PAGE_DESC} />
+        <link rel="canonical" href={PAGE_URL} />
+        <meta property="og:title" content={PAGE_TITLE} />
+        <meta property="og:description" content={PAGE_DESC} />
+        <meta property="og:url" content={PAGE_URL} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content={PAGE_TITLE} />
+        <meta name="twitter:description" content={PAGE_DESC} />
+        <script type="application/ld+json">{JSON.stringify(softwareJsonLd)}</script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbJsonLd)}</script>
+      </Helmet>
+      <Navigation />
+      <div className="container mx-auto px-4 py-8 pt-24 pb-24 lg:pb-8">
+        <div className="mb-8 space-y-3">
+          <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
+            <Link to="/" className="hover:text-foreground">Home</Link>
+            <span className="mx-1.5">/</span>
+            <Link to="/calculators" className="hover:text-foreground">Calculators</Link>
+            <span className="mx-1.5">/</span>
+            <span className="text-foreground">BRRRR</span>
+          </nav>
+          <h1 className="text-4xl font-bold">BRRRR Calculator</h1>
+        </div>
+        <BrrrrCalculatorPanel showHeading />
         <section className="mx-auto mt-16 max-w-3xl space-y-6">
           <h2 className="text-2xl font-bold">How the BRRRR calculator works</h2>
           <p className="text-muted-foreground">
