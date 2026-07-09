@@ -16,6 +16,62 @@ import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
 import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 import { BrrrrCalculatorPanel } from "@/pages/CalculatorBrrrr";
 
+interface BpAssumptions {
+  rateApr: number;
+  termYears: number;
+  propertyTaxPct: number;
+  insurancePct: number;
+  pmiPct: number;
+  dtiCapPct: number;
+  minDownPct: number;
+  hoaMonthly: number;
+}
+
+function computeBuyingPower(args: {
+  annualIncome: number;
+  monthlyDebts: number;
+  downPaymentAvailable: number;
+  assumptions: BpAssumptions;
+}) {
+  const { annualIncome, monthlyDebts, downPaymentAvailable, assumptions: a } = args;
+  const monthlyIncome = annualIncome / 12;
+  const actualDTI = monthlyIncome > 0 ? (monthlyDebts / monthlyIncome) * 100 : 0;
+  const maxAffordablePayment = monthlyIncome * 0.28;
+  const maxHousingPayment = Math.max(0, monthlyIncome * (a.dtiCapPct / 100) - monthlyDebts);
+
+  if (annualIncome <= 0 || downPaymentAvailable <= 0 || maxHousingPayment <= 0) {
+    return { monthlyIncome, actualDTI, maxAffordablePayment, maxHousingPayment, estimatedBuyingPower: 0 };
+  }
+
+  const r = a.rateApr / 100 / 12;
+  const n = a.termYears * 12;
+  const pitiFor = (price: number) => {
+    const loan = Math.max(0, price - downPaymentAvailable);
+    const pi = r > 0
+      ? loan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+      : loan / n;
+    const tax = (price * (a.propertyTaxPct / 100)) / 12;
+    const ins = (price * (a.insurancePct / 100)) / 12;
+    const downPct = price > 0 ? (downPaymentAvailable / price) * 100 : 100;
+    const pmi = downPct < 20 ? (loan * (a.pmiPct / 100)) / 12 : 0;
+    return pi + tax + ins + pmi + a.hoaMonthly;
+  };
+
+  // Binary search for max price where PITI <= maxHousingPayment
+  let lo = downPaymentAvailable;
+  let hi = downPaymentAvailable + 10_000_000;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (pitiFor(mid) > maxHousingPayment) hi = mid;
+    else lo = mid;
+  }
+  const dtiSolvedPrice = Math.round(lo / 1000) * 1000;
+  const downCap = downPaymentAvailable / (a.minDownPct / 100);
+  const estimatedBuyingPower = Math.min(dtiSolvedPrice, downCap);
+
+  return { monthlyIncome, actualDTI, maxAffordablePayment, maxHousingPayment, estimatedBuyingPower };
+}
+
 export default function Calculators() {
   const navigate = useNavigate();
   const location = useLocation();
