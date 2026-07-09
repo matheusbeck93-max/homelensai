@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { RotateCcw, Save, DollarSign, Sparkles } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RotateCcw, Save, DollarSign, Sparkles, ChevronDown } from "lucide-react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,62 @@ import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
 import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
 import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
 import { BrrrrCalculatorPanel } from "@/pages/CalculatorBrrrr";
+
+interface BpAssumptions {
+  rateApr: number;
+  termYears: number;
+  propertyTaxPct: number;
+  insurancePct: number;
+  pmiPct: number;
+  dtiCapPct: number;
+  minDownPct: number;
+  hoaMonthly: number;
+}
+
+function computeBuyingPower(args: {
+  annualIncome: number;
+  monthlyDebts: number;
+  downPaymentAvailable: number;
+  assumptions: BpAssumptions;
+}) {
+  const { annualIncome, monthlyDebts, downPaymentAvailable, assumptions: a } = args;
+  const monthlyIncome = annualIncome / 12;
+  const actualDTI = monthlyIncome > 0 ? (monthlyDebts / monthlyIncome) * 100 : 0;
+  const maxAffordablePayment = monthlyIncome * 0.28;
+  const maxHousingPayment = Math.max(0, monthlyIncome * (a.dtiCapPct / 100) - monthlyDebts);
+
+  if (annualIncome <= 0 || downPaymentAvailable <= 0 || maxHousingPayment <= 0) {
+    return { monthlyIncome, actualDTI, maxAffordablePayment, maxHousingPayment, estimatedBuyingPower: 0 };
+  }
+
+  const r = a.rateApr / 100 / 12;
+  const n = a.termYears * 12;
+  const pitiFor = (price: number) => {
+    const loan = Math.max(0, price - downPaymentAvailable);
+    const pi = r > 0
+      ? loan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+      : loan / n;
+    const tax = (price * (a.propertyTaxPct / 100)) / 12;
+    const ins = (price * (a.insurancePct / 100)) / 12;
+    const downPct = price > 0 ? (downPaymentAvailable / price) * 100 : 100;
+    const pmi = downPct < 20 ? (loan * (a.pmiPct / 100)) / 12 : 0;
+    return pi + tax + ins + pmi + a.hoaMonthly;
+  };
+
+  // Binary search for max price where PITI <= maxHousingPayment
+  let lo = downPaymentAvailable;
+  let hi = downPaymentAvailable + 10_000_000;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (pitiFor(mid) > maxHousingPayment) hi = mid;
+    else lo = mid;
+  }
+  const dtiSolvedPrice = Math.round(lo / 1000) * 1000;
+  const downCap = downPaymentAvailable / (a.minDownPct / 100);
+  const estimatedBuyingPower = Math.min(dtiSolvedPrice, downCap);
+
+  return { monthlyIncome, actualDTI, maxAffordablePayment, maxHousingPayment, estimatedBuyingPower };
+}
 
 export default function Calculators() {
   const navigate = useNavigate();
@@ -38,6 +95,22 @@ export default function Calculators() {
   const [annualIncome, setAnnualIncome] = useState(0);
   const [monthlyDebts, setMonthlyDebts] = useState(0);
   const [downPaymentAvailable, setDownPaymentAvailable] = useState(0);
+
+  // Buying Power — advanced assumptions
+  const BP_DEFAULTS = {
+    rateApr: 7.0,
+    termYears: 30,
+    propertyTaxPct: 1.2,
+    insurancePct: 0.35,
+    pmiPct: 0.5,
+    dtiCapPct: 43,
+    minDownPct: 3.5,
+    hoaMonthly: 0,
+  };
+  const [bpAssumptions, setBpAssumptions] = useState(BP_DEFAULTS);
+  const [bpAdvancedOpen, setBpAdvancedOpen] = useState(false);
+  const updateBp = (k: keyof typeof BP_DEFAULTS, v: number) =>
+    setBpAssumptions((prev) => ({ ...prev, [k]: v }));
 
   // Mortgage Calculator
   const [homePrice, setHomePrice] = useState(0);
@@ -85,12 +158,14 @@ export default function Calculators() {
     setPmiRate(0.5);
     setClosingCosts(0);
     setAiInsights("");
+    setBpAssumptions(BP_DEFAULTS);
   };
 
   const handleResetBuyingPower = () => {
     setAnnualIncome(0);
     setMonthlyDebts(0);
     setDownPaymentAvailable(0);
+    setBpAssumptions(BP_DEFAULTS);
   };
 
   const handleResetMortgage = () => {
@@ -139,18 +214,19 @@ export default function Calculators() {
     }
   };
 
-  // Buying Power Calculations (independent of financing terms)
-  const monthlyIncome = annualIncome / 12;
-  
-  // Calculate actual DTI based on income and debts
-  const actualDTI = monthlyIncome > 0 ? (monthlyDebts / monthlyIncome) * 100 : 0;
-  
-  // Maximum affordable monthly mortgage payment (28% of gross income, industry standard)
-  // This is the max housing payment they can afford, separate from existing debts
-  const maxAffordablePayment = monthlyIncome * 0.28;
-  
-  // Buying power is independent - just show what they can afford based on down payment
-  const estimatedBuyingPower = downPaymentAvailable > 0 ? downPaymentAvailable / 0.20 : 0; // Assuming 20% down standard
+  // Buying Power Calculations — income + DTI based, capped by down payment
+  const {
+    monthlyIncome,
+    actualDTI,
+    maxAffordablePayment,
+    maxHousingPayment,
+    estimatedBuyingPower,
+  } = computeBuyingPower({
+    annualIncome,
+    monthlyDebts,
+    downPaymentAvailable,
+    assumptions: bpAssumptions,
+  });
 
   // Mortgage Calculations
   const loanAmount = homePrice - downPayment;
@@ -196,7 +272,9 @@ export default function Calculators() {
             downPaymentAvailable,
             estimatedBuyingPower: Math.round(estimatedBuyingPower),
             maxAffordablePayment: Math.round(maxAffordablePayment),
-            actualDTI: actualDTI.toFixed(2)
+            maxHousingPayment: Math.round(maxHousingPayment),
+            actualDTI: actualDTI.toFixed(2),
+            assumptions: bpAssumptions,
           },
           mortgage: {
             homePrice,
@@ -327,6 +405,115 @@ export default function Calculators() {
                       className="mt-1"
                     />
                   </div>
+                  <Collapsible open={bpAdvancedOpen} onOpenChange={setBpAdvancedOpen}>
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-2 -ml-2">
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform ${bpAdvancedOpen ? "rotate-180" : ""}`}
+                          />
+                          Advanced assumptions
+                        </Button>
+                      </CollapsibleTrigger>
+                      {bpAdvancedOpen && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setBpAssumptions(BP_DEFAULTS)}
+                        >
+                          Reset
+                        </Button>
+                      )}
+                    </div>
+                    <CollapsibleContent className="space-y-4 pt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Interest Rate (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.rateApr}
+                            onChange={(e) => updateBp("rateApr", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Loan Term (years)</Label>
+                          <Input
+                            type="number"
+                            value={bpAssumptions.termYears}
+                            onChange={(e) => updateBp("termYears", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Property Tax (%/yr)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.propertyTaxPct}
+                            onChange={(e) => updateBp("propertyTaxPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Insurance (%/yr of price)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.insurancePct}
+                            onChange={(e) => updateBp("insurancePct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>PMI (%/yr, if down &lt; 20%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.pmiPct}
+                            onChange={(e) => updateBp("pmiPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Back-end DTI cap (%)</Label>
+                          <Input
+                            type="number"
+                            step="1"
+                            value={bpAssumptions.dtiCapPct}
+                            onChange={(e) => updateBp("dtiCapPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Min Down Payment (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            value={bpAssumptions.minDownPct}
+                            onChange={(e) => updateBp("minDownPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Monthly HOA ($)</Label>
+                          <Input
+                            type="number"
+                            value={bpAssumptions.hoaMonthly || ""}
+                            onChange={(e) => updateBp("hoaMonthly", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </CardContent>
               </Card>
               {/* Buying Power Results */}
@@ -354,8 +541,8 @@ export default function Calculators() {
                       <p className="text-2xl font-bold">${Math.round(maxAffordablePayment).toLocaleString()}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Down Payment Available</p>
-                      <p className="text-2xl font-bold">${downPaymentAvailable.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground">Max Housing Payment (DTI)</p>
+                      <p className="text-2xl font-bold">${Math.round(maxHousingPayment).toLocaleString()}</p>
                     </div>
                   </div>
                 </CardContent>
