@@ -20,6 +20,7 @@ import myPropertiesAsset from "@/assets/my-properties.png.asset.json";
 import preferencesAsset from "@/assets/preferences.png.asset.json";
 import investorBriefAsset from "@/assets/investor-brief.png.asset.json";
 import investorCalculatorAsset from "@/assets/investor-calculator.png.asset.json";
+import brrrrCalculatorAsset from "@/assets/brrrr-calculator.png.asset.json";
 
 export type FeatureSlug =
   | "chrome-extension"
@@ -134,8 +135,8 @@ export const FEATURES: FeatureDef[] = [
     subheadline:
       "Plug in purchase, rehab, ARV, rent, and refi terms. See all-in cost, capital left in the deal, monthly cash flow, and cash-on-cash return after refinance — with an AI read on the deal.",
     icon: Repeat,
-    screenshot: investorCalculatorAsset.url,
-    screenshotAlt: "HomeLens BRRRR calculator with cash-on-cash after refinance",
+    screenshot: brrrrCalculatorAsset.url,
+    screenshotAlt: "HomeLens BRRRR calculator showing acquisition, rehab, refinance, and deal results",
     benefits: [
       { title: "All-in cost, not just purchase price", body: "Closing costs, rehab, and holding costs during the rehab window are all rolled into the true capital in the deal." },
       { title: "Capital recycled vs left in deal", body: "See exactly how much cash comes back out at refi and how much stays trapped in the property." },
