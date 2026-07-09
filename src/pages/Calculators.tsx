@@ -405,6 +405,115 @@ export default function Calculators() {
                       className="mt-1"
                     />
                   </div>
+                  <Collapsible open={bpAdvancedOpen} onOpenChange={setBpAdvancedOpen}>
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-2 -ml-2">
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform ${bpAdvancedOpen ? "rotate-180" : ""}`}
+                          />
+                          Advanced assumptions
+                        </Button>
+                      </CollapsibleTrigger>
+                      {bpAdvancedOpen && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setBpAssumptions(BP_DEFAULTS)}
+                        >
+                          Reset
+                        </Button>
+                      )}
+                    </div>
+                    <CollapsibleContent className="space-y-4 pt-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Interest Rate (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.rateApr}
+                            onChange={(e) => updateBp("rateApr", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Loan Term (years)</Label>
+                          <Input
+                            type="number"
+                            value={bpAssumptions.termYears}
+                            onChange={(e) => updateBp("termYears", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Property Tax (%/yr)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.propertyTaxPct}
+                            onChange={(e) => updateBp("propertyTaxPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Insurance (%/yr of price)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.insurancePct}
+                            onChange={(e) => updateBp("insurancePct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>PMI (%/yr, if down &lt; 20%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={bpAssumptions.pmiPct}
+                            onChange={(e) => updateBp("pmiPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Back-end DTI cap (%)</Label>
+                          <Input
+                            type="number"
+                            step="1"
+                            value={bpAssumptions.dtiCapPct}
+                            onChange={(e) => updateBp("dtiCapPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Min Down Payment (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            value={bpAssumptions.minDownPct}
+                            onChange={(e) => updateBp("minDownPct", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label>Monthly HOA ($)</Label>
+                          <Input
+                            type="number"
+                            value={bpAssumptions.hoaMonthly || ""}
+                            onChange={(e) => updateBp("hoaMonthly", Number(e.target.value))}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </CardContent>
               </Card>
               {/* Buying Power Results */}
@@ -432,8 +541,8 @@ export default function Calculators() {
                       <p className="text-2xl font-bold">${Math.round(maxAffordablePayment).toLocaleString()}</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Down Payment Available</p>
-                      <p className="text-2xl font-bold">${downPaymentAvailable.toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground">Max Housing Payment (DTI)</p>
+                      <p className="text-2xl font-bold">${Math.round(maxHousingPayment).toLocaleString()}</p>
                     </div>
                   </div>
                 </CardContent>
