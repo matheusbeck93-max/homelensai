@@ -16,22 +16,22 @@ export const FScene8Close = ({ colors }: Props) => {
 
   return (
     <AbsoluteFill style={{ fontFamily, opacity: fadeIn, justifyContent: "center", alignItems: "center" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, padding: "0 60px" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 32, padding: "0 40px" }}>
         <Img src={staticFile("images/logo.png")} style={{
-          width: 160, height: 160, objectFit: "contain", transform: `scale(${logoScale})`,
+          width: 240, height: 240, objectFit: "contain", transform: `scale(${logoScale})`,
         }} />
         <div style={{ opacity: wordOp, textAlign: "center" }}>
-          <div style={{ fontSize: 62, fontWeight: 700, color: colors.white, letterSpacing: -1 }}>HomeLens</div>
-          <div style={{ fontSize: 22, color: colors.muted, marginTop: 10 }}>homelensais.com</div>
+          <div style={{ fontSize: 104, fontWeight: 700, color: colors.white, letterSpacing: -2.5 }}>HomeLens</div>
+          <div style={{ fontSize: 32, color: colors.muted, marginTop: 14 }}>homelensais.com</div>
         </div>
         <div style={{
           opacity: wordOp,
-          padding: "10px 18px", background: `${colors.primary}33`, borderRadius: 999,
-          fontSize: 15, fontWeight: 500, color: colors.accent, letterSpacing: 1,
+          padding: "14px 26px", background: `${colors.primary}33`, borderRadius: 999,
+          fontSize: 22, fontWeight: 500, color: colors.accent, letterSpacing: 1.5,
         }}>Available on Chrome</div>
         <div style={{
-          opacity: ctaOp, transform: `translateY(${ctaY}px)`, marginTop: 20,
-          fontSize: 28, fontWeight: 500, color: colors.white, textAlign: "center", lineHeight: 1.4,
+          opacity: ctaOp, transform: `translateY(${ctaY}px)`, marginTop: 28,
+          fontSize: 44, fontWeight: 500, color: colors.white, textAlign: "center", lineHeight: 1.3, letterSpacing: -1,
         }}>Smarter home buying{"\n"}starts here.</div>
       </div>
     </AbsoluteFill>

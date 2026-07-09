@@ -18,16 +18,16 @@ export const FScene1Logo = ({ colors }: Props) => {
 
   return (
     <AbsoluteFill style={{ fontFamily, opacity: op, justifyContent: "center", alignItems: "center" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 36 }}>
         <Img src={staticFile("images/logo.png")} style={{
-          width: 180, height: 180, objectFit: "contain", transform: `scale(${logoScale})`,
+          width: 280, height: 280, objectFit: "contain", transform: `scale(${logoScale})`,
         }} />
         <div style={{
-          opacity: wordOp, fontSize: 78, fontWeight: 700, color: colors.white, letterSpacing: -1.5,
+          opacity: wordOp, fontSize: 128, fontWeight: 700, color: colors.white, letterSpacing: -3,
         }}>HomeLens</div>
         <div style={{
           opacity: tagOp, transform: `translateY(${tagY}px)`,
-          fontSize: 26, color: colors.muted, textAlign: "center", padding: "0 60px", lineHeight: 1.4,
+          fontSize: 38, color: colors.muted, textAlign: "center", padding: "0 40px", lineHeight: 1.35,
         }}>Big decisions deserve{"\n"}the full picture.</div>
       </div>
     </AbsoluteFill>

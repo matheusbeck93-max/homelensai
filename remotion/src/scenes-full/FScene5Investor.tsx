@@ -23,16 +23,16 @@ export const FScene5Investor = ({ colors }: Props) => {
   const headY = interpolate(spring({ frame, fps, config: { damping: 22 } }), [0, 1], [24, 0]);
 
   return (
-    <AbsoluteFill style={{ fontFamily, opacity: op, padding: "160px 60px 80px", flexDirection: "column" }}>
-      <div style={{ textAlign: "center", opacity: headOp, transform: `translateY(${headY}px)`, marginBottom: 50 }}>
-        <div style={{ fontSize: 14, letterSpacing: 3, textTransform: "uppercase", color: colors.accent, marginBottom: 12, fontWeight: 500 }}>
+    <AbsoluteFill style={{ fontFamily, opacity: op, padding: "140px 40px 60px", flexDirection: "column" }}>
+      <div style={{ textAlign: "center", opacity: headOp, transform: `translateY(${headY}px)`, marginBottom: 56 }}>
+        <div style={{ fontSize: 20, letterSpacing: 4, textTransform: "uppercase", color: colors.accent, marginBottom: 16, fontWeight: 500 }}>
           For Investors
         </div>
-        <div style={{ fontSize: 54, fontWeight: 700, color: colors.white, letterSpacing: -1, lineHeight: 1.15 }}>
+        <div style={{ fontSize: 82, fontWeight: 700, color: colors.white, letterSpacing: -2, lineHeight: 1.1 }}>
           Everything investors{"\n"}need in one place.
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 26 }}>
         {CARDS.map((c, i) => {
           const delay = 25 + i * 18;
           const cOp = interpolate(frame, [delay, delay + 15], [0, 1], { extrapolateRight: "clamp" });
@@ -41,16 +41,16 @@ export const FScene5Investor = ({ colors }: Props) => {
             <div key={c.title} style={{
               opacity: cOp, transform: `scale(${cScale})`,
               background: "rgba(255,255,255,0.07)", border: `1px solid ${colors.primary}33`,
-              borderRadius: 20, padding: 24, minHeight: 240,
+              borderRadius: 22, padding: 32, minHeight: 340,
             }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: colors.white, marginBottom: 18 }}>{c.title}</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: colors.white, marginBottom: 22 }}>{c.title}</div>
               {c.lines.map(([k, v]) => (
                 <div key={k} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "10px 0", borderBottom: `1px solid ${colors.primary}22`,
+                  padding: "16px 0", borderBottom: `1px solid ${colors.primary}22`,
                 }}>
-                  <div style={{ fontSize: 16, color: colors.muted }}>{k}</div>
-                  <div style={{ fontSize: 20, color: colors.white, fontWeight: 700 }}>{v}</div>
+                  <div style={{ fontSize: 20, color: colors.muted }}>{k}</div>
+                  <div style={{ fontSize: 26, color: colors.white, fontWeight: 700 }}>{v}</div>
                 </div>
               ))}
             </div>
