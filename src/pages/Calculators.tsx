@@ -589,7 +589,6 @@ export default function Calculators() {
             <BrrrrCalculatorPanel showHeading />
           </TabsContent>
         </Tabs>
-        </div>
       </div>
     </div>
   );
