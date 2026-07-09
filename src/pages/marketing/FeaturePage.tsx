@@ -72,6 +72,11 @@ export default function FeaturePage() {
                     Get started free <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
                 </Button>
+                {feature.slug === "brrrr-calculator" && (
+                  <Button size="lg" variant="secondary" asChild>
+                    <Link to="/calculators?tab=brrrr">Open the calculator</Link>
+                  </Button>
+                )}
                 <Button size="lg" variant="outline" asChild>
                   <Link to="/pricing">See pricing</Link>
                 </Button>
