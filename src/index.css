@@ -62,6 +62,66 @@ All colors MUST be HSL.
   }
 
   .dark {
+    /* dark tokens below */
+  }
+}
+
+@layer components {
+  /* Investor Brief editorial surface — scoped, does not affect global theme. */
+  .brief-surface {
+    --brief-canvas: 39 38% 96%;
+    --brief-card: 0 0% 100%;
+    --brief-ink: 210 24% 20%;
+    --brief-hairline: 32 20% 86%;
+    background:
+      radial-gradient(1200px 600px at 100% -10%, hsl(39 45% 92% / 0.6), transparent 60%),
+      hsl(var(--brief-canvas));
+  }
+  .dark .brief-surface {
+    --brief-canvas: 222 30% 10%;
+    --brief-card: 222 30% 13%;
+    --brief-ink: 210 40% 96%;
+    --brief-hairline: 217 20% 24%;
+    background: hsl(var(--brief-canvas));
+  }
+  .brief-card {
+    background: hsl(var(--brief-card));
+    border: 1px solid hsl(var(--brief-hairline));
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 2px hsl(210 30% 20% / 0.04),
+      0 10px 30px -18px hsl(210 30% 20% / 0.14);
+    transition: box-shadow 200ms ease, transform 200ms ease;
+  }
+  .brief-card:hover {
+    box-shadow:
+      0 1px 2px hsl(210 30% 20% / 0.05),
+      0 18px 40px -20px hsl(210 30% 20% / 0.20);
+  }
+  .brief-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    font-weight: 600;
+  }
+  .brief-stagger > * { opacity: 0; animation: brief-fade 420ms ease-out forwards; }
+  .brief-stagger > *:nth-child(1) { animation-delay: 40ms; }
+  .brief-stagger > *:nth-child(2) { animation-delay: 100ms; }
+  .brief-stagger > *:nth-child(3) { animation-delay: 160ms; }
+  .brief-stagger > *:nth-child(4) { animation-delay: 220ms; }
+  .brief-stagger > *:nth-child(5) { animation-delay: 280ms; }
+  .brief-stagger > *:nth-child(6) { animation-delay: 340ms; }
+  .brief-stagger > *:nth-child(n+7) { animation-delay: 400ms; }
+  @keyframes brief-fade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* legacy .dark block continues (moved unchanged) */
+@layer base {
+  .dark.__hl_noop__ {
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
 
