@@ -101,7 +101,8 @@ export function BriefCard({
   const inChat = mode === 'chat';
 
   return (
-    <Card className="brief-card border-0 shadow-none lg:sticky lg:top-24 self-start">
+    <Card className="dash-card relative overflow-hidden border-0 shadow-none lg:sticky lg:top-24 self-start">
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-primary" />
       <CardHeader className="pb-3 border-b">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
