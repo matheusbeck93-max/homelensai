@@ -18,7 +18,6 @@ import type { ComposedCard } from '@/lib/investorBrief/types';
 import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
 import { TierGate } from '@/components/subscription/TierGate';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Button } from '@/components/ui/button';
 import { Home, Clock, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -29,9 +28,7 @@ function InvestorBriefInner() {
   const [authReady, setAuthReady] = useState(false);
   const {
     mode,
-    activeCardContext,
     enterChatModeFromCard,
-    enterChatModeFromQuery,
     exitChatMode,
   } = useInvestorBriefSurface();
   const { loading: subLoading } = useSubscription();
