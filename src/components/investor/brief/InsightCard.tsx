@@ -90,7 +90,7 @@ export function InsightCard({
   };
 
   return (
-    <Card className={cn('flex flex-col h-full', className)}>
+    <Card className={cn('brief-card flex flex-col h-full border-0 shadow-none', className)}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
