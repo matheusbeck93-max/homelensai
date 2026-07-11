@@ -1,52 +1,32 @@
+## Investor Brief cleanup + Property cover image
 
-# Investor Brief — Premium Editorial Redesign
+### 1. Investor Brief page — revert premium background & remove Deep Dive divider
+File: `src/pages/InvestorBrief.tsx`
+- Remove the full-width "Deep Dive" pill button injected between insight cards (revert `cards.flatMap` back to `cards.map`).
+- Drop the `brief-surface` warm off-white canvas class from the page container so the background matches the standard app background (`bg-background`) used on other pages.
+- Keep the masthead, hairline card styling, and stagger animations intact (only background + Deep Dive button change).
 
-Restyle `/investor` to match the reference layout while keeping the HomeLens steel-blue palette and current Outfit/Figtree sans typography. Structural changes only to the brief page; no backend, RLS, or data changes.
+File: `src/index.css`
+- Leave `.brief-card` / stagger tokens (still used by cards). Remove or stop applying the `--brief-canvas` background rule since it's no longer referenced.
 
-## Layout (matches reference)
+### 2. My Properties — cover image upload
+Storage: the `owned-property-photos` bucket already exists (private). We'll reuse it and read images via signed URLs.
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Investor Brief                       🏠 Prepared by Homelens   │
-│  Today's grounded read...             🕐 Jul 11  [date range ▾] │
-├──────────────┬──────────────────────────────────────────────────┤
-│  Concierge   │  Portfolio Snapshot     │  Portfolio Alerts      │
-│  card        ├─────────────────────────┼────────────────────────┤
-│  + narration │  Watchlist summary      │  Top scored analyses   │
-│  + Ask input │           [ Deep Dive ]                          │
-│              ├─────────────────────────┼────────────────────────┤
-│              │  Watchlist (5)          │  Analyses Status       │
-└──────────────┴─────────────────────────┴────────────────────────┘
-```
+**`src/components/investor/my-properties/AddPropertyDialog.tsx`**
+- Add an optional "Cover image" file input at the top of the form (image/*, ~5MB cap).
+- On save: after inserting the property, if a file was chosen, upload to `owned-property-photos/{user.id}/{propertyId}/cover-{timestamp}.{ext}` and insert a row into `investor_owned_property_photos` with `ordinal = 0` and a caption of "Cover".
+- Show a small preview thumbnail before upload; handle upload errors with a toast but don't block property creation.
 
-- Left column (`~360px`): "Your Portfolio Concierge" card with masthead icon, last-refreshed line, "Tuned for: … change" chip, narration text (current `effectiveIntro` + insights condensed), and the Ask Homelens prompt input pinned at the bottom.
-- Right area: 2-column grid of insight cards. Center "Deep Dive" pill sits between rows as a full-width divider CTA (opens existing `DeepPanel`).
-- Top-right masthead: "Prepared by Homelens" with home icon + today's date + date-range picker (visual only in v1, wired to existing `regenerate`).
+**`src/components/investor/my-properties/EditPropertyDialog.tsx`**
+- Add the same "Cover image" control so users can add/replace a cover on existing properties (upload path identical; new photo replaces `ordinal = 0` by deleting the previous ordinal-0 row + storage object, then inserting the new one).
 
-## Premium touches
+**`src/hooks/useOwnedProperties.ts` (and card display)**
+- Fetch the ordinal-0 photo for each property (batch query on `investor_owned_property_photos` where `ordinal = 0`) and resolve a signed URL (1h) per property; attach as `coverUrl` on `OwnedPropertyWithMetrics`.
 
-- Warm off-white canvas: introduce `--brief-canvas` (ivory tuned from HomeLens neutrals) applied only to the Investor Brief page container — global theme untouched.
-- Cards: larger radius (`rounded-2xl`), hairline borders (`border-border/60`), soft elevation (`shadow-[0_1px_2px_rgba(44,62,85,0.04),0_8px_24px_-12px_rgba(44,62,85,0.10)]`), generous internal padding.
-- Micro-animations: staggered `animate-fade-in` on card mount (60ms increments), `hover-scale`-lite on interactive cards, subtle lift on hover.
-- Editorial masthead row, refined section labels (uppercase tracking-wide muted), thin dividers, restrained iconography.
-- High-Value Alert keeps warm amber accent but re-tuned to HomeLens tokens (no raw hex).
+**`src/components/investor/my-properties/OwnedPropertyCard.tsx`**
+- If `coverUrl` is present, render it as a 16:9 cover image at the top of the card; otherwise keep current header. Use `loading="lazy"` and alt text based on the address.
 
-## Files to change
-
-- `src/pages/InvestorBrief.tsx` — new 3-zone grid (`lg:grid-cols-[360px_1fr]` with inner 2-col right side), masthead header, Deep Dive divider button, canvas class, stagger wrapper.
-- `src/components/investor/brief/BriefCard.tsx` — restyle as "Portfolio Concierge": add masthead row (icon + title + Refresh), "Tuned for" chip, keep narration/insights, embed Ask Homelens prompt input at the bottom (wire to existing chat entry — reuse `enterChatModeFromCard` with a generic ask, or navigate to `/chats` if simpler; confirmed: use existing DeepPanel entry to stay on-page).
-- `src/components/investor/brief/BriefCardRenderer.tsx` + `InsightCard.tsx` — apply premium card shell (radius, border, shadow, padding). No data changes.
-- `src/index.css` — add scoped tokens: `--brief-canvas`, `--brief-card`, `--brief-shadow-soft` under a `.brief-surface` selector; no changes to global theme tokens.
-- `tailwind.config.ts` — optional `boxShadow.brief` utility referencing the new token.
-
-## Out of scope
-
-- No changes to card data, edge functions, subscription gating, or `DeepPanel` behavior.
-- Date-range picker is visual-only in v1 (renders today's date; hooking it to filtering is a follow-up).
-- No changes to other pages or global colors/fonts.
-
-## Verification
-
-- Typecheck/build green.
-- Playwright screenshot of `/investor` at 1280×1800 to confirm 3-zone layout, masthead, Deep Dive divider, and card polish.
-- Dark mode spot check (tokens keep contrast).
+### Out of scope
+- No changes to Owned Property Detail photo gallery (already uses the same bucket/table).
+- No RLS or bucket changes — existing policies on `investor_owned_property_photos` and `owned-property-photos` already scope by `user_id`.
+- No new tables or migrations.
