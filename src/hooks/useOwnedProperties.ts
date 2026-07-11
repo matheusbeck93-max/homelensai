@@ -95,6 +95,19 @@ export function useOwnedProperties() {
       };
     });
 
+    // Resolve signed URLs for private-bucket cover images (stored as raw paths)
+    await Promise.all(
+      enriched.map(async (p) => {
+        const raw = p.primary_photo_url;
+        if (raw && !/^https?:\/\//i.test(raw)) {
+          const { data: signed } = await (supabase as any).storage
+            .from('owned-property-photos')
+            .createSignedUrl(raw, 60 * 60);
+          if (signed?.signedUrl) p.primary_photo_url = signed.signedUrl;
+        }
+      }),
+    );
+
     setProperties(enriched);
     setLoading(false);
   }, []);
