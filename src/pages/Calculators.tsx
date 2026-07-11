@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { RotateCcw, Save, DollarSign, Sparkles, ChevronDown } from "lucide-react";
+import { RotateCcw, Save, DollarSign, Sparkles, ChevronDown, Wallet } from "lucide-react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,6 +90,7 @@ export default function Calculators() {
   const [aiInsights, setAiInsights] = useState<string>("");
   const cap = useBudgetCap();
   const isCapExceeded = cap.warningLevel === "exceeded";
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
 
   // Buying Power Calculator
   const [annualIncome, setAnnualIncome] = useState(0);
@@ -166,6 +167,51 @@ export default function Calculators() {
     setMonthlyDebts(0);
     setDownPaymentAvailable(0);
     setBpAssumptions(BP_DEFAULTS);
+  };
+
+  const handleSetBudgetPreference = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to save this to your preferences.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (estimatedBuyingPower <= 0) return;
+    setIsSavingBudget(true);
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("preferences")
+        .eq("id", user.id)
+        .maybeSingle();
+      const current = (profile?.preferences ?? {}) as Record<string, any>;
+      const next = {
+        ...current,
+        budget: {
+          ...(current.budget ?? {}),
+          purchase_price_max: Math.round(estimatedBuyingPower),
+          ...(downPaymentAvailable > 0 ? { down_payment: downPaymentAvailable } : {}),
+        },
+      };
+      const { error } = await supabase.functions.invoke("preferences-assistant", {
+        body: { action: "edit", preferences: next },
+      });
+      if (error) throw error;
+      toast({
+        title: "Budget updated",
+        description: `Max purchase price set to $${Math.round(estimatedBuyingPower).toLocaleString()} in your preferences.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Couldn't update preferences",
+        description: error?.message ?? "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingBudget(false);
+    }
   };
 
   const handleResetMortgage = () => {
@@ -544,6 +590,26 @@ export default function Calculators() {
                       <p className="text-sm text-muted-foreground">Max Housing Payment (DTI)</p>
                       <p className="text-2xl font-bold">${Math.round(maxHousingPayment).toLocaleString()}</p>
                     </div>
+                  </div>
+                  <div className="pt-4 border-t space-y-2">
+                    <Button
+                      onClick={handleSetBudgetPreference}
+                      disabled={estimatedBuyingPower <= 0 || isSavingBudget}
+                      className="w-full"
+                    >
+                      <Wallet className="h-4 w-4 mr-2" />
+                      {isSavingBudget ? "Saving…" : "Set as my budget preference"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Updates the max purchase price used across HomeLens.{" "}
+                      <button
+                        type="button"
+                        onClick={() => navigate("/console?tab=preferences")}
+                        className="text-primary underline-offset-4 hover:underline"
+                      >
+                        View preferences
+                      </button>
+                    </p>
                   </div>
                 </CardContent>
               </Card>
