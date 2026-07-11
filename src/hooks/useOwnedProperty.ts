@@ -89,6 +89,13 @@ export function useOwnedProperty(propertyId: string | undefined) {
       setLoading(false);
       return;
     }
+    // Resolve signed URL for private-bucket cover image (stored as raw path)
+    if (prop.primary_photo_url && !/^https?:\/\//i.test(prop.primary_photo_url)) {
+      const { data: signed } = await (supabase as any).storage
+        .from('owned-property-photos')
+        .createSignedUrl(prop.primary_photo_url, 60 * 60);
+      if (signed?.signedUrl) prop.primary_photo_url = signed.signedUrl;
+    }
     const [rental, photos, improvements, events, valuations, alerts, documents] =
       await Promise.all([
         (supabase as any)
