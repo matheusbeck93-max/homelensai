@@ -103,7 +103,12 @@ export function useOwnedProperties() {
           const { data: signed } = await (supabase as any).storage
             .from('owned-property-photos')
             .createSignedUrl(raw, 60 * 60);
-          if (signed?.signedUrl) p.primary_photo_url = signed.signedUrl;
+          if (signed?.signedUrl) {
+            p.primary_photo_url = signed.signedUrl;
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn('[useOwnedProperties] no signed URL for', raw);
+          }
         }
       }),
     );
