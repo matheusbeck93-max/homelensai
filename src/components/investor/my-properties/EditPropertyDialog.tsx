@@ -22,6 +22,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { PROPERTY_TYPE_LABELS, type OwnedPropertyType } from '@/lib/myProperties/types';
 import type { OwnedPropertyWithMetrics } from '@/hooks/useOwnedProperties';
+import { ImagePlus, X } from 'lucide-react';
 
 interface Props {
   property: OwnedPropertyWithMetrics | null;
@@ -60,6 +61,24 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSaved }: Pr
   const [isPrimary, setIsPrimary] = useState(false);
   const [monthlyRent, setMonthlyRent] = useState('');
 
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [existingCoverUrl, setExistingCoverUrl] = useState<string | null>(null);
+
+  const handleCoverChange = (file: File | null) => {
+    if (!file) {
+      setCoverFile(null);
+      setCoverPreview(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image too large', description: 'Max 5MB', variant: 'destructive' });
+      return;
+    }
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+  };
+
   useEffect(() => {
     if (!property) return;
     setAddressLine1(property.address_line1 ?? '');
@@ -84,6 +103,9 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSaved }: Pr
     setIsRented(Boolean(property.is_rented));
     setIsPrimary(Boolean(property.is_primary_residence));
     setMonthlyRent(toStr(property.rental?.monthly_rent));
+    setCoverFile(null);
+    setCoverPreview(null);
+    setExistingCoverUrl(property.primary_photo_url ?? null);
   }, [property]);
 
   const canSave =
@@ -126,6 +148,25 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSaved }: Pr
         .eq('id', property.id);
       if (error) throw error;
 
+      if (coverFile) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const ext = coverFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+          const path = `${user.id}/${property.id}/cover-${Date.now()}.${ext}`;
+          const { error: upErr } = await supabase.storage
+            .from('owned-property-photos')
+            .upload(path, coverFile, { contentType: coverFile.type, upsert: true });
+          if (upErr) {
+            toast({ title: 'Cover image upload failed', description: upErr.message, variant: 'destructive' });
+          } else {
+            await (supabase as any)
+              .from('investor_owned_properties')
+              .update({ primary_photo_url: path })
+              .eq('id', property.id);
+          }
+        }
+      }
+
       if (isRented && monthlyRent) {
         const rent = Number(monthlyRent);
         if (property.rental) {
@@ -167,6 +208,49 @@ export function EditPropertyDialog({ property, open, onOpenChange, onSaved }: Pr
         <div className="space-y-5 py-2">
           <section className="space-y-3">
             <h3 className="text-sm font-medium">Identity</h3>
+            <div>
+              <Label>Cover image</Label>
+              {coverPreview ? (
+                <div className="mt-1 relative w-full aspect-[16/10] rounded-md overflow-hidden border border-border">
+                  <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => handleCoverChange(null)}
+                    className="absolute top-2 right-2 h-7 w-7 inline-flex items-center justify-center rounded-md bg-background/90 border border-border shadow-sm"
+                    aria-label="Remove new cover image"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : existingCoverUrl ? (
+                <div className="mt-1 space-y-2">
+                  <div className="w-full aspect-[16/10] rounded-md overflow-hidden border border-border bg-muted">
+                    <img src={existingCoverUrl} alt="Current cover" className="w-full h-full object-cover" />
+                  </div>
+                  <label className="flex items-center gap-2 justify-center cursor-pointer border border-dashed border-border rounded-md p-3 text-sm text-muted-foreground hover:bg-muted/40">
+                    <ImagePlus className="h-4 w-4" />
+                    <span>Replace cover image (max 5MB)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleCoverChange(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <label className="mt-1 flex items-center gap-2 justify-center cursor-pointer border border-dashed border-border rounded-md p-4 text-sm text-muted-foreground hover:bg-muted/40">
+                  <ImagePlus className="h-4 w-4" />
+                  <span>Click to upload (max 5MB)</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleCoverChange(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              )}
+            </div>
             <div>
               <Label htmlFor="e-addr">Street address</Label>
               <Input id="e-addr" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} />
