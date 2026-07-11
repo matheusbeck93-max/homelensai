@@ -20,6 +20,7 @@ import { TierGate } from '@/components/subscription/TierGate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Home, Clock, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { BriefKpiRow } from '@/components/investor/brief/BriefKpiRow';
 
 function InvestorBriefInner() {
   const navigate = useNavigate();
@@ -99,12 +100,12 @@ function InvestorBriefInner() {
             <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-1.5">
-                  Investor Brief
+                  Your Investor Brief
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   {mode === 'chat'
-                    ? 'Deep dive — supporting data on the right, conversation on the left.'
-                    : "Today's grounded read on your portfolio and markets."}
+                    ? 'Deep dive — supporting data on the left, conversation on the right.'
+                    : 'A snapshot of your analysis activity and top opportunities this week.'}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2 text-xs text-muted-foreground">
@@ -132,17 +133,8 @@ function InvestorBriefInner() {
               featureName="Investor Brief"
               description="Your daily investor intelligence — cap-rate trends, watchlist signals and grounded insights on your portfolio. Included with the Investor plan."
             >
-            <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
-              <BriefCard
-                introText={effectiveIntro}
-                insights={effectiveInsights}
-                followups={bundle?.brief.followups ?? []}
-                generatedAt={bundle?.brief.generated_at}
-                isStale={isStale}
-                refreshing={refreshing}
-                loading={loading && !bundle}
-                onRefresh={() => regenerate()}
-              />
+            <BriefKpiRow />
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
               <section>
                 {mode === 'chat' ? (
                   <DeepPanel onBack={exitChatMode} />
@@ -170,6 +162,16 @@ function InvestorBriefInner() {
                   </div>
                 )}
               </section>
+              <BriefCard
+                introText={effectiveIntro}
+                insights={effectiveInsights}
+                followups={bundle?.brief.followups ?? []}
+                generatedAt={bundle?.brief.generated_at}
+                isStale={isStale}
+                refreshing={refreshing}
+                loading={loading && !bundle}
+                onRefresh={() => regenerate()}
+              />
             </div>
             </TierGate>
             )}

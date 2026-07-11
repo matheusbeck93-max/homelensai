@@ -25,6 +25,22 @@ import { cn } from '@/lib/utils';
 import { ViewSourcesButton } from './ViewSourcesButton';
 import type { CardSources } from '@/lib/investorBrief/sources';
 
+const ACCENT_BY_TYPE: Record<string, string> = {
+  trend_chart: 'bg-sky-500',
+  portfolio_glance: 'bg-sky-500',
+  ranked_list: 'bg-violet-500',
+  flip_spread_movers: 'bg-violet-500',
+  migration_trends: 'bg-violet-500',
+  heatmap: 'bg-violet-500',
+  anomaly: 'bg-amber-500',
+  portfolio_alerts: 'bg-amber-500',
+  missing_data: 'bg-amber-500',
+  neighborhood_scores: 'bg-emerald-500',
+  budget_affordability: 'bg-emerald-500',
+  setup: 'bg-emerald-500',
+  sample: 'bg-emerald-500',
+};
+
 interface InsightCardProps {
   briefCardId: string;
   cardType: string;
@@ -63,6 +79,7 @@ export function InsightCard({
   className,
 }: InsightCardProps) {
   const navigate = useNavigate();
+  const accentClass = ACCENT_BY_TYPE[cardType] ?? 'bg-primary';
 
   const writeSignal = async (
     signal: 'investigated' | 'pinned' | 'dismissed',
@@ -90,7 +107,13 @@ export function InsightCard({
   };
 
   return (
-    <Card className={cn('brief-card flex flex-col h-full border-0 shadow-none', className)}>
+    <Card
+      className={cn(
+        'dash-card relative overflow-hidden flex flex-col h-full border-0 shadow-none',
+        className,
+      )}
+    >
+      <div className={cn('absolute inset-x-0 top-0 h-0.5', accentClass)} />
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
