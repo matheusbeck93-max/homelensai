@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Home, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,10 @@ interface Props {
 
 export function OwnedPropertyCard({ property, onClick, onEdit, onDelete }: Props) {
   const { metrics } = property;
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => {
+    setImgFailed(false);
+  }, [property.primary_photo_url]);
   const cashFlowLabel = property.is_primary_residence
     ? 'Owner-occupied'
     : property.is_rented
@@ -38,12 +43,13 @@ export function OwnedPropertyCard({ property, onClick, onEdit, onDelete }: Props
       className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow border-border/60"
     >
       <div className="relative aspect-[16/10] bg-muted">
-        {property.primary_photo_url ? (
+        {property.primary_photo_url && !imgFailed ? (
           <img
             src={property.primary_photo_url}
             alt={property.address_line1}
             className="w-full h-full object-cover"
             loading="lazy"
+            onError={() => setImgFailed(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">

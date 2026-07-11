@@ -59,6 +59,9 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 196 45% 42%;
+
+    --brief-card: 0 0% 100%;
+    --brief-hairline: 220 13% 88%;
   }
 
   .dark {
@@ -103,6 +106,9 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 196 45% 42%;
+
+    --brief-card: 222 30% 13%;
+    --brief-hairline: 217 20% 24%;
   }
 }
 
