@@ -113,36 +113,21 @@ All colors MUST be HSL.
 }
 
 @layer components {
-  /* Investor Brief editorial surface — scoped, does not affect global theme. */
-  .brief-surface {
-    --brief-canvas: 39 38% 96%;
-    --brief-card: 0 0% 100%;
-    --brief-ink: 210 24% 20%;
-    --brief-hairline: 32 20% 86%;
-    background:
-      radial-gradient(1200px 600px at 100% -10%, hsl(39 45% 92% / 0.6), transparent 60%),
-      hsl(var(--brief-canvas));
-  }
-  .dark .brief-surface {
-    --brief-canvas: 222 30% 10%;
-    --brief-card: 222 30% 13%;
-    --brief-ink: 210 40% 96%;
-    --brief-hairline: 217 20% 24%;
-    background: hsl(var(--brief-canvas));
-  }
-  .brief-card {
-    background: hsl(var(--brief-card));
-    border: 1px solid hsl(var(--brief-hairline));
-    border-radius: 1rem;
+  /* Shared dashboard card chrome — uses global tokens so it themes with the app. */
+  .dash-card {
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.875rem;
     box-shadow:
-      0 1px 2px hsl(210 30% 20% / 0.04),
-      0 10px 30px -18px hsl(210 30% 20% / 0.14);
-    transition: box-shadow 200ms ease, transform 200ms ease;
+      0 1px 2px hsl(220 20% 10% / 0.04),
+      0 10px 30px -20px hsl(220 20% 10% / 0.12);
+    transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
   }
-  .brief-card:hover {
+  .dash-card:hover {
     box-shadow:
-      0 1px 2px hsl(210 30% 20% / 0.05),
-      0 18px 40px -20px hsl(210 30% 20% / 0.20);
+      0 1px 2px hsl(220 20% 10% / 0.06),
+      0 18px 40px -22px hsl(220 20% 10% / 0.18);
   }
   .brief-eyebrow {
     font-size: 10px;
