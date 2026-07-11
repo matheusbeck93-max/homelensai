@@ -18,14 +18,22 @@ import type { ComposedCard } from '@/lib/investorBrief/types';
 import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
 import { TierGate } from '@/components/subscription/TierGate';
 import { useSubscription } from '@/hooks/useSubscription';
+import { Button } from '@/components/ui/button';
+import { Home, Clock, Calendar, Search } from 'lucide-react';
+import { format } from 'date-fns';
 
 function InvestorBriefInner() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const { mode, activeCardContext, enterChatModeFromCard, exitChatMode } =
-    useInvestorBriefSurface();
+  const {
+    mode,
+    activeCardContext,
+    enterChatModeFromCard,
+    enterChatModeFromQuery,
+    exitChatMode,
+  } = useInvestorBriefSurface();
   const { loading: subLoading } = useSubscription();
 
   useEffect(() => {
@@ -74,6 +82,8 @@ function InvestorBriefInner() {
 
   if (!authReady) return null;
 
+  const today = format(new Date(), 'MMM d, yyyy');
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Helmet>
@@ -87,15 +97,35 @@ function InvestorBriefInner() {
       <Navigation />
       <div className="flex flex-row flex-1">
         <ConsoleSidebar />
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 brief-surface">
           <div className="container mx-auto px-4 py-6 lg:py-8 max-w-7xl">
-            <header className="mb-6">
-              <h1 className="text-4xl font-bold mb-2">Investor Brief</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {mode === 'chat'
-                  ? 'Deep dive — supporting data on the right, conversation on the left.'
-                  : "Today's grounded read on your portfolio and markets."}
-              </p>
+            <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-1.5">
+                  Investor Brief
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {mode === 'chat'
+                    ? 'Deep dive — supporting data on the right, conversation on the left.'
+                    : "Today's grounded read on your portfolio and markets."}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Home className="h-3 w-3" />
+                  </span>
+                  <span className="font-medium text-foreground/80">Prepared by Homelens</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> {today}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-background/60 px-2 py-1">
+                    <Calendar className="h-3.5 w-3.5" /> {today} — {today}
+                  </span>
+                </div>
+              </div>
             </header>
             {subLoading ? (
               <Skeleton className="h-96 w-full" />
@@ -130,16 +160,37 @@ function InvestorBriefInner() {
                     No insights yet. Save a property or run an analysis to populate your brief.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {cards.map((card) => (
-                      <BriefCardRenderer
-                        key={card.id}
-                        card={card}
-                        userId={userId}
-                        onPinTalkingPoint={handlePinTalkingPoint}
-                        onInvestigate={handleInvestigate}
-                      />
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 brief-stagger">
+                    {cards.flatMap((card, idx) => {
+                      const nodes = [
+                        <BriefCardRenderer
+                          key={card.id}
+                          card={card}
+                          userId={userId}
+                          onPinTalkingPoint={handlePinTalkingPoint}
+                          onInvestigate={handleInvestigate}
+                        />,
+                      ];
+                      if (idx === 1 && cards.length > 2) {
+                        nodes.push(
+                          <div
+                            key="deep-dive-divider"
+                            className="md:col-span-2 flex justify-center py-2"
+                          >
+                            <Button
+                              variant="default"
+                              size="lg"
+                              className="gap-2 rounded-full px-6 shadow-md"
+                              onClick={() => enterChatModeFromQuery('Deep dive on my portfolio')}
+                            >
+                              <Search className="h-4 w-4" />
+                              Deep Dive
+                            </Button>
+                          </div>,
+                        );
+                      }
+                      return nodes;
+                    })}
                   </div>
                 )}
               </section>
