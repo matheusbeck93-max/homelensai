@@ -157,17 +157,22 @@ function InvestorBriefInner() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 brief-stagger">
-                    {cards.map((card, idx) => (
-                      <>
+                    {cards.flatMap((card, idx) => {
+                      const nodes = [
                         <BriefCardRenderer
                           key={card.id}
                           card={card}
                           userId={userId}
                           onPinTalkingPoint={handlePinTalkingPoint}
                           onInvestigate={handleInvestigate}
-                        />
-                        {idx === 1 && cards.length > 2 && (
-                          <div key="deep-dive-divider" className="md:col-span-2 flex justify-center py-2">
+                        />,
+                      ];
+                      if (idx === 1 && cards.length > 2) {
+                        nodes.push(
+                          <div
+                            key="deep-dive-divider"
+                            className="md:col-span-2 flex justify-center py-2"
+                          >
                             <Button
                               variant="default"
                               size="lg"
@@ -177,10 +182,11 @@ function InvestorBriefInner() {
                               <Search className="h-4 w-4" />
                               Deep Dive
                             </Button>
-                          </div>
-                        )}
-                      </>
-                    ))}
+                          </div>,
+                        );
+                      }
+                      return nodes;
+                    })}
                   </div>
                 )}
               </section>
