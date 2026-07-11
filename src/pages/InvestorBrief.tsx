@@ -27,9 +27,13 @@ function InvestorBriefInner() {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const { mode, activeCardContext, enterChatModeFromCard, exitChatMode } =
-    useInvestorBriefSurface();
-  const { enterChatModeFromQuery } = useInvestorBriefSurface();
+  const {
+    mode,
+    activeCardContext,
+    enterChatModeFromCard,
+    enterChatModeFromQuery,
+    exitChatMode,
+  } = useInvestorBriefSurface();
   const { loading: subLoading } = useSubscription();
 
   useEffect(() => {
