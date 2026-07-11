@@ -21,6 +21,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { PROPERTY_TYPE_LABELS, type OwnedPropertyType } from '@/lib/myProperties/types';
+import { ImagePlus, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -56,6 +57,23 @@ export function AddPropertyDialog({ open, onOpenChange, onCreated }: Props) {
   const [isRented, setIsRented] = useState(false);
   const [monthlyRent, setMonthlyRent] = useState<string>('');
 
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  const handleCoverChange = (file: File | null) => {
+    if (!file) {
+      setCoverFile(null);
+      setCoverPreview(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image too large', description: 'Max 5MB', variant: 'destructive' });
+      return;
+    }
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+  };
+
   const reset = () => {
     setAddressLine1(''); setCity(''); setState(''); setZip('');
     setPropertyType('single_family');
@@ -64,6 +82,7 @@ export function AddPropertyDialog({ open, onOpenChange, onCreated }: Props) {
     setHasMortgage(true); setLoanPrincipal(''); setLoanRate('');
     setLoanTerm('30'); setLoanStart(todayISO());
     setIsRented(false); setMonthlyRent('');
+    setCoverFile(null); setCoverPreview(null);
   };
 
   const canSave =
@@ -114,6 +133,22 @@ export function AddPropertyDialog({ open, onOpenChange, onCreated }: Props) {
         .single();
       if (error) throw error;
 
+      if (coverFile) {
+        const ext = coverFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `${user.id}/${created.id}/cover-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('owned-property-photos')
+          .upload(path, coverFile, { contentType: coverFile.type, upsert: true });
+        if (upErr) {
+          toast({ title: 'Cover image upload failed', description: upErr.message, variant: 'destructive' });
+        } else {
+          await (supabase as any)
+            .from('investor_owned_properties')
+            .update({ primary_photo_url: path })
+            .eq('id', created.id);
+        }
+      }
+
       if (isRented && monthlyRent) {
         await (supabase as any).from('investor_owned_property_rental').insert({
           property_id: created.id,
@@ -160,6 +195,33 @@ export function AddPropertyDialog({ open, onOpenChange, onCreated }: Props) {
         <div className="space-y-5 py-2">
           <section className="space-y-3">
             <h3 className="text-sm font-medium">Identity</h3>
+            <div>
+              <Label>Cover image (optional)</Label>
+              {coverPreview ? (
+                <div className="mt-1 relative w-full aspect-[16/10] rounded-md overflow-hidden border border-border">
+                  <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => handleCoverChange(null)}
+                    className="absolute top-2 right-2 h-7 w-7 inline-flex items-center justify-center rounded-md bg-background/90 border border-border shadow-sm"
+                    aria-label="Remove cover image"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="mt-1 flex items-center gap-2 justify-center cursor-pointer border border-dashed border-border rounded-md p-4 text-sm text-muted-foreground hover:bg-muted/40">
+                  <ImagePlus className="h-4 w-4" />
+                  <span>Click to upload (max 5MB)</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleCoverChange(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              )}
+            </div>
             <div>
               <Label htmlFor="addr">Street address</Label>
               <Input id="addr" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="1814 Cedar St" />

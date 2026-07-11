@@ -18,8 +18,7 @@ import type { ComposedCard } from '@/lib/investorBrief/types';
 import { LegacyUpgradeModal } from '@/components/upgrade/LegacyUpgradeModal';
 import { TierGate } from '@/components/subscription/TierGate';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Button } from '@/components/ui/button';
-import { Home, Clock, Calendar, Search } from 'lucide-react';
+import { Home, Clock, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
 function InvestorBriefInner() {
@@ -29,9 +28,7 @@ function InvestorBriefInner() {
   const [authReady, setAuthReady] = useState(false);
   const {
     mode,
-    activeCardContext,
     enterChatModeFromCard,
-    enterChatModeFromQuery,
     exitChatMode,
   } = useInvestorBriefSurface();
   const { loading: subLoading } = useSubscription();
@@ -97,7 +94,7 @@ function InvestorBriefInner() {
       <Navigation />
       <div className="flex flex-row flex-1">
         <ConsoleSidebar />
-        <main className="flex-1 min-w-0 brief-surface">
+        <main className="flex-1 min-w-0">
           <div className="container mx-auto px-4 py-6 lg:py-8 max-w-7xl">
             <header className="mb-8 flex items-start justify-between gap-4 flex-wrap">
               <div>
@@ -161,36 +158,15 @@ function InvestorBriefInner() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 brief-stagger">
-                    {cards.flatMap((card, idx) => {
-                      const nodes = [
-                        <BriefCardRenderer
-                          key={card.id}
-                          card={card}
-                          userId={userId}
-                          onPinTalkingPoint={handlePinTalkingPoint}
-                          onInvestigate={handleInvestigate}
-                        />,
-                      ];
-                      if (idx === 1 && cards.length > 2) {
-                        nodes.push(
-                          <div
-                            key="deep-dive-divider"
-                            className="md:col-span-2 flex justify-center py-2"
-                          >
-                            <Button
-                              variant="default"
-                              size="lg"
-                              className="gap-2 rounded-full px-6 shadow-md"
-                              onClick={() => enterChatModeFromQuery('Deep dive on my portfolio')}
-                            >
-                              <Search className="h-4 w-4" />
-                              Deep Dive
-                            </Button>
-                          </div>,
-                        );
-                      }
-                      return nodes;
-                    })}
+                    {cards.map((card) => (
+                      <BriefCardRenderer
+                        key={card.id}
+                        card={card}
+                        userId={userId}
+                        onPinTalkingPoint={handlePinTalkingPoint}
+                        onInvestigate={handleInvestigate}
+                      />
+                    ))}
                   </div>
                 )}
               </section>
