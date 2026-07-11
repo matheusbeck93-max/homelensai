@@ -22,6 +22,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { PROPERTY_TYPE_LABELS, type OwnedPropertyType } from '@/lib/myProperties/types';
 import { ImagePlus, X } from 'lucide-react';
+import { uploadCoverImage, isHeic } from '@/lib/myProperties/coverImage';
 
 interface Props {
   open: boolean;
@@ -134,20 +135,35 @@ export function AddPropertyDialog({ open, onOpenChange, onCreated }: Props) {
       if (error) throw error;
 
       if (coverFile) {
-        const ext = coverFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const path = `${user.id}/${created.id}/cover-${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('owned-property-photos')
-          .upload(path, coverFile, { contentType: coverFile.type, upsert: true });
-        if (upErr) {
-          toast({ title: 'Cover image upload failed', description: upErr.message, variant: 'destructive' });
-        } else {
-          await (supabase as any)
+        try {
+          const path = await uploadCoverImage({
+            file: coverFile,
+            userId: user.id,
+            propertyId: created.id,
+          });
+          const { error: updErr } = await (supabase as any)
             .from('investor_owned_properties')
             .update({ primary_photo_url: path })
             .eq('id', created.id);
+          if (updErr) throw updErr;
+          if (isHeic(coverFile)) {
+            toast({
+              title: 'Cover uploaded',
+              description:
+                "HEIC images don't render in most browsers — convert to JPG/PNG for a visible cover.",
+            });
+          }
+        } catch (upErr: any) {
+          // eslint-disable-next-line no-console
+          console.error('[AddPropertyDialog] cover upload failed', upErr);
+          toast({
+            title: 'Cover image upload failed',
+            description: upErr?.message ?? String(upErr),
+            variant: 'destructive',
+          });
         }
       }
+
 
       if (isRented && monthlyRent) {
         await (supabase as any).from('investor_owned_property_rental').insert({
