@@ -1,35 +1,61 @@
-## Brief card borders + property cover image reliability
+## Redesign the Investor Brief to match the reference
 
-### 1. Investor Brief cards — restore visible borders
-Root cause: `.brief-card` uses `border: 1px solid hsl(var(--brief-hairline))`, but `--brief-hairline` is only declared inside `.brief-surface`. When I removed the `brief-surface` class from the page background, the variable became undefined and the border resolves to invalid → no border renders.
+Keep every existing topic and data source. This is a visual/layout refresh only — no changes to `useInvestorBrief`, card data hooks, or `BriefCardRenderer` logic beyond adding a new visual chrome.
 
-File: `src/index.css`
-- Move `--brief-hairline` (and `--brief-card`) declarations up to `:root` and `.dark` so they exist globally.
-- Tune the light-mode hairline to a slightly stronger neutral (e.g. `220 13% 88%`) so cards read clearly against the standard app background.
+### 1. Page background & masthead — `src/pages/InvestorBrief.tsx`
+- Use the standard site background (`bg-background`), same as other pages. Remove any warm-paper tint. Dark mode inherits from the app tokens automatically.
+- Keep the "Prepared by Homelens" masthead + date range and the chat/BriefCard column intact.
+- Update the header copy to match the reference tone: title "Your Investor Brief", subtitle "A snapshot of your analysis activity and top opportunities this week."
 
-### 2. My Properties — cover image not appearing
-Likely causes (in priority order):
-1. Storage upload fails silently for some MIME types (HEIC, empty `type`), we log a toast and continue but nothing is stored, so `primary_photo_url` remains null.
-2. When `coverFile.type` is empty (some browsers on HEIC), passing `contentType: ""` to `.upload()` can be rejected by Storage.
-3. Existing rows where `primary_photo_url` was previously written as an absolute URL are still shown fine; new uploads pass a raw storage path, and the signed-URL resolution in `useOwnedProperties` should work — but if the upload failed the row keeps null.
+### 2. New KPI row at the top (4 cards, colored top accent)
+Add a `BriefKpiRow` component rendered above the existing 2-column grid. Four tiles matching the reference:
+- Analyses this month (from `useSavedAnalyses` count within current month) — blue accent, chart icon
+- Avg investment score (average of saved score, 0–100) — green accent, target icon
+- Markets compared (distinct cities from saved analyses) — purple accent, buildings icon
+- Top score found (max score + top address/price) — amber accent, bolt icon
 
-Fixes:
+Each tile: white card, 1px hairline border, thin 2px colored bar on top, uppercase eyebrow label, large number, one line of context, small trend/status line. Uses semantic tokens so dark mode works.
 
-**`src/components/investor/my-properties/AddPropertyDialog.tsx` + `EditPropertyDialog.tsx`**
-- Validate the file client-side: accept any `image/*`; if the browser reports no MIME, infer from extension (`.heic`, `.heif`, `.jpg`, `.png`, `.webp`, `.gif`, `.avif`).
-- Only pass `contentType` to `.upload()` when non-empty; otherwise omit so Storage infers.
-- Await upload, and if `upload()` returns an error, surface a destructive toast with the concrete error and **abort** the flow instead of silently continuing. Log the error to the console for debugging.
-- After a successful upload, await the `primary_photo_url` update and log any error the same way.
-- For HEIC/HEIF specifically, warn the user in the toast: "Uploaded, but HEIC images don't render in most browsers — convert to JPG/PNG for a visible cover." (Still stored so no data loss.)
+If any metric can't be computed (no saved analyses yet), the tile shows a muted "—" and a "Save your first analysis" hint. No new backend calls.
 
-**`src/hooks/useOwnedProperties.ts` + `src/hooks/useOwnedProperty.ts`**
-- Keep the signed-URL resolution logic, but log a console warning when `createSignedUrl` returns no URL (helps diagnose RLS/path mismatches).
-- Treat any `primary_photo_url` that starts with the user's id or contains a `/` (and isn't `http`) as a storage path — current heuristic (`!/^https?:\/\//i.test(...)`) is already correct; leave it.
+### 3. Restyle existing brief cards with the same chrome
+Update `InsightCard` (`src/components/investor/brief/InsightCard.tsx`):
+- Replace the current `brief-card` class with a shared `.dash-card` style: white/`bg-card` surface, `border border-border`, `rounded-xl`, subtle shadow, hover lift.
+- Add an optional 2px top accent bar whose color is derived from card category:
+  - trends / portfolio_glance → blue
+  - ranked_list / flip_spread_movers / migration_trends → purple
+  - anomaly / portfolio_alerts / missing_data → amber
+  - neighborhood_scores / budget_affordability / setup / sample → green
+- Keep header, body slot, and existing footer (Deep Dive + View Sources + overflow menu) — no logic changes.
 
-**`src/components/investor/my-properties/OwnedPropertyCard.tsx`**
-- Add `onError` handler on the `<img>` that falls back to the placeholder icon when the signed URL fails to load (covers HEIC / expired URL edge cases so the UI doesn't show a broken image).
+### 4. Left column — keep the Chat/Brief card, restyle only
+- `BriefCard` stays as the left rail (intro, insights list, follow-ups, refresh). Wrap it in the same `.dash-card` chrome so it visually matches the reference's right-side rail.
+
+### 5. CSS cleanup — `src/index.css`
+- Remove the `.brief-surface` scoped block (no longer used).
+- Remove `.brief-card` custom rules; replace with a single `.dash-card` utility inside `@layer components` using only global tokens (`--card`, `--border`, `--foreground`, `--muted-foreground`). No `--brief-*` variables needed.
+- Keep `.brief-stagger` and `brief-fade` keyframes for the load-in micro-animation.
+
+### 6. Grid layout
+```text
+┌──────────────────────────────────────────────────────────┐
+│  KPI 1   │   KPI 2   │   KPI 3   │   KPI 4              │  ← new row
+├────────────────────────────┬─────────────────────────────┤
+│                            │                             │
+│   Insight cards grid       │   Chat / BriefCard rail     │
+│   (2 cols on lg)           │   (sticky top on lg)        │
+│                            │                             │
+└────────────────────────────┴─────────────────────────────┘
+```
+Reference puts the list on the left and quick-actions rail on the right; we mirror that. On mobile everything stacks.
+
+### Technical notes
+- New files: `src/components/investor/brief/BriefKpiRow.tsx`, `src/components/investor/brief/BriefKpiTile.tsx`.
+- Edited: `InvestorBrief.tsx`, `InsightCard.tsx`, `index.css`.
+- No changes to data hooks, edge functions, DB schema, or `BriefCardRenderer` switch.
+- All colors via semantic tokens; accent bars use `bg-primary`, `bg-emerald-500`, `bg-violet-500`, `bg-amber-500` (Tailwind palette utilities, allowed for functional accent stripes not tied to theming).
 
 ### Out of scope
-- No changes to storage bucket policies or migrations.
-- No server-side HEIC → JPG conversion (would need an edge function; not requested).
-- No changes to the OwnedPropertyDetail photo gallery.
+- No changes to the actual card data, scoring, or content of the topics.
+- No changes to Deep Dive behavior, tool footer, or dropdown menu.
+- No My Properties changes.
