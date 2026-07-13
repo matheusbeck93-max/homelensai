@@ -1,51 +1,62 @@
-# Fix Chrome extension: persistent per-tab chat + user messages retained
+# HomeLens Chrome Extension Promo — 9:16 Motion Graphic
 
-## Problem 1 — Chat resets when switching tabs or minimizing
+Create a new vertical (1080x1920) Remotion video that animates the three uploaded slide images into a polished ~18–21 second motion graphic. Output to `/mnt/documents/HomeLens-ChromeExt-Slides-Vertical.mp4`.
 
-The popup closes automatically whenever the user switches tabs, clicks outside, or minimizes the window (standard Chrome behavior — not fixable). Reopen must restore the exact conversation for that tab.
+## Approach
 
-Today, per-tab state (`tabConvos`, `pendingByTab`) lives only in the service worker's in-memory `Map`s in `chrome-extension/background.ts`. MV3 service workers are evicted after ~30 seconds idle, so the maps are wiped and the popup starts fresh on the next open.
+Rather than re-drawing the slide contents from scratch (which would drift from the polished designs the user already approved), use each slide image as the "hero canvas" per scene and layer motion **on top of** it — reveals, parallax, subtle Ken Burns, floating accent shapes, and animated in/out transitions between slides. The result feels designed, not like a static slideshow.
 
-**Fix:** persist both maps to `chrome.storage.session` (per-browser-session storage that survives service-worker restarts and is cleared automatically when the browser closes). Keyed by tab id, so multiple tabs each keep their own conversation in parallel.
+## Structure (30fps, ~600 frames ≈ 20s)
 
-## Problem 2 — User's messages disappear after sending
+**Scene 1 — Slide 1 "Every Home Listing. Instantly Smarter." (0–180f, 6s)**
+- Slide image enters with a soft scale-in + fade (spring, damping 18)
+- Subtle Ken Burns: slow scale 1.00 → 1.04 over the scene
+- Blue accent orb drifts behind the phone mockup area (parallax)
+- Bottom "Install Free Chrome Extension" CTA area gets a gentle pulse glow near end
 
-In `chrome-extension/popup.tsx`, `sendMessage` calls `setMessages([...messages, userMsg])` and then immediately calls `callAiChat(...)`, which calls `dispatchToBackground('ai-chat', body, messages)` — but `messages` here is the **stale** closure value (React hasn't flushed the update yet), so the snapshot sent to the background does NOT include the just-typed user message.
+**Transition — wipe/slide left (20f overlap)**
 
-Background stores that stale snapshot into `convo.messages`, later appends the assistant reply, and broadcasts `AI_REQUEST_COMPLETE`. The popup then calls `syncFromTabConvo`, which does `setMessages(state.messages)` — overwriting local state with `[…old, assistant]`. The user message is lost from the UI (and from the persisted convo).
+**Scene 2 — Slide 2 "Personalized insights, not generic data." (180–380f, ~6.7s)**
+- Slide image enters
+- Staggered highlight rings sweep across the four side cards (Budget → Preferred Areas → Preferences → Goals) — one every 15f
+- Center phone gets a very subtle floating Y motion (sin wave, ±6px)
 
-**Fix:** thread the fresh post-append snapshot through `sendMessage` → `callAiChat` → `dispatchToBackground` so the background caches the correct history including the user turn.
+**Transition — fade through white flash (15f)**
 
-## Changes
+**Scene 3 — Slide 3 "Don't just read listings. Understand them." (380–600f, ~7.3s)**
+- Slide image enters
+- Left feature list gets a staggered left-fade-in overlay highlight per row (Affordability → Market Insights → Payment Estimates → Investment Potential → Personalized Recommendation), 12f stagger
+- Bottom dark CTA panel gets a soft glow pulse in the final 30f
+- Final 20f: gentle zoom-out to breathe
 
-### `chrome-extension/background.ts`
-1. Replace the in-memory `Map`s with a thin wrapper backed by `chrome.storage.session`:
-   - Key format: `convo:<tabId>` → `TabConvoState`, `pending:<tabId>` → `PendingRequest`.
-   - Small in-memory read-through cache (rebuilt on cold start by lazily reading `chrome.storage.session` when a `GET_TAB_CONVO` / `GET_PENDING_REQUEST` arrives).
-   - Every mutation writes through to `chrome.storage.session.set` / `.remove`.
-2. On SW startup, warm the cache with `chrome.storage.session.get(null)`.
-3. Keep the existing `tabs.onRemoved` handler — extend it to also delete both storage keys for that tab (so closing the tab still ends the conversation, per user requirement).
-4. Keep `tabs.onUpdated` URL-drift cleanup, but also mirror the delete into storage.
-5. Do NOT clear anything on `tabs.onActivated`, popup close, or SW eviction — those are exactly the events we want to survive.
+## Files to add
 
-### `chrome-extension/popup.tsx`
-1. In `sendMessage`, compute `updatedMessages` (already done) and pass it forward:
-   - Change `callAiChat` signature to accept `snapshotIncludingUser: Message[]` and forward to `dispatchToBackground`.
-   - Update all `callAiChat` callers (`sendMessage`, `handleAnalyzeNow`) to pass the correct snapshot that already includes the appended user message.
-2. In `dispatchToBackground`, keep the `messagesSnapshot` handoff — it will now contain the user turn, so background's `convo.messages = snapshot` writes the right thing and the later `syncFromTabConvo` restores the user message correctly.
-3. No other UI/logic changes.
+- `remotion/public/images/slide-1.png`, `slide-2.png`, `slide-3.png` — copy uploaded images into Remotion public folder
+- `remotion/src/SlidesVerticalRoot.tsx` — registers composition `slides-vertical` (1080x1920, 30fps, 600 frames)
+- `remotion/src/SlidesVerticalVideo.tsx` — orchestrates 3 scenes via `<Sequence>`s, shared `VerticalBackground`
+- `remotion/src/scenes-slides/SSlide1.tsx`
+- `remotion/src/scenes-slides/SSlide2.tsx`
+- `remotion/src/scenes-slides/SSlide3.tsx`
+- `remotion/src/slides-index.ts` — `registerRoot(SlidesVerticalRoot)`
+- `remotion/scripts/render-slides-vertical.mjs` — clone of existing render scripts, entry = `slides-index.ts`, output = `/mnt/documents/HomeLens-ChromeExt-Slides-Vertical.mp4`
+
+## Motion system (consistent across scenes)
+
+- Entrance: spring `{ damping: 18, stiffness: 90 }` for hero image; fade+translateY(30→0) for overlays
+- Ken Burns: `interpolate(frame, [0, duration], [1.0, 1.04])`
+- Highlight ring: absolute-positioned rounded div with `boxShadow: 0 0 0 3px rgba(107,141,181,0.6)` fading in/out over 25f
+- Background: reuse existing `VerticalBackground` (subtle blue gradient + drifting orbs), but with a light-mode variant since the slides are on white — background stays as a soft off-white gradient outside the slide bounds (slides are 9:16 already so they fill the frame; background only shows during transitions)
+
+## Render
+
+```
+cd remotion && node scripts/render-slides-vertical.mjs
+```
+
+Deliverable: `/mnt/documents/HomeLens-ChromeExt-Slides-Vertical.mp4`
 
 ## Out of scope
 
-- No changes to auth/session refresh, save-chat flow, listing detection, or any UI styling.
-- No new permissions (`storage` is already declared in `manifest.json`; `chrome.storage.session` is part of the existing `storage` permission).
-- No changes to the main web app.
-
-## Verification
-
-1. Open extension on tab A, chat a few turns → switch to tab B → return to tab A → open popup: full conversation still there, including user messages.
-2. Open extension on tabs A and B with different sites: each has its own independent conversation.
-3. Minimize the browser for >1 minute (SW gets evicted), restore, reopen popup: conversation still there.
-4. Close the specific tab: conversation for that tab is gone (as required).
-5. Close the entire browser and reopen: all extension conversations are cleared (session storage semantics).
-6. Send a message: user bubble stays visible while the assistant is thinking and after the reply arrives.
+- No audio/voiceover
+- No changes to existing videos, scenes, or web app
+- No redesign of the slide artwork itself — the uploaded images are the source of truth
