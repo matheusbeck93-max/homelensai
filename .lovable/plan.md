@@ -1,61 +1,51 @@
-## Redesign the Investor Brief to match the reference
+# Fix Chrome extension: persistent per-tab chat + user messages retained
 
-Keep every existing topic and data source. This is a visual/layout refresh only — no changes to `useInvestorBrief`, card data hooks, or `BriefCardRenderer` logic beyond adding a new visual chrome.
+## Problem 1 — Chat resets when switching tabs or minimizing
 
-### 1. Page background & masthead — `src/pages/InvestorBrief.tsx`
-- Use the standard site background (`bg-background`), same as other pages. Remove any warm-paper tint. Dark mode inherits from the app tokens automatically.
-- Keep the "Prepared by Homelens" masthead + date range and the chat/BriefCard column intact.
-- Update the header copy to match the reference tone: title "Your Investor Brief", subtitle "A snapshot of your analysis activity and top opportunities this week."
+The popup closes automatically whenever the user switches tabs, clicks outside, or minimizes the window (standard Chrome behavior — not fixable). Reopen must restore the exact conversation for that tab.
 
-### 2. New KPI row at the top (4 cards, colored top accent)
-Add a `BriefKpiRow` component rendered above the existing 2-column grid. Four tiles matching the reference:
-- Analyses this month (from `useSavedAnalyses` count within current month) — blue accent, chart icon
-- Avg investment score (average of saved score, 0–100) — green accent, target icon
-- Markets compared (distinct cities from saved analyses) — purple accent, buildings icon
-- Top score found (max score + top address/price) — amber accent, bolt icon
+Today, per-tab state (`tabConvos`, `pendingByTab`) lives only in the service worker's in-memory `Map`s in `chrome-extension/background.ts`. MV3 service workers are evicted after ~30 seconds idle, so the maps are wiped and the popup starts fresh on the next open.
 
-Each tile: white card, 1px hairline border, thin 2px colored bar on top, uppercase eyebrow label, large number, one line of context, small trend/status line. Uses semantic tokens so dark mode works.
+**Fix:** persist both maps to `chrome.storage.session` (per-browser-session storage that survives service-worker restarts and is cleared automatically when the browser closes). Keyed by tab id, so multiple tabs each keep their own conversation in parallel.
 
-If any metric can't be computed (no saved analyses yet), the tile shows a muted "—" and a "Save your first analysis" hint. No new backend calls.
+## Problem 2 — User's messages disappear after sending
 
-### 3. Restyle existing brief cards with the same chrome
-Update `InsightCard` (`src/components/investor/brief/InsightCard.tsx`):
-- Replace the current `brief-card` class with a shared `.dash-card` style: white/`bg-card` surface, `border border-border`, `rounded-xl`, subtle shadow, hover lift.
-- Add an optional 2px top accent bar whose color is derived from card category:
-  - trends / portfolio_glance → blue
-  - ranked_list / flip_spread_movers / migration_trends → purple
-  - anomaly / portfolio_alerts / missing_data → amber
-  - neighborhood_scores / budget_affordability / setup / sample → green
-- Keep header, body slot, and existing footer (Deep Dive + View Sources + overflow menu) — no logic changes.
+In `chrome-extension/popup.tsx`, `sendMessage` calls `setMessages([...messages, userMsg])` and then immediately calls `callAiChat(...)`, which calls `dispatchToBackground('ai-chat', body, messages)` — but `messages` here is the **stale** closure value (React hasn't flushed the update yet), so the snapshot sent to the background does NOT include the just-typed user message.
 
-### 4. Left column — keep the Chat/Brief card, restyle only
-- `BriefCard` stays as the left rail (intro, insights list, follow-ups, refresh). Wrap it in the same `.dash-card` chrome so it visually matches the reference's right-side rail.
+Background stores that stale snapshot into `convo.messages`, later appends the assistant reply, and broadcasts `AI_REQUEST_COMPLETE`. The popup then calls `syncFromTabConvo`, which does `setMessages(state.messages)` — overwriting local state with `[…old, assistant]`. The user message is lost from the UI (and from the persisted convo).
 
-### 5. CSS cleanup — `src/index.css`
-- Remove the `.brief-surface` scoped block (no longer used).
-- Remove `.brief-card` custom rules; replace with a single `.dash-card` utility inside `@layer components` using only global tokens (`--card`, `--border`, `--foreground`, `--muted-foreground`). No `--brief-*` variables needed.
-- Keep `.brief-stagger` and `brief-fade` keyframes for the load-in micro-animation.
+**Fix:** thread the fresh post-append snapshot through `sendMessage` → `callAiChat` → `dispatchToBackground` so the background caches the correct history including the user turn.
 
-### 6. Grid layout
-```text
-┌──────────────────────────────────────────────────────────┐
-│  KPI 1   │   KPI 2   │   KPI 3   │   KPI 4              │  ← new row
-├────────────────────────────┬─────────────────────────────┤
-│                            │                             │
-│   Insight cards grid       │   Chat / BriefCard rail     │
-│   (2 cols on lg)           │   (sticky top on lg)        │
-│                            │                             │
-└────────────────────────────┴─────────────────────────────┘
-```
-Reference puts the list on the left and quick-actions rail on the right; we mirror that. On mobile everything stacks.
+## Changes
 
-### Technical notes
-- New files: `src/components/investor/brief/BriefKpiRow.tsx`, `src/components/investor/brief/BriefKpiTile.tsx`.
-- Edited: `InvestorBrief.tsx`, `InsightCard.tsx`, `index.css`.
-- No changes to data hooks, edge functions, DB schema, or `BriefCardRenderer` switch.
-- All colors via semantic tokens; accent bars use `bg-primary`, `bg-emerald-500`, `bg-violet-500`, `bg-amber-500` (Tailwind palette utilities, allowed for functional accent stripes not tied to theming).
+### `chrome-extension/background.ts`
+1. Replace the in-memory `Map`s with a thin wrapper backed by `chrome.storage.session`:
+   - Key format: `convo:<tabId>` → `TabConvoState`, `pending:<tabId>` → `PendingRequest`.
+   - Small in-memory read-through cache (rebuilt on cold start by lazily reading `chrome.storage.session` when a `GET_TAB_CONVO` / `GET_PENDING_REQUEST` arrives).
+   - Every mutation writes through to `chrome.storage.session.set` / `.remove`.
+2. On SW startup, warm the cache with `chrome.storage.session.get(null)`.
+3. Keep the existing `tabs.onRemoved` handler — extend it to also delete both storage keys for that tab (so closing the tab still ends the conversation, per user requirement).
+4. Keep `tabs.onUpdated` URL-drift cleanup, but also mirror the delete into storage.
+5. Do NOT clear anything on `tabs.onActivated`, popup close, or SW eviction — those are exactly the events we want to survive.
 
-### Out of scope
-- No changes to the actual card data, scoring, or content of the topics.
-- No changes to Deep Dive behavior, tool footer, or dropdown menu.
-- No My Properties changes.
+### `chrome-extension/popup.tsx`
+1. In `sendMessage`, compute `updatedMessages` (already done) and pass it forward:
+   - Change `callAiChat` signature to accept `snapshotIncludingUser: Message[]` and forward to `dispatchToBackground`.
+   - Update all `callAiChat` callers (`sendMessage`, `handleAnalyzeNow`) to pass the correct snapshot that already includes the appended user message.
+2. In `dispatchToBackground`, keep the `messagesSnapshot` handoff — it will now contain the user turn, so background's `convo.messages = snapshot` writes the right thing and the later `syncFromTabConvo` restores the user message correctly.
+3. No other UI/logic changes.
+
+## Out of scope
+
+- No changes to auth/session refresh, save-chat flow, listing detection, or any UI styling.
+- No new permissions (`storage` is already declared in `manifest.json`; `chrome.storage.session` is part of the existing `storage` permission).
+- No changes to the main web app.
+
+## Verification
+
+1. Open extension on tab A, chat a few turns → switch to tab B → return to tab A → open popup: full conversation still there, including user messages.
+2. Open extension on tabs A and B with different sites: each has its own independent conversation.
+3. Minimize the browser for >1 minute (SW gets evicted), restore, reopen popup: conversation still there.
+4. Close the specific tab: conversation for that tab is gone (as required).
+5. Close the entire browser and reopen: all extension conversations are cleared (session storage semantics).
+6. Send a message: user bubble stays visible while the assistant is thinking and after the reply arrives.
