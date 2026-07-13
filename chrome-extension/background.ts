@@ -30,6 +30,63 @@ interface TabConvoState {
 const tabConvos = new Map<number, TabConvoState>();
 
 // ─────────────────────────────────────────────────────────────
+// Persistence layer — chrome.storage.session
+//
+// Survives service-worker eviction (which happens ~30s after
+// the popup closes on MV3) but is automatically cleared when
+// the browser itself closes. That matches the user requirement:
+// a conversation only ends when the specific tab is closed or
+// the browser is closed — not when the user switches tabs or
+// minimizes the window.
+// ─────────────────────────────────────────────────────────────
+const CONVO_PREFIX = 'convo:';
+const PENDING_PREFIX = 'pending:';
+const convoKey = (tabId: number) => `${CONVO_PREFIX}${tabId}`;
+const pendingKey = (tabId: number) => `${PENDING_PREFIX}${tabId}`;
+
+let warmed = false;
+let warmingPromise: Promise<void> | null = null;
+
+async function warmCaches(): Promise<void> {
+  if (warmed) return;
+  if (warmingPromise) return warmingPromise;
+  warmingPromise = (async () => {
+    try {
+      const all = await chrome.storage.session.get(null);
+      for (const [k, v] of Object.entries(all)) {
+        if (k.startsWith(CONVO_PREFIX) && v && typeof v === 'object') {
+          const tabId = Number(k.slice(CONVO_PREFIX.length));
+          if (Number.isFinite(tabId)) tabConvos.set(tabId, v as TabConvoState);
+        } else if (k.startsWith(PENDING_PREFIX) && v && typeof v === 'object') {
+          const tabId = Number(k.slice(PENDING_PREFIX.length));
+          if (Number.isFinite(tabId)) pendingByTab.set(tabId, v as PendingRequest);
+        }
+      }
+    } catch (err) {
+      console.warn('[HomeLens] warmCaches failed', err);
+    }
+    warmed = true;
+  })();
+  return warmingPromise;
+}
+
+function persistConvo(tabId: number, state: TabConvoState) {
+  chrome.storage.session.set({ [convoKey(tabId)]: state }).catch(() => {});
+}
+function removeConvo(tabId: number) {
+  chrome.storage.session.remove(convoKey(tabId)).catch(() => {});
+}
+function persistPending(tabId: number, pending: PendingRequest) {
+  chrome.storage.session.set({ [pendingKey(tabId)]: pending }).catch(() => {});
+}
+function removePending(tabId: number) {
+  chrome.storage.session.remove(pendingKey(tabId)).catch(() => {});
+}
+
+// Kick off warm-up ASAP so early messages can await it.
+warmCaches();
+
+// ─────────────────────────────────────────────────────────────
 // Per-tab in-flight AI request store. Lets the AI fetch survive
 // popup close: the popup hands off the request to the service
 // worker, which appends the assistant message to `tabConvos`
@@ -60,6 +117,7 @@ function getOrCreateConvo(tabId: number, url: string): TabConvoState {
     updatedAt: Date.now(),
   };
   tabConvos.set(tabId, fresh);
+  persistConvo(tabId, fresh);
   return fresh;
 }
 
@@ -182,9 +240,11 @@ async function runAiRequest(
     convo.messages = [...convo.messages, assistantMsg];
     if (matchScore !== null) convo.matchScore = matchScore;
     convo.updatedAt = Date.now();
+    persistConvo(pending.tabId, convo);
   }
 
   pending.status = 'done';
+  persistPending(pending.tabId, pending);
 
   // Notify any open popup. Catch errors — popup may not be open.
   chrome.runtime
@@ -204,6 +264,27 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // Ensure the in-memory maps are hydrated from chrome.storage.session
+  // before we answer state queries after a service-worker cold start.
+  const needsHydration =
+    message?.type === 'GET_TAB_CONVO' ||
+    message?.type === 'GET_PENDING_REQUEST' ||
+    message?.type === 'SET_TAB_CONVO' ||
+    message?.type === 'CLEAR_TAB_CONVO' ||
+    message?.type === 'START_AI_REQUEST' ||
+    message?.type === 'CLEAR_PENDING_REQUEST';
+
+  if (needsHydration && !warmed) {
+    warmCaches().then(() => handleMessage(message, sendResponse));
+    return true;
+  }
+  return handleMessage(message, sendResponse);
+});
+
+function handleMessage(
+  message: any,
+  sendResponse: (response?: any) => void,
+): boolean {
   if (message.type === 'LISTING_DETECTED') {
     // Save detected URL and show badge
     chrome.storage.local.set({ homelens_pending_url: message.url });
@@ -241,7 +322,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const tabId = Number(message.tabId);
     const state = message.state as TabConvoState;
     if (tabId && state && typeof state.url === 'string') {
-      tabConvos.set(tabId, { ...state, updatedAt: Date.now() });
+      const next = { ...state, updatedAt: Date.now() };
+      tabConvos.set(tabId, next);
+      persistConvo(tabId, next);
     }
     sendResponse({ ok: true });
     return true;
@@ -252,6 +335,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (tabId) {
       tabConvos.delete(tabId);
       pendingByTab.delete(tabId);
+      removeConvo(tabId);
+      removePending(tabId);
     }
     sendResponse({ ok: true });
     return true;
@@ -282,6 +367,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (snapshot) {
       convo.messages = snapshot;
       convo.updatedAt = Date.now();
+      persistConvo(tabId, convo);
     }
 
     const requestId =
@@ -296,6 +382,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       status: 'pending',
     };
     pendingByTab.set(tabId, pending);
+    persistPending(tabId, pending);
 
     // Fire-and-forget. Service worker stays alive as long as
     // the fetch is in flight.
@@ -318,13 +405,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const current = pendingByTab.get(tabId);
     if (current && (!requestId || current.id === requestId)) {
       pendingByTab.delete(tabId);
+      removePending(tabId);
     }
     sendResponse({ ok: true });
     return true;
   }
 
   return true; // keep message channel open for async
-});
+}
 
 // Clear conversation when the user navigates to a different URL on the
 // active tab. We only react when the `url` field changes, not on every
@@ -334,10 +422,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     const cached = tabConvos.get(tabId);
     if (cached && cached.url !== changeInfo.url) {
       tabConvos.delete(tabId);
+      removeConvo(tabId);
     }
     const pending = pendingByTab.get(tabId);
     if (pending && pending.url !== changeInfo.url) {
       pendingByTab.delete(tabId);
+      removePending(tabId);
     }
   }
 });
@@ -345,6 +435,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabConvos.delete(tabId);
   pendingByTab.delete(tabId);
+  removeConvo(tabId);
+  removePending(tabId);
 });
 
 // Clear badge when switching tabs

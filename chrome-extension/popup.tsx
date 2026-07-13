@@ -1202,6 +1202,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
   const callAiChat = async (
     apiMessages: { role: string; content: string }[],
     selectedProperty?: PropertyContext | null,
+    snapshotIncludingUser?: Message[],
   ) => {
     const requestBody: Record<string, unknown> = {
       messages: apiMessages,
@@ -1212,9 +1213,12 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     if (userProfile && userProfile.onboarding_completed) {
       requestBody.userProfile = userProfile;
     }
-    // `messages` here is the current state snapshot — it already
-    // contains the user message just appended by the caller.
-    await dispatchToBackground('ai-chat', requestBody, messages);
+    // Prefer the explicit snapshot from the caller — React state
+    // updates aren't flushed yet inside the same event tick, so
+    // the `messages` closure would be stale (missing the user's
+    // just-sent turn), which caused the user bubble to be wiped
+    // when the background sync replayed convo.messages back.
+    await dispatchToBackground('ai-chat', requestBody, snapshotIncludingUser ?? messages);
   };
 
   const sendMessage = async (text: string) => {
@@ -1233,13 +1237,13 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
       if (structuredProperty) {
         setActiveProperty(structuredProperty);
         const apiMessages = buildAnalysisMessages(detectedUrl, messages);
-        await callAiChat(apiMessages, structuredProperty);
+        await callAiChat(apiMessages, structuredProperty, updatedMessages);
         return;
       }
 
       setActiveProperty(null);
       const apiMessages = buildAnalysisMessages(detectedUrl, messages);
-      await callAiChat(apiMessages);
+      await callAiChat(apiMessages, null, updatedMessages);
       return;
     }
 
@@ -1266,7 +1270,7 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     // All extension queries route to ai-chat (Sonnet). Property context is
     // attached when available; Sonnet handles general Q&A directly.
     const apiMessages = buildChatMessages(messages, text);
-    await callAiChat(apiMessages, propertyForChat ?? null);
+    await callAiChat(apiMessages, propertyForChat ?? null, updatedMessages);
   };
 
   const handleAnalyzeNow = () => {
@@ -1276,21 +1280,22 @@ function ChatScreen({ session, onLogout }: { session: Session; onLogout: () => v
     setBannerDismissed(true);
 
     const userMsg: Message = { role: 'user', content: `Analyze this property: ${pendingUrl}` };
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
 
     if (pendingProperty) {
       setActiveProperty(pendingProperty);
       const apiMessages = buildAnalysisMessages(pendingUrl, []);
       setPendingUrl(null);
       setPendingProperty(null);
-      callAiChat(apiMessages, pendingProperty);
+      callAiChat(apiMessages, pendingProperty, updatedMessages);
       return;
     }
 
     const apiMessages = buildAnalysisMessages(pendingUrl, []);
     setPendingUrl(null);
     setPendingProperty(null);
-    callAiChat(apiMessages);
+    callAiChat(apiMessages, null, updatedMessages);
   };
 
   const handleDismissBanner = () => {
