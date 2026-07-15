@@ -1,0 +1,1 @@
+UPDATE public.blog_posts SET cover_image_url='neighborhood-guide-2026.jpg' WHERE slug='how-to-evaluate-neighborhood-before-buying';
