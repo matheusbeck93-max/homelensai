@@ -1,62 +1,43 @@
-# HomeLens Chrome Extension Promo — 9:16 Motion Graphic
+# Publish Article 04 — Neighborhood Evaluation Guide
 
-Create a new vertical (1080x1920) Remotion video that animates the three uploaded slide images into a polished ~18–21 second motion graphic. Output to `/mnt/documents/HomeLens-ChromeExt-Slides-Vertical.mp4`.
+Add the supplied article as a published post in the existing blog system (`blog_posts` table, rendered by `/blog` and `/blog/:slug`).
 
-## Approach
+## What gets created
 
-Rather than re-drawing the slide contents from scratch (which would drift from the polished designs the user already approved), use each slide image as the "hero canvas" per scene and layer motion **on top of** it — reveals, parallax, subtle Ken Burns, floating accent shapes, and animated in/out transitions between slides. The result feels designed, not like a static slideshow.
+A single database migration that inserts one row into `public.blog_posts` with:
 
-## Structure (30fps, ~600 frames ≈ 20s)
+- **slug**: `how-to-evaluate-neighborhood-before-buying`
+- **title**: How to Evaluate a Neighborhood Before You Buy (2026 Guide)
+- **seo_title**: How to Evaluate a Neighborhood Before You Buy (2026 Guide)
+- **seo_description**: School ratings, crime data, walkability, commute times, future development — a complete framework for researching any neighborhood before you make an offer.
+- **excerpt**: short intro line pulled from the opening
+- **category**: `Neighborhoods`  (matches existing category list used in `blog-draft-generate`)
+- **tags**: `["neighborhood-research","schools","walkability","home-buying","hoa"]`
+- **status**: `published`
+- **published_at**: now
+- **reading_time_minutes**: computed (~15)
+- **cover_image_url**: `null` (no image supplied — post renders without hero; can be added later via admin)
+- **body_html**: full article converted from the supplied Markdown-like content to semantic HTML:
+  - `<h2>` for each top-level section (Quick Answer, Why Neighborhood Research…, School Quality, Safety and Crime Data, Walkability…, Amenities…, Future Development, HOA, Visit the Neighborhood…, Buyer Tips, HomeLens Insight, Practical Checklist, FAQ, Continue Reading)
+  - `<h3>` for sub-sections (e.g. "The Price Premium Is Real and Substantial", "Useful Crime Data Sources")
+  - `<p>`, `<ul>/<li>`, `<strong>`, `<em>`, `<a href>` per existing prose styling
+  - Inline `<cite>` markers stripped (kept as plain sentences — the site doesn't render `<cite index="...">`)
+  - Checklist rendered as `<ul>` with checkbox-style prefix
+  - "Table of Contents" omitted — the article page already generates a TOC sidebar from H2/H3 headings automatically
+  - CTA "Create a free Buyer Account →" rendered as `<a href="/auth">` link
+  - "Continue Reading" section rendered as a `<ul>` of internal links (Articles 01/02/03 as plain text since those slugs aren't confirmed live — will link where slugs exist, otherwise plain list items)
 
-**Scene 1 — Slide 1 "Every Home Listing. Instantly Smarter." (0–180f, 6s)**
-- Slide image enters with a soft scale-in + fade (spring, damping 18)
-- Subtle Ken Burns: slow scale 1.00 → 1.04 over the scene
-- Blue accent orb drifts behind the phone mockup area (parallax)
-- Bottom "Install Free Chrome Extension" CTA area gets a gentle pulse glow near end
+## Files touched
 
-**Transition — wipe/slide left (20f overlap)**
+- **New**: `supabase/migrations/<timestamp>_blog_post_neighborhood_guide.sql` — single `INSERT INTO public.blog_posts (...) VALUES (...) ON CONFLICT (slug) DO NOTHING;`
 
-**Scene 2 — Slide 2 "Personalized insights, not generic data." (180–380f, ~6.7s)**
-- Slide image enters
-- Staggered highlight rings sweep across the four side cards (Budget → Preferred Areas → Preferences → Goals) — one every 15f
-- Center phone gets a very subtle floating Y motion (sin wave, ±6px)
+## Not included (out of scope unless asked)
 
-**Transition — fade through white flash (15f)**
+- No hero/inline image generation (image prompts supplied but no images attached). Post will publish without a cover.
+- No JSON-LD `HowTo` / `FAQPage` schema — current `BlogPost.tsx` emits `BlogPosting` only. Adding new schema types would be a code change beyond this article.
+- No sitemap regeneration script run; sitemap already includes `/blog/:slug` pattern if configured, otherwise a follow-up.
+- No updates to Articles 01/02/03 "Continue Reading" sections — those slugs weren't provided.
 
-**Scene 3 — Slide 3 "Don't just read listings. Understand them." (380–600f, ~7.3s)**
-- Slide image enters
-- Left feature list gets a staggered left-fade-in overlay highlight per row (Affordability → Market Insights → Payment Estimates → Investment Potential → Personalized Recommendation), 12f stagger
-- Bottom dark CTA panel gets a soft glow pulse in the final 30f
-- Final 20f: gentle zoom-out to breathe
+## After publish
 
-## Files to add
-
-- `remotion/public/images/slide-1.png`, `slide-2.png`, `slide-3.png` — copy uploaded images into Remotion public folder
-- `remotion/src/SlidesVerticalRoot.tsx` — registers composition `slides-vertical` (1080x1920, 30fps, 600 frames)
-- `remotion/src/SlidesVerticalVideo.tsx` — orchestrates 3 scenes via `<Sequence>`s, shared `VerticalBackground`
-- `remotion/src/scenes-slides/SSlide1.tsx`
-- `remotion/src/scenes-slides/SSlide2.tsx`
-- `remotion/src/scenes-slides/SSlide3.tsx`
-- `remotion/src/slides-index.ts` — `registerRoot(SlidesVerticalRoot)`
-- `remotion/scripts/render-slides-vertical.mjs` — clone of existing render scripts, entry = `slides-index.ts`, output = `/mnt/documents/HomeLens-ChromeExt-Slides-Vertical.mp4`
-
-## Motion system (consistent across scenes)
-
-- Entrance: spring `{ damping: 18, stiffness: 90 }` for hero image; fade+translateY(30→0) for overlays
-- Ken Burns: `interpolate(frame, [0, duration], [1.0, 1.04])`
-- Highlight ring: absolute-positioned rounded div with `boxShadow: 0 0 0 3px rgba(107,141,181,0.6)` fading in/out over 25f
-- Background: reuse existing `VerticalBackground` (subtle blue gradient + drifting orbs), but with a light-mode variant since the slides are on white — background stays as a soft off-white gradient outside the slide bounds (slides are 9:16 already so they fill the frame; background only shows during transitions)
-
-## Render
-
-```
-cd remotion && node scripts/render-slides-vertical.mjs
-```
-
-Deliverable: `/mnt/documents/HomeLens-ChromeExt-Slides-Vertical.mp4`
-
-## Out of scope
-
-- No audio/voiceover
-- No changes to existing videos, scenes, or web app
-- No redesign of the slide artwork itself — the uploaded images are the source of truth
+Post appears at `https://homelensais.com/blog/how-to-evaluate-neighborhood-before-buying` and on the `/blog` index and homepage `HomepageBlogSection` (top-3 newest).
