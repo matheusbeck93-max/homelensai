@@ -1,43 +1,38 @@
-# Publish Article 04 — Neighborhood Evaluation Guide
+## Publish Article 07 — What a Home Listing Doesn't Tell You
 
-Add the supplied article as a published post in the existing blog system (`blog_posts` table, rendered by `/blog` and `/blog/:slug`).
+Same pattern used for Articles 03/04.
 
-## What gets created
+### 1. Generate images (2 total)
+Via `imagegen--generate_image` (standard quality, editorial photo style), saved to `/tmp/`, then uploaded to CDN via `lovable-assets create` and referenced by their public `/__l5e/...` URL inside `body_html`.
 
-A single database migration that inserts one row into `public.blog_posts` with:
+- **Hero (1600x900)** — buyer at kitchen table reviewing printed documents, natural window light, documentary style.
+- **Inline 1 (1600x900)** — close-up of property tax statement + calculator + pen on desk, no PII, documentary style.
 
-- **slug**: `how-to-evaluate-neighborhood-before-buying`
-- **title**: How to Evaluate a Neighborhood Before You Buy (2026 Guide)
-- **seo_title**: How to Evaluate a Neighborhood Before You Buy (2026 Guide)
-- **seo_description**: School ratings, crime data, walkability, commute times, future development — a complete framework for researching any neighborhood before you make an offer.
-- **excerpt**: short intro line pulled from the opening
-- **category**: `Neighborhoods`  (matches existing category list used in `blog-draft-generate`)
-- **tags**: `["neighborhood-research","schools","walkability","home-buying","hoa"]`
-- **status**: `published`
-- **published_at**: now
-- **reading_time_minutes**: computed (~15)
-- **cover_image_url**: `null` (no image supplied — post renders without hero; can be added later via admin)
-- **body_html**: full article converted from the supplied Markdown-like content to semantic HTML:
-  - `<h2>` for each top-level section (Quick Answer, Why Neighborhood Research…, School Quality, Safety and Crime Data, Walkability…, Amenities…, Future Development, HOA, Visit the Neighborhood…, Buyer Tips, HomeLens Insight, Practical Checklist, FAQ, Continue Reading)
-  - `<h3>` for sub-sections (e.g. "The Price Premium Is Real and Substantial", "Useful Crime Data Sources")
-  - `<p>`, `<ul>/<li>`, `<strong>`, `<em>`, `<a href>` per existing prose styling
-  - Inline `<cite>` markers stripped (kept as plain sentences — the site doesn't render `<cite index="...">`)
-  - Checklist rendered as `<ul>` with checkbox-style prefix
-  - "Table of Contents" omitted — the article page already generates a TOC sidebar from H2/H3 headings automatically
-  - CTA "Create a free Buyer Account →" rendered as `<a href="/auth">` link
-  - "Continue Reading" section rendered as a `<ul>` of internal links (Articles 01/02/03 as plain text since those slugs aren't confirmed live — will link where slugs exist, otherwise plain list items)
+### 2. Insert blog post via migration
+Single `INSERT INTO public.blog_posts ... ON CONFLICT (slug) DO NOTHING`:
 
-## Files touched
+- **slug**: `what-home-listing-doesnt-tell-you`
+- **title / seo_title**: What a Home Listing Doesn't Tell You (And Where to Find It)
+- **seo_description**: as provided
+- **category**: `Listing Analysis` (matches Article 02 cluster; existing free-text category column, no enum constraint)
+- **tags**: `["seller-disclosure","listing-analysis","home-buying","hidden-costs","due-diligence"]`
+- **status**: `published`, `published_at = now()`
+- **cover_image_url**: hero CDN URL
+- **reading_time_minutes**: ~7
+- **body_html**: full article converted to semantic HTML
+  - `<h2>` per top section, `<h3>` where needed
+  - `<p>`, `<ul><li>`, `<strong>`
+  - `<cite index="...">` markers stripped, sentences kept
+  - Inline `<figure><img><figcaption>` for the tax-statement image after "The Real Tax Bill…" section
+  - CTA "Install the HomeLens AI Chrome Extension →" → `<a href="/integrations">` (extension install page on this app)
+  - Internal "Continue Reading" links: Article 02 (`/blog/how-to-read-property-listing`), Article 06 (`/blog/why-house-on-market-so-long`), Article 04 (`/blog/how-to-evaluate-neighborhood-before-buying`) — link only slugs confirmed to exist; unknown slugs left as plain `<li>` text
+  - FAQ rendered as `<h2>FAQ</h2>` + `<h3>` per question + `<p>` answer (BlogPost page renders FAQ JSON-LD when h3s under an FAQ section exist — same pattern as prior posts)
 
-- **New**: `supabase/migrations/<timestamp>_blog_post_neighborhood_guide.sql` — single `INSERT INTO public.blog_posts (...) VALUES (...) ON CONFLICT (slug) DO NOTHING;`
+### 3. Files touched
+- New: `supabase/migrations/<ts>_blog_post_listing_gaps.sql`
+- New CDN assets (no repo files) for the 2 images
 
-## Not included (out of scope unless asked)
-
-- No hero/inline image generation (image prompts supplied but no images attached). Post will publish without a cover.
-- No JSON-LD `HowTo` / `FAQPage` schema — current `BlogPost.tsx` emits `BlogPosting` only. Adding new schema types would be a code change beyond this article.
-- No sitemap regeneration script run; sitemap already includes `/blog/:slug` pattern if configured, otherwise a follow-up.
-- No updates to Articles 01/02/03 "Continue Reading" sections — those slugs weren't provided.
-
-## After publish
-
-Post appears at `https://homelensais.com/blog/how-to-evaluate-neighborhood-before-buying` and on the `/blog` index and homepage `HomepageBlogSection` (top-3 newest).
+### Not included
+- No updates to Articles 02/06 "Continue Reading" (previous articles didn't get retroactive back-links either; ask if you want that now).
+- No sitemap regeneration script run (dynamic `/blog/:slug` already covered).
+- No Google Search Console "Request Indexing" (manual step on your side).
