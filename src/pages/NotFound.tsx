@@ -3,6 +3,7 @@ import { Navigation } from "@/components/Navigation";
 import { Home, Search } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 
 const NotFound = () => {
   const location = useLocation();
@@ -14,6 +15,13 @@ const NotFound = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <Helmet>
+        <title>Page Not Found — HomeLens AI</title>
+        <meta name="description" content="The page you're looking for doesn't exist or has been moved. Head back to HomeLens AI to keep analyzing listings." />
+        <meta property="og:title" content="Page Not Found — HomeLens AI" />
+        <meta property="og:description" content="This page doesn't exist. Return to HomeLens AI to continue analyzing homes." />
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <Navigation />
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-6 max-w-md">

@@ -93,7 +93,7 @@ export function Footer() {
               Security &amp; Privacy
             </span>
             <Link to="/privacy" className="text-xs text-slate-400 hover:text-white transition-colors">
-              Learn more
+              Learn more about HomeLens privacy &amp; security
             </Link>
           </div>
           <p className="text-xs text-slate-400">
