@@ -158,6 +158,12 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 to-accent/10 p-4 flex items-center justify-center">
       <SeoCanonical />
+      <Helmet>
+        <title>Sign In — HomeLens AI</title>
+        <meta name="description" content="Sign in or create a free HomeLens AI account to analyze listings, score properties, and get instant fair-price and neighborhood insights." />
+        <meta property="og:title" content="Sign In to HomeLens AI" />
+        <meta property="og:description" content="Access your AI copilot for US home buyers and investors. Free to start — no credit card required." />
+      </Helmet>
       <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-8 items-center">
         <aside className="hidden lg:flex flex-col gap-6 px-2">
           <div className="flex items-center gap-2">
