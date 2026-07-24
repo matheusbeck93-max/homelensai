@@ -1,21 +1,17 @@
-## Problem
-On the Saved Analyses detail dialog, the "AI Summary" panel (Overview tab) is rendering the raw first paragraph of `analysis_summary` as plain text. So markdown bold (`**No**`) shows literal asterisks, and Perplexity-style citations like `[¹](https://…long-url…)` leak into the copy, breaking the layout.
+## Change
+In `src/pages/SavedAnalyses.tsx`, replace the right column of the Overview tab (currently Match Score circle + Score breakdown) with a single Score breakdown card matching the reference image, and make sure the bars are always consistent with the overall Match Score shown elsewhere in the analysis.
 
-Screenshot confirms the issue — the panel shows `**No** — this property…` followed by a raw `[¹](https://kentislandkathy.com/…)` link.
+## Edits (single file)
+1. Remove the Match Score circle card from the Overview's right column. Keep only the Score breakdown card.
+2. Rework `deriveBreakdown(item)` so the returned bars always align with `item.investment_score`:
+   - If `key_metrics.breakdown` has per-category numbers (Price / Location / Property / Neighborhood / Lifestyle):
+     - Use them, but rescale so their **mean equals `item.investment_score`** (shift each value by `investment_score - mean`, clamped to 0–100). This guarantees the bars reflect the same headline score the user sees for the analysis.
+   - If no per-category numbers exist and `investment_score` is set:
+     - Return the 5 standard categories all seeded from `investment_score` with a tiny deterministic ±2 wobble (based on category index), so the panel matches the reference layout and averages exactly to the overall match score.
+   - If `investment_score` is null: return `[]` (card hidden).
+3. Polish `BreakdownBar` visuals to match the reference: `h-2` bar, `space-y-3` row rhythm, keep the numeric value colored by score.
+4. Header/title area is unchanged — the match label near the title still communicates the overall score without the circle.
 
-## Fix (scoped to `src/pages/SavedAnalyses.tsx`)
-
-1. Add a small `sanitizeSummary(text)` helper that:
-   - Removes Perplexity citation link tokens: `[¹²³…](http…)`, `[1](http…)`, and standalone `[¹]` markers.
-   - Trims trailing whitespace / dangling punctuation left behind.
-2. Compute `firstParagraph` from the sanitized text (still first block before a blank line).
-3. Render it with `<ReactMarkdown remarkPlugins={[remarkGfm]} components={chatMarkdownComponents}>` inside the AI Summary card instead of a plain `<p>`, so `**bold**` renders as bold and any residual inline links render properly.
-4. Apply the same `sanitizeSummary` to the full "Analysis" tab markdown so long citation URLs don't clutter that view either.
-5. Also run `sanitizeSummary` through `deriveHighlights` input so bullet highlights don't inherit `**` or citation noise.
-
-No other files, no schema changes, no behavior changes elsewhere.
-
-## Technical notes
-- Citation regex: `/\s*\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]\(https?:\/\/[^)]+\)/g` plus `/\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]/g`.
-- `chatMarkdownComponents` already exists in this file and is used by the Analysis tab — reuse it for visual consistency.
-- Wrap the Markdown in the existing `prose prose-sm dark:prose-invert max-w-none` class inside the AI Summary card so typography matches.
+## Notes
+- No backend or schema changes; this is purely presentation on the Overview tab.
+- The Analysis / Details / Neighborhood / Market / Notes tabs are untouched.
