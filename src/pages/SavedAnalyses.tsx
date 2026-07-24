@@ -607,7 +607,7 @@ function AnalysisDetail({
           <Card>
             <CardContent className="p-5">
               {(() => {
-                const rows: [string, any][] = [
+                const rows = ([
                   ["Address", item.property_address],
                   [
                     "List Price",
@@ -631,7 +631,7 @@ function AnalysisDetail({
                         )}`
                       : null,
                   ],
-                ].filter(([, v]) => v != null && v !== "");
+                ] as [string, any][]).filter(([, v]) => v != null && v !== "");
                 if (rows.length === 0) {
                   return (
                     <div className="text-sm text-muted-foreground">
@@ -664,14 +664,14 @@ function AnalysisDetail({
           <Card>
             <CardContent className="p-5">
               {(() => {
-                const rows: [string, any][] = [
+                const rows = ([
                   ["Schools", km.schools ?? km.schoolRating],
                   ["Crime", km.crime ?? km.crimeIndex],
                   ["Walkability", km.walkScore ?? km.walkability],
                   ["Transit", km.transitScore],
                   ["Median Income", km.medianIncome],
                   ["Owner-Occupied", km.ownerOccupied],
-                ].filter(([, v]) => v != null && v !== "");
+                ] as [string, any][]).filter(([, v]) => v != null && v !== "");
                 if (rows.length === 0) {
                   return (
                     <div className="text-sm text-muted-foreground">
