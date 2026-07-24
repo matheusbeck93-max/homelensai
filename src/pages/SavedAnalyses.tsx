@@ -47,9 +47,8 @@ import { useToast } from "@/hooks/use-toast";
 
 function scoreColor(score: number | null): string {
   if (score == null) return "hsl(var(--muted-foreground))";
-  if (score >= 80) return "hsl(var(--chart-2))";
-  if (score >= 50) return "hsl(var(--chart-4))";
-  return "hsl(var(--destructive))";
+  if (score >= 50) return "hsl(142 71% 42%)";
+  return "hsl(0 74% 52%)";
 }
 
 function ScoreCircle({
@@ -111,7 +110,7 @@ function scoreMatchLabel(score: number | null): string {
 
 function BreakdownBar({ label, value }: { label: string; value: number }) {
   const v = Math.max(0, Math.min(100, value));
-  const color = v >= 50 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))";
+  const color = v >= 50 ? "hsl(142 71% 42%)" : "hsl(0 74% 52%)";
   return (
     <div className="flex items-center gap-3">
       <div className="text-sm text-muted-foreground w-24 flex-shrink-0">
