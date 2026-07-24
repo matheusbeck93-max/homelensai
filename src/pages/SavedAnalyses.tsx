@@ -148,6 +148,17 @@ function deriveHighlights(item: SavedAnalysis): string[] {
   return out.slice(0, 4);
 }
 
+// Strip Perplexity-style citations like [¹](https://…) or [1](https://…)
+// and bare superscript markers like [¹] that leak into AI summaries.
+function sanitizeSummary(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(/\s*\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]\(https?:\/\/[^)]+\)/g, "")
+    .replace(/\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
 function deriveBreakdown(
   item: SavedAnalysis,
 ): { label: string; value: number }[] {
@@ -463,9 +474,8 @@ function AnalysisDetail({
   const breakdown = deriveBreakdown(item);
   const label = item.score_label || scoreMatchLabel(item.investment_score);
   const color = scoreColor(item.investment_score);
-  const firstParagraph = (item.analysis_summary || "")
-    .split(/\n\s*\n/)[0]
-    .trim();
+  const cleanSummary = sanitizeSummary(item.analysis_summary);
+  const firstParagraph = cleanSummary.split(/\n\s*\n/)[0].trim();
 
   const [note, setNote] = useState(item.notes ?? "");
   const [savingNote, setSavingNote] = useState(false);
@@ -521,9 +531,20 @@ function AnalysisDetail({
               <Card className="border-primary/15 bg-primary/5">
                 <CardContent className="p-4 space-y-2">
                   <div className="text-sm font-semibold">AI Summary</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {firstParagraph || "No summary captured."}
-                  </p>
+                  {firstParagraph ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={chatMarkdownComponents}
+                      >
+                        {firstParagraph}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      No summary captured.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
               {highlights.length > 0 && (
@@ -595,7 +616,7 @@ function AnalysisDetail({
                   remarkPlugins={[remarkGfm]}
                   components={chatMarkdownComponents}
                 >
-                  {item.analysis_summary}
+                {cleanSummary}
                 </ReactMarkdown>
               </div>
             </CardContent>
