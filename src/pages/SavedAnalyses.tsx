@@ -474,9 +474,8 @@ function AnalysisDetail({
   const breakdown = deriveBreakdown(item);
   const label = item.score_label || scoreMatchLabel(item.investment_score);
   const color = scoreColor(item.investment_score);
-  const firstParagraph = (item.analysis_summary || "")
-    .split(/\n\s*\n/)[0]
-    .trim();
+  const cleanSummary = sanitizeSummary(item.analysis_summary);
+  const firstParagraph = cleanSummary.split(/\n\s*\n/)[0].trim();
 
   const [note, setNote] = useState(item.notes ?? "");
   const [savingNote, setSavingNote] = useState(false);
