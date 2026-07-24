@@ -203,29 +203,25 @@ function AnalysisCard({
   onDelete: () => void;
   onUpdateNote: (note: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const [note, setNote] = useState(item.notes ?? "");
-  const [savingNote, setSavingNote] = useState(false);
-
-  const km = item.key_metrics ?? {};
+  const km: any = item.key_metrics ?? {};
   const summary = item.analysis_summary;
-  const summaryShort = summary.length > 280 && !expanded
-    ? summary.slice(0, 280) + "…"
-    : summary;
-
-  const handleNoteBlur = async () => {
-    if (note === (item.notes ?? "")) return;
-    setSavingNote(true);
-    await onUpdateNote(note);
-    setSavingNote(false);
-  };
+  const summaryShort =
+    summary.length > 240 ? summary.slice(0, 240).trim() + "…" : summary;
+  const meta = [
+    km.beds ? `${km.beds} bd` : null,
+    km.baths ? `${km.baths} ba` : null,
+    km.sqft ? `${Number(km.sqft).toLocaleString()} sqft` : null,
+  ].filter(Boolean);
 
   return (
-    <Card>
+    <Card
+      className="hover:border-primary/40 transition-colors cursor-pointer"
+      onClick={onView}
+    >
       <CardContent className="p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="font-semibold truncate">
+            <div className="text-lg font-semibold text-primary truncate">
               {item.property_address ||
                 item.property_url ||
                 "Untitled analysis"}
@@ -235,17 +231,26 @@ function AnalysisCard({
                 {item.source === "extension" ? "Extension" : "App"}
               </Badge>
               <span>Saved on {formatDate(item.created_at)}</span>
+              {meta.length > 0 && <span>· {meta.join(" · ")}</span>}
             </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="More">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="More"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setExpanded(true)}>
-                Read full summary
+            <DropdownMenuContent
+              align="end"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DropdownMenuItem onClick={onView}>
+                Open analysis
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive"
@@ -267,35 +272,13 @@ function AnalysisCard({
           </div>
         </div>
 
-        <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+        <div className="text-sm text-muted-foreground line-clamp-3">
           {summaryShort}
-          {summary.length > 280 && (
-            <button
-              type="button"
-              className="ml-2 text-primary hover:underline"
-              onClick={() => setExpanded((v) => !v)}
-            >
-              {expanded ? "Show less" : "Read more"}
-            </button>
-          )}
         </div>
 
-        <Textarea
-          placeholder="Add a personal note..."
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          onBlur={handleNoteBlur}
-          rows={2}
-        />
-        {savingNote && (
-          <div className="text-xs text-muted-foreground flex items-center gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" /> Saving note...
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
           <Button variant="default" size="sm" onClick={onView}>
-            View Full Analysis
+            Open analysis
           </Button>
           {item.property_url && (
             <Button variant="outline" size="sm" asChild>
