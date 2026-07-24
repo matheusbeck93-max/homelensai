@@ -1,21 +1,14 @@
-## Change
-In `src/pages/SavedAnalyses.tsx`, restore the overall Match Score display on the Overview tab's Score breakdown card, and simplify the bar coloring to a binary positive (green) / negative (red) scheme.
+## Problem
+The score breakdown bars reference undefined CSS tokens (`--chart-2`, `--chart-4`) in `src/pages/SavedAnalyses.tsx`. Because those variables don't exist in `src/index.css`, `hsl(var(--chart-2))` resolves to an invalid color and the bar fill/percentage text render with no visible color.
 
-## Edits (single file: `src/pages/SavedAnalyses.tsx`)
+## Fix
+In `src/pages/SavedAnalyses.tsx`:
 
-1. **Show the overall Match Score inside the "Score breakdown" card header.**
-   - Replace the plain `"Score breakdown"` label with a header row containing:
-     - Left: title `"Score breakdown"` + small subtitle with the match label (e.g., "Great match" / "Solid match" / "Weak match") from `scoreMatchLabel(item.investment_score)`.
-     - Right: the overall score rendered large (e.g., `text-3xl font-semibold`) as `{investment_score}/100`, colored green/red using the same positive/negative rule below.
-   - If `investment_score` is null, hide the score number and just show the title.
+1. `BreakdownBar` (line ~112-131): replace the color logic with real HSL values that work in both light and dark mode:
+   - `value >= 50` → green (e.g. `hsl(142 71% 42%)`)
+   - `value < 50` → red (e.g. `hsl(0 74% 52%)`)
+   Apply the same color to the bar fill and the numeric label on the right.
 
-2. **Recolor `BreakdownBar` to green (positive) / red (negative).**
-   - Positive threshold: `value >= 50` → green (`hsl(var(--chart-2))` or existing success token).
-   - Negative: `value < 50` → red (`hsl(var(--destructive))`).
-   - Apply this color to both the filled bar segment and the numeric value on the right. Drop the previous 3-tier `scoreColor` usage inside this component only (leave `scoreColor` intact elsewhere).
+2. Overall score display in the breakdown card header (added last turn, ~line 50 helper): replace the same `--chart-2` / `--chart-4` references with the green/red HSL values, plus a neutral fallback when the score is null, so the headline overall score is colored consistently with the bars.
 
-3. No changes to `deriveBreakdown`, other tabs, or any data logic.
-
-## Technical notes
-- Uses existing design tokens (`--chart-2` for green, `--destructive` for red) — no hardcoded hex.
-- Purely presentation; no backend/schema changes.
+No other files change; the logic that normalizes category bars to match the overall investment score stays as-is.
