@@ -1,17 +1,21 @@
 ## Change
-In `src/pages/SavedAnalyses.tsx`, replace the right column of the Overview tab (currently Match Score circle + Score breakdown) with a single Score breakdown card matching the reference image, and make sure the bars are always consistent with the overall Match Score shown elsewhere in the analysis.
+In `src/pages/SavedAnalyses.tsx`, restore the overall Match Score display on the Overview tab's Score breakdown card, and simplify the bar coloring to a binary positive (green) / negative (red) scheme.
 
-## Edits (single file)
-1. Remove the Match Score circle card from the Overview's right column. Keep only the Score breakdown card.
-2. Rework `deriveBreakdown(item)` so the returned bars always align with `item.investment_score`:
-   - If `key_metrics.breakdown` has per-category numbers (Price / Location / Property / Neighborhood / Lifestyle):
-     - Use them, but rescale so their **mean equals `item.investment_score`** (shift each value by `investment_score - mean`, clamped to 0–100). This guarantees the bars reflect the same headline score the user sees for the analysis.
-   - If no per-category numbers exist and `investment_score` is set:
-     - Return the 5 standard categories all seeded from `investment_score` with a tiny deterministic ±2 wobble (based on category index), so the panel matches the reference layout and averages exactly to the overall match score.
-   - If `investment_score` is null: return `[]` (card hidden).
-3. Polish `BreakdownBar` visuals to match the reference: `h-2` bar, `space-y-3` row rhythm, keep the numeric value colored by score.
-4. Header/title area is unchanged — the match label near the title still communicates the overall score without the circle.
+## Edits (single file: `src/pages/SavedAnalyses.tsx`)
 
-## Notes
-- No backend or schema changes; this is purely presentation on the Overview tab.
-- The Analysis / Details / Neighborhood / Market / Notes tabs are untouched.
+1. **Show the overall Match Score inside the "Score breakdown" card header.**
+   - Replace the plain `"Score breakdown"` label with a header row containing:
+     - Left: title `"Score breakdown"` + small subtitle with the match label (e.g., "Great match" / "Solid match" / "Weak match") from `scoreMatchLabel(item.investment_score)`.
+     - Right: the overall score rendered large (e.g., `text-3xl font-semibold`) as `{investment_score}/100`, colored green/red using the same positive/negative rule below.
+   - If `investment_score` is null, hide the score number and just show the title.
+
+2. **Recolor `BreakdownBar` to green (positive) / red (negative).**
+   - Positive threshold: `value >= 50` → green (`hsl(var(--chart-2))` or existing success token).
+   - Negative: `value < 50` → red (`hsl(var(--destructive))`).
+   - Apply this color to both the filled bar segment and the numeric value on the right. Drop the previous 3-tier `scoreColor` usage inside this component only (leave `scoreColor` intact elsewhere).
+
+3. No changes to `deriveBreakdown`, other tabs, or any data logic.
+
+## Technical notes
+- Uses existing design tokens (`--chart-2` for green, `--destructive` for red) — no hardcoded hex.
+- Purely presentation; no backend/schema changes.
