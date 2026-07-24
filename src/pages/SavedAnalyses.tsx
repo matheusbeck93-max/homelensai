@@ -616,7 +616,7 @@ function AnalysisDetail({
                   remarkPlugins={[remarkGfm]}
                   components={chatMarkdownComponents}
                 >
-                  {item.analysis_summary}
+                {cleanSummary}
                 </ReactMarkdown>
               </div>
             </CardContent>
