@@ -114,16 +114,16 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
   const color = scoreColor(v);
   return (
     <div className="flex items-center gap-3">
-      <div className="text-xs text-muted-foreground w-24 flex-shrink-0">
+      <div className="text-sm text-muted-foreground w-24 flex-shrink-0">
         {label}
       </div>
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{ width: `${v}%`, backgroundColor: color }}
         />
       </div>
-      <div className="text-xs font-semibold w-8 text-right" style={{ color }}>
+      <div className="text-sm font-semibold w-8 text-right" style={{ color }}>
         {v}
       </div>
     </div>
