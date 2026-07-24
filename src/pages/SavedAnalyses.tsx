@@ -111,7 +111,7 @@ function scoreMatchLabel(score: number | null): string {
 
 function BreakdownBar({ label, value }: { label: string; value: number }) {
   const v = Math.max(0, Math.min(100, value));
-  const color = scoreColor(v);
+  const color = v >= 50 ? "hsl(var(--chart-2))" : "hsl(var(--destructive))";
   return (
     <div className="flex items-center gap-3">
       <div className="text-sm text-muted-foreground w-24 flex-shrink-0">
@@ -585,7 +585,30 @@ function AnalysisDetail({
               {breakdown.length > 0 && (
                 <Card>
                   <CardContent className="p-5 space-y-4">
-                    <div className="text-sm font-semibold">Score breakdown</div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold">Score breakdown</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {scoreMatchLabel(item.investment_score)}
+                        </div>
+                      </div>
+                      {item.investment_score != null && (
+                        <div
+                          className="text-3xl font-semibold leading-none"
+                          style={{
+                            color:
+                              item.investment_score >= 50
+                                ? "hsl(var(--chart-2))"
+                                : "hsl(var(--destructive))",
+                          }}
+                        >
+                          {item.investment_score}
+                          <span className="text-base text-muted-foreground font-normal">
+                            /100
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <div className="space-y-3">
                       {breakdown.map((b) => (
                         <BreakdownBar
