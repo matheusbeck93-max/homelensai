@@ -132,7 +132,7 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
 function deriveHighlights(item: SavedAnalysis): string[] {
   const km: any = item.key_metrics ?? {};
   if (Array.isArray(km.highlights) && km.highlights.length) {
-    return km.highlights.slice(0, 5).map((h: any) => String(h));
+    return km.highlights.slice(0, 5).map((h: any) => stripMarkers(String(h)));
   }
   const out: string[] = [];
   const netCF = Number(String(km.netCashFlow ?? "").replace(/[^0-9.-]/g, ""));
@@ -147,15 +147,26 @@ function deriveHighlights(item: SavedAnalysis): string[] {
   return out.slice(0, 4);
 }
 
-// Strip Perplexity-style citations like [¹](https://…) or [1](https://…)
-// and bare superscript markers like [¹] that leak into AI summaries.
+// Remove markdown emphasis (**bold**, __bold__, stray *) and Perplexity-style
+// citation tokens (`[1]`, `[¹]`, `[^1]`, `[n](url)`) that leak from AI output.
+function stripMarkers(text: string | null | undefined): string {
+  if (text == null) return "";
+  return String(text)
+    .replace(/\s*\[\^?[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]\(https?:\/\/[^)]+\)/g, "")
+    .replace(/\[\^?[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    .replace(/(^|\s)\*(\S)/g, "$1$2")
+    .replace(/(\S)\*(\s|$)/g, "$1$2")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 function sanitizeSummary(text: string | null | undefined): string {
   if (!text) return "";
-  return text
-    .replace(/\s*\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]\(https?:\/\/[^)]+\)/g, "")
-    .replace(/\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]/g, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .trim();
+  return stripMarkers(
+    text.replace(/[ \t]+\n/g, "\n"),
+  );
 }
 
 function deriveBreakdown(
@@ -494,10 +505,10 @@ function AnalysisDetail({
   const [savingNote, setSavingNote] = useState(false);
 
   const metaLine = [
-    km.beds ? `${km.beds} bd` : null,
-    km.baths ? `${km.baths} ba` : null,
+    km.beds ? `${stripMarkers(km.beds)} bd` : null,
+    km.baths ? `${stripMarkers(km.baths)} ba` : null,
     km.sqft ? `${Number(km.sqft).toLocaleString()} sqft` : null,
-    km.yearBuilt ? `Built ${km.yearBuilt}` : null,
+    km.yearBuilt ? `Built ${stripMarkers(km.yearBuilt)}` : null,
   ].filter(Boolean);
 
   const handleNoteBlur = async () => {
@@ -514,7 +525,7 @@ function AnalysisDetail({
           Property analysis
         </div>
         <DialogTitle className="pr-8 text-2xl font-semibold text-primary">
-          {item.property_address ||
+          {stripMarkers(item.property_address) ||
             item.property_url ||
             "Saved analysis"}
         </DialogTitle>
@@ -646,21 +657,21 @@ function AnalysisDetail({
             <CardContent className="p-5">
               {(() => {
                 const rows = ([
-                  ["Address", item.property_address],
+                  ["Address", stripMarkers(item.property_address)],
                   [
                     "List Price",
                     item.property_price
                       ? `$${Number(item.property_price).toLocaleString()}`
                       : null,
                   ],
-                  ["Beds", km.beds],
-                  ["Baths", km.baths],
+                  ["Beds", stripMarkers(km.beds)],
+                  ["Baths", stripMarkers(km.baths)],
                   [
                     "Square Feet",
                     km.sqft ? Number(km.sqft).toLocaleString() : null,
                   ],
-                  ["Year Built", km.yearBuilt],
-                  ["Property Type", km.propertyType],
+                  ["Year Built", stripMarkers(km.yearBuilt)],
+                  ["Property Type", stripMarkers(km.propertyType)],
                   [
                     "Price / Sqft",
                     item.property_price && km.sqft
