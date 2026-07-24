@@ -52,36 +52,124 @@ function scoreColor(score: number | null): string {
   return "hsl(var(--destructive))";
 }
 
-function ScoreCircle({ score }: { score: number | null }) {
+function ScoreCircle({
+  score,
+  size = 56,
+}: {
+  score: number | null;
+  size?: number;
+}) {
   if (score == null) return null;
-  const r = 22;
+  const stroke = size >= 96 ? 6 : 4;
+  const r = size / 2 - stroke;
   const c = 2 * Math.PI * r;
   const dash = (score / 100) * c;
   const color = scoreColor(score);
+  const fontSize = size >= 96 ? "text-2xl" : "text-sm";
   return (
-    <div className="relative w-14 h-14 flex-shrink-0">
-      <svg width="56" height="56" viewBox="0 0 56 56">
-        <circle cx="28" cy="28" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="4" />
+    <div
+      className="relative flex-shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle
-          cx="28"
-          cy="28"
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="hsl(var(--muted))"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
           r={r}
           fill="none"
           stroke={color}
-          strokeWidth="4"
+          strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${c}`}
-          transform="rotate(-90 28 28)"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </svg>
       <div
-        className="absolute inset-0 flex items-center justify-center text-sm font-bold"
+        className={`absolute inset-0 flex items-center justify-center font-bold ${fontSize}`}
         style={{ color }}
       >
         {score}
       </div>
     </div>
   );
+}
+
+function scoreMatchLabel(score: number | null): string {
+  if (score == null) return "Investment Score";
+  if (score >= 80) return "Great match";
+  if (score >= 50) return "Solid match";
+  return "Weak match";
+}
+
+function BreakdownBar({ label, value }: { label: string; value: number }) {
+  const v = Math.max(0, Math.min(100, value));
+  const color = scoreColor(v);
+  return (
+    <div className="flex items-center gap-3">
+      <div className="text-xs text-muted-foreground w-24 flex-shrink-0">
+        {label}
+      </div>
+      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${v}%`, backgroundColor: color }}
+        />
+      </div>
+      <div className="text-xs font-semibold w-8 text-right" style={{ color }}>
+        {v}
+      </div>
+    </div>
+  );
+}
+
+function deriveHighlights(item: SavedAnalysis): string[] {
+  const km: any = item.key_metrics ?? {};
+  if (Array.isArray(km.highlights) && km.highlights.length) {
+    return km.highlights.slice(0, 5).map((h: any) => String(h));
+  }
+  const out: string[] = [];
+  const netCF = Number(String(km.netCashFlow ?? "").replace(/[^0-9.-]/g, ""));
+  if (!Number.isNaN(netCF) && netCF > 0) out.push("Positive monthly cash flow");
+  const coc = Number(String(km.cashOnCash ?? "").replace(/[^0-9.-]/g, ""));
+  if (!Number.isNaN(coc) && coc >= 8) out.push("Strong cash-on-cash return");
+  const cap = Number(String(km.capRate ?? "").replace(/[^0-9.-]/g, ""));
+  if (!Number.isNaN(cap) && cap >= 6) out.push("Healthy cap rate");
+  if (item.investment_score != null && item.investment_score >= 80)
+    out.push("Meets your preferences");
+  if (item.property_price) out.push("Within tracked budget range");
+  return out.slice(0, 4);
+}
+
+function deriveBreakdown(
+  item: SavedAnalysis,
+): { label: string; value: number }[] {
+  const km: any = item.key_metrics ?? {};
+  const b = km.breakdown;
+  if (b && typeof b === "object") {
+    const rows = [
+      ["Price", b.price],
+      ["Location", b.location],
+      ["Property", b.property],
+      ["Neighborhood", b.neighborhood],
+      ["Lifestyle", b.lifestyle],
+    ] as const;
+    const filled = rows
+      .filter(([, v]) => typeof v === "number")
+      .map(([label, v]) => ({ label, value: Number(v) }));
+    if (filled.length) return filled;
+  }
+  if (item.investment_score != null) {
+    return [{ label: "Overall", value: item.investment_score }];
+  }
+  return [];
 }
 
 function MetricChip({ label, value }: { label: string; value: any }) {
