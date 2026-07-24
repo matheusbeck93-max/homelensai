@@ -1,38 +1,74 @@
-## Publish Article 07 — What a Home Listing Doesn't Tell You
+## Understanding the reference image
 
-Same pattern used for Articles 03/04.
+The screenshot shows a compact "Property analysis" detail card with:
+- Property title (blue address) + meta line: city, beds · baths · sqft
+- Tab bar: Overview · Details · Neighborhood · Market · Notes
+- Two-column body:
+  - Left: tinted "AI Summary" panel + "Key Highlights" checklist with green check icons
+  - Right: "Match Score" card with a large green circular gauge + label, and "Score breakdown" with horizontal green bar meters (Price, Location, Property, Neighborhood, Lifestyle)
+- Rounded cards, hairline borders, generous whitespace, white bg, blue accent
 
-### 1. Generate images (2 total)
-Via `imagegen--generate_image` (standard quality, editorial photo style), saved to `/tmp/`, then uploaded to CDN via `lovable-assets create` and referenced by their public `/__l5e/...` URL inside `body_html`.
+## Design plan (adapted, not copied)
 
-- **Hero (1600x900)** — buyer at kitchen table reviewing printed documents, natural window light, documentary style.
-- **Inline 1 (1600x900)** — close-up of property tax statement + calculator + pen on desk, no PII, documentary style.
+Redesign the "View Full Analysis" experience on `/saved-analyses` to match this editorial detail-card language, while keeping the list page and existing data model intact. Every tab must surface real saved data — including the full chat analysis text.
 
-### 2. Insert blog post via migration
-Single `INSERT INTO public.blog_posts ... ON CONFLICT (slug) DO NOTHING`:
+### List page (`SavedAnalyses.tsx`)
+Keep current grid + filters. Small visual polish only:
+- Address rendered in primary/blue link style with subtle meta line (source · saved date · beds/baths/sqft when available from `key_metrics`)
+- Primary card action becomes "Open analysis" → opens the redesigned detail view
 
-- **slug**: `what-home-listing-doesnt-tell-you`
-- **title / seo_title**: What a Home Listing Doesn't Tell You (And Where to Find It)
-- **seo_description**: as provided
-- **category**: `Listing Analysis` (matches Article 02 cluster; existing free-text category column, no enum constraint)
-- **tags**: `["seller-disclosure","listing-analysis","home-buying","hidden-costs","due-diligence"]`
-- **status**: `published`, `published_at = now()`
-- **cover_image_url**: hero CDN URL
-- **reading_time_minutes**: ~7
-- **body_html**: full article converted to semantic HTML
-  - `<h2>` per top section, `<h3>` where needed
-  - `<p>`, `<ul><li>`, `<strong>`
-  - `<cite index="...">` markers stripped, sentences kept
-  - Inline `<figure><img><figcaption>` for the tax-statement image after "The Real Tax Bill…" section
-  - CTA "Install the HomeLens AI Chrome Extension →" → `<a href="/integrations">` (extension install page on this app)
-  - Internal "Continue Reading" links: Article 02 (`/blog/how-to-read-property-listing`), Article 06 (`/blog/why-house-on-market-so-long`), Article 04 (`/blog/how-to-evaluate-neighborhood-before-buying`) — link only slugs confirmed to exist; unknown slugs left as plain `<li>` text
-  - FAQ rendered as `<h2>FAQ</h2>` + `<h3>` per question + `<p>` answer (BlogPost page renders FAQ JSON-LD when h3s under an FAQ section exist — same pattern as prior posts)
+### Detail view (the "attached image" layout)
+Convert the current view Dialog into a wider, tabbed layout:
 
-### 3. Files touched
-- New: `supabase/migrations/<ts>_blog_post_listing_gaps.sql`
-- New CDN assets (no repo files) for the 2 images
+```text
+┌───────────────────────────────────────────────┐
+│ Property analysis                             │
+│ 123 Maple Street  (blue)                      │
+│ City, ST ZIP · 3 bd · 2.5 ba · 1,600 sqft     │
+│ [Overview] Analysis  Details  Neighborhood    │
+│           Market  Notes                       │
+├─────────────────────────────┬─────────────────┤
+│ AI Summary (tinted)         │ Match Score     │
+│ short synopsis              │  ◯ 86  Great    │
+│                             │       match     │
+│ Key Highlights              ├─────────────────┤
+│ ✓ Within budget             │ Score breakdown │
+│ ✓ Great neighborhood        │ Price     ▬ 90  │
+│ ✓ Meets your must-haves     │ Location  ▬ 85  │
+│ ✓ Short commute             │ Property  ▬ 88  │
+│                             │ Neighbrhd ▬ 80  │
+│                             │ Lifestyle ▬ 85  │
+└─────────────────────────────┴─────────────────┘
+```
 
-### Not included
-- No updates to Articles 02/06 "Continue Reading" (previous articles didn't get retroactive back-links either; ask if you want that now).
-- No sitemap regeneration script run (dynamic `/blog/:slug` already covered).
-- No Google Search Console "Request Indexing" (manual step on your side).
+Tabs (all sourced from existing data — no new fields):
+- **Overview**: short AI Summary (first paragraph of `analysis_summary`) + Key Highlights + Match Score + Score breakdown
+- **Analysis**: the **full chat analysis** rendered as markdown (the complete `analysis_summary` the AI produced, using the same `chatMarkdownComponents` + `remark-gfm` renderer used elsewhere) so the user can read the entire chat output the way it was generated. Includes source badge (App / Extension), saved date, and property URL button.
+- **Details**: property meta from `key_metrics` (price, beds, baths, sqft, year built, property type, price/sqft) as a compact key-value grid
+- **Neighborhood**: any neighborhood/schools/crime/walk fields in `key_metrics`; graceful "Not captured" empty state
+- **Market**: cap rate, cash-on-cash, DSCR, rent estimate, appreciation, net cash flow as small stat tiles
+- **Notes**: existing editable note textarea + save state
+
+### Data mapping (no schema changes)
+- `investment_score` → circular gauge (0–100), reuse `ScoreCircle` at larger size
+- `score_label` → "Great match" style label; fall back to threshold labels (≥80 Great, ≥50 Solid, <50 Weak)
+- Score breakdown bars: read optional `key_metrics.breakdown` (`{price, location, property, neighborhood, lifestyle}` 0–100). If absent, render a single "Overall" bar equal to `investment_score` — never fabricate dimension values.
+- Key Highlights: read `key_metrics.highlights` (string array). If absent, derive up to 4 bullets from data we already have (e.g., "Within budget", "Positive cash flow" when `netCashFlow > 0`, etc.). No AI calls.
+- Analysis tab body: `analysis_summary` rendered with existing markdown pipeline.
+
+### Styling
+- Reuse tokens; blue link = `text-primary`; check icons = `text-[hsl(var(--chart-2))]`; AI Summary panel = `bg-primary/5 border border-primary/10`
+- Rounded-xl cards, hairline borders (`--brief-hairline`), full dark-mode support
+- Detail view stays inside the Dialog, expanded to `max-w-4xl`
+
+### Files to change
+- `src/pages/SavedAnalyses.tsx` — new tabbed detail layout + minor list-card tweaks
+- (Optional) extract `src/components/savedAnalyses/AnalysisDetail.tsx` to keep the file tidy
+
+### Non-goals
+- No changes to `save-analysis` edge function, `useSavedAnalyses` hook, or DB schema
+- No changes to save flow from chat / extension
+- No changes to premium gating
+
+## What it will look like
+Calm editorial two-column analysis card: tabs at the top, tinted AI summary + green-check highlights on the left, prominent green match gauge and dimension bars on the right. A dedicated **Analysis** tab shows the full chat analysis markdown so the user can read the AI's complete response, exactly as it was generated.
