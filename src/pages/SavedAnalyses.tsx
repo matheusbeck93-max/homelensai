@@ -488,8 +488,6 @@ function AnalysisDetail({
   const km: any = item.key_metrics ?? {};
   const highlights = deriveHighlights(item);
   const breakdown = deriveBreakdown(item);
-  const label = item.score_label || scoreMatchLabel(item.investment_score);
-  const color = scoreColor(item.investment_score);
   const cleanSummary = sanitizeSummary(item.analysis_summary);
   const firstParagraph = cleanSummary.split(/\n\s*\n/)[0].trim();
 
