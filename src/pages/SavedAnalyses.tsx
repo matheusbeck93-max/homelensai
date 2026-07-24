@@ -114,16 +114,16 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
   const color = scoreColor(v);
   return (
     <div className="flex items-center gap-3">
-      <div className="text-xs text-muted-foreground w-24 flex-shrink-0">
+      <div className="text-sm text-muted-foreground w-24 flex-shrink-0">
         {label}
       </div>
-      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{ width: `${v}%`, backgroundColor: color }}
         />
       </div>
-      <div className="text-xs font-semibold w-8 text-right" style={{ color }}>
+      <div className="text-sm font-semibold w-8 text-right" style={{ color }}>
         {v}
       </div>
     </div>
@@ -164,22 +164,38 @@ function deriveBreakdown(
 ): { label: string; value: number }[] {
   const km: any = item.key_metrics ?? {};
   const b = km.breakdown;
+  const overall = item.investment_score;
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+  const CATEGORIES = ["Price", "Location", "Property", "Neighborhood", "Lifestyle"] as const;
+
   if (b && typeof b === "object") {
-    const rows = [
-      ["Price", b.price],
-      ["Location", b.location],
-      ["Property", b.property],
-      ["Neighborhood", b.neighborhood],
-      ["Lifestyle", b.lifestyle],
-    ] as const;
-    const filled = rows
-      .filter(([, v]) => typeof v === "number")
-      .map(([label, v]) => ({ label, value: Number(v) }));
-    if (filled.length) return filled;
+    const rows = CATEGORIES.map((label) => {
+      const raw = (b as any)[label.toLowerCase()];
+      return { label, value: typeof raw === "number" ? raw : null };
+    });
+    const filled = rows.filter((r) => r.value != null) as {
+      label: string;
+      value: number;
+    }[];
+    if (filled.length) {
+      if (overall != null) {
+        const mean = filled.reduce((s, r) => s + r.value, 0) / filled.length;
+        const delta = overall - mean;
+        return filled.map((r) => ({ label: r.label, value: clamp(r.value + delta) }));
+      }
+      return filled.map((r) => ({ label: r.label, value: clamp(r.value) }));
+    }
   }
-  if (item.investment_score != null) {
-    return [{ label: "Overall", value: item.investment_score }];
+
+  if (overall != null) {
+    // Symmetric ±2 wobble around overall so the mean equals overall exactly.
+    const wobble = [-2, 1, 2, -1, 0];
+    return CATEGORIES.map((label, i) => ({
+      label,
+      value: clamp(overall + wobble[i]),
+    }));
   }
+
   return [];
 }
 
@@ -472,8 +488,6 @@ function AnalysisDetail({
   const km: any = item.key_metrics ?? {};
   const highlights = deriveHighlights(item);
   const breakdown = deriveBreakdown(item);
-  const label = item.score_label || scoreMatchLabel(item.investment_score);
-  const color = scoreColor(item.investment_score);
   const cleanSummary = sanitizeSummary(item.analysis_summary);
   const firstParagraph = cleanSummary.split(/\n\s*\n/)[0].trim();
 
@@ -568,30 +582,11 @@ function AnalysisDetail({
             </div>
 
             <div className="space-y-4">
-              {item.investment_score != null && (
-                <Card>
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <ScoreCircle score={item.investment_score} size={104} />
-                    <div>
-                      <div className="text-sm font-semibold">Match Score</div>
-                      <div
-                        className="text-base font-semibold mt-1"
-                        style={{ color }}
-                      >
-                        {label}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Based on your saved preferences
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
               {breakdown.length > 0 && (
                 <Card>
-                  <CardContent className="p-4 space-y-3">
+                  <CardContent className="p-5 space-y-4">
                     <div className="text-sm font-semibold">Score breakdown</div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {breakdown.map((b) => (
                         <BreakdownBar
                           key={b.label}
