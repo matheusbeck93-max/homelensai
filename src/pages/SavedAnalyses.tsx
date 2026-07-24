@@ -148,6 +148,17 @@ function deriveHighlights(item: SavedAnalysis): string[] {
   return out.slice(0, 4);
 }
 
+// Strip Perplexity-style citations like [¹](https://…) or [1](https://…)
+// and bare superscript markers like [¹] that leak into AI summaries.
+function sanitizeSummary(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(/\s*\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]\(https?:\/\/[^)]+\)/g, "")
+    .replace(/\[[¹²³⁴⁵⁶⁷⁸⁹⁰\d]+\]/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
 function deriveBreakdown(
   item: SavedAnalysis,
 ): { label: string; value: number }[] {
