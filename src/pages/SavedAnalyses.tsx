@@ -505,10 +505,10 @@ function AnalysisDetail({
   const [savingNote, setSavingNote] = useState(false);
 
   const metaLine = [
-    km.beds ? `${km.beds} bd` : null,
-    km.baths ? `${km.baths} ba` : null,
+    km.beds ? `${stripMarkers(km.beds)} bd` : null,
+    km.baths ? `${stripMarkers(km.baths)} ba` : null,
     km.sqft ? `${Number(km.sqft).toLocaleString()} sqft` : null,
-    km.yearBuilt ? `Built ${km.yearBuilt}` : null,
+    km.yearBuilt ? `Built ${stripMarkers(km.yearBuilt)}` : null,
   ].filter(Boolean);
 
   const handleNoteBlur = async () => {
@@ -525,7 +525,7 @@ function AnalysisDetail({
           Property analysis
         </div>
         <DialogTitle className="pr-8 text-2xl font-semibold text-primary">
-          {item.property_address ||
+          {stripMarkers(item.property_address) ||
             item.property_url ||
             "Saved analysis"}
         </DialogTitle>
@@ -657,21 +657,21 @@ function AnalysisDetail({
             <CardContent className="p-5">
               {(() => {
                 const rows = ([
-                  ["Address", item.property_address],
+                  ["Address", stripMarkers(item.property_address)],
                   [
                     "List Price",
                     item.property_price
                       ? `$${Number(item.property_price).toLocaleString()}`
                       : null,
                   ],
-                  ["Beds", km.beds],
-                  ["Baths", km.baths],
+                  ["Beds", stripMarkers(km.beds)],
+                  ["Baths", stripMarkers(km.baths)],
                   [
                     "Square Feet",
                     km.sqft ? Number(km.sqft).toLocaleString() : null,
                   ],
-                  ["Year Built", km.yearBuilt],
-                  ["Property Type", km.propertyType],
+                  ["Year Built", stripMarkers(km.yearBuilt)],
+                  ["Property Type", stripMarkers(km.propertyType)],
                   [
                     "Price / Sqft",
                     item.property_price && km.sqft
