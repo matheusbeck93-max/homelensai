@@ -584,30 +584,11 @@ function AnalysisDetail({
             </div>
 
             <div className="space-y-4">
-              {item.investment_score != null && (
-                <Card>
-                  <CardContent className="p-4 flex items-center gap-4">
-                    <ScoreCircle score={item.investment_score} size={104} />
-                    <div>
-                      <div className="text-sm font-semibold">Match Score</div>
-                      <div
-                        className="text-base font-semibold mt-1"
-                        style={{ color }}
-                      >
-                        {label}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Based on your saved preferences
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
               {breakdown.length > 0 && (
                 <Card>
-                  <CardContent className="p-4 space-y-3">
+                  <CardContent className="p-5 space-y-4">
                     <div className="text-sm font-semibold">Score breakdown</div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {breakdown.map((b) => (
                         <BreakdownBar
                           key={b.label}
