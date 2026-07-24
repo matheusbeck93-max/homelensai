@@ -531,9 +531,20 @@ function AnalysisDetail({
               <Card className="border-primary/15 bg-primary/5">
                 <CardContent className="p-4 space-y-2">
                   <div className="text-sm font-semibold">AI Summary</div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {firstParagraph || "No summary captured."}
-                  </p>
+                  {firstParagraph ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={chatMarkdownComponents}
+                      >
+                        {firstParagraph}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      No summary captured.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
               {highlights.length > 0 && (
