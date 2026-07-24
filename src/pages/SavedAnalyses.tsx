@@ -241,7 +241,7 @@ function AnalysisCard({
   onUpdateNote: (note: string) => void;
 }) {
   const km: any = item.key_metrics ?? {};
-  const summary = item.analysis_summary;
+  const summary = sanitizeSummary(item.analysis_summary);
   const summaryShort =
     summary.length > 240 ? summary.slice(0, 240).trim() + "…" : summary;
   const meta = [
@@ -259,7 +259,7 @@ function AnalysisCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-lg font-semibold text-primary truncate">
-              {item.property_address ||
+              {stripMarkers(item.property_address) ||
                 item.property_url ||
                 "Untitled analysis"}
             </div>
