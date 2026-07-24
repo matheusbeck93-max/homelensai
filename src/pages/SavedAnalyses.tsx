@@ -164,22 +164,38 @@ function deriveBreakdown(
 ): { label: string; value: number }[] {
   const km: any = item.key_metrics ?? {};
   const b = km.breakdown;
+  const overall = item.investment_score;
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+  const CATEGORIES = ["Price", "Location", "Property", "Neighborhood", "Lifestyle"] as const;
+
   if (b && typeof b === "object") {
-    const rows = [
-      ["Price", b.price],
-      ["Location", b.location],
-      ["Property", b.property],
-      ["Neighborhood", b.neighborhood],
-      ["Lifestyle", b.lifestyle],
-    ] as const;
-    const filled = rows
-      .filter(([, v]) => typeof v === "number")
-      .map(([label, v]) => ({ label, value: Number(v) }));
-    if (filled.length) return filled;
+    const rows = CATEGORIES.map((label) => {
+      const raw = (b as any)[label.toLowerCase()];
+      return { label, value: typeof raw === "number" ? raw : null };
+    });
+    const filled = rows.filter((r) => r.value != null) as {
+      label: string;
+      value: number;
+    }[];
+    if (filled.length) {
+      if (overall != null) {
+        const mean = filled.reduce((s, r) => s + r.value, 0) / filled.length;
+        const delta = overall - mean;
+        return filled.map((r) => ({ label: r.label, value: clamp(r.value + delta) }));
+      }
+      return filled.map((r) => ({ label: r.label, value: clamp(r.value) }));
+    }
   }
-  if (item.investment_score != null) {
-    return [{ label: "Overall", value: item.investment_score }];
+
+  if (overall != null) {
+    // Symmetric ±2 wobble around overall so the mean equals overall exactly.
+    const wobble = [-2, 1, 2, -1, 0];
+    return CATEGORIES.map((label, i) => ({
+      label,
+      value: clamp(overall + wobble[i]),
+    }));
   }
+
   return [];
 }
 
