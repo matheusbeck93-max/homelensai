@@ -171,8 +171,14 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://homelensais.com/blog/is-price-reduction-good-sign</loc>
+    <lastmod>2026-07-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://homelensais.com/blog/what-home-listing-doesnt-tell-you</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -196,7 +202,7 @@
   </url>
   <url>
     <loc>https://homelensais.com/blog/why-house-on-market-so-long</loc>
-    <lastmod>2026-06-29</lastmod>
+    <lastmod>2026-07-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
