@@ -11,7 +11,7 @@ import { UIBlock } from "@/types/ui-blocks";
 import { parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X, Sparkles, Home as HomeIcon, Bookmark, User, MessageSquare, TrendingUp, FileSpreadsheet, Repeat } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X, Sparkles, Home as HomeIcon, Bookmark, User, MessageSquare, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
