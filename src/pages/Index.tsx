@@ -564,6 +564,26 @@ export default function Index() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}>
 
+<div className="block h-full cursor-default">
+                <Card className="p-5 text-left h-full border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Chrome className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="font-semibold">Chrome Extension</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Analyze any listing directly on Zillow, Redfin & more with one click.
+                    </p>
+                  </Card>
+                </div>
+              </motion.div>
+
+              <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}>
+
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -580,7 +600,7 @@ export default function Index() {
               <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}>
+              transition={{ duration: 0.4, delay: 0.3 }}>
 
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
@@ -598,7 +618,7 @@ export default function Index() {
               <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}>
+              transition={{ duration: 0.4, delay: 0.4 }}>
 
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
@@ -616,7 +636,7 @@ export default function Index() {
               <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.4 }}>
+              transition={{ duration: 0.4, delay: 0.5 }}>
 
                 <Card className="p-5 text-left h-full hover:shadow-lg transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-2">
@@ -629,26 +649,6 @@ export default function Index() {
                     Understand your buying power and long-term financial impact.
                   </p>
                 </Card>
-              </motion.div>
-
-              <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.5 }}>
-
-<div className="block h-full cursor-default">
-                <Card className="p-5 text-left h-full border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Chrome className="h-5 w-5 text-primary" />
-                      </div>
-                      <h3 className="font-semibold">Chrome Extension</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Analyze any listing directly on Zillow, Redfin & more with one click.
-                    </p>
-                  </Card>
-                </div>
               </motion.div>
             </div>
             </>
