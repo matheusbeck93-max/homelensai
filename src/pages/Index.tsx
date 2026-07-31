@@ -11,7 +11,7 @@ import { UIBlock } from "@/types/ui-blocks";
 import { parseLocationComponents } from "@/utils/propertySearchHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
-import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X, Sparkles, Home as HomeIcon, Bookmark, User, MessageSquare, TrendingUp, FileSpreadsheet, Repeat } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Calculator, Scale, Chrome, X, Sparkles, Home as HomeIcon, Bookmark, User, MessageSquare, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -940,32 +940,7 @@ export default function Index() {
                       </div>
                     ),
                   },
-                  {
-                    icon: Repeat,
-                    title: "BRRRR Calculator",
-                    desc: "Model buy-rehab-rent-refi deals.",
-                    href: "/features/brrrr-calculator",
-                    body: (
-                      <div className="space-y-2 text-xs">
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-md bg-muted/60 px-2 py-2 text-center">
-                            <div className="text-[10px] text-muted-foreground">ARV</div>
-                            <div className="font-semibold tabular-nums">$310k</div>
-                          </div>
-                          <div className="rounded-md bg-muted/60 px-2 py-2 text-center">
-                            <div className="text-[10px] text-muted-foreground">Cash left</div>
-                            <div className="font-semibold tabular-nums">$12k</div>
-                          </div>
-                          <div className="rounded-md bg-emerald-500/10 px-2 py-2 text-center">
-                            <div className="text-[10px] text-emerald-700">CoC</div>
-                            <div className="font-semibold tabular-nums text-emerald-700">11.4%</div>
-                          </div>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    icon: User,
+                    {
                     title: "Set Up Your Profile",
                     desc: "Personalized results for smarter searches.",
                     href: "/profile-setup",
