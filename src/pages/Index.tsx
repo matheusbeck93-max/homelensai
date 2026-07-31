@@ -941,6 +941,7 @@ export default function Index() {
                     ),
                   },
                     {
+                    icon: User,
                     title: "Set Up Your Profile",
                     desc: "Personalized results for smarter searches.",
                     href: "/profile-setup",
