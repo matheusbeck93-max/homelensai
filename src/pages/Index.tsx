@@ -940,8 +940,6 @@ export default function Index() {
                       </div>
                     ),
                   },
-                  {
-                  {
                     icon: User,
                     title: "Set Up Your Profile",
                     desc: "Personalized results for smarter searches.",
