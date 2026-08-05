@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,13 @@ export default function DoNotSell() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>Do Not Sell or Share My Personal Information — HomeLens</title>
+        <meta name="description" content="Opt out of the sale or sharing of your personal information at HomeLens, including targeted advertising signals, and learn how we process your request." />
+        <meta property="og:title" content="Do Not Sell or Share My Info — HomeLens" />
+        <meta property="og:description" content="Opt out of the sale or sharing of your personal information at HomeLens." />
+        <meta property="og:url" content="https://homelensais.com/do-not-sell" />
+      </Helmet>
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />

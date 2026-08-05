@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,13 @@ export default function ExtensionPrivacy() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>Chrome Extension Privacy Policy — HomeLens</title>
+        <meta name="description" content="What the HomeLens Chrome extension reads on listing pages, what leaves your browser, how long data is retained, and the permissions it requests." />
+        <meta property="og:title" content="Chrome Extension Privacy Policy — HomeLens" />
+        <meta property="og:description" content="What the HomeLens Chrome extension reads on listing pages and how that data is handled." />
+        <meta property="og:url" content="https://homelensais.com/extension-privacy" />
+      </Helmet>
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />

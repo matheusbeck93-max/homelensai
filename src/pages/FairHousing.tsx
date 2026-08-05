@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,13 @@ export default function FairHousing() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>Fair Housing Commitment — HomeLens</title>
+        <meta name="description" content="HomeLens supports the Fair Housing Act: how we avoid discriminatory guidance in AI answers and property insights, and how to report a concern." />
+        <meta property="og:title" content="Fair Housing Commitment — HomeLens" />
+        <meta property="og:description" content="How HomeLens keeps AI property guidance compliant with the Fair Housing Act." />
+        <meta property="og:url" content="https://homelensais.com/fair-housing" />
+      </Helmet>
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
