@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,13 @@ export default function CookiePolicy() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>Cookie Policy — HomeLens</title>
+        <meta name="description" content="Which cookies and similar technologies HomeLens uses for authentication, analytics, and preferences, and how you can control them in your browser." />
+        <meta property="og:title" content="Cookie Policy — HomeLens" />
+        <meta property="og:description" content="The cookies HomeLens uses for login, analytics, and preferences — and how to control them." />
+        <meta property="og:url" content="https://homelensais.com/cookies" />
+      </Helmet>
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />

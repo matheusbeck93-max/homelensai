@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,13 @@ export default function Accessibility() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>Accessibility Statement — HomeLens</title>
+        <meta name="description" content="How HomeLens works toward WCAG 2.1 AA accessibility across the web app and Chrome extension, and how to report an accessibility barrier to our team." />
+        <meta property="og:title" content="Accessibility Statement — HomeLens" />
+        <meta property="og:description" content="Our WCAG 2.1 AA commitments and how to report an accessibility barrier on HomeLens." />
+        <meta property="og:url" content="https://homelensais.com/accessibility" />
+      </Helmet>
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />

@@ -362,7 +362,7 @@ export default function Calculators() {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Buying Power, Mortgage & BRRRR Calculators | HomeLens</title>
-        <meta name="description" content="Free calculators for US home buyers and investors: buying power, mortgage payment breakdown (PITI + PMI + HOA), and BRRRR cash-on-cash after refinance." />
+        <meta name="description" content="Free calculators for US buyers and investors: buying power, mortgage PITI breakdown, and BRRRR cash-on-cash after refinance." />
         <link rel="canonical" href="https://homelensais.com/calculators" />
         <meta property="og:title" content="Buying Power, Mortgage & BRRRR Calculators | HomeLens" />
         <meta property="og:description" content="Free calculators for buyers and investors: buying power, mortgage PITI, and BRRRR cash-on-cash." />

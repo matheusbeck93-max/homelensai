@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,13 @@ export default function DMCAPolicy() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>DMCA Copyright Policy — HomeLens</title>
+        <meta name="description" content="How to submit a DMCA takedown notice or counter-notice to HomeLens, what each notice must include, and how we handle repeat copyright infringement." />
+        <meta property="og:title" content="DMCA Copyright Policy — HomeLens" />
+        <meta property="og:description" content="Submit a DMCA takedown notice or counter-notice to HomeLens and see how we handle claims." />
+        <meta property="og:url" content="https://homelensais.com/dmca" />
+      </Helmet>
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />

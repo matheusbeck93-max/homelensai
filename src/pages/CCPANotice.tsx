@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { SeoCanonical } from "@/components/seo/SeoCanonical";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +12,13 @@ export default function CCPANotice() {
     <div className="min-h-screen bg-background">
       <Navigation />
       <SeoCanonical />
+      <Helmet>
+        <title>CCPA Privacy Notice for Californians — HomeLens</title>
+        <meta name="description" content="California residents' privacy rights at HomeLens: the personal information we collect, how it is used, and how to exercise access, deletion, and opt-out rights." />
+        <meta property="og:title" content="CCPA Privacy Notice for Californians — HomeLens" />
+        <meta property="og:description" content="California privacy rights at HomeLens: access, deletion, and opt-out requests explained." />
+        <meta property="og:url" content="https://homelensais.com/ccpa" />
+      </Helmet>
       <div className="container max-w-4xl mx-auto px-4 py-8 pb-24 lg:pb-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
