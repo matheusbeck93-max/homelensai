@@ -32,8 +32,9 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
     ctaVariant: 'outline',
     headerNote: 'No credit card required',
     features: [
-      'Chat with a US real estate expert agent — limited',
+      'Chat with a US real estate expert agent — 20 chats a month',
       'Property analysis via link — 3x per day',
+      'Match Score & Investment Score — 3 analyses a day',
       'Last 5 conversations saved',
       'Mortgage Calculator',
       'Buying Power Calculator',
@@ -43,7 +44,6 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Connect to Claude / ChatGPT / Cursor (basic tools)',
     ],
     limitations: [
-      'Match Score & Investment Score',
       'Saved analyses & full chat history',
       'Property alerts & weekly picks',
       'Neighborhood Insights & Personality',
@@ -67,10 +67,10 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
     ctaVariant: 'default',
     headerNote: 'Cancel anytime',
     features: [
-      'Unlimited chat with a US real estate expert agent',
+      '500 chats a month — more than most buyers use in an entire search',
       'Personalized chat (uses your profile)',
-      'Unlimited property analysis via link',
-      'Match Score & Investment Score',
+      'Unmetered property analysis via link',
+      'Match Score & Investment Score — no daily cap',
       'Full conversation history',
       'Saved analyses (app + Chrome extension)',
       'Property alerts & weekly picks',
@@ -81,7 +81,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
       'Voice mode (text-to-speech)',
       'Mortgage Calculator',
       'Buying Power Calculator',
-      'Unlimited Google Extension analysis',
+      'Google Extension analysis — no daily cap',
       'Connect to Claude / ChatGPT — includes saved analyses',
     ],
   },
@@ -100,6 +100,7 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, SubscriptionPlan> = {
     headerNote: 'Everything in Buyer + investor tools',
     features: [
       'Everything in Buyer',
+      '2,000 chats a month',
       'Investor Calculator — Simple & Advanced',
       'Stress scenarios (Bear / Base / Bull)',
       'ARM scenario modeling',
@@ -129,10 +130,10 @@ export const BUYER_ANNUAL_PLAN: SubscriptionPlan = {
   ctaVariant: 'default',
   headerNote: 'Billed annually ($95.64/year)',
   features: [
-    'Unlimited chat with a US real estate expert agent',
+    '500 chats a month — more than most buyers use in an entire search',
     'Personalized chat (uses your profile)',
-    'Unlimited property analysis via link',
-    'Match Score & Investment Score',
+    'Unmetered property analysis via link',
+    'Match Score & Investment Score — no daily cap',
     'Full conversation history',
     'Saved analyses (app + Chrome extension)',
     'Property alerts & weekly picks',
@@ -143,7 +144,7 @@ export const BUYER_ANNUAL_PLAN: SubscriptionPlan = {
     'Voice mode (text-to-speech)',
     'Mortgage Calculator',
     'Buying Power Calculator',
-    'Unlimited Google Extension analysis',
+    'Google Extension analysis — no daily cap',
       'Connect to Claude / ChatGPT — includes saved analyses',
   ],
   billingPeriod: 'annual',
@@ -165,6 +166,7 @@ export const INVESTOR_ANNUAL_PLAN: SubscriptionPlan = {
   headerNote: 'Billed annually ($239.71/year)',
   features: [
     'Everything in Buyer',
+    '2,000 chats a month',
     'Investor Calculator — Simple & Advanced',
     'Stress scenarios (Bear / Base / Bull)',
     'ARM scenario modeling',
@@ -193,8 +195,10 @@ export const FEATURE_GATES = {
   // Buyer + Investor
   UNLIMITED_CHAT: ['buyer', 'investor'],
   UNLIMITED_PROPERTY_ANALYSIS: ['buyer', 'investor'],
-  MATCH_SCORE: ['buyer', 'investor'],
-  INVESTMENT_SCORE: ['buyer', 'investor'],
+  // Available on every tier — Free is capped at 3 analyses/day via
+  // profiles.daily_analysis_count; paid tiers are uncapped.
+  MATCH_SCORE: ['free', 'buyer', 'investor'],
+  INVESTMENT_SCORE: ['free', 'buyer', 'investor'],
   PERSONALIZED_CHAT: ['buyer', 'investor'],
   UNLIMITED_HISTORY: ['buyer', 'investor'],
   SAVED_ANALYSES: ['buyer', 'investor'],

@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { CreditsExhaustedDialog } from "@/components/subscription/CreditsExhaustedDialog";
+import { useSubscription } from "@/hooks/useSubscription";
+import { canRunAnalysis, incrementDailyAnalysisCount } from "@/lib/subscription";
 import { parseEdgeError, isCreditsExhausted } from "@/lib/edgeErrors";
 import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
 import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
@@ -215,6 +217,10 @@ export default function Chats() {
   // src/lib/conversationalIntelligence/ConversationalIntelligence.tsx.
   const ci = useConversationalIntelligenceState(user?.id ?? null);
 
+  // Tier — Match Score is available on Free, capped at 3 analyses/day.
+  const { tier } = useSubscription();
+  const [scoreCapReached, setScoreCapReached] = useState(false);
+
   // Local state
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -298,6 +304,20 @@ export default function Chats() {
     const extractedUrl = extractUrl(cleanedMessage);
     if (extractedUrl) {
       setLastAnalyzedUrl(extractedUrl);
+    }
+
+    // Free tier: Match Score rides the existing 3/day analysis cap. Paid
+    // tiers are uncapped. When the cap is hit we still answer, we just
+    // don't attach a score and we surface a soft upgrade nudge.
+    let scoreAllowed = true;
+    if (extractedUrl && user && tier === 'free') {
+      try {
+        const gate = await canRunAnalysis(user.id);
+        scoreAllowed = gate.canRun;
+        setScoreCapReached(!gate.canRun);
+      } catch {
+        scoreAllowed = true;
+      }
     }
 
     // Auto-save: Create conversation if needed (for logged in users)
@@ -385,6 +405,7 @@ export default function Chats() {
 
       const rawMessage = data?.message || 'I could not process that request.';
       let { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+      if (!scoreAllowed) matchScore = null;
       const citations: string[] = Array.isArray(data?.citations) ? data.citations : [];
 
       // G1 — Match score retry: if this looks like a URL analysis and the score
@@ -392,7 +413,7 @@ export default function Chats() {
       // model for just the score line. We don't replace the prose, only enrich
       // the metadata. Per-conversation guard prevents double-billing.
       const flakyKey = conversationId || 'no-conv';
-      if (extractedUrl && matchScore === null && !matchScoreRetriedRef.current.has(flakyKey)) {
+      if (scoreAllowed && extractedUrl && matchScore === null && !matchScoreRetriedRef.current.has(flakyKey)) {
         matchScoreRetriedRef.current.add(flakyKey);
         try {
           const { data: retryData } = await supabase.functions.invoke('perplexity-chat', {
@@ -435,6 +456,11 @@ export default function Chats() {
       }
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Free tier: a delivered Match Score consumes one of the 3 daily analyses.
+      if (scoreAllowed && matchScore !== null && user && tier === 'free') {
+        incrementDailyAnalysisCount(user.id).catch(() => {});
+      }
 
       // Auto-save: Save assistant message immediately
       if (user && conversationId) {
@@ -918,6 +944,7 @@ export default function Chats() {
           loading={loading}
           value={pendingInput}
           onValueChange={setPendingInput}
+          scoreCapReached={scoreCapReached}
         />
       </div>
       <CreditsExhaustedDialog
@@ -933,16 +960,29 @@ function CapAwareComposer({
   loading,
   value,
   onValueChange,
+  scoreCapReached,
 }: {
   onSend: (text: string, attachments?: ChatAttachment[]) => void | Promise<void>;
   loading: boolean;
   value: string;
   onValueChange: (v: string) => void;
+  scoreCapReached?: boolean;
 }) {
   const cap = useBudgetCap();
   const exceeded = cap.warningLevel === "exceeded";
   return (
     <div className="space-y-2">
+      {scoreCapReached && (
+        <div className="px-4 pt-2">
+          <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            You've used your 3 free Match Scores for today. Analysis keeps working —{" "}
+            <a href="/pricing" className="text-primary hover:underline font-medium">
+              upgrade to Buyer
+            </a>{" "}
+            for scoring with no daily cap.
+          </div>
+        </div>
+      )}
       {cap.warningLevel === "approaching" && (
         <div className="px-4 pt-2">
           <BudgetCapBanner surface="general_chat" />

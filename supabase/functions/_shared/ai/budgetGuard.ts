@@ -20,21 +20,22 @@ export interface BudgetLimits {
 }
 
 /**
- * Daily $ caps sized to the current subscription prices and Sonnet's
- * ~$0.020 per typical turn cost. See homelens_sonnet_all_tiers_fix_prompt
- * for the pricing math.
- *   free     $0.00/mo  → $0.10/day  (~5 turns/day)
- *   buyer    $9.97/mo  → $0.50/day  (~25 turns/day)
- *   investor $24.97/mo → $1.50/day  (~75 turns/day)
+ * Daily $ caps. Purpose: stop a single-day runaway (bug, abuse, loop) before
+ * it eats the whole month's allowance. Sized ~10x above observed per-user
+ * spend (heaviest real user: ~$0.29/active day) so normal use never hits them.
+ *   free     $0.00/mo  → $0.15/day
+ *   buyer    $9.97/mo  → $0.60/day
+ *   investor $24.97/mo → $1.50/day
  */
-const DEFAULT_LIMITS: BudgetLimits = { free: 1, buyer: 10, investor: 25 };
+const DEFAULT_LIMITS: BudgetLimits = { free: 0.15, buyer: 0.6, investor: 1.5 };
 
 /**
- * Per-tier monthly USD ceiling. Defense-in-depth on top of daily caps,
- * sized below daily × 30 to protect margin on subscriptions.
- *   free     $3 / month
- *   buyer    $12 / month   (subscription $9.97/mo)
- *   investor $40 / month   (subscription $24.97/mo)
+ * Per-tier monthly USD ceiling. Purpose: protect margin across the billing
+ * period. Intentionally BELOW daily × 30 — the daily cap bounds one bad day,
+ * the monthly cap bounds the month.
+ *   free     $1 / month
+ *   buyer    $10 / month   (subscription $9.97/mo)
+ *   investor $25 / month   (subscription $24.97/mo)
  */
 const DEFAULT_MONTHLY_LIMITS: BudgetLimits = { free: 1, buyer: 10, investor: 25 };
 
