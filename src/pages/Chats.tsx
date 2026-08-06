@@ -405,6 +405,7 @@ export default function Chats() {
 
       const rawMessage = data?.message || 'I could not process that request.';
       let { score: matchScore, cleanContent } = parseMatchScore(rawMessage);
+      if (!scoreAllowed) matchScore = null;
       const citations: string[] = Array.isArray(data?.citations) ? data.citations : [];
 
       // G1 — Match score retry: if this looks like a URL analysis and the score
@@ -412,7 +413,7 @@ export default function Chats() {
       // model for just the score line. We don't replace the prose, only enrich
       // the metadata. Per-conversation guard prevents double-billing.
       const flakyKey = conversationId || 'no-conv';
-      if (extractedUrl && matchScore === null && !matchScoreRetriedRef.current.has(flakyKey)) {
+      if (scoreAllowed && extractedUrl && matchScore === null && !matchScoreRetriedRef.current.has(flakyKey)) {
         matchScoreRetriedRef.current.add(flakyKey);
         try {
           const { data: retryData } = await supabase.functions.invoke('perplexity-chat', {
