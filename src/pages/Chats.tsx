@@ -217,6 +217,10 @@ export default function Chats() {
   // src/lib/conversationalIntelligence/ConversationalIntelligence.tsx.
   const ci = useConversationalIntelligenceState(user?.id ?? null);
 
+  // Tier — Match Score is available on Free, capped at 3 analyses/day.
+  const { tier } = useSubscription();
+  const [scoreCapReached, setScoreCapReached] = useState(false);
+
   // Local state
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -300,6 +304,20 @@ export default function Chats() {
     const extractedUrl = extractUrl(cleanedMessage);
     if (extractedUrl) {
       setLastAnalyzedUrl(extractedUrl);
+    }
+
+    // Free tier: Match Score rides the existing 3/day analysis cap. Paid
+    // tiers are uncapped. When the cap is hit we still answer, we just
+    // don't attach a score and we surface a soft upgrade nudge.
+    let scoreAllowed = true;
+    if (extractedUrl && user && tier === 'free') {
+      try {
+        const gate = await canRunAnalysis(user.id);
+        scoreAllowed = gate.canRun;
+        setScoreCapReached(!gate.canRun);
+      } catch {
+        scoreAllowed = true;
+      }
     }
 
     // Auto-save: Create conversation if needed (for logged in users)
