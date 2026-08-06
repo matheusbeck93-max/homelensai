@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { UIBlock } from "@/types/ui-blocks";
 import { UIBlockRenderer } from "@/components/ui-blocks/UIBlockRenderer";
 import { CreditsExhaustedDialog } from "@/components/subscription/CreditsExhaustedDialog";
+import { useSubscription } from "@/hooks/useSubscription";
+import { canRunAnalysis, incrementDailyAnalysisCount } from "@/lib/subscription";
 import { parseEdgeError, isCreditsExhausted } from "@/lib/edgeErrors";
 import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
 import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
