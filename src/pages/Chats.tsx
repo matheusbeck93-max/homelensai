@@ -457,6 +457,11 @@ export default function Chats() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
+      // Free tier: a delivered Match Score consumes one of the 3 daily analyses.
+      if (scoreAllowed && matchScore !== null && user && tier === 'free') {
+        incrementDailyAnalysisCount(user.id).catch(() => {});
+      }
+
       // Auto-save: Save assistant message immediately
       if (user && conversationId) {
         // Persist the MATCH_SCORE prefix in DB content so it can be re-parsed
