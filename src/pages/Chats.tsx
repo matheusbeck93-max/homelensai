@@ -944,6 +944,7 @@ export default function Chats() {
           loading={loading}
           value={pendingInput}
           onValueChange={setPendingInput}
+          scoreCapReached={scoreCapReached}
         />
       </div>
       <CreditsExhaustedDialog
@@ -959,11 +960,13 @@ function CapAwareComposer({
   loading,
   value,
   onValueChange,
+  scoreCapReached,
 }: {
   onSend: (text: string, attachments?: ChatAttachment[]) => void | Promise<void>;
   loading: boolean;
   value: string;
   onValueChange: (v: string) => void;
+  scoreCapReached?: boolean;
 }) {
   const cap = useBudgetCap();
   const exceeded = cap.warningLevel === "exceeded";
