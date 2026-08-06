@@ -12,8 +12,10 @@ export const FEATURE_GATES = {
   // Buyer + Investor
   UNLIMITED_CHAT: ['buyer', 'investor'],
   UNLIMITED_PROPERTY_ANALYSIS: ['buyer', 'investor'],
-  MATCH_SCORE: ['buyer', 'investor'],
-  INVESTMENT_SCORE: ['buyer', 'investor'],
+  // Available on every tier — Free is capped at 3 analyses/day via
+  // profiles.daily_analysis_count, paid tiers are uncapped.
+  MATCH_SCORE: ['free', 'buyer', 'investor'],
+  INVESTMENT_SCORE: ['free', 'buyer', 'investor'],
   PERSONALIZED_CHAT: ['buyer', 'investor'],
   UNLIMITED_HISTORY: ['buyer', 'investor'],
   SAVED_ANALYSES: ['buyer', 'investor'],
