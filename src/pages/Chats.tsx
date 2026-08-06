@@ -969,6 +969,17 @@ function CapAwareComposer({
   const exceeded = cap.warningLevel === "exceeded";
   return (
     <div className="space-y-2">
+      {scoreCapReached && (
+        <div className="px-4 pt-2">
+          <div className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            You've used your 3 free Match Scores for today. Analysis keeps working —{" "}
+            <a href="/pricing" className="text-primary hover:underline font-medium">
+              upgrade to Buyer
+            </a>{" "}
+            for scoring with no daily cap.
+          </div>
+        </div>
+      )}
       {cap.warningLevel === "approaching" && (
         <div className="px-4 pt-2">
           <BudgetCapBanner surface="general_chat" />
