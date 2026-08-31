@@ -46,15 +46,17 @@ The clear gap: **zero `/features/*` links in eight of nine articles**, and the t
 
 ## Guardrails
 
+- Internal links are the primary deliverable: each article gains 1–3 contextual `/features/*` links. Product *mentions* only follow where the text already describes something Homelens does — no manufactured mentions to hit a count.
+- Pillars stay lighter than clusters: long educational pillars get links woven into existing sentences, not new promotional paragraphs.
 - No new capability claims: every mention describes something the product actually does.
-- Target density: ~1 mention per 400–600 words, max 2 product links per 1,000 words.
 - Pattern A stays: one dedicated Homelens Insight section per article, unchanged in wording; new mentions are in-context sentences.
 - Titles, meta, slugs, schema, images, checklists, FAQs and Continue Reading blocks untouched.
 
+## Scope
+
+All eight remaining published articles, in one pass.
+
 ## Technical
 
-`body_html` updates only, on the selected `blog_posts` rows. No schema, code, sitemap, or image changes.
+`body_html` updates only, on the eight `blog_posts` rows. No schema, code, sitemap, or image changes.
 
-## Question before doing anything
-
-Which scope do you want: all eight, only the three pillars (biggest SEO impact), or only the two lowest-density posts (price reduction + listing analysis)?
