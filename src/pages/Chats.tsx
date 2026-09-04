@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText, Image as ImageIcon } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import { SaveAnalysisButton } from "@/components/chat/SaveAnalysisButton";
+import { AgentActionBar } from "@/components/agent/AgentActionBar";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { SourcesFooter } from "@/components/chat/SourcesFooter";
 import ReactMarkdown from "react-markdown";
@@ -839,28 +840,51 @@ export default function Chats() {
                           or MATCH_SCORE present). Score is optional. */}
                       {(message.metadata?.matchScore != null ||
                         (message.metadata as any)?.analyzedProperty ||
-                        (analysisUrl && (message.content.includes("Property Summary") || /\bPrice:/i.test(message.content)))) && (
-                        <SaveAnalysisButton
-                          analysis={{
-                            propertyUrl: analysisUrl ?? null,
-                            propertyAddress:
-                              (message.metadata as any)?.analyzedProperty?.address ?? null,
-                            propertyPrice: null,
-                            analysisSummary: message.content,
-                            investmentScore:
-                              message.metadata?.matchScore != null
-                                ? Math.round(message.metadata.matchScore * 10)
-                                : null,
-                            scoreLabel:
-                              message.metadata?.matchScore != null
-                                ? getScoreLabel(message.metadata.matchScore)
-                                : null,
-                            keyMetrics:
-                              (message.metadata as any)?.analyzedProperty ?? null,
-                            source: "app",
-                          }}
-                        />
-                      )}
+                        (analysisUrl && (message.content.includes("Property Summary") || /\bPrice:/i.test(message.content)))) && (() => {
+                        const ap = (message.metadata as any)?.analyzedProperty ?? {};
+                        const addressLine: string | undefined =
+                          ap.address || extractFieldFromContent(message.content, /Address:\s*([^\n]+)/i);
+                        const parts = (addressLine ?? "").split(",").map((s: string) => s.trim());
+                        const stateGuess = (parts[parts.length - 1] ?? "").split(" ")[0];
+                        const priceRaw =
+                          ap.price ?? extractFieldFromContent(message.content, /Price:\s*\$?([\d,]+)/i);
+                        const price = priceRaw ? Number(String(priceRaw).replace(/[^\d.]/g, "")) : undefined;
+                        return (
+                          <AgentActionBar
+                            className="mt-3"
+                            seed={{
+                              url: analysisUrl ?? undefined,
+                              address: addressLine,
+                              price: Number.isFinite(price) ? price : undefined,
+                              city: ap.city ?? (parts.length >= 2 ? parts[parts.length - 2] : undefined),
+                              state: ap.state ?? (stateGuess || undefined),
+                              beds: ap.bedrooms ?? ap.beds ?? undefined,
+                              baths: ap.bathrooms ?? ap.baths ?? undefined,
+                            }}
+                            saveSlot={
+                              <SaveAnalysisButton
+                                analysis={{
+                                  propertyUrl: analysisUrl ?? null,
+                                  propertyAddress: addressLine ?? null,
+                                  propertyPrice: null,
+                                  analysisSummary: message.content,
+                                  investmentScore:
+                                    message.metadata?.matchScore != null
+                                      ? Math.round(message.metadata.matchScore * 10)
+                                      : null,
+                                  scoreLabel:
+                                    message.metadata?.matchScore != null
+                                      ? getScoreLabel(message.metadata.matchScore)
+                                      : null,
+                                  keyMetrics: (message.metadata as any)?.analyzedProperty ?? null,
+                                  source: "app",
+                                }}
+                              />
+                            }
+                          />
+                        );
+                      })()}
+
 
                       {/* Save Property bookmark — sidebar shelf */}
                       {user && analysisUrl && (() => {

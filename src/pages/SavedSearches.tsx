@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Bell, BellOff, Search, Trash2, Calendar, ArrowLeft, Save } from "lucide-react";
+import { WatchGoalControls } from "@/components/watchGoals/WatchGoalControls";
+import { GOAL_KIND_LABEL, readGoalFields } from "@/lib/watchGoals";
 
 interface SavedSearch {
   id: string;
@@ -74,7 +76,7 @@ export default function SavedSearches() {
       ));
 
       toast({
-        title: !currentState ? "Alerts enabled" : "Alerts disabled",
+        title: !currentState ? "Watch goal active" : "Watch goal paused",
         description: !currentState 
           ? "You'll receive notifications when new matches are found"
           : "You won't receive alerts for this search anymore",
@@ -102,8 +104,8 @@ export default function SavedSearches() {
       ));
 
       toast({
-        title: "Alert frequency updated",
-        description: `You'll now receive ${frequency} alerts`,
+        title: "Cadence updated",
+        description: `HomeLens will check ${frequency}`,
       });
     } catch (error: any) {
       toast({
@@ -126,8 +128,8 @@ export default function SavedSearches() {
       setSearches(searches.filter(s => s.id !== searchId));
 
       toast({
-        title: "Search deleted",
-        description: "Your saved search has been removed",
+        title: "Watch goal deleted",
+        description: "HomeLens will stop watching for this one",
       });
     } catch (error: any) {
       toast({
@@ -170,23 +172,23 @@ export default function SavedSearches() {
                 Back
               </Button>
             </div>
-            <h1 className="text-4xl font-bold mb-2">Saved Searches & Alerts</h1>
+            <h1 className="text-4xl font-bold mb-2">Watch Goals</h1>
             <p className="text-muted-foreground">
-              Manage your saved property searches and get notified of new listings
+              Standing instructions: HomeLens watches live listings, scores them against your profile, and tells you about the strong matches. It never acts for you.
             </p>
           </div>
           <Button onClick={() => navigate("/chat")}>
             <Search className="h-4 w-4 mr-2" />
-            New Search
+            New Watch Goal
           </Button>
         </div>
 
         {searches.length === 0 ? (
           <EmptyState
             icon={Search}
-            title="No Saved Searches"
-            description="Start a property search and save it to get notified when new matching properties become available."
-            actionLabel="Start Your First Search"
+            title="No Watch Goals yet"
+            description="Create a watch goal and HomeLens will keep checking live listings for you, scoring each one against your profile."
+            actionLabel="Create Your First Watch Goal"
             onAction={() => navigate("/chat")}
           />
         ) : (
@@ -221,6 +223,12 @@ export default function SavedSearches() {
                   {/* Filters Display */}
                   {search.filters_json && (
                     <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">
+                        {GOAL_KIND_LABEL[readGoalFields(search.filters_json).goalKind]}
+                      </Badge>
+                      <Badge variant="secondary">
+                        Match {readGoalFields(search.filters_json).matchThreshold}/10+
+                      </Badge>
                       {search.filters_json.price_max && (
                         <Badge variant="secondary">
                           Max Price: ${search.filters_json.price_max.toLocaleString()}
@@ -231,9 +239,10 @@ export default function SavedSearches() {
                           {search.filters_json.beds_min}+ beds
                         </Badge>
                       )}
-                      {search.filters_json.city && (
+                      {(search.filters_json.location || search.filters_json.city) && (
                         <Badge variant="secondary">
-                          {search.filters_json.city}, {search.filters_json.state}
+                          {search.filters_json.location ??
+                            `${search.filters_json.city}, ${search.filters_json.state}`}
                         </Badge>
                       )}
                       {search.filters_json.property_type && (
@@ -244,42 +253,42 @@ export default function SavedSearches() {
                     </div>
                   )}
 
-                  {/* Alert Controls */}
-                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={search.alert_enabled}
-                        onCheckedChange={() => toggleAlert(search.id, search.alert_enabled)}
-                      />
-                      <div>
-                        <p className="font-medium text-sm">Email Alerts</p>
-                        <p className="text-xs text-muted-foreground">
-                          Get notified when new properties match this search
-                        </p>
-                      </div>
+                  {/* Active toggle */}
+                  <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                    <Switch
+                      checked={search.alert_enabled}
+                      onCheckedChange={() => toggleAlert(search.id, search.alert_enabled)}
+                    />
+                    <div>
+                      <p className="font-medium text-sm">Watching</p>
+                      <p className="text-xs text-muted-foreground">
+                        When on, HomeLens checks live listings, scores them against your profile,
+                        and tells you about the strong ones.
+                      </p>
                     </div>
-                    {search.alert_enabled && (
-                      <Select
-                        value={search.alert_frequency}
-                        onValueChange={(value) => updateAlertFrequency(search.id, value)}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="instant">Instant</SelectItem>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
                   </div>
+
+                  {/* Watch Goal controls */}
+                  {search.alert_enabled && (
+                    <WatchGoalControls
+                      goalId={search.id}
+                      filters={search.filters_json}
+                      cadence={search.alert_frequency}
+                      onFiltersChange={(filters) =>
+                        setSearches((prev) =>
+                          prev.map((s) => (s.id === search.id ? { ...s, filters_json: filters } : s)),
+                        )
+                      }
+                      onCadenceChange={(cadence) => updateAlertFrequency(search.id, cadence)}
+                    />
+                  )}
 
                   {search.last_alert_sent && (
                     <p className="text-xs text-muted-foreground">
-                      Last alert sent: {new Date(search.last_alert_sent).toLocaleString()}
+                      Last checked: {new Date(search.last_alert_sent).toLocaleString()}
                     </p>
                   )}
+
 
                   {/* Actions */}
                   <div className="flex gap-2">
@@ -299,9 +308,9 @@ export default function SavedSearches() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete saved search?</AlertDialogTitle>
+                          <AlertDialogTitle>Delete watch goal?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will remove the search and stop all alerts. This action cannot be undone.
+                            This stops the watching and removes the goal. This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

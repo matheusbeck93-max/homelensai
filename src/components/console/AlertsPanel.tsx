@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bell, TrendingDown, Home, CheckCircle2 } from "lucide-react";
+import { Bell, TrendingDown, Home, CheckCircle2, Target } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
@@ -143,6 +144,8 @@ export function AlertsPanel() {
         return <Bell className="w-4 h-4 text-blue-500" />;
       case "new_match":
         return <Home className="w-4 h-4 text-purple-500" />;
+      case "watch_goal_match":
+        return <Target className="w-4 h-4 text-primary" />;
       default:
         return <Bell className="w-4 h-4" />;
     }
@@ -292,6 +295,16 @@ export function AlertsPanel() {
               >
                 {getEventIcon(event.type)}
                 <div className="flex-1 min-w-0">
+                  {event.type === "watch_goal_match" && (
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="text-[11px]">Watch goal match</Badge>
+                      {typeof (event.property_snapshot as any)?.match_score === "number" && (
+                        <Badge className="text-[11px]">
+                          Match {(event.property_snapshot as any).match_score}/10
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                   <p className="text-sm font-medium">{event.message}</p>
                   {event.property_snapshot?.address && (
                     <p className="text-xs text-muted-foreground mt-0.5">

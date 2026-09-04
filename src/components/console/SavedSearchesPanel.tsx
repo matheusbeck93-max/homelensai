@@ -9,6 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Bell, BellOff, Search, Trash2, Calendar } from "lucide-react";
+import { WatchGoalControls } from "@/components/watchGoals/WatchGoalControls";
+import { GOAL_KIND_LABEL, readGoalFields } from "@/lib/watchGoals";
 
 interface SavedSearch {
   id: string;
@@ -148,11 +150,11 @@ export function SavedSearchesPanel() {
     return (
       <Card className="p-8 text-center">
         <Search className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-        <h2 className="text-xl font-semibold mb-2">No Saved Searches</h2>
+        <h2 className="text-xl font-semibold mb-2">No Watch Goals yet</h2>
         <p className="text-muted-foreground mb-4">
-          Start a property search and save it to get notified when new matching properties become available.
+          Create a watch goal and HomeLens keeps checking live listings for you, scoring each one against your profile.
         </p>
-        <Button onClick={() => navigate("/")}>Start Your First Search</Button>
+        <Button onClick={() => navigate("/")}>Create Your First Watch Goal</Button>
       </Card>
     );
   }
@@ -174,12 +176,12 @@ export function SavedSearchesPanel() {
                 {search.alert_enabled ? (
                   <Badge className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-100">
                     <Bell className="h-3 w-3 mr-1" />
-                    Alerts On
+                    Watching
                   </Badge>
                 ) : (
                   <Badge variant="outline">
                     <BellOff className="h-3 w-3 mr-1" />
-                    Alerts Off
+                    Paused
                   </Badge>
                 )}
               </div>
@@ -189,6 +191,12 @@ export function SavedSearchesPanel() {
             {/* Filters Display */}
             {search.filters_json && (
               <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">
+                  {GOAL_KIND_LABEL[readGoalFields(search.filters_json).goalKind]}
+                </Badge>
+                <Badge variant="secondary">
+                  Match {readGoalFields(search.filters_json).matchThreshold}/10+
+                </Badge>
                 {search.filters_json.price_max && (
                   <Badge variant="secondary">
                     Max Price: ${search.filters_json.price_max.toLocaleString()}
@@ -212,40 +220,37 @@ export function SavedSearchesPanel() {
               </div>
             )}
 
-            {/* Alert Controls */}
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={search.alert_enabled}
-                  onCheckedChange={() => toggleAlert(search.id, search.alert_enabled)}
-                />
-                <div>
-                  <p className="font-medium text-sm">Email Alerts</p>
-                  <p className="text-xs text-muted-foreground">
-                    Get notified when new properties match this search
-                  </p>
-                </div>
+            {/* Watch Goal controls */}
+            <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+              <Switch
+                checked={search.alert_enabled}
+                onCheckedChange={() => toggleAlert(search.id, search.alert_enabled)}
+              />
+              <div>
+                <p className="font-medium text-sm">Watching</p>
+                <p className="text-xs text-muted-foreground">
+                  HomeLens checks live listings, scores them against your profile, and tells you about the strong ones.
+                </p>
               </div>
-              {search.alert_enabled && (
-                <Select
-                  value={search.alert_frequency}
-                  onValueChange={(value) => updateAlertFrequency(search.id, value)}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instant">Instant</SelectItem>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
             </div>
+
+            {search.alert_enabled && (
+              <WatchGoalControls
+                goalId={search.id}
+                filters={search.filters_json}
+                cadence={search.alert_frequency}
+                onFiltersChange={(filters) =>
+                  setSearches((prev) =>
+                    prev.map((s) => (s.id === search.id ? { ...s, filters_json: filters } : s)),
+                  )
+                }
+                onCadenceChange={(cadence) => updateAlertFrequency(search.id, cadence)}
+              />
+            )}
 
             {search.last_alert_sent && (
               <p className="text-xs text-muted-foreground">
-                Last alert sent: {new Date(search.last_alert_sent).toLocaleString()}
+                Last checked: {new Date(search.last_alert_sent).toLocaleString()}
               </p>
             )}
 
@@ -267,9 +272,9 @@ export function SavedSearchesPanel() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete saved search?</AlertDialogTitle>
+                    <AlertDialogTitle>Delete watch goal?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will remove the search and stop all alerts. This action cannot be undone.
+                      This stops the watching and removes the goal. This cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
