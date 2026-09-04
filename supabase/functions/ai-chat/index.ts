@@ -19,6 +19,17 @@ import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '.
 import { loadMemoriesForContext, renderMemoriesBlock } from '../_shared/memory/retriever.ts';
 import { fetchRentcastEnrichmentBlock } from '../_shared/rentcast-enrichment.ts';
 import { withOrigin } from '../_shared/ai/requestContext.ts';
+import {
+  buildMatchScoreProfileBlock,
+  buildMatchScoreInstructions,
+  matchScoreToolChatShape,
+  matchScoreToolRouterShape,
+  parseMatchScoreToolCalls,
+  parseMatchScoreFromText,
+  ensureMatchScorePrefix,
+  repairMatchScore,
+} from '../_shared/matchScore.ts';
+
 
 const CI_BLOCK_EXTENSION = '\n\n' + ciBehaviorPromptBlock({ surface: 'extension' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
 const CI_BLOCK_FIRECRAWL = '\n\n' + ciBehaviorPromptBlock({ surface: 'property' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
