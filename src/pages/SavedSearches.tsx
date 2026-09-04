@@ -221,6 +221,12 @@ export default function SavedSearches() {
                   {/* Filters Display */}
                   {search.filters_json && (
                     <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">
+                        {GOAL_KIND_LABEL[readGoalFields(search.filters_json).goalKind]}
+                      </Badge>
+                      <Badge variant="secondary">
+                        Match {readGoalFields(search.filters_json).matchThreshold}/10+
+                      </Badge>
                       {search.filters_json.price_max && (
                         <Badge variant="secondary">
                           Max Price: ${search.filters_json.price_max.toLocaleString()}
@@ -231,9 +237,10 @@ export default function SavedSearches() {
                           {search.filters_json.beds_min}+ beds
                         </Badge>
                       )}
-                      {search.filters_json.city && (
+                      {(search.filters_json.location || search.filters_json.city) && (
                         <Badge variant="secondary">
-                          {search.filters_json.city}, {search.filters_json.state}
+                          {search.filters_json.location ??
+                            `${search.filters_json.city}, ${search.filters_json.state}`}
                         </Badge>
                       )}
                       {search.filters_json.property_type && (
@@ -244,42 +251,42 @@ export default function SavedSearches() {
                     </div>
                   )}
 
-                  {/* Alert Controls */}
-                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={search.alert_enabled}
-                        onCheckedChange={() => toggleAlert(search.id, search.alert_enabled)}
-                      />
-                      <div>
-                        <p className="font-medium text-sm">Email Alerts</p>
-                        <p className="text-xs text-muted-foreground">
-                          Get notified when new properties match this search
-                        </p>
-                      </div>
+                  {/* Active toggle */}
+                  <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                    <Switch
+                      checked={search.alert_enabled}
+                      onCheckedChange={() => toggleAlert(search.id, search.alert_enabled)}
+                    />
+                    <div>
+                      <p className="font-medium text-sm">Watching</p>
+                      <p className="text-xs text-muted-foreground">
+                        When on, HomeLens checks live listings, scores them against your profile,
+                        and tells you about the strong ones.
+                      </p>
                     </div>
-                    {search.alert_enabled && (
-                      <Select
-                        value={search.alert_frequency}
-                        onValueChange={(value) => updateAlertFrequency(search.id, value)}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="instant">Instant</SelectItem>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
                   </div>
+
+                  {/* Watch Goal controls */}
+                  {search.alert_enabled && (
+                    <WatchGoalControls
+                      goalId={search.id}
+                      filters={search.filters_json}
+                      cadence={search.alert_frequency}
+                      onFiltersChange={(filters) =>
+                        setSearches((prev) =>
+                          prev.map((s) => (s.id === search.id ? { ...s, filters_json: filters } : s)),
+                        )
+                      }
+                      onCadenceChange={(cadence) => updateAlertFrequency(search.id, cadence)}
+                    />
+                  )}
 
                   {search.last_alert_sent && (
                     <p className="text-xs text-muted-foreground">
-                      Last alert sent: {new Date(search.last_alert_sent).toLocaleString()}
+                      Last checked: {new Date(search.last_alert_sent).toLocaleString()}
                     </p>
                   )}
+
 
                   {/* Actions */}
                   <div className="flex gap-2">
