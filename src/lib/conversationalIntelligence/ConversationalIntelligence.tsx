@@ -256,7 +256,60 @@ export function ConversationalIntelligence({
           navigate(`/console?tab=overview`);
           return;
         }
+        // Agentic v1 — GOAL intent chips.
+        case "create_watch_goal": {
+          const city = (input.city || active.snapshot?.city || "").toString().trim();
+          const state = (input.state || active.snapshot?.state || "").toString().trim();
+          const location = [city, state].filter(Boolean).join(", ");
+          if (!location) {
+            toast({
+              title: "Which market?",
+              description: "Tell me the city and state and I'll set the watch goal up.",
+            });
+            return;
+          }
+          const kind = ["watch_area", "watch_similar", "watch_price_drop"].includes(
+            String(input.goal_kind),
+          )
+            ? (input.goal_kind as GoalKind)
+            : "watch_area";
+          const result = await createWatchGoal({
+            label: (input.label || `Watch ${location}`).toString(),
+            goalKind: kind,
+            location,
+            cadence: input.cadence === "daily" ? "daily" : "weekly",
+            matchThreshold: Number(input.match_threshold) || undefined,
+            priceMin: Number(input.price_min) || undefined,
+            priceMax: Number(input.price_max) || undefined,
+            bedsMin: Number(input.beds_min) || undefined,
+          });
+          if (result.ok !== true) {
+            toast({
+              title: "Could not create watch goal",
+              description: result.error,
+              variant: "destructive",
+            });
+            return;
+          }
+          toast({
+            title: "Watch goal created",
+            description: `Goal ${result.id.slice(0, 8)} — ${location}. I'll score new matches and tell you about the strong ones.`,
+          });
+          return;
+        }
+        case "compare_listings": {
+          const urls = Array.isArray(input.urls)
+            ? (input.urls as unknown[]).map((u) => String(u)).filter(Boolean)
+            : [];
+          onSendMessage?.(
+            urls.length
+              ? `Compare these listings side by side and tell me which one wins for me:\n${urls.join("\n")}`
+              : `Compare the listings we've discussed side by side and tell me which one wins for me.`,
+          );
+          return;
+        }
       }
+
     }
     if (action.type === "call_tool" && action.name.startsWith("generate_")) {
       if (!onGenerateArtifact) return;
