@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Copy, Check, ExternalLink, ShieldCheck, Lock, LogOut } from "lucide-react";
+import { Copy, Check, ExternalLink, ShieldCheck, Lock, LogOut, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,41 +38,83 @@ const EXAMPLE_PROMPTS = [
   "Save this analysis to my HomeLens dashboard. (uses save_analysis)",
 ];
 
-const CLIENTS = [
+type ClientStep = { text: string; code?: string };
+type ClientGuide = {
+  id: string;
+  label: string;
+  blurb: string;
+  steps: ClientStep[];
+  prompts?: string[];
+};
+
+const CLIENTS: ClientGuide[] = [
+  {
+    id: "grok",
+    label: "Grok Bot / Grok",
+    blurb: "Grok (xAI) supports remote MCP over Streamable HTTP and runs an OAuth browser flow automatically. HomeLens is the MCP server; Grok is the client — you connect once, then ask Grok to analyze listings, set Watch Goals, and read your profile.",
+    steps: [
+      {
+        text: "Copy the HomeLens MCP URL above — it's the same URL every other client uses.",
+      },
+      {
+        text: "If you use the Grok CLI, add the server over HTTP transport:",
+        code: "grok mcp add --transport http homelens https://yckcdxtatwolzilboahx.supabase.co/functions/v1/mcp",
+      },
+      {
+        text: "If you use Grok's in-app connectors (or Grok Bot), add a new HTTP MCP server with the HomeLens URL and choose OAuth as the auth type.",
+      },
+      {
+        text: "On first use, Grok opens a browser. Sign in with your HomeLens account and approve the connector on the consent screen. The token is stored by Grok and reused after that.",
+      },
+      {
+        text: "Verify the connection is live:",
+        code: "grok mcp doctor homelens",
+      },
+    ],
+    prompts: [
+      "Analyze https://www.zillow.com/homedetails/... and tell me the Match Score.",
+      "Watch Tampa homes under $400k and notify me when something scores 7+.",
+      "What's in my HomeLens profile — my budget and target cities?",
+    ],
+  },
   {
     id: "claude",
     label: "Claude Desktop",
+    blurb: "Claude Desktop connects to remote MCP servers through its Connectors settings.",
     steps: [
-      "Open Claude Desktop → Settings → Connectors.",
-      "Click Add custom connector, paste the URL above, and confirm.",
-      "Sign in with your HomeLens account and approve on the consent screen.",
+      { text: "Open Claude Desktop → Settings → Connectors." },
+      { text: "Click Add custom connector, paste the URL above, and confirm." },
+      { text: "Sign in with your HomeLens account and approve on the consent screen." },
     ],
   },
   {
     id: "chatgpt",
     label: "ChatGPT",
+    blurb: "ChatGPT supports remote MCP connectors from its Settings.",
     steps: [
-      "In ChatGPT, open Settings → Connectors → Add.",
-      "Paste the HomeLens MCP URL and continue.",
-      "Sign in with your HomeLens account and approve the connection.",
+      { text: "In ChatGPT, open Settings → Connectors → Add." },
+      { text: "Paste the HomeLens MCP URL and continue." },
+      { text: "Sign in with your HomeLens account and approve the connection." },
     ],
   },
   {
     id: "cursor",
     label: "Cursor",
+    blurb: "Cursor can connect to HTTP MCP servers from its MCP settings.",
     steps: [
-      "Open Cursor Settings → MCP → Add new MCP server.",
-      "Choose HTTP transport and paste the URL above.",
-      "Sign in with your HomeLens account when Cursor opens the browser.",
+      { text: "Open Cursor Settings → MCP → Add new MCP server." },
+      { text: "Choose HTTP transport and paste the URL above." },
+      { text: "Sign in with your HomeLens account when Cursor opens the browser." },
     ],
   },
   {
     id: "codex",
     label: "Codex / other",
+    blurb: "Any MCP-capable client can connect to HomeLens over HTTP with OAuth.",
     steps: [
-      "In your MCP-capable client, add a new HTTP MCP server.",
-      "Use the HomeLens URL above and OAuth as the auth type.",
-      "Sign in with your HomeLens account and approve.",
+      { text: "In your MCP-capable client, add a new HTTP MCP server." },
+      { text: "Use the HomeLens URL above and OAuth as the auth type." },
+      { text: "Sign in with your HomeLens account and approve." },
     ],
   },
 ];
@@ -119,10 +161,10 @@ export default function Integrations() {
   return (
     <>
       <Helmet>
-        <title>Connect HomeLens to Claude, ChatGPT & Cursor | HomeLens AI</title>
+        <title>Connect HomeLens to Grok, Claude, ChatGPT & Cursor | HomeLens AI</title>
         <meta
           name="description"
-          content="Bring your HomeLens saved properties, analyses, and investor portfolio into Claude, ChatGPT, Cursor, and other AI assistants over MCP."
+          content="Bring your HomeLens saved properties, analyses, and investor portfolio into Grok Bot, Claude, ChatGPT, Cursor, and other AI assistants over MCP."
         />
         <link rel="canonical" href="https://homelensais.com/integrations" />
       </Helmet>
@@ -133,10 +175,10 @@ export default function Integrations() {
           <section className="text-center space-y-4">
             <Badge variant="secondary" className="mx-auto">Agent integrations</Badge>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-              Bring HomeLens into your AI assistant
+              Bring HomeLens into Claude, ChatGPT, Cursor, or Grok Bot
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Connect Claude, ChatGPT, Cursor, or any MCP client to HomeLens.
+              Connect Grok, Claude, ChatGPT, Cursor, or any MCP client to HomeLens.
               Chat with your saved properties, analyses, and portfolio — from wherever you already work.
             </p>
           </section>
@@ -159,8 +201,8 @@ export default function Integrations() {
           {/* Per-client install steps */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">Install in your assistant</h2>
-            <Tabs defaultValue="claude" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+            <Tabs defaultValue="grok" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
                 {CLIENTS.map((c) => (
                   <TabsTrigger key={c.id} value={c.id}>{c.label}</TabsTrigger>
                 ))}
@@ -168,22 +210,74 @@ export default function Integrations() {
               {CLIENTS.map((c) => (
                 <TabsContent key={c.id} value={c.id} className="mt-4">
                   <Card>
-                    <CardContent className="pt-6">
+                    <CardContent className="pt-6 space-y-4">
+                      {c.blurb ? (
+                        <p className="text-sm text-muted-foreground">{c.blurb}</p>
+                      ) : null}
                       <ol className="space-y-3">
                         {c.steps.map((step, i) => (
                           <li key={i} className="flex gap-3 items-start">
                             <span className="flex-shrink-0 h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
                               {i + 1}
                             </span>
-                            <span className="text-sm pt-0.5">{step}</span>
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <span className="text-sm pt-0.5 block">{step.text}</span>
+                              {step.code ? (
+                                <code className="block w-full rounded-md bg-muted px-3 py-2 text-xs font-mono break-all select-all">
+                                  {step.code}
+                                </code>
+                              ) : null}
+                            </div>
                           </li>
                         ))}
                       </ol>
+                      {c.prompts ? (
+                        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Try asking {c.label}</p>
+                          {c.prompts.map((p) => (
+                            <p key={p} className="text-sm text-foreground flex items-start gap-2">
+                              <ArrowRight className="h-3.5 w-3.3 mt-0.5 text-primary shrink-0" />
+                              <span>{p}</span>
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
                     </CardContent>
                   </Card>
                 </TabsContent>
               ))}
             </Tabs>
+          </section>
+
+          {/* How it works */}
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">How it works</h2>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Card>
+                <CardContent className="pt-6 space-y-2">
+                  <h3 className="font-semibold">HomeLens is the server</h3>
+                  <p className="text-sm text-muted-foreground">
+                    HomeLens publishes an MCP server. Your assistant — Grok, Claude, ChatGPT, or Cursor — is the <em>client</em> that calls it. You only connect once; every client uses the same URL.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 space-y-2">
+                  <h3 className="font-semibold">You sign in as you</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Each connection runs over OAuth, so tool calls act as your signed-in HomeLens user. Your assistant can only see what you'd see — your saved properties, analyses, and portfolio. Revoke any time from the client or from HomeLens.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 space-y-2">
+                  <h3 className="font-semibold">Listings stay page-level</h3>
+                  <p className="text-sm text-muted-foreground">
+                    You don't connect a Zillow account. Paste a listing URL into your assistant or use the HomeLens Chrome extension on a property page — HomeLens extracts the data and scores it. No portal login required.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </section>
 
           {/* Tools & tiers */}
