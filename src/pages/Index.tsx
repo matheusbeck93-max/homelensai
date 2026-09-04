@@ -512,21 +512,36 @@ export default function Index() {
       <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
           <HouseHeroAnimation />
           <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20 max-w-5xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground">
-              {userName ? `Hello, ${userName.split(' ')[0]}` : 'Meet Your Real Estate Advisor'}
+            <p className="text-sm sm:text-base font-medium text-primary mb-3 tracking-wide uppercase">
+              Big decisions deserve the full picture
+            </p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground tracking-tight">
+              {userName ? `Hello, ${userName.split(' ')[0]}` : 'Analyze any listing. Get your Match Score.'}
             </h1>
-            <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-4xl mx-auto px-4">
-              {userName && primaryGoal
-                ? primaryGoal === 'invest' ? 'Your AI Investment Advisor — Find High-Yield Opportunities'
-                : primaryGoal === 'buy_home' ? 'Your AI Home Buying Copilot — Find the Perfect Home'
-                : primaryGoal === 'rent' ? 'Your AI Rental Advisor — Find the Best Deals'
-                : primaryGoal === 'market_trends' ? 'Your AI Market Intelligence — Stay Ahead of Trends'
-                : primaryGoal === 'tax_incentives' ? 'Your AI Financial Advisor — Maximize Tax Benefits'
-                : 'Big decisions deserve the full picture'
-                : 'Big decisions deserve the full picture'}
+            <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-muted-foreground max-w-3xl mx-auto px-4">
+              Paste a Zillow, Redfin, or Realtor.com link for an instant AI verdict — fair price, risk, and a Match Score — or add the Chrome extension to analyze listings without leaving the page.
             </p>
 
-            {/* Hero Search Input */}
+            {/* Primary CTAs: Add to Chrome + Analyze a listing */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-center max-w-3xl mx-auto px-4 mb-4">
+              <Button asChild size="lg" className="h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto">
+                <a href={CHROME_EXTENSION_URL} target="_blank" rel="noopener noreferrer">
+                  <Chrome className="h-5 w-5 mr-2" />
+                  Add to Chrome — Free
+                </a>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => navigate('/chats')}
+                className="h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto"
+              >
+                <Sparkles className="h-5 w-5 mr-2" />
+                Analyze a listing
+              </Button>
+            </div>
+
+            {/* Paste a listing URL — secondary path */}
             <form onSubmit={handleHeroSubmit} className="max-w-3xl mx-auto px-4">
               <div className="flex flex-col sm:flex-row gap-2">
                 <Input
@@ -534,9 +549,9 @@ export default function Index() {
                 onChange={(e) => setHeroInput(e.target.value)}
                 onFocus={() => setHeroFocused(true)}
                 onBlur={() => setHeroFocused(false)}
-                placeholder={heroFocused ? "Type your question..." : typingPlaceholder}
+                placeholder={heroFocused ? "Paste a Zillow / Redfin / Realtor.com listing URL…" : typingPlaceholder}
                 disabled={conversationLoading || searchLoading}
-                aria-label="Search for properties or ask a question"
+                aria-label="Paste a listing URL to analyze"
                 className="h-12 sm:h-14 text-sm sm:text-base" />
 
                 <Button
@@ -544,13 +559,12 @@ export default function Index() {
                 disabled={conversationLoading || searchLoading || !heroInput.trim()}
                 size="lg"
                 className="h-12 sm:h-14 px-6 sm:px-8 w-full sm:w-auto">
-
                   <Search className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                  Search
+                  Analyze
                 </Button>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                Powered by AI – Search using natural language
+                Paste any listing URL for an AI Match Score — or ask a question
               </p>
             </form>
 
