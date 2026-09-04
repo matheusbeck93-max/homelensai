@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { ArrowLeft, MapPin, Bed, Bath, Ruler, DollarSign, TrendingUp, Sparkles, Map as MapIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -256,6 +262,7 @@ export default function PropertyDetail() {
           </div>
 
           <div className="space-y-6">
+            {/* Header: price, address, specs */}
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-2">
                 <span className="text-primary">{formatPrice(property.price)}</span>
@@ -269,7 +276,7 @@ export default function PropertyDetail() {
               </p>
             </div>
 
-            <div className="flex gap-6 text-lg">
+            <div className="flex flex-wrap gap-6 text-lg">
               <div className="flex items-center gap-2">
                 <Bed className="h-5 w-5 text-muted-foreground" />
                 <span>{property.beds} Beds</span>
@@ -282,187 +289,238 @@ export default function PropertyDetail() {
                 <Ruler className="h-5 w-5 text-muted-foreground" />
                 <span>{property.sqft} sqft</span>
               </div>
+              {property.condition && (
+                <Badge className="text-base px-3 py-1">
+                  {property.condition}
+                </Badge>
+              )}
             </div>
 
-            <Badge className="text-lg px-4 py-2">
-              {property.condition}
-            </Badge>
-
-            <Separator />
-
-            <Card>
-              <CardHeader>
-                <CardTitle as="h2">Investment Analysis</CardTitle>
-                <CardDescription>Key metrics for this property</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {property.arv && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">After Repair Value (ARV)</span>
-                    <span className="font-semibold">{formatPrice(property.arv)}</span>
-                  </div>
-                )}
-                {property.rehab_cost && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Estimated Rehab Cost</span>
-                    <span className="font-semibold">{formatPrice(property.rehab_cost)}</span>
-                  </div>
-                )}
-                {property.roi_percent && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      Estimated ROI
-                    </span>
-                    <span className="font-semibold text-secondary text-lg">
-                      {property.roi_percent}%
-                    </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Button 
-              className="w-full" 
-              size="lg"
-              onClick={handleAnalyze}
-              disabled={analyzing || isCapExceeded}
-            >
-              {analyzing ? (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5 animate-pulse" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Generate AI Analysis
-                </>
-              )}
-            </Button>
-            {cap.warningLevel === "approaching" && (
-              <div className="flex justify-center">
-                <BudgetCapBanner surface="property_ai_analysis" />
+            {/* 1. VERDICT — headline metrics + primary CTA to generate/refresh analysis */}
+            <section aria-labelledby="verdict-heading">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">Verdict</span>
+                <Separator className="flex-1" />
               </div>
-            )}
-            {isCapExceeded && (
-              <BudgetCapBlocker surface="property_ai_analysis" compact />
-            )}
 
-            
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full"
-              onClick={handleMapToggle}
-            >
-              {showMap ? (
-                <>
-                  <MapIcon className="mr-2 h-5 w-5" />
-                  Hide Map
-                </>
-              ) : (
-                <>
-                  <MapIcon className="mr-2 h-5 w-5" />
-                  View on Map
-                </>
-              )}
-            </Button>
-
-            <PropertyPDFExport 
-              property={property}
-              analysis={analysis}
-              neighborhoodPersonality={neighborhoodPersonality}
-            />
-
-            {analysis && (
               <Card>
-                <CardHeader>
-                  <CardTitle as="h2">AI Analysis Report</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle as="h2" id="verdict-heading" className="text-lg">Investment Analysis</CardTitle>
+                  <CardDescription>Key metrics for this property</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-wrap">{analysis}</p>
+                <CardContent className="space-y-4">
+                  {property.arv && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">After Repair Value (ARV)</span>
+                      <span className="font-semibold">{formatPrice(property.arv)}</span>
+                    </div>
+                  )}
+                  {property.rehab_cost && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Estimated Rehab Cost</span>
+                      <span className="font-semibold">{formatPrice(property.rehab_cost)}</span>
+                    </div>
+                  )}
+                  {property.roi_percent && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Estimated ROI
+                      </span>
+                      <span className="font-semibold text-secondary text-lg">
+                        {property.roi_percent}%
+                      </span>
+                    </div>
+                  )}
+                  {!property.arv && !property.rehab_cost && !property.roi_percent && (
+                    <p className="text-sm text-muted-foreground">
+                      No investment metrics on file yet. Generate an AI analysis to get a full verdict.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
+
+              <Button
+                className="w-full mt-3"
+                size="lg"
+                onClick={handleAnalyze}
+                disabled={analyzing || isCapExceeded}
+              >
+                {analyzing ? (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5 animate-pulse" />
+                    Analyzing...
+                  </>
+                ) : analysis ? (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Refresh AI Analysis
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Generate AI Analysis
+                  </>
+                )}
+              </Button>
+              {cap.warningLevel === "approaching" && (
+                <div className="flex justify-center mt-2">
+                  <BudgetCapBanner surface="property_ai_analysis" />
+                </div>
+              )}
+              {isCapExceeded && (
+                <BudgetCapBlocker surface="property_ai_analysis" compact />
+              )}
+            </section>
+
+            {/* 2. WHY — AI rationale / key highlights */}
+            <section aria-labelledby="why-heading">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">Why</span>
+                <Separator className="flex-1" />
+              </div>
+              {analysis ? (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle as="h2" id="why-heading" className="text-lg">AI Analysis Report</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{analysis}</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <p className="text-sm text-muted-foreground py-2">
+                  Generate an analysis to see the AI rationale and key highlights behind the verdict.
+                </p>
+              )}
+            </section>
+          </div>
+        </div>
+
+        {/* 3. DIG DEEPER — collapsed, on-demand sections */}
+        <section aria-labelledby="digdeeper-heading" className="mt-10">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary" id="digdeeper-heading">
+              Dig deeper
+            </span>
+            <Separator className="flex-1" />
+          </div>
+
+          <Accordion
+            type="single"
+            collapsible
+            value={showMap ? "map" : undefined}
+            onValueChange={(v) => setShowMap(v === "map")}
+          >
+            {/* Property Insights (RentCast & Census) */}
+            {property.insights && (
+              <AccordionItem value="insights">
+                <AccordionTrigger>Property Insights (RentCast & Census)</AccordionTrigger>
+                <AccordionContent>
+                  <PropertyInsights insights={property.insights} />
+                </AccordionContent>
+              </AccordionItem>
             )}
 
-            <ExternalLinks property={property} />
-          </div>
-        </div>
+            {/* Property Description */}
+            {property.description && (
+              <AccordionItem value="description">
+                <AccordionTrigger>Property Description</AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-muted-foreground">{property.description}</p>
+                </AccordionContent>
+              </AccordionItem>
+            )}
 
-        {/* Property Insights from RentCast & Census */}
-        {property.insights && (
-          <div className="mt-8">
-            <PropertyInsights insights={property.insights} />
-          </div>
-        )}
+            {/* Interactive Map */}
+            <AccordionItem value="map">
+              <AccordionTrigger>
+                <span className="flex items-center gap-2">
+                  <MapIcon className="h-4 w-4" />
+                  View on Map
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                {showMap && (
+                  <PropertyMap
+                    address={property.address}
+                    city={property.city}
+                    state={property.state}
+                    zip={property.zip}
+                    insights={neighborhoodInsights || undefined}
+                  />
+                )}
+              </AccordionContent>
+            </AccordionItem>
 
-        {property.description && (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle as="h2">Property Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{property.description}</p>
-            </CardContent>
-          </Card>
-        )}
+            {/* Market Trends Chart */}
+            <AccordionItem value="market">
+              <AccordionTrigger>Market Trends</AccordionTrigger>
+              <AccordionContent>
+                <MarketTrendsChart location={`${property.city}, ${property.state} ${property.zip}`} />
+              </AccordionContent>
+            </AccordionItem>
 
-        {/* Interactive Map */}
-        {showMap && (
-          <div className="mt-8">
-            <PropertyMap
-              address={property.address}
-              city={property.city}
-              state={property.state}
-              zip={property.zip}
-              insights={neighborhoodInsights || undefined}
-            />
-          </div>
-        )}
+            {/* Neighborhood Personality AI */}
+            <AccordionItem value="personality">
+              <AccordionTrigger>Neighborhood Personality (AI)</AccordionTrigger>
+              <AccordionContent>
+                <NeighborhoodPersonality
+                  address={property.address}
+                  city={property.city}
+                  state={property.state}
+                  zip={property.zip}
+                  onPersonalityGenerated={setNeighborhoodPersonality}
+                />
+              </AccordionContent>
+            </AccordionItem>
 
-        {/* Market Trends Chart */}
-        <div className="mt-8">
-          <MarketTrendsChart location={`${property.city}, ${property.state} ${property.zip}`} />
-        </div>
+            {/* Neighborhood Insights */}
+            <AccordionItem value="neighborhood">
+              <AccordionTrigger>Neighborhood Insights</AccordionTrigger>
+              <AccordionContent>
+                {loadingInsights ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-6 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                  </div>
+                ) : neighborhoodInsights ? (
+                  <NeighborhoodInsights
+                    insights={neighborhoodInsights}
+                    isLoading={loadingInsights}
+                    onRefresh={() => fetchNeighborhoodInsights(true)}
+                    source={insightsSource}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">No neighborhood data available.</p>
+                )}
+              </AccordionContent>
+            </AccordionItem>
 
-        {/* Neighborhood Personality AI */}
-        <div className="mt-8">
-          <NeighborhoodPersonality
-            address={property.address}
-            city={property.city}
-            state={property.state}
-            zip={property.zip}
-            onPersonalityGenerated={setNeighborhoodPersonality}
-          />
-        </div>
+            {/* External Links */}
+            <AccordionItem value="links">
+              <AccordionTrigger>View on other sites</AccordionTrigger>
+              <AccordionContent>
+                <ExternalLinks property={property} />
+              </AccordionContent>
+            </AccordionItem>
 
-        {/* Neighborhood Insights */}
-        <div className="mt-8">
-          {loadingInsights ? (
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-6 w-48" />
-                <Skeleton className="h-4 w-64 mt-2" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <Skeleton className="h-24 w-full" />
-                  <Skeleton className="h-24 w-full" />
-                  <Skeleton className="h-24 w-full" />
-                </div>
-              </CardContent>
-            </Card>
-          ) : neighborhoodInsights ? (
-            <NeighborhoodInsights 
-              insights={neighborhoodInsights} 
-              isLoading={loadingInsights}
-              onRefresh={() => fetchNeighborhoodInsights(true)}
-              source={insightsSource}
-            />
-          ) : null}
-        </div>
+            {/* PDF Export */}
+            <AccordionItem value="pdf">
+              <AccordionTrigger>Export PDF report</AccordionTrigger>
+              <AccordionContent>
+                <PropertyPDFExport
+                  property={property}
+                  analysis={analysis}
+                  neighborhoodPersonality={neighborhoodPersonality}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </section>
       </div>
 
       <UpgradeModal
