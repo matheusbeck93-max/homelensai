@@ -897,35 +897,22 @@ CRITICAL:
       
       // Fetch user profile for match score (Firecrawl path) — memoized per request
       let firecrawlMatchScoreInstructions = '';
+      let firecrawlProfileBlock = '';
       {
         const { profile: fcProfile } = await loadProfile(req);
         if (fcProfile && (fcProfile as any).onboarding_completed) {
-          const p: any = fcProfile;
-          firecrawlMatchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\n- Min bedrooms: ${p.min_bedrooms || 'any'}\n- Min bathrooms: ${p.min_bathrooms || 'any'}\n- Must-have features: ${p.must_have_features?.join(', ') || 'none'}\nAfter the score line, continue with the analysis.`;
+          firecrawlProfileBlock = buildMatchScoreProfileBlock(fcProfile);
+          firecrawlMatchScoreInstructions = buildMatchScoreInstructions(firecrawlProfileBlock);
         }
       }
 
-      // P1-3 Step B: expose a structured submit_match_score tool alongside the
-      // existing MATCH_SCORE: X/10 prose prefix. tool_choice stays 'auto' so the
-      // model still produces the human-facing prose; if it ALSO emits the tool
-      // call we prefer that structured score over the brittle regex parse.
-      const matchScoreTool = firecrawlMatchScoreInstructions
-        ? [{
-            type: 'function',
-            function: {
-              name: 'submit_match_score',
-              description: 'Submit a structured 0-10 match score for this property vs. the buyer profile. Call this IN ADDITION to writing the prose analysis (do not skip the prose).',
-              parameters: {
-                type: 'object',
-                properties: {
-                  score: { type: 'number', minimum: 0, maximum: 10, description: 'Match quality, 0 (poor) to 10 (perfect). Decimals allowed.' },
-                  rationale: { type: 'string', description: 'One-sentence justification (max 140 chars).' },
-                },
-                required: ['score', 'rationale'],
-              },
-            },
-          }]
-        : undefined;
+      // Match Score is REQUIRED structured output on this path (see
+      // _shared/matchScore.ts). tool_choice stays 'auto' so the model still
+      // writes the human-facing prose; if the tool call is missing we fall back
+      // to the prose prefix and finally to a forced-tool repair call, so the
+      // response always carries `matchScore` when a profile exists.
+      const matchScoreTool = firecrawlMatchScoreInstructions ? matchScoreToolChatShape() : undefined;
+
 
       // Router-gated path (general_chat) for Firecrawl branch. Falls through to legacy
       // gateway on unexpected error so the surface degrades gracefully.
