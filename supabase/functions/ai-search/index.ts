@@ -112,42 +112,88 @@ If user profile preferences exist and user query doesn't specify certain filters
     const parsedFilters = JSON.parse(content);
     log.step('Parsed filters', parsedFilters);
 
-    // Generate mock properties based on parsed filters
-    const city = parsedFilters.city || 'Default City';
-    const state = parsedFilters.state || 'FL';
-    const maxPrice = parsedFilters.price_max || 1000000;
-    const minBeds = parsedFilters.beds_min || 2;
-    
-    const mockProperties = [
-      { id: "1", address: "123 Main Street", city, state, zip: "22201", price: Math.min(maxPrice * 0.7, 350000), beds: minBeds, baths: 2, sqft: 1800, image_urls: ["https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800"], description: "Beautiful family home with modern updates", condition: "active", status: "active", externalLink: null, year_built: 2010, lot_size: 5000 },
-      { id: "2", address: "456 Oak Avenue", city, state, zip: "22202", price: Math.min(maxPrice * 0.85, 425000), beds: minBeds + 1, baths: 2.5, sqft: 2200, image_urls: ["https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800"], description: "Spacious home with pool and large backyard", condition: "active", status: "active", externalLink: null, year_built: 2015, lot_size: 7500 },
-      { id: "3", address: "789 Pine Road", city, state, zip: "22203", price: Math.min(maxPrice * 0.6, 285000), beds: minBeds, baths: 2, sqft: 1400, image_urls: ["https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=800"], description: "Cozy starter home, move-in ready", condition: "active", status: "active", externalLink: null, year_built: 2008, lot_size: 4000 },
-      { id: "4", address: "321 Elm Street", city, state, zip: "22204", price: Math.min(maxPrice * 0.95, 550000), beds: minBeds + 2, baths: 3, sqft: 3000, image_urls: ["https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800"], description: "Luxury home with high-end finishes", condition: "active", status: "active", externalLink: null, year_built: 2020, lot_size: 8000 },
-      { id: "5", address: "567 Maple Drive", city, state, zip: "22205", price: Math.min(maxPrice * 0.5, 195000), beds: minBeds, baths: 1, sqft: 1100, image_urls: ["https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?w=800"], description: "Investment opportunity, needs updates", condition: "active", status: "active", externalLink: null, year_built: 2005, lot_size: 3500 },
-      { id: "6", address: "890 Cedar Lane", city, state, zip: "22206", price: Math.min(maxPrice * 0.75, 395000), beds: minBeds + 1, baths: 2.5, sqft: 2100, image_urls: ["https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800"], description: "Modern townhouse in great neighborhood", condition: "active", status: "active", externalLink: null, year_built: 2018, lot_size: 2500 },
-      { id: "7", address: "234 Birch Court", city, state, zip: "22207", price: Math.min(maxPrice * 0.65, 315000), beds: minBeds, baths: 2, sqft: 1650, image_urls: ["https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800"], description: "Charming single-family home", condition: "active", status: "active", externalLink: null, year_built: 2012, lot_size: 5500 },
-      { id: "8", address: "678 Willow Way", city, state, zip: "22208", price: Math.min(maxPrice * 0.9, 475000), beds: minBeds + 1, baths: 3, sqft: 2500, image_urls: ["https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800"], description: "Updated home with open floor plan", condition: "active", status: "active", externalLink: null, year_built: 2016, lot_size: 6500 },
-    ];
+    // Resolve real listings via the live listing search (no mock inventory).
+    const location = [parsedFilters.city, parsedFilters.state].filter(Boolean).join(', ').trim();
 
-    const properties = mockProperties.filter(prop => {
-      if (parsedFilters.price_max && prop.price > parsedFilters.price_max) return false;
-      if (parsedFilters.price_min && prop.price < parsedFilters.price_min) return false;
-      if (parsedFilters.beds_min && prop.beds < parsedFilters.beds_min) return false;
-      if (parsedFilters.baths_min && prop.baths < parsedFilters.baths_min) return false;
-      return true;
-    });
-
-    log.step(`Generated ${properties.length} mock properties`);
-
-    if (properties.length === 0) {
-      return jsonResponse({ 
-        properties: [], 
+    if (!location) {
+      return jsonResponse({
+        properties: [],
         filters: parsedFilters,
-        message: 'No properties found matching your criteria. Please try adjusting your search parameters.'
+        message: 'Tell me a city and state to search (for example "3-bed homes under $650k in Arlington, VA"), or paste a Zillow, Redfin or Realtor.com listing link and I will analyze that property.',
       });
     }
 
-    return jsonResponse({ properties, filters: parsedFilters });
+    const propTypeMap: Record<string, string> = {
+      'single-family': 'house',
+      house: 'house',
+      condo: 'condo',
+      townhome: 'townhome',
+      'multi-family': 'multi',
+    };
+
+    const searchBody: Record<string, unknown> = {
+      query,
+      location,
+      ...(parsedFilters.price_min ? { price_min: parsedFilters.price_min } : {}),
+      ...(parsedFilters.price_max ? { price_max: parsedFilters.price_max } : {}),
+      ...(parsedFilters.beds_min ? { beds_min: parsedFilters.beds_min } : {}),
+      ...(parsedFilters.baths_min ? { baths_min: parsedFilters.baths_min } : {}),
+      ...(propTypeMap[parsedFilters.property_type] ? { prop_type: propTypeMap[parsedFilters.property_type] } : {}),
+    };
+
+    let listings: any[] = [];
+    let searchStatus = 'unavailable';
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/search-listings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify(searchBody),
+      });
+      const payload = await res.json();
+      listings = Array.isArray(payload?.listings) ? payload.listings : [];
+      searchStatus = payload?.status ?? (listings.length > 0 ? 'ok' : 'unavailable');
+    } catch (searchError) {
+      log.error('search-listings call failed', searchError);
+    }
+
+    const properties = listings.map((l: any) => ({
+      id: l.zpid ? `zpid-${l.zpid}` : l.id,
+      address: l.address,
+      city: l.city,
+      state: l.state,
+      zip: l.zip,
+      price: l.price,
+      beds: l.bedrooms,
+      baths: l.bathrooms,
+      sqft: l.sqft,
+      image_urls: l.photos?.length ? l.photos : (l.imageUrl ? [l.imageUrl] : []),
+      description: null,
+      condition: l.status ?? 'active',
+      status: l.status ?? 'active',
+      externalLink: l.externalUrl ?? null,
+      latitude: l.latitude,
+      longitude: l.longitude,
+      zestimate: l.zestimate,
+      rentZestimate: l.rentZestimate,
+      source: 'zillow',
+    }));
+
+    log.step(`Returning ${properties.length} live listings`, { status: searchStatus });
+
+    if (properties.length === 0) {
+      return jsonResponse({
+        properties: [],
+        filters: parsedFilters,
+        message: searchStatus === 'ok'
+          ? 'No live listings matched those criteria. Try widening the price range or area, or paste a listing link and I will analyze that property.'
+          : 'Live listing data is unavailable right now. Try again shortly, or paste a Zillow, Redfin or Realtor.com listing link and I will analyze that property.',
+      });
+    }
+
+    return jsonResponse({ properties, filters: parsedFilters, source: 'zillow' });
   } catch (error) {
     log.error('Error:', error);
     return errorResponse(getErrorMessage(error));
