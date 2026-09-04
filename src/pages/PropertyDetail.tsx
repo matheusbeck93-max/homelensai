@@ -371,7 +371,25 @@ export default function PropertyDetail() {
               {isCapExceeded && (
                 <BudgetCapBlocker surface="property_ai_analysis" compact />
               )}
+
+              {/* Post-verdict agent actions — you decide, the agent just sets things up */}
+              {analysis && (
+                <AgentActionBar
+                  className="mt-4"
+                  seed={{
+                    address: [property.address, property.city, property.state]
+                      .filter(Boolean)
+                      .join(", "),
+                    price: property.price ? Number(property.price) : undefined,
+                    city: property.city ?? undefined,
+                    state: property.state ?? undefined,
+                    beds: property.bedrooms ?? undefined,
+                    baths: property.bathrooms ?? undefined,
+                  }}
+                />
+              )}
             </section>
+
 
             {/* 2. WHY — AI rationale / key highlights */}
             <section aria-labelledby="why-heading">

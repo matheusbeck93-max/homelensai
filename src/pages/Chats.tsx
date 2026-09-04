@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Loader2, MessageSquare, Plus, Target, Paperclip, FileText, Image as ImageIcon } from "lucide-react";
 import { TextToSpeechButton } from "@/components/chat/TextToSpeechButton";
 import { SaveAnalysisButton } from "@/components/chat/SaveAnalysisButton";
+import { AgentActionBar } from "@/components/agent/AgentActionBar";
 import { MessageActions } from "@/components/chat/MessageActions";
 import { SourcesFooter } from "@/components/chat/SourcesFooter";
 import ReactMarkdown from "react-markdown";
