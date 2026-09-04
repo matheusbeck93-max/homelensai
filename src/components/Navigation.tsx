@@ -200,7 +200,34 @@ export function Navigation() {
                     </div>
 
 
-                    <div className="border-t pt-4">
+                    <div className="border-t pt-4 space-y-2">
+                      {/* Upgrade CTA — Free-tier logged-in users (desktop shows Upgrade in header) */}
+                      {user && !subscriptionLoading && isFree && (
+                        <Button
+                          className="w-full gap-1.5"
+                          onClick={() => {
+                            navigate('/pricing');
+                            setMobileOpen(false);
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Upgrade to Premium
+                        </Button>
+                      )}
+                      {/* Pricing — always reachable for logged-in users */}
+                      {user && (
+                        <Button
+                          variant="ghost"
+                          className="justify-start w-full"
+                          onClick={() => {
+                            navigate('/pricing');
+                            setMobileOpen(false);
+                          }}
+                        >
+                          Pricing
+                        </Button>
+                      )}
+
                       {user ? (
                         <Button
                           variant="outline"
