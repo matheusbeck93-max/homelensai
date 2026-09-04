@@ -29,6 +29,8 @@ import { MarketTrendsChart } from "@/components/MarketTrendsChart";
 import { useBudgetCap, parseAndRecordBudget402 } from "@/lib/ai/budgetCap";
 import { BudgetCapBanner } from "@/components/ai/BudgetCapBanner";
 import { BudgetCapBlocker } from "@/components/ai/BudgetCapBlocker";
+import { AgentActionBar } from "@/components/agent/AgentActionBar";
+
 
 export default function PropertyDetail() {
   const { id } = useParams();
