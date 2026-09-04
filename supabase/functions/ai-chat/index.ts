@@ -519,7 +519,7 @@ CRITICAL:
               beds: 0,
               baths: 0,
               sqft: 0,
-              image_urls: [`https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800`],
+              image_urls: [],
               description: SCRAPE_FAILED_NOTE,
               condition: 'active',
               status: 'active',
@@ -592,7 +592,7 @@ CRITICAL:
           propertyData.beds = propertyData.beds || 0;
           propertyData.baths = propertyData.baths || 0;
           propertyData.sqft = propertyData.sqft || 0;
-          propertyData.image_urls = propertyData.image_urls || [`https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800`];
+          propertyData.image_urls = propertyData.image_urls || [];
           propertyData.description = propertyData.description || `Property from ${hostname}`;
           
           return propertyData;
@@ -608,7 +608,7 @@ CRITICAL:
             beds: 0,
             baths: 0,
             sqft: 0,
-            image_urls: [`https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800`],
+            image_urls: [],
             description: 'Failed to fetch property details',
             condition: 'active',
             status: 'active',
