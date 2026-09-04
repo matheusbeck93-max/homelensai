@@ -161,10 +161,10 @@ export default function Integrations() {
   return (
     <>
       <Helmet>
-        <title>Connect HomeLens to Claude, ChatGPT & Cursor | HomeLens AI</title>
+        <title>Connect HomeLens to Grok, Claude, ChatGPT & Cursor | HomeLens AI</title>
         <meta
           name="description"
-          content="Bring your HomeLens saved properties, analyses, and investor portfolio into Claude, ChatGPT, Cursor, and other AI assistants over MCP."
+          content="Bring your HomeLens saved properties, analyses, and investor portfolio into Grok Bot, Claude, ChatGPT, Cursor, and other AI assistants over MCP."
         />
         <link rel="canonical" href="https://homelensais.com/integrations" />
       </Helmet>
@@ -175,10 +175,10 @@ export default function Integrations() {
           <section className="text-center space-y-4">
             <Badge variant="secondary" className="mx-auto">Agent integrations</Badge>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
-              Bring HomeLens into your AI assistant
+              Bring HomeLens into Claude, ChatGPT, Cursor, or Grok Bot
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Connect Claude, ChatGPT, Cursor, or any MCP client to HomeLens.
+              Connect Grok, Claude, ChatGPT, Cursor, or any MCP client to HomeLens.
               Chat with your saved properties, analyses, and portfolio — from wherever you already work.
             </p>
           </section>
