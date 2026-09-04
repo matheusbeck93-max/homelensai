@@ -36,6 +36,9 @@ export const CI_SIGNALS_TOOLS = [
   "update_preferences",
   "find_matches",
   "publish_report",
+  // Agentic v1 (GOAL intent) — standing instructions and multi-listing compares.
+  "create_watch_goal",
+  "compare_listings",
 ] as const;
 
 export interface MismatchSignal {
@@ -105,6 +108,7 @@ export function ciBehaviorPromptBlock(scope?: { surface?: "main" | "extension" |
    - ACTION: user wants something done → confirm in one short line, then do it.
    - BROWSE: vague intent ("help me figure out where to look") → ask ONE clarifying question with 2-3 concrete options.
    - STRATEGY: high-stakes decision (sell/refi/restructure) → mention what alternatives you considered.
+   - GOAL: a standing instruction or multi-step job ("watch…", "find…", "compare…") → follow the GOAL PLAYBOOK below.
    - OFF-SCRIPT: anything else → don't redirect to a feature; help in chat or gently steer back to real estate.
    Never name the intent out loud — just use it to shape the response.
 
@@ -146,6 +150,34 @@ export function ciBehaviorPromptBlock(scope?: { surface?: "main" | "extension" |
        "source_note": "Based on Q2 MLS aggregates and the user's $620k budget."
      }
 
+## GOAL PLAYBOOK (agentic turns — "watch…", "find…", "compare…")
+
+Trigger when the user asks you to keep an eye on something, hunt for options, or
+weigh listings against each other. Examples: "watch Tampa under 400k", "find me
+3-beds in Austin with a yard", "compare these two listings".
+
+Run this shape, in order:
+1. STATE THE PLAN in ONE line, present tense, max ~20 words. Example:
+   "Plan: search Tampa under $400k, score the top matches, then set a weekly watch goal."
+2. ASK AT MOST ONE clarifying question — and only when a required input is
+   genuinely missing (no city/market for a watch, no listings for a compare).
+   Offer 2-3 concrete options in the question. Never ask two questions, and never
+   ask when you can reasonably infer the answer from MEMORY CONTEXT or the thread.
+3. EXECUTE the steps you named, using the data and tools available in this turn:
+   - "watch…"   → confirm the criteria in one line, then offer the create_watch_goal
+                  follow-up with the criteria filled in (threshold defaults to 7/10).
+   - "find…"    → surface real matching listings and score them against the user's
+                  profile. Never invent listings; if you have none, say so plainly.
+   - "compare…" → put the listings side by side (a small table is fine for 2-4
+                  listings), name the trade-off, then give a clear recommendation.
+4. CLOSE with the outcome, not a menu: what you did and what happens next
+   ("I'll flag anything scoring 7+ weekly"). Standing actions the user must
+   approve go in suggested_followups, never silently.
+
+Hard rules: the user approves anything that creates a standing goal, shares, or
+commits money. You never bid, never contact anyone, never send anything.
+Match Score rules are unchanged — keep emitting them exactly as instructed elsewhere.
+
 CROSS-SURFACE TOOL NAMES (use these inside suggested_followups call_tool actions when relevant):
 - find_open_houses    — input: { city?, state? } → opens open-house finder for that market
 - create_alert        — input: { kind: "market" | "property", query?, propertyUrl? } → opens alert setup
@@ -153,6 +185,8 @@ CROSS-SURFACE TOOL NAMES (use these inside suggested_followups call_tool actions
 - update_preferences  — input: { focus?: "markets" | "budget" | "criteria" } → opens preferences
 - find_matches        — input: { city?, state? } → asks chat to surface fresh matches
 - publish_report      — input: { kind?: "analysis" | "memo" } → opens publish/share flow
+- create_watch_goal   — input: { label?, goal_kind?: "watch_area" | "watch_similar" | "watch_price_drop", city?, state?, price_min?, price_max?, beds_min?, match_threshold?, cadence?: "daily" | "weekly" } → creates a standing Watch Goal the user confirms
+- compare_listings    — input: { urls?: string[], note? } → asks chat to compare the given listings side by side
 Prefer these for cross-surface offers; use generate_* tools only for downloadable artifacts.
 `.trim();
 }
