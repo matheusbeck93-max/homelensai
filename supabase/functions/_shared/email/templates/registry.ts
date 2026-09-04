@@ -15,6 +15,7 @@ import { milestoneCelebration, type MilestoneCelebrationData } from './milestone
 import { streakMilestone, type StreakMilestoneData } from './streakMilestone.ts';
 import { streakProtectionNudge, type StreakProtectionNudgeData } from './streakProtectionNudge.ts';
 import { openHousesDigest, type OpenHousesDigestData } from './openHousesDigest.ts';
+import { watchGoalDigest, type WatchGoalDigestData } from './watchGoalDigest.ts';
 
 export interface TemplateContext {
   recipientEmail: string;
@@ -40,6 +41,7 @@ export const TEMPLATES = {
   'streak-milestone': streakMilestone,
   'streak-protection-nudge': streakProtectionNudge,
   'open-houses-digest': openHousesDigest,
+  'watch-goal-digest': watchGoalDigest,
 } as const satisfies Record<string, TemplateDef<unknown>>;
 
 export type TemplateName = keyof typeof TEMPLATES;
@@ -49,4 +51,5 @@ export type {
   StreakMilestoneData,
   StreakProtectionNudgeData,
   OpenHousesDigestData,
+  WatchGoalDigestData,
 };
