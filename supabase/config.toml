@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.preferences-assistant]
 verify_jwt = false
+
+[functions.watch-goals-evaluate]
+verify_jwt = false
