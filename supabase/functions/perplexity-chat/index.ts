@@ -270,6 +270,9 @@ RULES:
     const isSearch = isPropertySearch(query);
 
     let systemPrompt: string;
+    // Non-empty only in URL-analysis mode with a completed profile.
+    let urlMatchScoreProfileBlock = '';
+
     
     if (isUrl) {
       // URL Analysis Mode - scrape the URL first with Firecrawl for accurate data
