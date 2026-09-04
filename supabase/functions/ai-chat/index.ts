@@ -2178,10 +2178,30 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
 
       log.step('Response cleaned and ready');
 
+      // Match Score contract (see _shared/matchScore.ts): on the extension
+      // listing-analysis variant of this branch the score is required, so
+      // parse it out of the prose and repair it with a forced-tool call when
+      // the model omitted it. Null when there is no listing/profile to score.
+      let mainMatchScore = null as Awaited<ReturnType<typeof repairMatchScore>>;
+      if (extensionMode && propertyData && fullProfile) {
+        const proseForScore = String(parsed.message ?? '');
+        mainMatchScore = parseMatchScoreFromText(proseForScore);
+        if (!mainMatchScore) {
+          mainMatchScore = await repairMatchScore({
+            apiKey: LOVABLE_API_KEY!,
+            profileBlock: buildMatchScoreProfileBlock(fullProfile),
+            analysisText: proseForScore,
+          });
+        }
+        if (mainMatchScore) {
+          parsed.message = ensureMatchScorePrefix(proseForScore, mainMatchScore);
+        }
+      }
+
       // Return the parsed object directly (not double-stringified)
       // Frontend expects { response: { message: "...", searchParams: {...} } }
       return new Response(
-        JSON.stringify({ response: parsed, signals: ciSignalsMain ?? undefined }),
+        JSON.stringify({ response: parsed, matchScore: mainMatchScore, signals: ciSignalsMain ?? undefined }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (parseError) {
@@ -2192,10 +2212,12 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
           response: JSON.stringify({
             message: assistantResponse || 'I apologize, I couldn\'t process that request.'
           }),
+          matchScore: null,
           signals: ciSignalsMain ?? undefined,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
     }
   } catch (error) {
     console.error('Error in ai-chat:', error);
