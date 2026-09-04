@@ -201,8 +201,8 @@ export default function Integrations() {
           {/* Per-client install steps */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">Install in your assistant</h2>
-            <Tabs defaultValue="claude" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+            <Tabs defaultValue="grok" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
                 {CLIENTS.map((c) => (
                   <TabsTrigger key={c.id} value={c.id}>{c.label}</TabsTrigger>
                 ))}
@@ -210,22 +210,74 @@ export default function Integrations() {
               {CLIENTS.map((c) => (
                 <TabsContent key={c.id} value={c.id} className="mt-4">
                   <Card>
-                    <CardContent className="pt-6">
+                    <CardContent className="pt-6 space-y-4">
+                      {c.blurb ? (
+                        <p className="text-sm text-muted-foreground">{c.blurb}</p>
+                      ) : null}
                       <ol className="space-y-3">
                         {c.steps.map((step, i) => (
                           <li key={i} className="flex gap-3 items-start">
                             <span className="flex-shrink-0 h-6 w-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">
                               {i + 1}
                             </span>
-                            <span className="text-sm pt-0.5">{step}</span>
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <span className="text-sm pt-0.5 block">{step.text}</span>
+                              {step.code ? (
+                                <code className="block w-full rounded-md bg-muted px-3 py-2 text-xs font-mono break-all select-all">
+                                  {step.code}
+                                </code>
+                              ) : null}
+                            </div>
                           </li>
                         ))}
                       </ol>
+                      {c.prompts ? (
+                        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Try asking {c.label}</p>
+                          {c.prompts.map((p) => (
+                            <p key={p} className="text-sm text-foreground flex items-start gap-2">
+                              <ArrowRight className="h-3.5 w-3.3 mt-0.5 text-primary shrink-0" />
+                              <span>{p}</span>
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
                     </CardContent>
                   </Card>
                 </TabsContent>
               ))}
             </Tabs>
+          </section>
+
+          {/* How it works */}
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold">How it works</h2>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Card>
+                <CardContent className="pt-6 space-y-2">
+                  <h3 className="font-semibold">HomeLens is the server</h3>
+                  <p className="text-sm text-muted-foreground">
+                    HomeLens publishes an MCP server. Your assistant — Grok, Claude, ChatGPT, or Cursor — is the <em>client</em> that calls it. You only connect once; every client uses the same URL.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 space-y-2">
+                  <h3 className="font-semibold">You sign in as you</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Each connection runs over OAuth, so tool calls act as your signed-in HomeLens user. Your assistant can only see what you'd see — your saved properties, analyses, and portfolio. Revoke any time from the client or from HomeLens.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 space-y-2">
+                  <h3 className="font-semibold">Listings stay page-level</h3>
+                  <p className="text-sm text-muted-foreground">
+                    You don't connect a Zillow account. Paste a listing URL into your assistant or use the HomeLens Chrome extension on a property page — HomeLens extracts the data and scores it. No portal login required.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </section>
 
           {/* Tools & tiers */}
