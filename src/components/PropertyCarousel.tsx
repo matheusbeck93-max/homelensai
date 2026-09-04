@@ -55,7 +55,7 @@ export default function PropertyCarousel({ properties, onSelectProperty }: Prope
                         alt={property.address}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.currentTarget.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400';
+                          e.currentTarget.style.display = 'none';
                         }}
                       />
                     ) : (
