@@ -23,6 +23,15 @@ import { scrapeProperty, SCRAPE_FAILED_NOTE } from '../_shared/scrapeProperty.ts
 import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '../_shared/conversationalSignals.ts';
 import { detectOpenHouseIntent, runOpenHouseLookup } from '../_shared/openHouses/intent.ts';
 import { withRequestOrigin } from "../_shared/ai/requestContext.ts";
+import {
+  buildMatchScoreProfileBlock,
+  buildMatchScoreInstructions,
+  parseMatchScoreFromText,
+  ensureMatchScorePrefix,
+  repairMatchScore,
+  type StructuredMatchScore,
+} from '../_shared/matchScore.ts';
+
 
 const log = createLogger('perplexity-chat');
 
@@ -261,6 +270,9 @@ RULES:
     const isSearch = isPropertySearch(query);
 
     let systemPrompt: string;
+    // Non-empty only in URL-analysis mode with a completed profile.
+    let urlMatchScoreProfileBlock = '';
+
     
     if (isUrl) {
       // URL Analysis Mode - scrape the URL first with Firecrawl for accurate data
@@ -283,15 +295,19 @@ RULES:
         ? `\n\nSCRAPED PAGE CONTENT (use this as your PRIMARY data source - these are the actual values from the listing page):\n---\n${scrapedContent}\n---\n`
         : (scrapeFailed ? `\n\n${SCRAPE_FAILED_NOTE}\n` : '');
 
-      // Build match score instructions from profile (memoized; same fetch as above)
+      // Build match score instructions from profile (memoized; same fetch as above).
+      // Match Score is REQUIRED structured output on this path — Perplexity has no
+      // function tools, so the prose prefix is parsed server-side and repaired via a
+      // forced-tool gateway call. See _shared/matchScore.ts for the client contract.
       let matchScoreInstructions = '';
       {
         const { profile: msProfile } = await loadProfile(req);
         if (msProfile && (msProfile as any).onboarding_completed) {
-          const p: any = msProfile;
-          matchScoreInstructions = `\n\nIMPORTANT - MATCH SCORE: You MUST start your response with EXACTLY this format on the first line: "MATCH_SCORE: X/10" where X is a number from 0 to 10 rating how well this property matches the user's profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\n- Min bedrooms: ${p.min_bedrooms || 'any'}\n- Min bathrooms: ${p.min_bathrooms || 'any'}\n- Must-have features: ${p.must_have_features?.join(', ') || 'none'}\nAfter the MATCH_SCORE line, add ONE blank line, then continue with your analysis.\n`;
+          urlMatchScoreProfileBlock = buildMatchScoreProfileBlock(msProfile);
+          matchScoreInstructions = buildMatchScoreInstructions(urlMatchScoreProfileBlock);
         }
       }
+
 
       systemPrompt = `You are a knowledgeable U.S. real estate assistant. The user shared a property listing URL.
 ${goalContext}
@@ -652,16 +668,34 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
       console.warn('[perplexity-chat] All extracted portal URLs failed validation; dropping links');
     }
 
+    // Required structured Match Score for URL analysis: prose parse first, then
+    // one forced-tool repair call so clients never regex the prose themselves.
+    let matchScore: StructuredMatchScore | null = null;
+    let messageOut = content;
+    if (urlMatchScoreProfileBlock) {
+      matchScore = parseMatchScoreFromText(content);
+      if (!matchScore) {
+        matchScore = await repairMatchScore({
+          apiKey: Deno.env.get('LOVABLE_API_KEY') ?? '',
+          profileBlock: urlMatchScoreProfileBlock,
+          analysisText: content,
+        });
+      }
+      messageOut = ensureMatchScorePrefix(content, matchScore);
+    }
+
     return new Response(
       JSON.stringify({
-        message: content,
+        message: messageOut,
         citations,
         links: validatedLinks.slice(0, 3), // Max 3 links (1 per site)
         mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general',
+        matchScore,
         signals: ciSignals ?? undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
 
   } catch (error) {
     console.error('Error in perplexity-chat:', error);

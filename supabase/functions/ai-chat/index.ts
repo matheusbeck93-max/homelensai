@@ -19,6 +19,17 @@ import { ciSignalsPromptBlock, ciBehaviorPromptBlock, extractCiSignals } from '.
 import { loadMemoriesForContext, renderMemoriesBlock } from '../_shared/memory/retriever.ts';
 import { fetchRentcastEnrichmentBlock } from '../_shared/rentcast-enrichment.ts';
 import { withOrigin } from '../_shared/ai/requestContext.ts';
+import {
+  buildMatchScoreProfileBlock,
+  buildMatchScoreInstructions,
+  matchScoreToolChatShape,
+  matchScoreToolRouterShape,
+  parseMatchScoreToolCalls,
+  parseMatchScoreFromText,
+  ensureMatchScorePrefix,
+  repairMatchScore,
+} from '../_shared/matchScore.ts';
+
 
 const CI_BLOCK_EXTENSION = '\n\n' + ciBehaviorPromptBlock({ surface: 'extension' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
 const CI_BLOCK_FIRECRAWL = '\n\n' + ciBehaviorPromptBlock({ surface: 'property' }) + '\n\n' + ciSignalsPromptBlock() + '\n\n' + FOLLOWUP_CASCADE_PROMPT_BLOCK;
@@ -386,13 +397,16 @@ CRITICAL:
         if (rcBlock) analysisPrompt = analysisPrompt + rcBlock;
       } catch (_) { /* never fail the surface on enrichment */ }
 
-      // Fetch user profile for match score (memoized per request)
+      // Fetch user profile for match score (memoized per request).
+      // Match Score is a REQUIRED structured output here — see _shared/matchScore.ts
+      // for the contract clients (extension / MCP) must read.
       let matchScoreInstructions = '';
+      let matchScoreProfileBlock = '';
       {
         const { profile } = await loadProfile(req);
         if (profile && (profile as any).onboarding_completed) {
-          const p: any = profile;
-          matchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\nAfter the score line, continue with the analysis.`;
+          matchScoreProfileBlock = buildMatchScoreProfileBlock(profile);
+          matchScoreInstructions = buildMatchScoreInstructions(matchScoreProfileBlock);
         }
       }
 
@@ -405,12 +419,15 @@ CRITICAL:
           const routed = await completeWithFallback(
             'extension_listing_analysis',
             {
-              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}`,
+              system: `You are a real estate expert providing concise, structured property analysis of US properties only. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}`,
               messages: [
                 ...sanitizedHistory.map((m: any) => ({ role: m.role, content: String(m.content ?? '') })),
                 { role: 'user', content: analysisPrompt },
               ],
               maxTokens: maxOutputTokensFor(creditCheck.tier),
+              ...(matchScoreProfileBlock
+                ? { tools: matchScoreToolRouterShape(), toolChoice: 'auto' as const }
+                : {}),
             },
             { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
           );
@@ -420,11 +437,22 @@ CRITICAL:
             total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
           });
           const ciExt = extractCiSignals(routed.text ?? '');
+          let extScore = matchScoreProfileBlock
+            ? (parseMatchScoreToolCalls(routed.toolCalls) ?? parseMatchScoreFromText(ciExt.cleanText))
+            : null;
+          if (matchScoreProfileBlock && !extScore) {
+            extScore = await repairMatchScore({
+              apiKey: LOVABLE_API_KEY!,
+              profileBlock: matchScoreProfileBlock,
+              analysisText: ciExt.cleanText,
+            });
+          }
           return new Response(
             JSON.stringify({
-              response: ciExt.cleanText,
+              response: ensureMatchScorePrefix(ciExt.cleanText, extScore),
               properties,
               hasProperties: true,
+              matchScore: extScore,
               ...(ciExt.signals ? { signals: ciExt.signals } : {}),
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -445,11 +473,12 @@ CRITICAL:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}` },
+            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis of US properties only. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}` },
             ...sanitizedHistory,
             { role: 'user', content: analysisPrompt }
           ],
           max_tokens: maxOutputTokensFor(creditCheck.tier),
+          ...(matchScoreProfileBlock ? { tools: matchScoreToolChatShape(), tool_choice: 'auto' } : {}),
         }),
       });
 
@@ -471,16 +500,29 @@ CRITICAL:
       const analysis = ciExt.cleanText;
       await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis with client data generated successfully');
-      
+
+      let extScoreLegacy = matchScoreProfileBlock
+        ? (parseMatchScoreToolCalls(aiData.choices[0].message.tool_calls) ?? parseMatchScoreFromText(analysis))
+        : null;
+      if (matchScoreProfileBlock && !extScoreLegacy) {
+        extScoreLegacy = await repairMatchScore({
+          apiKey: LOVABLE_API_KEY!,
+          profileBlock: matchScoreProfileBlock,
+          analysisText: analysis,
+        });
+      }
+
       return new Response(
         JSON.stringify({
-          response: analysis,
+          response: ensureMatchScorePrefix(analysis, extScoreLegacy),
           properties: properties,
           hasProperties: true,
+          matchScore: extScoreLegacy,
           ...(ciExt.signals ? { signals: ciExt.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
     }
 
     // If 1+ URLs detected (no propertyData from extension), trigger Firecrawl analysis mode
@@ -855,35 +897,22 @@ CRITICAL:
       
       // Fetch user profile for match score (Firecrawl path) — memoized per request
       let firecrawlMatchScoreInstructions = '';
+      let firecrawlProfileBlock = '';
       {
         const { profile: fcProfile } = await loadProfile(req);
         if (fcProfile && (fcProfile as any).onboarding_completed) {
-          const p: any = fcProfile;
-          firecrawlMatchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\n- Min bedrooms: ${p.min_bedrooms || 'any'}\n- Min bathrooms: ${p.min_bathrooms || 'any'}\n- Must-have features: ${p.must_have_features?.join(', ') || 'none'}\nAfter the score line, continue with the analysis.`;
+          firecrawlProfileBlock = buildMatchScoreProfileBlock(fcProfile);
+          firecrawlMatchScoreInstructions = buildMatchScoreInstructions(firecrawlProfileBlock);
         }
       }
 
-      // P1-3 Step B: expose a structured submit_match_score tool alongside the
-      // existing MATCH_SCORE: X/10 prose prefix. tool_choice stays 'auto' so the
-      // model still produces the human-facing prose; if it ALSO emits the tool
-      // call we prefer that structured score over the brittle regex parse.
-      const matchScoreTool = firecrawlMatchScoreInstructions
-        ? [{
-            type: 'function',
-            function: {
-              name: 'submit_match_score',
-              description: 'Submit a structured 0-10 match score for this property vs. the buyer profile. Call this IN ADDITION to writing the prose analysis (do not skip the prose).',
-              parameters: {
-                type: 'object',
-                properties: {
-                  score: { type: 'number', minimum: 0, maximum: 10, description: 'Match quality, 0 (poor) to 10 (perfect). Decimals allowed.' },
-                  rationale: { type: 'string', description: 'One-sentence justification (max 140 chars).' },
-                },
-                required: ['score', 'rationale'],
-              },
-            },
-          }]
-        : undefined;
+      // Match Score is REQUIRED structured output on this path (see
+      // _shared/matchScore.ts). tool_choice stays 'auto' so the model still
+      // writes the human-facing prose; if the tool call is missing we fall back
+      // to the prose prefix and finally to a forced-tool repair call, so the
+      // response always carries `matchScore` when a profile exists.
+      const matchScoreTool = firecrawlMatchScoreInstructions ? matchScoreToolChatShape() : undefined;
+
 
       // Router-gated path (general_chat) for Firecrawl branch. Falls through to legacy
       // gateway on unexpected error so the surface degrades gracefully.
@@ -968,34 +997,31 @@ CRITICAL:
       const ciFc = extractCiSignals(analysis);
       analysis = ciFc.cleanText;
 
-      // Extract structured match score from tool call if present.
-      let structuredMatchScore: { score: number; rationale: string } | null = null;
+      // Extract the REQUIRED structured match score: tool call > prose prefix >
+      // forced-tool repair call. Null only when there is no profile to score.
       const toolCalls = choice.tool_calls ?? [];
-      for (const tc of toolCalls) {
-        if (tc?.function?.name === 'submit_match_score') {
-          try {
-            const args = JSON.parse(tc.function.arguments || '{}');
-            if (typeof args.score === 'number' && args.score >= 0 && args.score <= 10) {
-              structuredMatchScore = { score: args.score, rationale: String(args.rationale || '') };
-            }
-          } catch (e) {
-            console.warn('[ai-chat] submit_match_score args parse failed', e);
-          }
-        }
+      let structuredMatchScore = firecrawlProfileBlock
+        ? (parseMatchScoreToolCalls(toolCalls) ?? parseMatchScoreFromText(analysis))
+        : null;
+      const toolCallEmitted = !!parseMatchScoreToolCalls(toolCalls);
+      if (firecrawlProfileBlock && !structuredMatchScore) {
+        structuredMatchScore = await repairMatchScore({
+          apiKey: LOVABLE_API_KEY!,
+          profileBlock: firecrawlProfileBlock,
+          analysisText: analysis,
+        });
       }
 
-      // If the model returned ONLY a tool call (no prose), synthesize a minimal
-      // prefix so the existing client-side parser still surfaces the score.
-      if (!analysis && structuredMatchScore) {
-        analysis = `MATCH_SCORE: ${structuredMatchScore.score}/10\n\n${structuredMatchScore.rationale}`;
-      }
+      // Keep the legacy MATCH_SCORE prefix in the prose for older clients.
+      analysis = ensureMatchScorePrefix(analysis, structuredMatchScore);
 
       console.log(JSON.stringify({
         marker: '[ai-chat-tool-call]',
         branch: 'firecrawl',
-        toolCallEmitted: !!structuredMatchScore,
+        toolCallEmitted,
         toolCallCount: toolCalls.length,
         hadProse: !!choice.content,
+        scoreSource: structuredMatchScore?.source ?? null,
       }));
 
       // Persist telemetry (fire-and-forget; admin-only dashboard reads this).
@@ -1006,7 +1032,7 @@ CRITICAL:
           const telemetryClient = createClient(telemetryUrl, telemetryKey);
           telemetryClient.from('tool_call_telemetry').insert({
             branch: 'firecrawl',
-            tool_call_emitted: !!structuredMatchScore,
+            tool_call_emitted: toolCallEmitted,
             tool_call_count: toolCalls.length,
             had_prose: !!choice.content,
             model: 'google/gemini-2.5-flash',
@@ -1029,7 +1055,8 @@ CRITICAL:
           response: analysis,
           properties: properties, // Include properties for calculator option
           hasProperties: true,
-          ...(structuredMatchScore ? { matchScore: structuredMatchScore } : {}),
+          matchScore: structuredMatchScore,
+
           ...(ciFc.signals ? { signals: ciFc.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -2151,10 +2178,30 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
 
       log.step('Response cleaned and ready');
 
+      // Match Score contract (see _shared/matchScore.ts): on the extension
+      // listing-analysis variant of this branch the score is required, so
+      // parse it out of the prose and repair it with a forced-tool call when
+      // the model omitted it. Null when there is no listing/profile to score.
+      let mainMatchScore = null as Awaited<ReturnType<typeof repairMatchScore>>;
+      if (extensionMode && propertyData && fullProfile) {
+        const proseForScore = String(parsed.message ?? '');
+        mainMatchScore = parseMatchScoreFromText(proseForScore);
+        if (!mainMatchScore) {
+          mainMatchScore = await repairMatchScore({
+            apiKey: LOVABLE_API_KEY!,
+            profileBlock: buildMatchScoreProfileBlock(fullProfile),
+            analysisText: proseForScore,
+          });
+        }
+        if (mainMatchScore) {
+          parsed.message = ensureMatchScorePrefix(proseForScore, mainMatchScore);
+        }
+      }
+
       // Return the parsed object directly (not double-stringified)
       // Frontend expects { response: { message: "...", searchParams: {...} } }
       return new Response(
-        JSON.stringify({ response: parsed, signals: ciSignalsMain ?? undefined }),
+        JSON.stringify({ response: parsed, matchScore: mainMatchScore, signals: ciSignalsMain ?? undefined }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (parseError) {
@@ -2165,10 +2212,12 @@ When (and only when) conditions A or B above are met, include a "uiBlock" field 
           response: JSON.stringify({
             message: assistantResponse || 'I apologize, I couldn\'t process that request.'
           }),
+          matchScore: null,
           signals: ciSignalsMain ?? undefined,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
     }
   } catch (error) {
     console.error('Error in ai-chat:', error);
