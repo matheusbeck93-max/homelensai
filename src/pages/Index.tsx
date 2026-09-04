@@ -512,7 +512,7 @@ export default function Index() {
       <section className="relative min-h-[50vh] sm:min-h-[60vh] flex flex-col items-center justify-center overflow-hidden">
           <HouseHeroAnimation />
           <div className="relative z-10 text-center px-3 sm:px-4 md:px-6 pb-12 sm:pb-16 md:pb-20 max-w-5xl mx-auto">
-            <p className="text-sm sm:text-base font-medium text-primary mb-3 tracking-wide uppercase">
+            <p className="text-sm sm:text-base font-medium text-primary mb-3">
               Big decisions deserve the full picture
             </p>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-foreground tracking-tight">
