@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Copy, Check, ExternalLink, ShieldCheck, Lock, LogOut } from "lucide-react";
+import { Copy, Check, ExternalLink, ShieldCheck, Lock, LogOut, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,41 +38,83 @@ const EXAMPLE_PROMPTS = [
   "Save this analysis to my HomeLens dashboard. (uses save_analysis)",
 ];
 
-const CLIENTS = [
+type ClientStep = { text: string; code?: string };
+type ClientGuide = {
+  id: string;
+  label: string;
+  blurb: string;
+  steps: ClientStep[];
+  prompts?: string[];
+};
+
+const CLIENTS: ClientGuide[] = [
+  {
+    id: "grok",
+    label: "Grok Bot / Grok",
+    blurb: "Grok (xAI) supports remote MCP over Streamable HTTP and runs an OAuth browser flow automatically. HomeLens is the MCP server; Grok is the client — you connect once, then ask Grok to analyze listings, set Watch Goals, and read your profile.",
+    steps: [
+      {
+        text: "Copy the HomeLens MCP URL above — it's the same URL every other client uses.",
+      },
+      {
+        text: "If you use the Grok CLI, add the server over HTTP transport:",
+        code: "grok mcp add --transport http homelens https://yckcdxtatwolzilboahx.supabase.co/functions/v1/mcp",
+      },
+      {
+        text: "If you use Grok's in-app connectors (or Grok Bot), add a new HTTP MCP server with the HomeLens URL and choose OAuth as the auth type.",
+      },
+      {
+        text: "On first use, Grok opens a browser. Sign in with your HomeLens account and approve the connector on the consent screen. The token is stored by Grok and reused after that.",
+      },
+      {
+        text: "Verify the connection is live:",
+        code: "grok mcp doctor homelens",
+      },
+    ],
+    prompts: [
+      "Analyze https://www.zillow.com/homedetails/... and tell me the Match Score.",
+      "Watch Tampa homes under $400k and notify me when something scores 7+.",
+      "What's in my HomeLens profile — my budget and target cities?",
+    ],
+  },
   {
     id: "claude",
     label: "Claude Desktop",
+    blurb: "Claude Desktop connects to remote MCP servers through its Connectors settings.",
     steps: [
-      "Open Claude Desktop → Settings → Connectors.",
-      "Click Add custom connector, paste the URL above, and confirm.",
-      "Sign in with your HomeLens account and approve on the consent screen.",
+      { text: "Open Claude Desktop → Settings → Connectors." },
+      { text: "Click Add custom connector, paste the URL above, and confirm." },
+      { text: "Sign in with your HomeLens account and approve on the consent screen." },
     ],
   },
   {
     id: "chatgpt",
     label: "ChatGPT",
+    blurb: "ChatGPT supports remote MCP connectors from its Settings.",
     steps: [
-      "In ChatGPT, open Settings → Connectors → Add.",
-      "Paste the HomeLens MCP URL and continue.",
-      "Sign in with your HomeLens account and approve the connection.",
+      { text: "In ChatGPT, open Settings → Connectors → Add." },
+      { text: "Paste the HomeLens MCP URL and continue." },
+      { text: "Sign in with your HomeLens account and approve the connection." },
     ],
   },
   {
     id: "cursor",
     label: "Cursor",
+    blurb: "Cursor can connect to HTTP MCP servers from its MCP settings.",
     steps: [
-      "Open Cursor Settings → MCP → Add new MCP server.",
-      "Choose HTTP transport and paste the URL above.",
-      "Sign in with your HomeLens account when Cursor opens the browser.",
+      { text: "Open Cursor Settings → MCP → Add new MCP server." },
+      { text: "Choose HTTP transport and paste the URL above." },
+      { text: "Sign in with your HomeLens account when Cursor opens the browser." },
     ],
   },
   {
     id: "codex",
     label: "Codex / other",
+    blurb: "Any MCP-capable client can connect to HomeLens over HTTP with OAuth.",
     steps: [
-      "In your MCP-capable client, add a new HTTP MCP server.",
-      "Use the HomeLens URL above and OAuth as the auth type.",
-      "Sign in with your HomeLens account and approve.",
+      { text: "In your MCP-capable client, add a new HTTP MCP server." },
+      { text: "Use the HomeLens URL above and OAuth as the auth type." },
+      { text: "Sign in with your HomeLens account and approve." },
     ],
   },
 ];
