@@ -278,16 +278,18 @@ export default function FollowUpChat({ context, properties = [], marketSnapshot 
                         selectedProperty?.id === property.id ? "ring-2 ring-primary" : "hover:shadow-lg"
                       }`}
                     >
-                      <div className="aspect-video relative overflow-hidden">
-                        <img
-                          src={
-                            property.image_urls?.[0] ||
-                            property.image_url ||
-                            "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800"
-                          }
-                          alt={property.address}
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="aspect-video relative overflow-hidden bg-muted">
+                        {property.image_urls?.[0] || property.image_url ? (
+                          <img
+                            src={property.image_urls?.[0] || property.image_url}
+                            alt={property.address}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+                            No photo available
+                          </div>
+                        )}
                       </div>
                       <div className="p-3">
                         <p className="text-lg font-bold text-primary mb-1">{formatPrice(property.price!)}</p>
