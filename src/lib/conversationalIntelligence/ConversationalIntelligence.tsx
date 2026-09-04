@@ -39,6 +39,8 @@ import { markShown, markClicked, startCascade } from "./followupDismissals";
 import { getTopic } from "./followupRegistry";
 import { maybeEndCascadeFromTurn } from "./followupExecutors";
 import type { PersonaId } from "@/lib/personas/personaRegistry";
+import { toast } from "@/hooks/use-toast";
+import { createWatchGoal, type GoalKind } from "@/lib/watchGoals";
 
 export interface ConversationalIntelligenceProps {
   active: {
