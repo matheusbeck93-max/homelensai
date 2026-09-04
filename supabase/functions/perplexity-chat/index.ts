@@ -668,16 +668,34 @@ SCOPE: U.S. real estate only — buying/selling/renting, investment analysis, mo
       console.warn('[perplexity-chat] All extracted portal URLs failed validation; dropping links');
     }
 
+    // Required structured Match Score for URL analysis: prose parse first, then
+    // one forced-tool repair call so clients never regex the prose themselves.
+    let matchScore: StructuredMatchScore | null = null;
+    let messageOut = content;
+    if (urlMatchScoreProfileBlock) {
+      matchScore = parseMatchScoreFromText(content);
+      if (!matchScore) {
+        matchScore = await repairMatchScore({
+          apiKey: Deno.env.get('LOVABLE_API_KEY') ?? '',
+          profileBlock: urlMatchScoreProfileBlock,
+          analysisText: content,
+        });
+      }
+      messageOut = ensureMatchScorePrefix(content, matchScore);
+    }
+
     return new Response(
       JSON.stringify({
-        message: content,
+        message: messageOut,
         citations,
         links: validatedLinks.slice(0, 3), // Max 3 links (1 per site)
         mode: isUrl ? 'url_analysis' : isSearch ? 'search' : 'general',
+        matchScore,
         signals: ciSignals ?? undefined,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+
 
   } catch (error) {
     console.error('Error in perplexity-chat:', error);
