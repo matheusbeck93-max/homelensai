@@ -386,13 +386,16 @@ CRITICAL:
         if (rcBlock) analysisPrompt = analysisPrompt + rcBlock;
       } catch (_) { /* never fail the surface on enrichment */ }
 
-      // Fetch user profile for match score (memoized per request)
+      // Fetch user profile for match score (memoized per request).
+      // Match Score is a REQUIRED structured output here — see _shared/matchScore.ts
+      // for the contract clients (extension / MCP) must read.
       let matchScoreInstructions = '';
+      let matchScoreProfileBlock = '';
       {
         const { profile } = await loadProfile(req);
         if (profile && (profile as any).onboarding_completed) {
-          const p: any = profile;
-          matchScoreInstructions = `\n\nYou MUST start your response with: "MATCH_SCORE: X/10" where X is how well this property matches the user profile:\n- Budget: $${p.budget_min || 0} - $${p.budget_max || 'unlimited'}\n- Preferred cities: ${p.preferred_cities?.join(', ') || 'any'}\n- Property types: ${p.property_types?.join(', ') || 'any'}\n- Has children: ${p.has_children ? 'Yes' : 'No'}\n- Safety priority: ${p.safety_priority || 'medium'}\n- Risk level: ${p.risk_level || 'moderate'}\nAfter the score line, continue with the analysis.`;
+          matchScoreProfileBlock = buildMatchScoreProfileBlock(profile);
+          matchScoreInstructions = buildMatchScoreInstructions(matchScoreProfileBlock);
         }
       }
 
@@ -405,12 +408,15 @@ CRITICAL:
           const routed = await completeWithFallback(
             'extension_listing_analysis',
             {
-              system: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}`,
+              system: `You are a real estate expert providing concise, structured property analysis of US properties only. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}`,
               messages: [
                 ...sanitizedHistory.map((m: any) => ({ role: m.role, content: String(m.content ?? '') })),
                 { role: 'user', content: analysisPrompt },
               ],
               maxTokens: maxOutputTokensFor(creditCheck.tier),
+              ...(matchScoreProfileBlock
+                ? { tools: matchScoreToolRouterShape(), toolChoice: 'auto' as const }
+                : {}),
             },
             { userId: creditCheck.userId, tier: routerTierFor(creditCheck.tier) },
           );
@@ -420,11 +426,22 @@ CRITICAL:
             total_tokens: routed.usage.inputTokens + routed.usage.outputTokens,
           });
           const ciExt = extractCiSignals(routed.text ?? '');
+          let extScore = matchScoreProfileBlock
+            ? (parseMatchScoreToolCalls(routed.toolCalls) ?? parseMatchScoreFromText(ciExt.cleanText))
+            : null;
+          if (matchScoreProfileBlock && !extScore) {
+            extScore = await repairMatchScore({
+              apiKey: LOVABLE_API_KEY!,
+              profileBlock: matchScoreProfileBlock,
+              analysisText: ciExt.cleanText,
+            });
+          }
           return new Response(
             JSON.stringify({
-              response: ciExt.cleanText,
+              response: ensureMatchScorePrefix(ciExt.cleanText, extScore),
               properties,
               hasProperties: true,
+              matchScore: extScore,
               ...(ciExt.signals ? { signals: ciExt.signals } : {}),
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -445,11 +462,12 @@ CRITICAL:
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           messages: [
-            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}` },
+            { role: 'system', content: `You are a real estate expert providing concise, structured property analysis of US properties only. Use bullet points and clear formatting. Keep responses under 300 words for browser extension readability.${matchScoreInstructions}${CI_BLOCK_EXTENSION}` },
             ...sanitizedHistory,
             { role: 'user', content: analysisPrompt }
           ],
           max_tokens: maxOutputTokensFor(creditCheck.tier),
+          ...(matchScoreProfileBlock ? { tools: matchScoreToolChatShape(), tool_choice: 'auto' } : {}),
         }),
       });
 
@@ -471,16 +489,29 @@ CRITICAL:
       const analysis = ciExt.cleanText;
       await deductAiCredits(creditCheck, aiData.usage);
       console.log('AI analysis with client data generated successfully');
-      
+
+      let extScoreLegacy = matchScoreProfileBlock
+        ? (parseMatchScoreToolCalls(aiData.choices[0].message.tool_calls) ?? parseMatchScoreFromText(analysis))
+        : null;
+      if (matchScoreProfileBlock && !extScoreLegacy) {
+        extScoreLegacy = await repairMatchScore({
+          apiKey: LOVABLE_API_KEY!,
+          profileBlock: matchScoreProfileBlock,
+          analysisText: analysis,
+        });
+      }
+
       return new Response(
         JSON.stringify({
-          response: analysis,
+          response: ensureMatchScorePrefix(analysis, extScoreLegacy),
           properties: properties,
           hasProperties: true,
+          matchScore: extScoreLegacy,
           ...(ciExt.signals ? { signals: ciExt.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
     }
 
     // If 1+ URLs detected (no propertyData from extension), trigger Firecrawl analysis mode
