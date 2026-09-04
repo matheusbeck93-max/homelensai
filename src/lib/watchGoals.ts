@@ -86,7 +86,7 @@ export async function updateGoalFields(
   const filters = writeGoalFields(currentFilters, patch);
   const { error } = await supabase
     .from("saved_searches")
-    .update({ filters_json: filters })
+    .update({ filters_json: filters as any })
     .eq("id", goalId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, filters };
@@ -134,7 +134,7 @@ export async function createWatchGoal(
     .insert({
       user_id: user.id,
       query_text: input.label,
-      filters_json: filters,
+      filters_json: filters as any,
       alert_enabled: true,
       alert_frequency: input.cadence ?? "weekly",
     })

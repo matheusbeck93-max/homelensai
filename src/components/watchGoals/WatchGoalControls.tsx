@@ -52,7 +52,7 @@ export function WatchGoalControls({
     setSaving(true);
     const result = await updateGoalFields(goalId, filters, p);
     setSaving(false);
-    if (!result.ok) {
+    if (result.ok !== true) {
       toast({ title: "Could not save", description: result.error, variant: "destructive" });
       return;
     }

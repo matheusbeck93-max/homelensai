@@ -59,7 +59,7 @@ export function AgentActionBar({ seed, saveSlot, className }: Props) {
       seedProperty: seed,
     });
     setBusy(null);
-    if (!result.ok) {
+    if (result.ok !== true) {
       toast({ title: "Could not create watch goal", description: result.error, variant: "destructive" });
       return;
     }
@@ -92,7 +92,7 @@ export function AgentActionBar({ seed, saveSlot, className }: Props) {
       seedProperty: seed,
     });
     setBusy(null);
-    if (!result.ok) {
+    if (result.ok !== true) {
       toast({ title: "Could not create watch goal", description: result.error, variant: "destructive" });
       return;
     }
