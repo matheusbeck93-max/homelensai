@@ -997,34 +997,31 @@ CRITICAL:
       const ciFc = extractCiSignals(analysis);
       analysis = ciFc.cleanText;
 
-      // Extract structured match score from tool call if present.
-      let structuredMatchScore: { score: number; rationale: string } | null = null;
+      // Extract the REQUIRED structured match score: tool call > prose prefix >
+      // forced-tool repair call. Null only when there is no profile to score.
       const toolCalls = choice.tool_calls ?? [];
-      for (const tc of toolCalls) {
-        if (tc?.function?.name === 'submit_match_score') {
-          try {
-            const args = JSON.parse(tc.function.arguments || '{}');
-            if (typeof args.score === 'number' && args.score >= 0 && args.score <= 10) {
-              structuredMatchScore = { score: args.score, rationale: String(args.rationale || '') };
-            }
-          } catch (e) {
-            console.warn('[ai-chat] submit_match_score args parse failed', e);
-          }
-        }
+      let structuredMatchScore = firecrawlProfileBlock
+        ? (parseMatchScoreToolCalls(toolCalls) ?? parseMatchScoreFromText(analysis))
+        : null;
+      const toolCallEmitted = !!parseMatchScoreToolCalls(toolCalls);
+      if (firecrawlProfileBlock && !structuredMatchScore) {
+        structuredMatchScore = await repairMatchScore({
+          apiKey: LOVABLE_API_KEY!,
+          profileBlock: firecrawlProfileBlock,
+          analysisText: analysis,
+        });
       }
 
-      // If the model returned ONLY a tool call (no prose), synthesize a minimal
-      // prefix so the existing client-side parser still surfaces the score.
-      if (!analysis && structuredMatchScore) {
-        analysis = `MATCH_SCORE: ${structuredMatchScore.score}/10\n\n${structuredMatchScore.rationale}`;
-      }
+      // Keep the legacy MATCH_SCORE prefix in the prose for older clients.
+      analysis = ensureMatchScorePrefix(analysis, structuredMatchScore);
 
       console.log(JSON.stringify({
         marker: '[ai-chat-tool-call]',
         branch: 'firecrawl',
-        toolCallEmitted: !!structuredMatchScore,
+        toolCallEmitted,
         toolCallCount: toolCalls.length,
         hadProse: !!choice.content,
+        scoreSource: structuredMatchScore?.source ?? null,
       }));
 
       // Persist telemetry (fire-and-forget; admin-only dashboard reads this).
@@ -1035,7 +1032,7 @@ CRITICAL:
           const telemetryClient = createClient(telemetryUrl, telemetryKey);
           telemetryClient.from('tool_call_telemetry').insert({
             branch: 'firecrawl',
-            tool_call_emitted: !!structuredMatchScore,
+            tool_call_emitted: toolCallEmitted,
             tool_call_count: toolCalls.length,
             had_prose: !!choice.content,
             model: 'google/gemini-2.5-flash',
@@ -1058,7 +1055,8 @@ CRITICAL:
           response: analysis,
           properties: properties, // Include properties for calculator option
           hasProperties: true,
-          ...(structuredMatchScore ? { matchScore: structuredMatchScore } : {}),
+          matchScore: structuredMatchScore,
+
           ...(ciFc.signals ? { signals: ciFc.signals } : {}),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
