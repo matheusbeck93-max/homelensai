@@ -70,6 +70,7 @@ function lazyWithRetry<T extends ComponentType<any>>(
 
 // Lazy loaded routes (non-critical)
 const PropertyDetail = lazyWithRetry(() => import("./pages/PropertyDetail"));
+const DealRoom = lazyWithRetry(() => import("./pages/DealRoom"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Settings = lazyWithRetry(() => import("./pages/Settings"));
 const SavedSearches = lazyWithRetry(() => import("./pages/SavedSearches"));
