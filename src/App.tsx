@@ -151,7 +151,9 @@ function App() {
                  <Route path="/admin/blog" element={<StaffRoute><BlogAdmin /></StaffRoute>} />
                  <Route path="/admin/blog/new" element={<StaffRoute><BlogEditor /></StaffRoute>} />
                  <Route path="/admin/blog/:id/edit" element={<StaffRoute><BlogEditor /></StaffRoute>} />
-                  <Route path="/property/:id" element={<PropertyDetail />} />
+                 <Route path="/property/:id" element={<PropertyDetail />} />
+                 <Route path="/deal-room" element={<DealRoom />} />
+                 <Route path="/deal-room/:id" element={<DealRoom />} />
                   <Route path="/chats" element={<ProtectedRoute><Chats /></ProtectedRoute>} />
                   <Route path="/chat" element={<Navigate to="/chats" replace />} />
                   <Route path="/console" element={<ProtectedRoute><Console /></ProtectedRoute>} />
