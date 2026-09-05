@@ -70,6 +70,7 @@ function lazyWithRetry<T extends ComponentType<any>>(
 
 // Lazy loaded routes (non-critical)
 const PropertyDetail = lazyWithRetry(() => import("./pages/PropertyDetail"));
+const DealRoom = lazyWithRetry(() => import("./pages/DealRoom"));
 const Profile = lazyWithRetry(() => import("./pages/Profile"));
 const Settings = lazyWithRetry(() => import("./pages/Settings"));
 const SavedSearches = lazyWithRetry(() => import("./pages/SavedSearches"));
@@ -150,7 +151,9 @@ function App() {
                  <Route path="/admin/blog" element={<StaffRoute><BlogAdmin /></StaffRoute>} />
                  <Route path="/admin/blog/new" element={<StaffRoute><BlogEditor /></StaffRoute>} />
                  <Route path="/admin/blog/:id/edit" element={<StaffRoute><BlogEditor /></StaffRoute>} />
-                  <Route path="/property/:id" element={<PropertyDetail />} />
+                 <Route path="/property/:id" element={<PropertyDetail />} />
+                 <Route path="/deal-room" element={<DealRoom />} />
+                 <Route path="/deal-room/:id" element={<DealRoom />} />
                   <Route path="/chats" element={<ProtectedRoute><Chats /></ProtectedRoute>} />
                   <Route path="/chat" element={<Navigate to="/chats" replace />} />
                   <Route path="/console" element={<ProtectedRoute><Console /></ProtectedRoute>} />
