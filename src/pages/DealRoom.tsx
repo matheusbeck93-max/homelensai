@@ -36,7 +36,7 @@ import { useCurrentPersona } from "@/lib/personas/useCurrentPersona";
 import { supabase } from "@/integrations/supabase/client";
 import { SaveAnalysisButton } from "@/components/chat/SaveAnalysisButton";
 import { AskGrokModal } from "@/components/dealRoom/AskGrokModal";
-import { analyzeListing } from "@/lib/dealRoom/analyze";
+import { analyzeInternalProperty, analyzeListing } from "@/lib/dealRoom/analyze";
 import { findRoomByUrl, getDealRoom, saveDealRoom } from "@/lib/dealRoom/store";
 import { VERDICT_LABEL, type DealRoom as DealRoomType } from "@/lib/dealRoom/types";
 
@@ -85,6 +85,7 @@ export default function DealRoom() {
   const { persona } = useCurrentPersona();
 
   const urlParam = params.get("url")?.trim() || "";
+  const propertyIdParam = params.get("propertyId")?.trim() || "";
   const [room, setRoom] = useState<DealRoomType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +140,39 @@ export default function DealRoom() {
     [navigate],
   );
 
+  const runInternal = useCallback(
+    async (pid: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error: dbError } = await supabase
+          .from("properties")
+          .select("address, city, state, zip, price, beds, baths, sqft")
+          .eq("id", pid)
+          .maybeSingle();
+        if (dbError || !data) throw new Error("That home is no longer available.");
+        const created = await analyzeInternalProperty(pid, {
+          address: data.address ?? undefined,
+          city: data.city ?? undefined,
+          state: data.state ?? undefined,
+          zip: data.zip ?? undefined,
+          price: data.price ?? undefined,
+          beds: data.beds ?? undefined,
+          baths: data.baths ?? undefined,
+          sqft: data.sqft ?? undefined,
+        });
+        const stored = saveDealRoom(created);
+        setRoom(stored);
+        navigate(`/deal-room/${stored.id}`, { replace: true });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not analyze that home.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [navigate],
+  );
+
   useEffect(() => {
     if (id) {
       const found = getDealRoom(id);
@@ -157,15 +191,23 @@ export default function DealRoom() {
         return;
       }
       void runAnalysis(urlParam);
+      return;
     }
-  }, [id, urlParam, runAnalysis, navigate]);
+    if (propertyIdParam) {
+      void runInternal(propertyIdParam);
+    }
+  }, [id, urlParam, propertyIdParam, runAnalysis, runInternal, navigate]);
 
   const facts = room?.facts;
   const addressLine =
     [facts?.address, facts?.city, facts?.state].filter(Boolean).join(", ") || "Listing";
   const priceText = money(facts?.price);
   const sketch = useMemo(() => mortgageSketch(facts?.price), [facts?.price]);
-  const isInvestor = persona === "investor" || tier === "investor";
+  const isInvestor =
+    tier === "investor" ||
+    persona === "rental_investor" ||
+    persona === "flipper" ||
+    persona === "institutional";
 
   const toggleCheck = (itemId: string) => {
     if (!room) return;
@@ -208,7 +250,7 @@ export default function DealRoom() {
 
   /* ---------- Empty / loading / error states ---------- */
 
-  if (!id && !urlParam) {
+  if (!id && !urlParam && !propertyIdParam) {
     return (
       <div className="min-h-screen bg-background">
         <Helmet>
@@ -450,6 +492,7 @@ export default function DealRoom() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+              {/^https?:/i.test(room.listingUrl) ? (
               <a
                 href={room.listingUrl}
                 target="_blank"
@@ -458,6 +501,11 @@ export default function DealRoom() {
               >
                 View the original listing
               </a>
+              ) : (
+                <Link to={`/property/${room.listingUrl.split("/").pop()}`} className="text-primary underline underline-offset-2">
+                  View this home in HomeLens
+                </Link>
+              )}
               <p className="text-xs text-muted-foreground">
                 Analyzed {new Date(room.createdAt).toLocaleString("en-US")}
               </p>
