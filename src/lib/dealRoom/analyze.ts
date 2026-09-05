@@ -130,3 +130,45 @@ export async function analyzeListing(url: string): Promise<DealRoom> {
     checklist: defaultChecklist(),
   };
 }
+
+/**
+ * Deal Room for a listing that lives inside HomeLens (no external URL).
+ * Same pipeline — the subject is the address instead of a link.
+ */
+export async function analyzeInternalProperty(
+  propertyId: string,
+  facts: DealFacts,
+): Promise<DealRoom> {
+  const subject = [facts.address, facts.city, facts.state, facts.zip].filter(Boolean).join(", ");
+  const { data, error } = await supabase.functions.invoke("perplexity-chat", {
+    body: {
+      query:
+        `Analyze this home for me and give a decision: ${subject}` +
+        (facts.price ? ` listed at $${facts.price.toLocaleString("en-US")}` : "") +
+        `.\nCover: whether the price looks fair, the key risks, monthly cost sketch, and how it fits my profile. ` +
+        `Start your reply with the line "MATCH_SCORE: X/10".`,
+      conversationHistory: [],
+    },
+  });
+  if (error) throw new Error(error.message || "Analysis failed");
+  const raw = (data as { message?: string })?.message || "";
+  if (!raw) throw new Error("No analysis returned for this home.");
+
+  const { score, clean } = parseMatchScore(raw);
+  const analysis = stripMarkers(clean);
+  const { why, whyNot } = splitWhy(analysis);
+  const now = new Date().toISOString();
+  return {
+    id: newRoomId(),
+    listingUrl: `homelens:property/${propertyId}`,
+    createdAt: now,
+    updatedAt: now,
+    facts,
+    score,
+    verdict: verdictFromScore(score),
+    analysis,
+    why,
+    whyNot,
+    checklist: defaultChecklist(),
+  };
+}
