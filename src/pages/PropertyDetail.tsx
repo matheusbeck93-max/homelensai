@@ -365,6 +365,17 @@ export default function PropertyDetail() {
                   </>
                 )}
               </Button>
+              {property.external_url && (
+                <Button
+                  variant="secondary"
+                  className="w-full mt-2"
+                  onClick={() =>
+                    navigate(`/deal-room?url=${encodeURIComponent(property.external_url)}`)
+                  }
+                >
+                  Open Deal Room
+                </Button>
+              )}
               {cap.warningLevel === "approaching" && (
                 <div className="flex justify-center mt-2">
                   <BudgetCapBanner surface="property_ai_analysis" />
