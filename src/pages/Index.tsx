@@ -563,6 +563,18 @@ export default function Index() {
                   Analyze
                 </Button>
               </div>
+              {/^https?:\/\//i.test(heroInput.trim()) && (
+                <div className="mt-2 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => navigate(`/deal-room?url=${encodeURIComponent(heroInput.trim())}`)}
+                  >
+                    Open Deal Room
+                  </Button>
+                </div>
+              )}
               <p className="text-xs sm:text-sm text-muted-foreground mt-2">
                 Paste any listing URL for an AI Match Score — or ask a question
               </p>
