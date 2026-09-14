@@ -48,7 +48,8 @@ export default function PropertyDetail() {
   const [neighborhoodPersonality, setNeighborhoodPersonality] = useState<string>("");
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [insightsSource, setInsightsSource] = useState<'perplexity' | 'fallback'>('fallback');
-  const [showMap, setShowMap] = useState(false);
+  const [openSection, setOpenSection] = useState<string>("");
+  const showMap = openSection === "map";
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
@@ -105,7 +106,7 @@ export default function PropertyDetail() {
   }, [property]);
 
   const handleMapToggle = () => {
-    setShowMap(!showMap);
+    setOpenSection((prev) => (prev === "map" ? "" : "map"));
   };
 
   const fetchProperty = async () => {
@@ -436,8 +437,8 @@ export default function PropertyDetail() {
           <Accordion
             type="single"
             collapsible
-            value={showMap ? "map" : undefined}
-            onValueChange={(v) => setShowMap(v === "map")}
+            value={openSection}
+            onValueChange={setOpenSection}
           >
             {/* Property Insights (RentCast & Census) */}
             {property.insights && (

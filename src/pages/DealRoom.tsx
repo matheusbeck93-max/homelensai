@@ -219,7 +219,17 @@ export default function DealRoom() {
   };
 
   const share = async () => {
-    const shareUrl = window.location.href;
+    // Rooms live in the sender's browser, so share a link that rebuilds the room
+    // anywhere: the listing link (or internal property id), not the local room id.
+    const origin = window.location.origin;
+    const internalId = room?.listingUrl.startsWith("homelens:property/")
+      ? room.listingUrl.slice("homelens:property/".length)
+      : null;
+    const shareUrl = internalId
+      ? `${origin}/deal-room?propertyId=${encodeURIComponent(internalId)}`
+      : room
+        ? `${origin}/deal-room?url=${encodeURIComponent(room.listingUrl)}`
+        : window.location.href;
     const text = `${addressLine}${priceText ? ` — ${priceText}` : ""} · HomeLens Deal Room`;
     try {
       if (navigator.share) {
