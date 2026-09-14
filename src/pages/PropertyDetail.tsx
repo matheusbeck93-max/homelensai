@@ -48,7 +48,8 @@ export default function PropertyDetail() {
   const [neighborhoodPersonality, setNeighborhoodPersonality] = useState<string>("");
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [insightsSource, setInsightsSource] = useState<'perplexity' | 'fallback'>('fallback');
-  const [showMap, setShowMap] = useState(false);
+  const [openSection, setOpenSection] = useState<string>("");
+  const showMap = openSection === "map";
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
