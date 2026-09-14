@@ -106,7 +106,7 @@ export default function PropertyDetail() {
   }, [property]);
 
   const handleMapToggle = () => {
-    setShowMap(!showMap);
+    setOpenSection((prev) => (prev === "map" ? "" : "map"));
   };
 
   const fetchProperty = async () => {
@@ -437,8 +437,8 @@ export default function PropertyDetail() {
           <Accordion
             type="single"
             collapsible
-            value={showMap ? "map" : undefined}
-            onValueChange={(v) => setShowMap(v === "map")}
+            value={openSection}
+            onValueChange={setOpenSection}
           >
             {/* Property Insights (RentCast & Census) */}
             {property.insights && (
