@@ -1,5 +1,11 @@
 # Roadmap
 
+## Article — Buying a House in a Flood Zone
+
+- [x] Verify the Buyer Account CTA and time-sensitive NFIP statement
+- [x] Create and attach the hero and two inline images
+- [x] Add the article, schema, internal links, and sitemap entry
+
 ## Agentic v1 — Watch → Score → Notify → Propose
 
 - [x] Step 1: Watch Goals backend (`watch-goals-evaluate` cron function, agentic fields in `saved_searches.filters_json`, `alert_events` writes, email digest, daily cron at 12:30 UTC)
