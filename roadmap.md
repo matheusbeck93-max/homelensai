@@ -2,8 +2,8 @@
 
 ## Article — Buying a House in a Flood Zone
 
-- [ ] Verify the Buyer Account CTA and time-sensitive NFIP statement
-- [ ] Create and attach the hero and two inline images
+- [x] Verify the Buyer Account CTA and time-sensitive NFIP statement
+- [x] Create and attach the hero and two inline images
 - [ ] Add the article, schema, internal links, and sitemap entry
 
 ## Agentic v1 — Watch → Score → Notify → Propose
